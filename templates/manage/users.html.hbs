@@ -1,0 +1,17 @@
+{{#*inline "page"}}
+    <h1>Aggregate grades per user:</h1>
+
+    <table>
+        <tr>
+            <th>Pseudonym</th>
+            <th>Average grade</th>
+        </tr>
+        {{#each users}}
+            <tr>
+                <td>{{{ this.pseudonym }}}</td>
+                <td>{{{ this.average_grade }}}</td>
+            </tr>
+        {{/each}}
+    </table>
+{{/inline}}
+{{~> (parent)~}}

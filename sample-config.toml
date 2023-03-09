@@ -6,6 +6,8 @@ db_user = "root"
 db_password = "password"
 # list email addresses whose API keys get admin access
 admins = ["malte@cs.brown.edu"]
+# list email addresses whose API keys get manager access
+managers = ["malte@cs.brown.edu"]
 # list email addresses who should receive notification emails
 staff = ["malte@cs.brown.edu"]
 # custom template directory

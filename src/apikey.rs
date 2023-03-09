@@ -91,11 +91,17 @@ pub(crate) fn generate(
         0.into()
     };
 
+    let is_manager = if config.managers.contains(&data.email) {
+        1.into()
+    } else {
+        0.into()
+    };
+
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "users",
-        vec![data.email.as_str().into(), hash.as_str().into(), is_admin,
+        vec![data.email.as_str().into(), hash.as_str().into(), is_admin, is_manager,
              pseudonym.into(), data.gender.as_str().into(), data.age.into(),
              data.ethnicity.as_str().into(), data.is_remote.into(), data.education.as_str().into()],
     );
