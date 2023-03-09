@@ -7,6 +7,7 @@
         <th>ID</th>
         <th>Answer</th>
         <th>Submission time</th>
+        <th>Grade</th>
       </tr>
       {{#each answers}}
       <tr>
@@ -14,6 +15,7 @@
         <td>{{{ this.id }}}</td>
         <td>{{{ this.answer }}}</td>
         <td>{{{ this.time }}}</td>
+        <td>{{{ this.grade }}}</td>
       </tr>
       {{/each}}
     </table>

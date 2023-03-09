@@ -22,6 +22,11 @@ pub(crate) struct LectureQuestionSubmission {
     answers: HashMap<u64, String>,
 }
 
+#[derive(Debug, FromForm)]
+pub(crate) struct EditGradeForm {
+    grade: u64,
+}
+
 #[derive(Serialize)]
 pub(crate) struct LectureQuestion {
     pub id: u64,
@@ -42,6 +47,7 @@ struct LectureAnswer {
     user: String,
     answer: String,
     time: Option<NaiveDateTime>,
+    grade: u64,
 }
 
 #[derive(Serialize)]
@@ -108,6 +114,92 @@ pub(crate) fn leclist(
 }
 
 #[get("/<num>")]
+pub(crate) fn grades(
+    _admin: Admin,
+    num: u8,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let key: Value = (num as u64).into();
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
+    drop(bg);
+    let answers: Vec<_> = res
+        .into_iter()
+        .map(|r| LectureAnswer {
+            id: from_value(r[2].clone()),
+            user: from_value(r[0].clone()),
+            answer: from_value(r[3].clone()),
+            time: if let Value::Time(..) = r[4] {
+                Some(from_value::<NaiveDateTime>(r[4].clone()))
+            } else {
+                None
+            },
+            grade: from_value(r[5].clone()),
+        })
+        .collect();
+
+    let ctx = LectureAnswersContext {
+        lec_id: num,
+        answers: answers,
+        parent: "layout",
+    };
+    Template::render("grades", &ctx)
+}
+
+#[get("/<user>/<num>/<qnum>")]
+pub(crate) fn editg(
+    _adm: Admin,
+    user: String,
+    num: u8,
+    qnum: u8,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec(
+        "SELECT * FROM answers WHERE lec = ?",
+        vec![(num as u64).into()],
+    );
+    drop(bg);
+
+    let mut ctx = HashMap::new();
+    for r in res {
+        if r[0] == user.clone().into() && r[1] == (qnum as u64).into() {
+            ctx.insert("answer", format!("{}", from_value::<String>(r[2].clone())));
+            ctx.insert("grade", format!("{}", from_value::<u64>(r[5].clone())));
+        }
+    }
+    ctx.insert("user", format!("{}", user));
+    ctx.insert("lec_id", format!("{}", num));
+    ctx.insert("lec_qnum", format!("{}", qnum));
+    ctx.insert("parent", String::from("layout"));
+    Template::render("gradeedit", &ctx)
+}
+
+#[post("/editg/<user>/<num>/<qnum>", data = "<data>")]
+pub(crate) fn editg_submit(
+    _adm: Admin,
+    user: String,
+    num: u8,
+    qnum: u8,
+    data: Form<EditGradeForm>,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Redirect {
+    let mut bg = backend.lock().unwrap();
+    bg.prep_exec(
+        "UPDATE answers SET grade = ? WHERE email = ? AND lec = ? AND q = ?",
+        vec![
+            (data.grade as u64).into(),
+            user.into(),
+            (num as u64).into(),
+            (qnum as u64).into(),
+        ],
+    );
+    drop(bg);
+
+    Redirect::to(format!("/grades/{}", num))
+}
+
+#[get("/<num>")]
 pub(crate) fn answers(
     _admin: Admin,
     num: u8,
@@ -128,6 +220,7 @@ pub(crate) fn answers(
             } else {
                 None
             },
+            grade: from_value(r[5].clone()),
         })
         .collect();
 
@@ -196,6 +289,7 @@ pub(crate) fn questions_submit(
     let mut bg = backend.lock().unwrap();
     let vnum: Value = (num as u64).into();
     let ts: Value = Local::now().naive_local().into();
+    let grade: Value = 0.into();
 
     for (id, answer) in &data.answers {
         let rec: Vec<Value> = vec![
@@ -204,6 +298,7 @@ pub(crate) fn questions_submit(
             (*id).into(),
             answer.clone().into(),
             ts.clone(),
+            grade.clone(),
         ];
         bg.replace("answers", rec);
     }
