@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 
 use mysql::from_value;
+use mysql::prelude::FromValue;
+pub use mysql::Value;
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::request::{self, FromRequest, Request};
@@ -37,15 +41,33 @@ impl<'r> FromRequest<'r> for Manager {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct AnonymousAggregate {
-    pseudonym: String,
-    average_grade: f64,
+pub(crate) struct AnonymousAggregates<T> {
+    property: T,
+    average: f64,
 }
 
 #[derive(Serialize)]
-struct AnonymousAggregateContext {
-    users: Vec<AnonymousAggregate>,
+struct AnonymousAggregatesContext {
+    aggregates_per_user: Vec<AnonymousAggregates<String>>,
+    aggregates_per_gender: Vec<AnonymousAggregates<String>>,
+    aggregates_per_remote: Vec<AnonymousAggregates<u8>>,
     parent: &'static str,
+}
+
+fn get_aggregate<T: Eq + Hash + FromValue>(by_idx: usize, grade_idx: usize, data: &Vec<Vec<Value>>)
+                                           -> Vec<AnonymousAggregates<T>> {
+    data.iter()
+        .fold(HashMap::new(), |mut m, r| {
+            m.entry(from_value(r[by_idx].clone()))
+                .and_modify(|v: &mut Vec<u64>| v.push(from_value(r[grade_idx].clone())))
+                .or_insert(vec![from_value(r[grade_idx].clone())]);
+            m
+        }).into_iter()
+        .map(|(pseudonym, grades)|
+            AnonymousAggregates {
+                property: pseudonym,
+                average: grades.iter().sum::<u64>() as f64 / grades.len() as f64,
+            }).collect()
 }
 
 #[get("/")]
@@ -54,16 +76,17 @@ pub(crate) fn get_aggregate_grades(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("select users.pseudonym, avg(answers.grade) from users join answers on users.email = answers.email group by users.pseudonym;", vec![]);
+    let grades = bg.prep_exec("SELECT pseudonym, gender, is_remote, grade FROM users JOIN answers ON users.email = answers.email;", vec![]);
     drop(bg);
 
-    let anonymous_aggregates: Vec<_> = res.into_iter().map(|r| AnonymousAggregate {
-        pseudonym: from_value(r[0].clone()),
-        average_grade: from_value(r[1].clone()),
-    }).collect();
+    let aggregates_per_user = get_aggregate(0, 3, &grades);
+    let aggregates_per_gender = get_aggregate(1, 3, &grades);
+    let aggregates_per_remote = get_aggregate(2, 3, &grades);
 
-    let ctx = AnonymousAggregateContext {
-        users: anonymous_aggregates,
+    let ctx = AnonymousAggregatesContext {
+        aggregates_per_user,
+        aggregates_per_gender,
+        aggregates_per_remote,
         parent: "layout",
     };
     Template::render("manage/users", &ctx)
