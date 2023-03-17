@@ -163,8 +163,8 @@ pub(crate) fn editg(
 
     let mut ctx = HashMap::new();
     for r in res {
-        if r[0] == user.clone().into() && r[1] == (qnum as u64).into() {
-            ctx.insert("answer", format!("{}", from_value::<String>(r[2].clone())));
+        if from_value::<String>(r[0].clone()) == user && from_value::<u8>(r[2].clone()) == qnum {
+            ctx.insert("answer", format!("{}", from_value::<String>(r[3].clone())));
             ctx.insert("grade", format!("{}", from_value::<u64>(r[5].clone())));
         }
     }
