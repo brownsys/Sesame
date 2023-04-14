@@ -10,6 +10,9 @@ use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
+use linfa::prelude::*;
+use linfa_linear::LinearRegression;
+use ndarray::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -25,6 +28,11 @@ pub(crate) struct LectureQuestionSubmission {
 #[derive(Debug, FromForm)]
 pub(crate) struct EditGradeForm {
     grade: u64,
+}
+
+#[derive(Debug, FromForm)]
+pub(crate) struct PredictGradeForm {
+    time: String,
 }
 
 #[derive(Serialize)]
@@ -46,7 +54,7 @@ struct LectureAnswer {
     id: u64,
     user: String,
     answer: String,
-    time: Option<NaiveDateTime>,
+    time: String,
     grade: u64,
 }
 
@@ -69,6 +77,20 @@ struct LectureListEntry {
 struct LectureListContext {
     admin: bool,
     lectures: Vec<LectureListEntry>,
+    parent: &'static str,
+}
+
+#[derive(Serialize)]
+struct PredictContext {
+    lec_id: u8,
+    parent: &'static str,
+}
+
+#[derive(Serialize)]
+struct PredictGradeContext {
+    lec_id: u8,
+    time: String,
+    grade: f64,
     parent: &'static str,
 }
 
@@ -114,6 +136,62 @@ pub(crate) fn leclist(
 }
 
 #[get("/<num>")]
+pub(crate) fn predict(
+    _admin: Admin,
+    num: u8,
+    _backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let ctx = PredictContext {
+        lec_id: num,
+        parent: "layout",
+    };
+    Template::render("predict", &ctx)
+}
+
+#[post("/predict_grade/<num>", data = "<data>")]
+pub(crate) fn predict_grade(
+    _adm: Admin,
+    num: u8,
+    data: Form<PredictGradeForm>,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let time = NaiveDateTime::parse_from_str(data.time.as_str(), "%Y-%m-%d %H:%M:%S");
+    let mut bg = backend.lock().unwrap();
+    let key: Value = (num as u64).into();
+    let res = bg.prep_exec("SELECT submitted_at, grade FROM answers WHERE lec = ?", vec![key]);
+    drop(bg);
+    let grades: Vec<[f64;2]> = res
+        .into_iter()
+        .map(|r | [
+            from_value::<NaiveDateTime>(r[0].clone()).timestamp() as f64, 
+            from_value::<u64>(r[1].clone()) as f64
+        ])
+        .collect();
+
+    let array: Array2<f64> = Array2::from(grades);
+
+    let (x, y) = (
+        array.slice(s![.., 0..1]).to_owned(),
+        array.column(1).to_owned()
+    );
+
+    let dataset = Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
+
+    let lin_reg = LinearRegression::new();
+    let model = lin_reg.fit(&dataset).unwrap();
+
+    let grade = model.params()[0] * (time.unwrap().timestamp() as f64) + model.intercept();
+
+    let ctx = PredictGradeContext {
+        lec_id: num,
+        time: data.time.clone(),
+        grade: grade,
+        parent: "layout",
+    };
+    Template::render("predictgrade", &ctx)
+}
+
+#[get("/<num>")]
 pub(crate) fn grades(
     _admin: Admin,
     num: u8,
@@ -129,11 +207,7 @@ pub(crate) fn grades(
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: if let Value::Time(..) = r[4] {
-                Some(from_value::<NaiveDateTime>(r[4].clone()))
-            } else {
-                None
-            },
+            time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
             grade: from_value(r[5].clone()),
         })
         .collect();
@@ -215,11 +289,7 @@ pub(crate) fn answers(
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: if let Value::Time(..) = r[4] {
-                Some(from_value::<NaiveDateTime>(r[4].clone()))
-            } else {
-                None
-            },
+            time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
             grade: from_value(r[5].clone()),
         })
         .collect();

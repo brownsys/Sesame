@@ -88,9 +88,16 @@ async fn main() {
         )
         .mount("/apikey/check", routes![apikey::check])
         .mount("/apikey/generate", routes![apikey::generate])
-        .mount("/grades", routes![questions::grades, questions::editg, questions::editg_submit])
+        .mount(
+            "/grades", 
+            routes![questions::grades, questions::editg, questions::editg_submit]
+        )
         .mount("/answers", routes![questions::answers])
         .mount("/leclist", routes![questions::leclist])
+        .mount(
+            "/predict", 
+            routes![questions::predict, questions::predict_grade]
+        )
         .mount("/login", routes![login::login])
         .mount(
             "/admin/lec/add",
