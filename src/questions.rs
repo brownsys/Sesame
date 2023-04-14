@@ -14,7 +14,11 @@ use linfa::prelude::*;
 use linfa_linear::LinearRegression;
 use ndarray::prelude::*;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
+use serde::Serialize;
 
 //pub(crate) enum LectureQuestionFormError {
 //   Invalid,
@@ -177,8 +181,23 @@ pub(crate) fn predict_grade(
 
     let dataset = Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
 
-    let lin_reg = LinearRegression::new();
-    let model = lin_reg.fit(&dataset).unwrap();
+    let model_path = Path::new("model.json");
+
+    let model = if model_path.exists() {
+        println!("Loading the model from a file...");
+        let mut file = File::open(model_path).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+        serde_json::from_value((&contents).parse().unwrap()).unwrap()
+    } else {
+        println!("Re-training the model and saving it to disk...");
+        let lin_reg = LinearRegression::new();
+        let model = lin_reg.fit(&dataset).unwrap();
+        let serialized_model = serde_json::to_string(&model).unwrap();
+        let mut file = File::create(model_path).unwrap();
+        file.write_all(serialized_model.as_ref()).unwrap();
+        model
+    };
 
     let grade = model.params()[0] * (time.unwrap().timestamp() as f64) + model.intercept();
 
