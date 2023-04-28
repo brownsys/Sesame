@@ -1,12 +1,12 @@
 use crate::admin::Admin;
-use crate::apikey::ApiKey;
+use crate::apikey::{ApiKey, BBoxApiKey};
 use crate::backend::{MySqlBackend, Value};
 use crate::config::Config;
 use crate::email;
 use chrono::naive::NaiveDateTime;
 use chrono::Local;
 use mysql::from_value;
-use rocket::form::{Form, FromForm};
+use rocket::form::{DataField, Form, FromForm, Options, ValueField};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
@@ -19,6 +19,7 @@ use std::io::{Read, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use serde::Serialize;
+use crate::bbox::BBox;
 
 //pub(crate) enum LectureQuestionFormError {
 //   Invalid,
@@ -27,6 +28,20 @@ use serde::Serialize;
 #[derive(Debug, FromForm)]
 pub(crate) struct LectureQuestionSubmission {
     answers: HashMap<u64, String>,
+}
+
+pub(crate) struct BoxedLectureQuestionSubmission {
+    answers: HashMap<u64, BBox<String>>,
+}
+
+impl BoxedLectureQuestionSubmission {
+    pub fn new(lqs: &HashMap<u64, String>) -> Self {
+        let mut _self: Self = Self {answers : HashMap::new()};
+        for answer in lqs.iter() {
+            _self.answers.insert(*answer.0, BBox::new(answer.1.clone()));
+        }
+        _self
+    }
 }
 
 #[derive(Debug, FromForm)]
@@ -375,33 +390,38 @@ pub(crate) fn questions_submit(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
 ) -> Redirect {
+    let apikey = BBoxApiKey::new(&apikey);
+    let num = BBox::new(num);
+    let data = BoxedLectureQuestionSubmission::new(&data.answers);
+
     let mut bg = backend.lock().unwrap();
-    let vnum: Value = (num as u64).into();
+    // let vnum: Value = (num as u64).into();
     let ts: Value = Local::now().naive_local().into();
     let grade: Value = 0.into();
 
     for (id, answer) in &data.answers {
         let rec: Vec<Value> = vec![
-            apikey.user.clone().into(),
-            vnum.clone(),
+            apikey.user.internal_unbox().clone().into(),
+            (num.internal_unbox().clone() as u64).into(),
             (*id).into(),
-            answer.clone().into(),
+            answer.internal_unbox().clone().into(),
             ts.clone(),
             grade.clone(),
         ];
         bg.replace("answers", rec);
     }
 
+    // TODO: some context that represents sending an email; unbox given that context
     let answer_log = format!(
         "{}",
         data.answers
             .iter()
-            .map(|(i, t)| format!("Question {}:\n{}", i, t))
+            .map(|(i, t)| format!("Question {}:\n{}", i, t.unbox("email")))
             .collect::<Vec<_>>()
             .join("\n-----\n")
     );
     if config.send_emails {
-        let recipients = if num < 90 {
+        let recipients = if *num.unbox("email") < 90 {
             config.staff.clone()
         } else {
             config.admins.clone()
@@ -409,9 +429,9 @@ pub(crate) fn questions_submit(
 
         email::send(
             bg.log.clone(),
-            apikey.user.clone(),
+            apikey.user.unbox("email").clone(),
             recipients,
-            format!("{} meeting {} questions", config.class, num),
+            format!("{} meeting {} questions", config.class, num.unbox("email")),
             answer_log,
         )
         .expect("failed to send email");

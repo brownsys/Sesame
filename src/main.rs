@@ -19,6 +19,7 @@ mod email;
 mod login;
 mod questions;
 mod manage;
+mod bbox;
 
 use backend::MySqlBackend;
 use rocket::fs::FileServer;

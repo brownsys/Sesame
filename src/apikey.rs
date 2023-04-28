@@ -16,11 +16,23 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use rand::{Rng, thread_rng};
 use rand::distributions::Alphanumeric;
+use crate::bbox::BBox;
 
 /// (username, apikey)
 pub(crate) struct ApiKey {
     pub user: String,
     pub key: String,
+}
+
+pub(crate) struct BBoxApiKey {
+    pub user: BBox<String>,
+    pub key: BBox<String>,
+}
+
+impl BBoxApiKey {
+    pub fn new(apiKey: &ApiKey) -> BBoxApiKey {
+        BBoxApiKey { user: BBox::new(apiKey.user.clone()), key: BBox::new(apiKey.key.clone()) }
+    }
 }
 
 #[derive(Debug, FromForm)]
