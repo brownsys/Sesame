@@ -36,7 +36,7 @@ pub(crate) struct BoxedLectureQuestionSubmission {
 
 impl BoxedLectureQuestionSubmission {
     pub fn new(lqs: &HashMap<u64, String>) -> Self {
-        let mut _self: Self = Self {answers : HashMap::new()};
+        let mut _self: Self = Self { answers: HashMap::new() };
         for answer in lqs.iter() {
             _self.answers.insert(*answer.0, BBox::new(answer.1.clone()));
         }
@@ -54,7 +54,7 @@ pub(crate) struct PredictGradeForm {
     time: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub(crate) struct LectureQuestion {
     pub id: u64,
     pub prompt: String,
@@ -179,10 +179,10 @@ pub(crate) fn predict_grade(
     let key: Value = (num as u64).into();
     let res = bg.prep_exec("SELECT submitted_at, grade FROM answers WHERE lec = ?", vec![key]);
     drop(bg);
-    let grades: Vec<[f64;2]> = res
+    let grades: Vec<[f64; 2]> = res
         .into_iter()
-        .map(|r | [
-            from_value::<NaiveDateTime>(r[0].clone()).timestamp() as f64, 
+        .map(|r| [
+            from_value::<NaiveDateTime>(r[0].clone()).timestamp() as f64,
             from_value::<u64>(r[1].clone()) as f64
         ])
         .collect();
@@ -345,38 +345,52 @@ pub(crate) fn questions(
     use std::collections::HashMap;
 
     let mut bg = backend.lock().unwrap();
-    let key: Value = (num as u64).into();
+    let num = BBox::new(num);
+    let key: BBox<Value> = num.sandbox_execute(|num| {(*num as u64).into()});
+    let apikey = BBoxApiKey::new(&apikey);
 
-    let answers_res = bg.prep_exec(
+    let answers_res = BBox::new(bg.prep_exec(
         "SELECT answers.* FROM answers WHERE answers.lec = ? AND answers.email = ?",
-        vec![(num as u64).into(), apikey.user.clone().into()],
-    );
-    let mut answers = HashMap::new();
+        vec![key.internal_unbox().clone(), apikey.user.internal_unbox().clone().into()],
+    ));
 
-    for r in answers_res {
-        let id: u64 = from_value(r[2].clone());
-        let atext: String = from_value(r[3].clone());
-        answers.insert(id, atext);
-    }
-    let res = bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key]);
+    let make_hashmap = |answers_res: &Vec<Vec<Value>>| {
+        let mut answers = HashMap::new();
+        for r in answers_res {
+            let id: u64 = from_value(r[2].clone());
+            let atext: String = from_value(r[3].clone());
+            answers.insert(id, atext);
+        }
+        answers
+    };
+
+    let answers = answers_res.sandbox_execute(make_hashmap);
+
+    let res = BBox::new(bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key.internal_unbox().clone()]));
     drop(bg);
-    let mut qs: Vec<_> = res
-        .into_iter()
-        .map(|r| {
-            let id: u64 = from_value(r[1].clone());
-            let answer = answers.get(&id).map(|s| s.to_owned());
-            LectureQuestion {
-                id: id,
-                prompt: from_value(r[2].clone()),
-                answer: answer,
-            }
-        })
-        .collect();
-    qs.sort_by(|a, b| a.id.cmp(&b.id));
+
+    let make_questions = |res: &Vec<Vec<Value>>, answers: &HashMap<u64, String>| {
+        let mut qs: Vec<_> = res
+            .into_iter()
+            .map(|r| {
+                let id: u64 = from_value(r[1].clone());
+                let answer = answers.get(&id).map(|s| s.to_owned());
+                LectureQuestion {
+                    id: id,
+                    prompt: from_value(r[2].clone()),
+                    answer: answer,
+                }
+            })
+            .collect();
+        qs.sort_by(|a, b| a.id.cmp(&b.id));
+        qs
+    };
+
+    let qs = BBox::<Vec<LectureQuestion>>::sandbox_combine(res, answers, make_questions);
 
     let ctx = LectureQuestionsContext {
-        lec_id: num,
-        questions: qs,
+        lec_id: *num.unbox("frontend"),
+        questions: qs.unbox("frontend").clone(),
         parent: "layout",
     };
     Template::render("questions", &ctx)
@@ -434,7 +448,7 @@ pub(crate) fn questions_submit(
             format!("{} meeting {} questions", config.class, num.unbox("email")),
             answer_log,
         )
-        .expect("failed to send email");
+            .expect("failed to send email");
     }
     drop(bg);
 

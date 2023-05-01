@@ -16,7 +16,11 @@ impl<T> BBox<T> {
         &self.t
     }
 
-    pub fn sandbox_unbox<R, F: Fn(&T) -> R>(&self, lambda: F) -> R {
-        lambda(&self.t)
+    pub fn sandbox_execute<R, F: Fn(&T) -> R>(&self, lambda: F) -> BBox<R> {
+        BBox::new(lambda(&self.t))
+    }
+
+    pub fn sandbox_combine<U, V, R, F: Fn(&U, &V) -> R>(bbox1: BBox<U>, bbox2: BBox<V>, lambda: F) -> BBox<R> {
+        BBox::new(lambda(bbox1.internal_unbox(), bbox2.internal_unbox()))
     }
 }
