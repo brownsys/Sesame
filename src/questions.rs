@@ -346,7 +346,7 @@ pub(crate) fn questions(
 
     let mut bg = backend.lock().unwrap();
     let num = BBox::new(num);
-    let key: BBox<Value> = num.sandbox_execute(|num| {(*num as u64).into()});
+    let key: BBox<Value> = num.into2::<u64>().into2();
     let apikey = BBoxApiKey::new(&apikey);
 
     let answers_res = BBox::new(bg.prep_exec(
@@ -389,8 +389,8 @@ pub(crate) fn questions(
     let qs = BBox::<Vec<LectureQuestion>>::sandbox_combine(res, answers, make_questions);
 
     let ctx = LectureQuestionsContext {
-        lec_id: *num.unbox("frontend"),
-        questions: qs.unbox("frontend").clone(),
+        lec_id: *num.internal_unbox(),
+        questions: qs.internal_unbox().clone(),
         parent: "layout",
     };
     Template::render("questions", &ctx)
