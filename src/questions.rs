@@ -349,28 +349,23 @@ pub(crate) fn questions(
     let key: BBox<Value> = num.into2::<u64>().into2();
     let apikey = BBoxApiKey::new(&apikey);
 
-    let answers_res = BBox::new(bg.prep_exec(
+    let answers_result = BBox::new(bg.prep_exec(
         "SELECT answers.* FROM answers WHERE answers.lec = ? AND answers.email = ?",
         vec![key.internal_unbox().clone(), apikey.user.internal_unbox().clone().into()],
     ));
 
-    let make_hashmap = |answers_res: &Vec<Vec<Value>>| {
+    let questions_result = BBox::new(bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key.internal_unbox().clone()]));
+    drop(bg);
+
+    let make_questions = |res: &Vec<Vec<Value>>, answers_res: &Vec<Vec<Value>>| {
         let mut answers = HashMap::new();
         for r in answers_res {
             let id: u64 = from_value(r[2].clone());
             let atext: String = from_value(r[3].clone());
             answers.insert(id, atext);
         }
-        answers
-    };
 
-    let answers = answers_res.sandbox_execute(make_hashmap);
-
-    let res = BBox::new(bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key.internal_unbox().clone()]));
-    drop(bg);
-
-    let make_questions = |res: &Vec<Vec<Value>>, answers: &HashMap<u64, String>| {
-        let mut qs: Vec<_> = res
+        let mut questions: Vec<_> = res
             .into_iter()
             .map(|r| {
                 let id: u64 = from_value(r[1].clone());
@@ -382,15 +377,15 @@ pub(crate) fn questions(
                 }
             })
             .collect();
-        qs.sort_by(|a, b| a.id.cmp(&b.id));
-        qs
+        questions.sort_by(|a, b| a.id.cmp(&b.id));
+        questions
     };
 
-    let qs = BBox::<Vec<LectureQuestion>>::sandbox_combine(res, answers, make_questions);
+    let questions = BBox::<Vec<LectureQuestion>>::sandbox_combine(questions_result, answers_result, make_questions);
 
     let ctx = LectureQuestionsContext {
         lec_id: *num.internal_unbox(),
-        questions: qs.internal_unbox().clone(),
+        questions: questions.internal_unbox().clone(),
         parent: "layout",
     };
     Template::render("questions", &ctx)
