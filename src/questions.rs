@@ -49,6 +49,17 @@ pub(crate) struct EditGradeForm {
     grade: u64,
 }
 
+pub(crate) struct BoxedEditGradeForm {
+    grade: BBox<u64>,
+}
+
+impl BoxedEditGradeForm {
+    pub fn new(grade: u64) -> Self {
+        let mut _self: Self = Self { grade: BBox::new(grade) };
+        _self
+    }
+}
+
 #[derive(Debug, FromForm)]
 pub(crate) struct PredictGradeForm {
     time: String,
@@ -68,8 +79,8 @@ pub(crate) struct LectureQuestionsContext {
     pub parent: &'static str,
 }
 
-#[derive(Serialize)]
-struct LectureAnswer {
+#[derive(Serialize, Clone)]
+pub(crate) struct LectureAnswer {
     id: u64,
     user: String,
     answer: String,
@@ -293,18 +304,24 @@ pub(crate) fn editg_submit(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Redirect {
     let mut bg = backend.lock().unwrap();
+
+    let user = BBox::new(user);
+    let num = BBox::new(num);
+    let qnum = BBox::new(qnum);
+    let data = BoxedEditGradeForm::new(data.grade);
+
     bg.prep_exec(
         "UPDATE answers SET grade = ? WHERE email = ? AND lec = ? AND q = ?",
         vec![
-            (data.grade as u64).into(),
-            user.into(),
-            (num as u64).into(),
-            (qnum as u64).into(),
+            data.grade.into2::<u64>().into2::<Value>().internal_unbox().clone(),
+            user.into2::<Value>().internal_unbox().clone(),
+            num.into2::<u64>().into2::<Value>().internal_unbox().clone(),
+            qnum.into2::<u64>().into2::<Value>().internal_unbox().clone(),
         ],
     );
     drop(bg);
 
-    Redirect::to(format!("/grades/{}", num))
+    Redirect::to(format!("/grades/{}", num.internal_unbox()))
 }
 
 #[get("/<num>")]
@@ -314,23 +331,30 @@ pub(crate) fn answers(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
-    let key: Value = (num as u64).into();
-    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
+    let num = BBox::new(num);
+    let key: BBox<Value> = num.into2::<u64>().into2();
+    let res = BBox::new(bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.internal_unbox().clone()]));
     drop(bg);
-    let answers: Vec<_> = res
-        .into_iter()
-        .map(|r| LectureAnswer {
-            id: from_value(r[2].clone()),
-            user: from_value(r[0].clone()),
-            answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
-            grade: from_value(r[5].clone()),
-        })
-        .collect();
+
+    let make_answers = |res: &Vec<Vec<Value>>| {
+        let answers: Vec<LectureAnswer> = res
+            .into_iter()
+            .map(|r| LectureAnswer {
+                id: from_value(r[2].clone()),
+                user: from_value(r[0].clone()),
+                answer: from_value(r[3].clone()),
+                time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
+                grade: from_value(r[5].clone()),
+            })
+            .collect();
+        answers
+    };
+
+    let answers: BBox<Vec<LectureAnswer>> = res.sandbox_execute(make_answers);
 
     let ctx = LectureAnswersContext {
-        lec_id: num,
-        answers: answers,
+        lec_id: *num.internal_unbox(),
+        answers: answers.internal_unbox().clone(),
         parent: "layout",
     };
     Template::render("answers", &ctx)
@@ -351,7 +375,7 @@ pub(crate) fn questions(
 
     let answers_result = BBox::new(bg.prep_exec(
         "SELECT answers.* FROM answers WHERE answers.lec = ? AND answers.email = ?",
-        vec![key.internal_unbox().clone(), apikey.user.internal_unbox().clone().into()],
+        vec![key.internal_unbox().clone(), apikey.user.into2::<Value>().internal_unbox().clone()],
     ));
 
     let questions_result = BBox::new(bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key.internal_unbox().clone()]));
@@ -410,10 +434,10 @@ pub(crate) fn questions_submit(
 
     for (id, answer) in &data.answers {
         let rec: Vec<Value> = vec![
-            apikey.user.internal_unbox().clone().into(),
-            (num.internal_unbox().clone() as u64).into(),
+            apikey.user.into2::<Value>().internal_unbox().clone(),
+            num.into2::<u64>().into2::<Value>().internal_unbox().clone(),
             (*id).into(),
-            answer.internal_unbox().clone().into(),
+            answer.into2::<Value>().internal_unbox().clone(),
             ts.clone(),
             grade.clone(),
         ];
