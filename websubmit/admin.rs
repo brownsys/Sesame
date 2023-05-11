@@ -54,12 +54,6 @@ pub(crate) struct AdminLecAdd {
 pub(crate) struct User {
     email: String,
     apikey: String,
-    pseudonym: String,
-    gender: String,
-    age: u32,
-    ethnicity: String,
-    is_remote: u8,
-    education: String,
     is_admin: u8,
 }
 
@@ -200,7 +194,7 @@ pub(crate) fn get_registered_users(
     config: &State<Config>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT email, is_admin, apikey, pseudonym, gender, age, ethnicity, is_remote, education FROM users", vec![]);
+    let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", vec![]);
     drop(bg);
 
     let users: Vec<_> = res
@@ -213,12 +207,6 @@ pub(crate) fn get_registered_users(
             } else {
                 0
             }, // r[1].clone().into(), this type conversion does not work
-            pseudonym: from_value(r[3].clone()),
-            gender: from_value(r[4].clone()),
-            age: from_value(r[5].clone()),
-            ethnicity: from_value(r[6].clone()),
-            is_remote: from_value(r[7].clone()),
-            education: from_value(r[8].clone()),
         })
         .collect();
 

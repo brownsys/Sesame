@@ -4,6 +4,18 @@ version = "0.1.0"
 authors = ["Malte Schwarzkopf <malte@cs.brown.edu>"]
 edition = "2018"
 
+[lib]
+name = "bbox"
+path = "src/lib.rs"
+
+[[bin]]
+name = "websubmit-boxed"
+path = "websubmit-boxed/main.rs"
+
+[[bin]]
+name = "websubmit"
+path = "websubmit/main.rs"
+
 [dependencies]
 chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.33.0"

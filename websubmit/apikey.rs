@@ -14,9 +14,6 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use rand::{Rng, thread_rng};
-use rand::distributions::Alphanumeric;
-use crate::bbox::BBox;
 
 /// (username, apikey)
 pub(crate) struct ApiKey {
@@ -24,25 +21,9 @@ pub(crate) struct ApiKey {
     pub key: String,
 }
 
-pub(crate) struct BBoxApiKey {
-    pub user: BBox<String>,
-    pub key: BBox<String>,
-}
-
-impl BBoxApiKey {
-    pub fn new(apiKey: &ApiKey) -> BBoxApiKey {
-        BBoxApiKey { user: BBox::new(apiKey.user.clone()), key: BBox::new(apiKey.key.clone()) }
-    }
-}
-
 #[derive(Debug, FromForm)]
 pub(crate) struct ApiKeyRequest {
     email: String,
-    gender: String,
-    age: u32,
-    ethnicity: String,
-    is_remote: bool,
-    education: String,
 }
 
 #[derive(Debug, FromForm)]
@@ -91,19 +72,7 @@ pub(crate) fn generate(
     hasher.input_str(&config.secret);
     let hash = hasher.result_str();
 
-    let pseudonym: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(16)
-        .map(char::from)
-        .collect();
-
     let is_admin = if config.admins.contains(&data.email) {
-        1.into()
-    } else {
-        0.into()
-    };
-
-    let is_manager = if config.managers.contains(&data.email) {
         1.into()
     } else {
         0.into()
@@ -113,9 +82,7 @@ pub(crate) fn generate(
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "users",
-        vec![data.email.as_str().into(), hash.as_str().into(), is_admin, is_manager,
-             pseudonym.into(), data.gender.as_str().into(), data.age.into(),
-             data.ethnicity.as_str().into(), data.is_remote.into(), data.education.as_str().into()],
+        vec![data.email.as_str().into(), hash.as_str().into(), is_admin],
     );
 
     if config.send_emails {
@@ -124,9 +91,9 @@ pub(crate) fn generate(
             "no-reply@csci2390-submit.cs.brown.edu".into(),
             vec![data.email.clone()],
             format!("{} API key", config.class),
-            format!("Your {} API key is: {}\n", config.class, hash.as_str(), ),
+            format!("Your {} API key is: {}\n", config.class, hash.as_str(),),
         )
-            .expect("failed to send API key email");
+        .expect("failed to send API key email");
     }
     drop(bg);
 
