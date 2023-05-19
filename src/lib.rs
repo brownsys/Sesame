@@ -60,7 +60,8 @@ impl<T: Clone> BBox<T> {
       F: Fn(&U, &V) -> R
   >(
       bbox1: BBox<U>,
-      bbox2: BBox<V>, lambda: F
+      bbox2: BBox<V>, 
+      lambda: F
   ) -> BBox<R> {
     BBox::new(lambda(bbox1.internal_unbox(), bbox2.internal_unbox()))
   }
