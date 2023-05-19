@@ -13,12 +13,16 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use rand::{Rng, thread_rng};
 use rand::distributions::Alphanumeric;
 
-use bbox::BBox;
+use bbox::{BBox, BBoxRender};
+use bbox_derive::{BBoxRender};
+
+// These should be imported automatically for us by derive..
+use std::collections::BTreeMap;
+use bbox::ValueOrBBox;
 
 // Errors that we may encounter when authenticating an ApiKey.
 #[derive(Debug)]
@@ -89,6 +93,12 @@ pub(crate) struct ApiKeyRequest {
     education: BBox<String>,
 }
 
+#[derive(BBoxRender)]
+pub(crate) struct ApiKeyResponse {
+    apikey_email: BBox<String>,
+    parent: String,
+}
+
 // TODO(babman): too many sandboxes, what is reasonable here?
 #[post("/", data = "<data>")]
 pub(crate) fn generate(
@@ -157,10 +167,11 @@ pub(crate) fn generate(
     drop(bg);
 
     // return to user
-    let mut ctx = HashMap::new();
-    ctx.insert("apikey_email", data.email.internal_unbox().clone());
-    ctx.insert("parent", "layout".into());
-    Template::render("apikey/generate", &ctx)
+    let ctx = ApiKeyResponse {
+      apikey_email: data.email.clone(),
+      parent: "layout".into(),
+    };
+    bbox::render("apikey/generate", &ctx).unwrap()
 }
 
 #[derive(Debug, FromForm)]

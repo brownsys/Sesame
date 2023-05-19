@@ -236,3 +236,4 @@ pub(crate) fn questions_submit(
 
     Redirect::to("/leclist")
 }
+

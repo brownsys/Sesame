@@ -1,0 +1,17 @@
+[package]
+name = "bbox_derive"
+version = "0.1.0"
+authors = ["Malte Schwarzkopf <malte@cs.brown.edu>"]
+edition = "2018"
+
+[lib]
+name = "bbox_derive"
+proc-macro = true
+
+[dependencies]
+bbox = { version = "0.1.0", path = "../bbox" }
+proc-macro2 = "1.0.58"
+quote = "1.0.27"
+serde = "1.0"
+syn = "2.0.16"
+

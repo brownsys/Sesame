@@ -27,7 +27,7 @@ impl MySqlBackend {
             Some(l) => l,
         };
 
-        let schema = std::fs::read_to_string("websubmit-boxed/schema.sql")?;
+        let schema = std::fs::read_to_string("src/schema.sql")?;
 
         debug!(
             log,
