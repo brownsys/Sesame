@@ -54,13 +54,13 @@ pub trait BBoxRender {
   fn render<'a>(&'a self) -> ValueOrBBox<'a>;
 }
 
-impl<T: Serialize + Clone> BBoxRender for BBox<T> {
+impl<T: Serialize> BBoxRender for BBox<T> {
   fn render<'a>(&'a self) -> ValueOrBBox<'a> {
     ValueOrBBox::BBox(BBox::new(self.safe_unbox()))
   }
 }
 
-impl BBoxRender for String {
+impl<T: Serialize> BBoxRender for T {
   fn render<'a>(&'a self) -> ValueOrBBox<'a> {
     ValueOrBBox::Serialize(self)
   }
