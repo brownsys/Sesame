@@ -190,6 +190,8 @@ dependencies = [
  "erased-serde",
  "figment",
  "handlebars",
+ "mysql",
+ "mysql_common 0.22.2",
  "rocket",
  "rocket_dyn_templates",
  "serde",

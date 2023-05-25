@@ -19,11 +19,13 @@ impl<T> BBox<T> {
     BBox::new(self.t.clone().into())
   }
 
+  // Into that moves.
+  pub fn m_into2<F>(self) -> BBox<F> where T: Into<F> {
+    BBox::new(self.t.into())
+  }
+
   // Unbox given a context (need more thinking)
   pub fn unbox(&self, _ctx: &str) -> &T {
-    &self.t
-  }
-  pub(crate) fn safe_unbox(&self) -> &T {  // Only available inside our crate.
     &self.t
   }
 

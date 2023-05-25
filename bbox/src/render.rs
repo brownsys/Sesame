@@ -25,7 +25,7 @@ pub enum ValueOrBBox<'a> {
 impl<'a> ValueOrBBox<'a> {
   pub(crate) fn transform(&self) -> Result<FValue, figment::Error> {
     match self {
-      ValueOrBBox::BBox(bbox) => FValue::serialize(bbox.safe_unbox()),
+      ValueOrBBox::BBox(bbox) => FValue::serialize(bbox.t),
       ValueOrBBox::Serialize(obj) => FValue::serialize(obj),
       ValueOrBBox::Dict(map) => {
         let mut tmap: BTreeMap<String, FValue> = BTreeMap::new();
@@ -56,7 +56,7 @@ pub trait BBoxRender {
 
 impl<T: Serialize> BBoxRender for BBox<T> {
   fn render<'a>(&'a self) -> ValueOrBBox<'a> {
-    ValueOrBBox::BBox(BBox::new(self.safe_unbox()))
+    ValueOrBBox::BBox(BBox::new(&self.t))
   }
 }
 
