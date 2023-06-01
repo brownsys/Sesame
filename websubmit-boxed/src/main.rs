@@ -101,12 +101,10 @@ async fn main() {
         .mount("/answers", routes![questions::answers])
          */
         .mount("/leclist", routes![questions::leclist])
-        /*
         .mount(
             "/predict", 
             routes![questions::predict, questions::predict_grade]
         )
-         */
         .mount("/login", routes![login::login])
         /*
         .mount(
