@@ -1,0 +1,20 @@
+{{#*inline "page"}}
+    <h1>Lecture {{{ lec_id }}} admin</h1>
+
+    <h2>Edit question {{{ lec_qnum }}}</h2>
+    <form action="/admin/lec/editq/{{{ lec_id }}}" method="post" accept-charset="utf-8">
+      <p>
+        <label>Question ID: <input name="q_id" value="{{{ lec_qnum }}}" />
+        </label>
+      </p>
+
+      <p>
+        <label>Question prompt:<br />
+        <textarea name="q_prompt" rows="10" cols="80">{{{ lec_qprompt }}}</textarea>
+        </label>
+      </p>
+
+      <input type="submit" value="Update question">
+    </form>
+{{/inline}}
+{{~> (parent)~}}
