@@ -321,7 +321,7 @@ pub(crate) fn editg_submit(
     );
     drop(bg);
 
-    bbox::redirect("/grades/{}", vec![num.render()])
+    bbox::redirect("/grades/{}", vec![&num])
 }
 
 // #[get("/<num>")]

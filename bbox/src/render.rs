@@ -88,8 +88,9 @@ pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender>(name: S, context: &T)
   Ok(Template::render(name, transformed))
 }
 
-pub fn redirect(name: &str, params: Vec<ValueOrBBox>) -> Redirect {
-  let formatted_params: Vec<&& dyn Serialize> = params.iter().map(|x| x.try_unbox().unwrap()).collect();
+pub fn redirect(name: &str, params: Vec<&dyn BBoxRender>) -> Redirect {
+  let formatted_params: Vec<&dyn Serialize> = params.iter().map(
+    |x| x.render().try_unbox().unwrap().clone()).collect();
   let formatted_str: Cow<str> = SimpleCurlyFormat.format(name, formatted_params).unwrap();
   Redirect::to(Into::<String>::into(formatted_str))
 }
