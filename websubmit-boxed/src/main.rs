@@ -19,7 +19,7 @@ use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
 
 // TODO(babman): do admin
-// mod admin
+// mod admin;
 mod apikey;
 mod args;
 mod backend;
@@ -97,9 +97,7 @@ async fn main() {
             "/grades", 
             routes![questions::grades, questions::editg, questions::editg_submit]
         )
-        /*
         .mount("/answers", routes![questions::answers])
-         */
         .mount("/leclist", routes![questions::leclist])
         .mount(
             "/predict", 

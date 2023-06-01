@@ -156,7 +156,7 @@ pub(crate) fn predict_grade(
             array.column(1).to_owned()
         );
 
-        let dataset = Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
+        let dataset: Dataset<f64, f64, Dim<[usize; 1]>> = Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
         dataset
     };
 
@@ -324,40 +324,39 @@ pub(crate) fn editg_submit(
     bbox::redirect("/grades/{}", vec![&num])
 }
 
-// #[get("/<num>")]
-// pub(crate) fn answers(
-//     _admin: Admin,
-//     num: u8,
-//     backend: &State<Arc<Mutex<MySqlBackend>>>,
-// ) -> Template {
-//     let mut bg = backend.lock().unwrap();
-//     let num = BBox::new(num);
-//     let key: BBox<Value> = num.into2::<u64>().into2::<Value>();
-//     let res = BBox::internal_new(bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.internal_unbox().clone()]));
-//     drop(bg);
-//
-//     let answers: BBox<Vec<LectureAnswer>> = res.sandbox_execute(|res: &Vec<Vec<Value>>| {
-//         let answers: Vec<LectureAnswer> = res
-//             .into_iter()
-//             .map(|r| LectureAnswer {
-//                 id: from_value(r[2].clone()),
-//                 user: from_value(r[0].clone()),
-//                 answer: from_value(r[3].clone()),
-//                 time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
-//                 grade: from_value(r[5].clone()),
-//             })
-//             .collect();
-//         answers
-//     });
-//
-//     let ctx = LectureAnswersContext {
-//         lec_id: num,
-//         answers: answers.clone(),
-//         parent: "layout".into(),
-//     };
-//
-//     bbox::render("answers", &ctx).unwrap()
-// }
+#[get("/<num>")]
+pub(crate) fn answers(
+    num: u8,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let num = BBox::new(num);
+    let key: BBox<Value> = num.into2::<u64>().into2::<Value>();
+    let res = BBox::internal_new(bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.internal_unbox().clone()]));
+    drop(bg);
+
+    let answers: BBox<Vec<LectureAnswer>> = res.sandbox_execute(|res: &Vec<Vec<Value>>| {
+        let answers: Vec<LectureAnswer> = res
+            .into_iter()
+            .map(|r| LectureAnswer {
+                id: from_value(r[2].clone()),
+                user: from_value(r[0].clone()),
+                answer: from_value(r[3].clone()),
+                time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
+                grade: from_value(r[5].clone()),
+            })
+            .collect();
+        answers
+    });
+
+    let ctx = LectureAnswersContext {
+        lec_id: num,
+        answers: answers.clone(),
+        parent: "layout".into(),
+    };
+
+    bbox::render("answers", &ctx).unwrap()
+}
 
 
 #[derive(Serialize, Clone)]
