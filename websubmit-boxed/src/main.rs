@@ -27,7 +27,7 @@ mod config;
 mod email;
 mod login;
 // TODO(babman): update existing questions, do remaining questions
-// mod questions;
+mod questions;
 
 extern crate bbox;
 use bbox::BBox;
@@ -77,7 +77,7 @@ async fn main() {
         engines
             .handlebars
             .register_templates_directory(".hbs", std::path::Path::new(&template_dir))
-            .expect("failed to set template path!");
+            .expect("failed to set template path!")
     });
 
     if let Err(e) = rocket::build()
@@ -87,26 +87,26 @@ async fn main() {
         .mount("/css", FileServer::from(format!("{}/css", resource_dir)))
         .mount("/js", FileServer::from(format!("{}/js", resource_dir)))
         .mount("/", routes![index])
-        /*
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
         )
-        */
         .mount("/apikey/check", routes![apikey::check])
         .mount("/apikey/generate", routes![apikey::generate])
-        /*
         .mount(
             "/grades", 
             routes![questions::grades, questions::editg, questions::editg_submit]
         )
+        /*
         .mount("/answers", routes![questions::answers])
+         */
         .mount("/leclist", routes![questions::leclist])
+        /*
         .mount(
             "/predict", 
             routes![questions::predict, questions::predict_grade]
         )
-        */
+         */
         .mount("/login", routes![login::login])
         /*
         .mount(
@@ -119,7 +119,7 @@ async fn main() {
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
         .mount("/manage/users", routes![manage::get_aggregate_grades])
-        */
+         */
         .launch()
         .await
     {

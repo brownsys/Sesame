@@ -4,5 +4,5 @@ mod render;
 
 // Export these
 pub use bbox::BBox;
-pub use render::{BBoxRender, ValueOrBBox, render};
+pub use render::{BBoxRender, ValueOrBBox, render, redirect};
 pub mod db;

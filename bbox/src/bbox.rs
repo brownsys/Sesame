@@ -1,4 +1,7 @@
 use std::fmt;
+use std::str::FromStr;
+
+use rocket::request::FromParam;
 
 pub struct BBox<T> {
   pub(crate) t: T,
@@ -47,7 +50,7 @@ impl<T> BBox<T> {
 }
 
 // TODO(babman): These should be eventually removed.
-impl<T> BBox<T> { 
+impl<T> BBox<T> {
   // Usage of these should be pulled into our library.
   pub fn internal_new(t: T) -> Self {
     Self { t }
@@ -68,5 +71,17 @@ impl<T> fmt::Debug for BBox<T> {
 impl<T: Clone> Clone for BBox<T> {
   fn clone(&self) -> Self {
     BBox::new(self.t.clone())
+  }
+}
+
+// Facilitate URL parameter conversion.
+impl<'r, T: FromStr> FromParam<'r> for BBox<T> {
+  type Error = &'r str;
+
+  fn from_param(param: &'r str) -> Result<Self, Self::Error> {
+    match param.parse::<T>() {
+      Ok(converted) => Ok(BBox::new(converted)),
+      Err(_) => Err(param)
+    }
   }
 }

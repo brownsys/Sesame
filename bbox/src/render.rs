@@ -3,11 +3,13 @@ extern crate erased_serde;
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
-use erased_serde::Serialize;
 
-use rocket_dyn_templates::Template;
-use figment::value::Value as FValue;
+use dynfmt::{Format, SimpleCurlyFormat};
+use erased_serde::Serialize;
 use figment::Error as FError;
+use figment::value::Value as FValue;
+use rocket::response::Redirect;
+use rocket_dyn_templates::Template;
 
 // Our BBox struct.
 use crate::BBox;
@@ -45,6 +47,15 @@ impl<'a> ValueOrBBox<'a> {
       },
     }
   }
+
+  pub(crate) fn try_unbox(&self) -> Result<&&'a dyn Serialize, &'static str> {
+    match self {
+      ValueOrBBox::BBox(bbox) => Ok(bbox.safe_unbox()),
+      ValueOrBBox::Serialize(obj) => Ok(obj),
+      ValueOrBBox::Dict(_) => Err("unsupported operation"),
+      ValueOrBBox::Array(_) => Err("unsupported operation"),
+    }
+  }
 }
 
 // Anything that implements this trait can be rendered by our render wrapper.
@@ -75,4 +86,10 @@ pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender>(name: S, context: &T)
 
   // Now render.
   Ok(Template::render(name, transformed))
+}
+
+pub fn redirect(name: &str, params: Vec<ValueOrBBox>) -> Redirect {
+  let formatted_params: Vec<&& dyn Serialize> = params.iter().map(|x| x.try_unbox().unwrap()).collect();
+  let formatted_str: Cow<str> = SimpleCurlyFormat.format(name, formatted_params).unwrap();
+  Redirect::to(Into::<String>::into(formatted_str))
 }

@@ -16,7 +16,7 @@ figment = "0.10.6"
 erased-serde = "0.3.25"
 mysql = "21.0.2"
 mysql_common = "0.22"
-
+dynfmt = { version = "0.1.5", features = ["curly"] }
 
 [dependencies.rocket_dyn_templates]
 version = "0.1.0-rc.1"
