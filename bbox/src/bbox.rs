@@ -73,15 +73,3 @@ impl<T: Clone> Clone for BBox<T> {
     BBox::new(self.t.clone())
   }
 }
-
-// Facilitate URL parameter conversion.
-impl<'r, T: FromStr> FromParam<'r> for BBox<T> {
-  type Error = &'r str;
-
-  fn from_param(param: &'r str) -> Result<Self, Self::Error> {
-    match param.parse::<T>() {
-      Ok(converted) => Ok(BBox::new(converted)),
-      Err(_) => Err(param)
-    }
-  }
-}

@@ -19,3 +19,15 @@ impl<'r, T> FromFormField<'r> for BBox<T> where T: Send + Clone + FromStr {
         todo!("parse from a value or use default impl")
     }
 }
+
+// Facilitate URL parameter conversion.
+impl<'r, T: FromStr> FromParam<'r> for BBox<T> {
+  type Error = &'r str;
+
+  fn from_param(param: &'r str) -> Result<Self, Self::Error> {
+    match param.parse::<T>() {
+      Ok(converted) => Ok(BBox::new(converted)),
+      Err(_) => Err(param)
+    }
+  }
+}

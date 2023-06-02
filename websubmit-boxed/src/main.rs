@@ -26,7 +26,6 @@ mod backend;
 mod config;
 mod email;
 mod login;
-// TODO(babman): update existing questions, do remaining questions
 mod questions;
 
 extern crate bbox;

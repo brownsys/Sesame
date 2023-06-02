@@ -88,6 +88,8 @@ pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender>(name: S, context: &T)
   Ok(Template::render(name, transformed))
 }
 
+// Our redirect wrapper operates similar to Rocket redirect, but takes in bbox
+// parameters.
 pub fn redirect(name: &str, params: Vec<&dyn BBoxRender>) -> Redirect {
   let formatted_params: Vec<&dyn Serialize> = params.iter().map(
     |x| x.render().try_unbox().unwrap().clone()).collect();
