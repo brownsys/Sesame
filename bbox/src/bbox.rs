@@ -1,7 +1,4 @@
 use std::fmt;
-use std::str::FromStr;
-
-use rocket::request::FromParam;
 
 pub struct BBox<T> {
   pub(crate) t: T,

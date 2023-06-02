@@ -48,10 +48,10 @@ impl<'a> ValueOrBBox<'a> {
     }
   }
 
-  pub(crate) fn try_unbox(&self) -> Result<&&'a dyn Serialize, &'static str> {
+  pub(crate) fn try_unbox(&self) -> Result<&'a dyn Serialize, &'static str> {
     match self {
-      ValueOrBBox::BBox(bbox) => Ok(bbox.safe_unbox()),
-      ValueOrBBox::Serialize(obj) => Ok(obj),
+      ValueOrBBox::BBox(bbox) => Ok(bbox.t),
+      ValueOrBBox::Serialize(obj) => Ok(*obj),
       ValueOrBBox::Dict(_) => Err("unsupported operation"),
       ValueOrBBox::Array(_) => Err("unsupported operation"),
     }

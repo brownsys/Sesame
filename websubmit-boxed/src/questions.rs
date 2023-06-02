@@ -26,6 +26,42 @@ use crate::backend::{MySqlBackend, Value};
 use crate::config::Config;
 use crate::email;
 
+
+#[derive(Debug, FromForm)]
+pub(crate) struct LectureQuestionSubmission {
+    answers: HashMap<u64, BBox<String>>,
+}
+
+#[derive(Serialize, Clone)]
+pub(crate) struct LectureQuestion {
+    pub id: u64,
+    pub prompt: String,
+    pub answer: Option<String>,
+}
+
+#[derive(BBoxRender)]
+pub(crate) struct LectureQuestionsContext {
+    pub lec_id: BBox<u8>,
+    pub questions: BBox<Vec<LectureQuestion>>,
+    pub parent: String,
+}
+
+#[derive(Serialize, Clone)]
+struct LectureAnswer {
+    id: u64,
+    user: String,
+    answer: String,
+    time: String,
+    grade: u64,
+}
+
+#[derive(BBoxRender)]
+struct LectureAnswersContext {
+    lec_id: BBox<u8>,
+    answers: BBox<Vec<LectureAnswer>>,
+    parent: String,
+}
+
 #[derive(Serialize)]
 struct LectureListEntry {
     id: u64,
@@ -90,240 +126,6 @@ pub(crate) fn leclist(
     bbox::render("leclist", &ctx).unwrap()
 }
 
-
-#[derive(BBoxRender)]
-struct PredictContext {
-    lec_id: BBox<u8>,
-    parent: String,
-}
-
-#[get("/<num>")]
-pub(crate) fn predict(
-    num: BBox<u8>,
-    _backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Template {
-    let ctx = PredictContext {
-        lec_id: num,
-        parent: "layout".into(),
-    };
-
-    bbox::render("predict", &ctx).unwrap()
-}
-
-
-#[derive(Debug, FromForm)]
-pub(crate) struct PredictGradeForm {
-    time: BBox<String>,
-}
-
-#[derive(BBoxRender)]
-struct PredictGradeContext {
-    lec_id: BBox<u8>,
-    time: BBox<String>,
-    grade: BBox<f64>,
-    parent: String,
-}
-
-#[post("/predict_grade/<num>", data = "<data>")]
-pub(crate) fn predict_grade(
-    num: u8,
-    data: Form<PredictGradeForm>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Template {
-    let mut bg = backend.lock().unwrap();
-
-    let num = BBox::new(num);
-    let key: BBox<Value> = num.into2::<u64>().into2();
-    let res = BBox::internal_new(bg.prep_exec("SELECT submitted_at, grade FROM answers WHERE lec = ?",
-                                              vec![key.internal_unbox().clone()],
-    ));
-    drop(bg);
-
-    // TODO (AllenAby) what granularity makes most sense for sandbox execution?
-    let make_dataset = |res: &Vec<Vec<Value>>| {
-        let grades: Vec<[f64; 2]> = res
-            .into_iter()
-            .map(|r| [
-                from_value::<NaiveDateTime>(r[0].clone()).timestamp() as f64,
-                from_value::<u64>(r[1].clone()) as f64
-            ])
-            .collect();
-
-        let array: Array2<f64> = Array2::from(grades);
-
-        let (x, y) = (
-            array.slice(s![.., 0..1]).to_owned(),
-            array.column(1).to_owned()
-        );
-
-        let dataset: Dataset<f64, f64, Dim<[usize; 1]>> = Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
-        dataset
-    };
-
-    let dataset = res.sandbox_execute(make_dataset);
-
-    let model_path = Path::new("model.json");
-
-    // TODO (AllenAby): not sure how to box/unbox when reading/writing from file
-    let model = if model_path.exists() {
-        println!("Loading the model from a file...");
-        let mut file = File::open(model_path).unwrap();
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).unwrap();
-        serde_json::from_value((&contents).parse().unwrap()).unwrap()
-    } else {
-        println!("Re-training the model and saving it to disk...");
-        let lin_reg = LinearRegression::new();
-        // TODO (AllenAby): this is a guess but may not be correct usage of unbox()
-        let model = lin_reg.fit(dataset.unbox("grade_prediction")).unwrap();
-        let serialized_model = serde_json::to_string(&model).unwrap();
-        let mut file = File::create(model_path).unwrap();
-        file.write_all(serialized_model.as_ref()).unwrap();
-        model
-    };
-
-    // TODO (AllenAby) should this be an internal_unbox() or unbox()
-    let time = NaiveDateTime::parse_from_str(data.time.internal_unbox().as_str(), "%Y-%m-%d %H:%M:%S");
-    let grade = model.params()[0] * (time.unwrap().timestamp() as f64) + model.intercept();
-    let grade = BBox::new(grade);
-
-    let ctx = PredictGradeContext {
-        lec_id: num,
-        time: data.time.clone(),
-        grade: grade,
-        parent: "layout".into(),
-    };
-
-    bbox::render("predictgrade", &ctx).unwrap()
-}
-
-
-#[derive(Serialize, Clone)]
-pub(crate) struct LectureAnswer {
-    id: u64,
-    user: String,
-    answer: String,
-    time: String,
-    grade: u64,
-}
-
-#[derive(BBoxRender)]
-struct LectureAnswersContext {
-    lec_id: BBox<u8>,
-    answers: BBox<Vec<LectureAnswer>>,
-    parent: String,
-}
-
-#[get("/<num>")]
-pub(crate) fn grades(
-    num: BBox<u8>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Template {
-    let mut bg = backend.lock().unwrap();
-
-    let key: BBox<Value> = num.into2::<u64>().into2::<Value>();
-    let res = BBox::internal_new(bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.internal_unbox().clone()]));
-    drop(bg);
-
-    let answers: BBox<Vec<LectureAnswer>> = res.sandbox_execute(|res: &Vec<Vec<Value>>| {
-        let answers: Vec<LectureAnswer> = res
-            .into_iter()
-            .map(|r| LectureAnswer {
-                id: from_value(r[2].clone()),
-                user: from_value(r[0].clone()),
-                answer: from_value(r[3].clone()),
-                time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
-                grade: from_value(r[5].clone()),
-            })
-            .collect();
-        answers
-    });
-
-    let ctx = LectureAnswersContext {
-        lec_id: num,
-        answers: answers.clone(),
-        parent: "layout".into(),
-    };
-
-    bbox::render("grades", &ctx).unwrap()
-}
-
-
-#[derive(BBoxRender)]
-struct GradeEditContext {
-    answer: BBox<String>,
-    grade: BBox<u64>,
-    lec_id: BBox<u8>,
-    lec_qnum: BBox<u8>,
-    parent: String,
-    user: BBox<String>
-}
-
-#[get("/<user>/<num>/<qnum>")]
-pub(crate) fn editg(
-    user: BBox<String>,
-    num: BBox<u8>,
-    qnum: BBox<u8>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Template {
-    let mut bg = backend.lock().unwrap();
-    let res = BBox::internal_new(bg.prep_exec(
-        "SELECT answer, grade FROM answers WHERE email = ? AND lec = ? AND q = ?",
-        vec![
-            user.into2::<Value>().internal_unbox().clone(),
-            num.into2::<u64>().into2::<Value>().internal_unbox().clone(),
-            qnum.into2::<u64>().into2::<Value>().internal_unbox().clone(),
-        ],
-    ));
-    drop(bg);
-
-    // TODO (AllenAby) should be inside sandbox?
-    let r = &res.internal_unbox()[0];
-    let answer: BBox<String> = BBox::new(from_value::<String>(r[0].clone()));
-    let grade: BBox<u64> = BBox::new(from_value::<u64>(r[1].clone()));
-
-    let ctx = GradeEditContext {
-        answer: answer.clone(),
-        grade: grade,
-        user: user.clone(),
-        lec_id: num,
-        lec_qnum: qnum,
-        parent: "layout".into(),
-    };
-
-    bbox::render("gradeedit", &ctx).unwrap()
-}
-
-
-#[derive(Debug, FromForm)]
-pub(crate) struct EditGradeForm {
-    grade: BBox<u64>,
-}
-
-#[post("/editg/<user>/<num>/<qnum>", data = "<data>")]
-pub(crate) fn editg_submit(
-    user: BBox<String>,
-    num: BBox<u8>,
-    qnum: BBox<u8>,
-    data: Form<EditGradeForm>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Redirect {
-    let mut bg = backend.lock().unwrap();
-
-    bg.prep_exec(
-        "UPDATE answers SET grade = ? WHERE email = ? AND lec = ? AND q = ?",
-        vec![
-            data.grade.into2::<u64>().into2::<Value>().internal_unbox().clone(),
-            user.into2::<Value>().internal_unbox().clone(),
-            num.into2::<u64>().into2::<Value>().internal_unbox().clone(),
-            qnum.into2::<u64>().into2::<Value>().internal_unbox().clone(),
-        ],
-    );
-    drop(bg);
-
-    bbox::redirect("/grades/{}", vec![&num])
-}
-
 #[get("/<num>")]
 pub(crate) fn answers(
     num: u8,
@@ -356,21 +158,6 @@ pub(crate) fn answers(
     };
 
     bbox::render("answers", &ctx).unwrap()
-}
-
-
-#[derive(Serialize, Clone)]
-pub(crate) struct LectureQuestion {
-    pub id: u64,
-    pub prompt: String,
-    pub answer: Option<String>,
-}
-
-#[derive(BBoxRender)]
-pub(crate) struct LectureQuestionsContext {
-    pub lec_id: BBox<u8>,
-    pub questions: BBox<Vec<LectureQuestion>>,
-    pub parent: String,
 }
 
 #[get("/<num>")]
@@ -425,11 +212,6 @@ pub(crate) fn questions(
     };
 
     bbox::render("questions", &ctx).unwrap()
-}
-
-#[derive(Debug, FromForm)]
-pub(crate) struct LectureQuestionSubmission {
-    answers: HashMap<u64, BBox<String>>,
 }
 
 #[post("/<num>", data = "<data>")]

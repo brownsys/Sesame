@@ -3,6 +3,7 @@ extern crate rocket;
 use std::str::FromStr;
 use rocket::form::{self, FromFormField, DataField, ValueField, Errors};
 use rocket::form::error::ErrorKind;
+use rocket::request::FromParam;
 use crate::BBox;
 
 // Allows us to load structs with BBox fields from rocket forms automatically.
@@ -21,7 +22,7 @@ impl<'r, T> FromFormField<'r> for BBox<T> where T: Send + Clone + FromStr {
 }
 
 // Facilitate URL parameter conversion.
-impl<'r, T: FromStr> FromParam<'r> for BBox<T> {
+impl<'r, T: std::str::FromStr> FromParam<'r> for BBox<T> {
   type Error = &'r str;
 
   fn from_param(param: &'r str) -> Result<Self, Self::Error> {
