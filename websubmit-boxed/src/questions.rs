@@ -1,16 +1,10 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use chrono::Local;
 use chrono::naive::NaiveDateTime;
-use linfa::prelude::*;
-use linfa_linear::LinearRegression;
 use mysql::from_value;
-use ndarray::prelude::*;
 use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
@@ -47,19 +41,19 @@ pub(crate) struct LectureQuestionsContext {
 }
 
 #[derive(Serialize, Clone)]
-struct LectureAnswer {
-    id: u64,
-    user: String,
-    answer: String,
-    time: String,
-    grade: u64,
+pub(crate) struct LectureAnswer {
+    pub id: u64,
+    pub user: String,
+    pub answer: String,
+    pub time: String,
+    pub grade: u64,
 }
 
 #[derive(BBoxRender)]
-struct LectureAnswersContext {
-    lec_id: BBox<u8>,
-    answers: BBox<Vec<LectureAnswer>>,
-    parent: String,
+pub(crate) struct LectureAnswersContext {
+    pub lec_id: BBox<u8>,
+    pub answers: BBox<Vec<LectureAnswer>>,
+    pub parent: String,
 }
 
 #[derive(Serialize)]

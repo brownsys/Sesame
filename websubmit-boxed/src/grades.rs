@@ -1,29 +1,19 @@
 use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use chrono::Local;
 use chrono::naive::NaiveDateTime;
-use linfa::prelude::*;
-use linfa_linear::LinearRegression;
 use mysql::from_value;
-use ndarray::prelude::*;
 use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
-use serde::Serialize;
 
 use bbox::{BBox, BBoxRender, ValueOrBBox};
 use bbox_derive::BBoxRender;
 
-use crate::apikey::ApiKey;
 use crate::backend::{MySqlBackend, Value};
-use crate::config::Config;
-use crate::email;
+use crate::questions::LectureAnswer;
+use crate::questions::LectureAnswersContext;
 
 
 #[get("/<num>")]
