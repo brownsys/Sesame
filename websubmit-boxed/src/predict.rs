@@ -25,20 +25,6 @@ struct PredictContext {
     parent: String,
 }
 
-#[get("/<num>")]
-pub(crate) fn predict(
-    num: BBox<u8>,
-    _backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Template {
-    let ctx = PredictContext {
-        lec_id: num,
-        parent: "layout".into(),
-    };
-
-    bbox::render("predict", &ctx).unwrap()
-}
-
-
 #[derive(Debug, FromForm)]
 pub(crate) struct PredictGradeForm {
     time: BBox<String>,
@@ -50,6 +36,20 @@ struct PredictGradeContext {
     time: BBox<String>,
     grade: BBox<f64>,
     parent: String,
+}
+
+
+#[get("/<num>")]
+pub(crate) fn predict(
+    num: BBox<u8>,
+    _backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let ctx = PredictContext {
+        lec_id: num,
+        parent: "layout".into(),
+    };
+
+    bbox::render("predict", &ctx).unwrap()
 }
 
 #[post("/predict_grade/<num>", data = "<data>")]

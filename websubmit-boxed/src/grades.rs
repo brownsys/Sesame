@@ -16,6 +16,22 @@ use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
 
 
+#[derive(BBoxRender)]
+struct GradeEditContext {
+    answer: BBox<String>,
+    grade: BBox<u64>,
+    lec_id: BBox<u8>,
+    lec_qnum: BBox<u8>,
+    parent: String,
+    user: BBox<String>
+}
+
+#[derive(Debug, FromForm)]
+pub(crate) struct EditGradeForm {
+    grade: BBox<u64>,
+}
+
+
 #[get("/<num>")]
 pub(crate) fn grades(
     num: BBox<u8>,
@@ -48,17 +64,6 @@ pub(crate) fn grades(
     };
 
     bbox::render("grades", &ctx).unwrap()
-}
-
-
-#[derive(BBoxRender)]
-struct GradeEditContext {
-    answer: BBox<String>,
-    grade: BBox<u64>,
-    lec_id: BBox<u8>,
-    lec_qnum: BBox<u8>,
-    parent: String,
-    user: BBox<String>
 }
 
 #[get("/<user>/<num>/<qnum>")]
@@ -94,11 +99,6 @@ pub(crate) fn editg(
     };
 
     bbox::render("gradeedit", &ctx).unwrap()
-}
-
-#[derive(Debug, FromForm)]
-pub(crate) struct EditGradeForm {
-    grade: BBox<u64>,
 }
 
 #[post("/editg/<user>/<num>/<qnum>", data = "<data>")]
