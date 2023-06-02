@@ -4,7 +4,6 @@ use crate::email;
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
-use mysql::from_value;
 use rocket::form::Form;
 use rocket::http::Status;
 use rocket::http::{Cookie, CookieJar};
@@ -19,6 +18,7 @@ use rand::distributions::Alphanumeric;
 
 use bbox::{BBox, BBoxRender};
 use bbox_derive::{BBoxRender};
+use bbox::db::from_value;
 
 // These should be imported automatically for us by derive..
 use std::collections::BTreeMap;
@@ -38,8 +38,9 @@ pub(crate) fn check_api_key(
     key: &BBox<String>,
 ) -> Result<BBox<String>, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
-    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.internal_unbox().into()]);
+    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.into()]);
     drop(bg);
+
     if rs.len() < 1 {
         Err(ApiKeyError::Missing)
     } else if rs.len() > 1 {
@@ -47,7 +48,6 @@ pub(crate) fn check_api_key(
     } else if rs.len() >= 1 {
         // user email
         let user = from_value::<String>(rs[0][0].clone());
-        let user = BBox::internal_new(user);
         Ok(user)
     } else {
         Err(ApiKeyError::BackendFailure)
@@ -73,6 +73,7 @@ impl<'r> FromRequest<'r> for ApiKey {
         request
             .cookies()
             .get("apikey")
+            // TODO(babman): cookie must be bbox.
             .and_then(|cookie| cookie.value().parse().ok())
             .and_then(|key: String| Some(BBox::internal_new(key)))
             .and_then(|key: BBox<String>| match check_api_key(&be, &key) {
@@ -122,35 +123,26 @@ pub(crate) fn generate(
     });
 
     // Check if request corresponds to admin or manager.
-    let is_admin = data.email.sandbox_execute(|email| {
-      if config.admins.contains(email) {
-          1
-      } else {
-          0
-      }
-    });
-    let is_manager = data.email.sandbox_execute(|email| {
-      if config.managers.contains(email) {
-          1
-      } else {
-          0
-      }
-    });
+    // TODO(babman): pure sandbox.
+    let is_admin = data.email.sandbox_execute(|email| config.admins.contains(email));
+    let is_manager = data.email.sandbox_execute(|email| config.managers.contains(email));
+    let is_admin: BBox<i8> = is_admin.m_into2();
+    let is_manager: BBox<i8> = is_manager.m_into2();
 
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "users",
-        vec![data.email.internal_unbox().into(),
-             hash.internal_unbox().into(),
-             is_admin.internal_unbox().into(),
-             is_manager.internal_unbox().into(),
+        vec![data.email.clone().into(),
+             hash.clone().into(),
+             is_admin.into(),
+             is_manager.into(),
              pseudonym.into(),
-             data.gender.internal_unbox().into(),
-             data.age.internal_unbox().into(),
-             data.ethnicity.internal_unbox().into(),
-             data.is_remote.internal_unbox().into(),
-             data.education.internal_unbox().into()],
+             data.gender.clone().into(),
+             data.age.clone().into(),
+             data.ethnicity.clone().into(),
+             data.is_remote.clone().into(),
+             data.education.clone().into()],
     );
 
     if config.send_emails {
@@ -203,6 +195,7 @@ pub(crate) fn check(
     if res.is_err() {
         Redirect::to("/")
     } else {
+        // TODO(babman): should be able to store bboxes in cookies.
         let cookie = Cookie::build("apikey", data.key.internal_unbox().clone()).path("/").finish();
         cookies.add(cookie);
         Redirect::to("/leclist")

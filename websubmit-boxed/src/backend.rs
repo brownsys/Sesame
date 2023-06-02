@@ -1,14 +1,11 @@
-use mysql::prelude::*;
-use mysql::Opts;
-pub use mysql::Value;
-use mysql::*;
+use bbox::db::{Conn, Opts, Result, Statement, Value, Param};
 use std::collections::HashMap;
 
 pub struct MySqlBackend {
-    pub handle: mysql::Conn,
+    pub handle: Conn,
     pub log: slog::Logger,
     _schema: String,
-    prep_stmts: HashMap<String, mysql::Statement>,
+    prep_stmts: HashMap<String, Statement>,
     db_user: String,
     db_password: String,
     db_name: String,
@@ -33,7 +30,7 @@ impl MySqlBackend {
             log,
             "Connecting to MySql DB and initializing schema {}...", dbname
         );
-        let mut db = mysql::Conn::new(
+        let mut db = Conn::new(
             Opts::from_url(&format!(
                 "mysql://{}:{}@127.0.0.1/{}",
                 user, password, dbname
@@ -49,7 +46,7 @@ impl MySqlBackend {
             db.query_drop(format!("CREATE DATABASE {};", dbname))
                 .unwrap();
             // reconnect
-            db = mysql::Conn::new(
+            db = Conn::new(
                 Opts::from_url(&format!(
                     "mysql://{}:{}@127.0.0.1/{}",
                     user, password, dbname
@@ -77,7 +74,7 @@ impl MySqlBackend {
     }
 
     fn reconnect(&mut self) {
-        self.handle = mysql::Conn::new(
+        self.handle = Conn::new(
             Opts::from_url(&format!(
                 "mysql://{}:{}@127.0.0.1/{}",
                 self.db_user, self.db_password, self.db_name
@@ -87,7 +84,7 @@ impl MySqlBackend {
         .unwrap();
     }
 
-    pub fn prep_exec(&mut self, sql: &str, params: Vec<Value>) -> Vec<Vec<Value>> {
+    pub fn prep_exec(&mut self, sql: &str, params: Vec<Param>) -> Vec<Vec<Value>> {
         if !self.prep_stmts.contains_key(sql) {
             let stmt = self
                 .handle
@@ -109,9 +106,7 @@ impl MySqlBackend {
                 Ok(res) => {
                     let mut rows = vec![];
                     for row in res {
-                        let rowvals = row.unwrap().unwrap();
-                        let vals: Vec<Value> = rowvals.iter().map(|v| v.clone().into()).collect();
-                        rows.push(vals);
+                        rows.push(row.unwrap().unwrap());
                     }
                     debug!(self.log, "executed query {}, got {} rows", sql, rows.len());
                     return rows;
@@ -121,7 +116,7 @@ impl MySqlBackend {
         }
     }
 
-    fn do_insert(&mut self, table: &str, vals: Vec<Value>, replace: bool) {
+    fn do_insert(&mut self, table: &str, vals: Vec<Param>, replace: bool) {
         let op = if replace { "REPLACE" } else { "INSERT" };
         let q = format!(
             "{} INTO {} VALUES ({})",
@@ -129,7 +124,6 @@ impl MySqlBackend {
             table,
             vals.iter().map(|_| "?").collect::<Vec<&str>>().join(",")
         );
-        debug!(self.log, "executed insert query {} for row {:?}", q, vals);
         while let Err(e) = self.handle.exec_drop(q.clone(), vals.clone()) {
             warn!(
                 self.log,
@@ -139,11 +133,11 @@ impl MySqlBackend {
         }
     }
 
-    pub fn insert(&mut self, table: &str, vals: Vec<Value>) {
+    pub fn insert(&mut self, table: &str, vals: Vec<Param>) {
         self.do_insert(table, vals, false);
     }
 
-    pub fn replace(&mut self, table: &str, vals: Vec<Value>) {
+    pub fn replace(&mut self, table: &str, vals: Vec<Param>) {
         self.do_insert(table, vals, true);
     }
 }

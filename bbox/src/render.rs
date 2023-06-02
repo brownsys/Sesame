@@ -65,15 +65,33 @@ pub trait BBoxRender {
   fn render<'a>(&'a self) -> ValueOrBBox<'a>;
 }
 
+// Auto implement BBoxRender for unboxed primitive types.
+macro_rules! render_serialize_impl {
+  ($T: ty) => (
+    impl BBoxRender for $T {
+      fn render<'a>(&'a self) -> ValueOrBBox<'a> {
+        ValueOrBBox::Serialize(self)
+      }
+    }
+  );
+}
+render_serialize_impl!(String);
+render_serialize_impl!(u64);
+render_serialize_impl!(i64);
+render_serialize_impl!(u8);
+render_serialize_impl!(i8);
+
+// Auto implement BBoxRender for BBox.
 impl<T: Serialize> BBoxRender for BBox<T> {
   fn render<'a>(&'a self) -> ValueOrBBox<'a> {
     ValueOrBBox::BBox(BBox::new(&self.t))
   }
 }
 
-impl<T: Serialize> BBoxRender for T {
+// Auto implement BBoxRender for Vec.
+impl<T: BBoxRender> BBoxRender for Vec<T> {
   fn render<'a>(&'a self) -> ValueOrBBox<'a> {
-    ValueOrBBox::Serialize(self)
+    ValueOrBBox::Array(self.iter().map(|v| v.render()).collect())
   }
 }
 

@@ -27,8 +27,8 @@ mod config;
 mod email;
 mod login;
 mod questions;
-mod grades;
-mod predict;
+//mod grades;
+//mod predict;
 
 extern crate bbox;
 use bbox::BBox;
@@ -44,8 +44,8 @@ pub fn new_logger() -> slog::Logger {
 fn index(cookies: &CookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> Redirect {
     if let Some(cookie) = cookies.get("apikey") {
         let apikey: String = cookie.value().parse().ok().unwrap();
+        // TODO: cookies must be bboxed.
         let apikey = BBox::internal_new(apikey);
-        // TODO validate API key
         match apikey::check_api_key(&*backend, &apikey) {
             Ok(_user) => Redirect::to("/leclist"),
             Err(_) => Redirect::to("/login"),
@@ -94,16 +94,20 @@ async fn main() {
         )
         .mount("/apikey/check", routes![apikey::check])
         .mount("/apikey/generate", routes![apikey::generate])
+        /*
         .mount(
             "/grades", 
             routes![grades::grades, grades::editg, grades::editg_submit]
         )
+        */
         .mount("/answers", routes![questions::answers])
         .mount("/leclist", routes![questions::leclist])
+        /*
         .mount(
             "/predict", 
             routes![predict::predict, predict::predict_grade]
         )
+        */
         .mount("/login", routes![login::login])
         /*
         .mount(
