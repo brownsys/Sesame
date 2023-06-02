@@ -1,28 +1,26 @@
-use crate::backend::MySqlBackend;
-use crate::config::Config;
-use crate::email;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use rocket::form::Form;
-use rocket::http::Status;
-use rocket::http::{Cookie, CookieJar};
+use rocket::http::{Cookie, CookieJar, Status};
 use rocket::outcome::IntoOutcome;
 use rocket::request::{self, FromRequest, Request};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
-use std::sync::{Arc, Mutex};
 use rand::{Rng, thread_rng};
 use rand::distributions::Alphanumeric;
 
-use bbox::{BBox, BBoxRender};
-use bbox_derive::{BBoxRender};
+use bbox::{BBox, BBoxRender, ValueOrBBox};
 use bbox::db::from_value;
+use bbox_derive::BBoxRender;
 
-// These should be imported automatically for us by derive..
-use std::collections::BTreeMap;
-use bbox::ValueOrBBox;
+use crate::backend::MySqlBackend;
+use crate::config::Config;
+use crate::email;
+
 
 // Errors that we may encounter when authenticating an ApiKey.
 #[derive(Debug)]
@@ -31,6 +29,34 @@ pub(crate) enum ApiKeyError {
     Missing,
     BackendFailure,
 }
+
+/// (username, apikey)
+pub(crate) struct ApiKey {
+    pub user: BBox<String>,
+    pub key: BBox<String>,
+}
+
+#[derive(Debug, FromForm)]
+pub(crate) struct ApiKeyRequest {
+    email: BBox<String>,
+    gender: BBox<String>,
+    age: BBox<u32>,
+    ethnicity: BBox<String>,
+    is_remote: BBox<bool>,
+    education: BBox<String>,
+}
+
+#[derive(BBoxRender)]
+pub(crate) struct ApiKeyResponse {
+    apikey_email: BBox<String>,
+    parent: String,
+}
+
+#[derive(Debug, FromForm)]
+pub(crate) struct ApiKeySubmit {
+    key: BBox<String>,
+}
+
 
 // Check API key against database.
 pub(crate) fn check_api_key(
@@ -52,12 +78,6 @@ pub(crate) fn check_api_key(
     } else {
         Err(ApiKeyError::BackendFailure)
     }
-}
-
-/// (username, apikey)
-pub(crate) struct ApiKey {
-    pub user: BBox<String>,
-    pub key: BBox<String>,
 }
 
 // Auto construct ApiKey from every request using cookies.
@@ -82,22 +102,6 @@ impl<'r> FromRequest<'r> for ApiKey {
             })
             .into_outcome((Status::Unauthorized, ApiKeyError::Missing))
     }
-}
-
-#[derive(Debug, FromForm)]
-pub(crate) struct ApiKeyRequest {
-    email: BBox<String>,
-    gender: BBox<String>,
-    age: BBox<u32>,
-    ethnicity: BBox<String>,
-    is_remote: BBox<bool>,
-    education: BBox<String>,
-}
-
-#[derive(BBoxRender)]
-pub(crate) struct ApiKeyResponse {
-    apikey_email: BBox<String>,
-    parent: String,
 }
 
 // TODO(babman): too many sandboxes, what is reasonable here?
@@ -164,11 +168,6 @@ pub(crate) fn generate(
       parent: "layout".into(),
     };
     bbox::render("apikey/generate", &ctx).unwrap()
-}
-
-#[derive(Debug, FromForm)]
-pub(crate) struct ApiKeySubmit {
-    key: BBox<String>,
 }
 
 #[post("/", data = "<data>")]
