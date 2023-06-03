@@ -81,9 +81,8 @@ pub(crate) fn lec_add_submit(
     );
     drop(bg);
 
-    Redirect::to("/leclist")
+    bbox::redirect("/leclist", vec![])
 }
-
 
 #[get("/<num>")]
 pub(crate) fn lec(
@@ -138,19 +137,19 @@ pub(crate) fn addq(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Redirect {
     let mut bg = backend.lock().unwrap();
+    let num = BBox::new(num);
     bg.insert(
         "questions",
         vec![
-            (num as u64).into(),
-            (data.q_id as u64).into(),
-            data.q_prompt.to_string().into(),
+            num.into2::<u64>().into2::<Value>().internal_unbox().clone(),
+            data.q_id.into2::<u64>().into2::<Value>().internal_unbox().clone(),
+            data.q_prompt.into2::<Value>().internal_unbox().clone(),
         ],
     );
     drop(bg);
 
-    Redirect::to(format!("/admin/lec/{}", num))
+    bbox::redirect("/admin/lec/{}", vec![&num])
 }
-
 
 #[get("/<num>/<qnum>")]
 pub(crate) fn editq(
@@ -160,6 +159,7 @@ pub(crate) fn editq(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
+    let num = BBox::new(num);
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ?",
         vec![(num as u64).into()],
