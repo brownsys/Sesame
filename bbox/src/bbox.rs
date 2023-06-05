@@ -1,4 +1,5 @@
 use std::fmt;
+use core::fmt::Display;
 
 pub struct BBox<T> {
   pub(crate) t: T,
@@ -22,7 +23,7 @@ impl<T, S: Sandboxable<T>> Sandboxable<T> for Vec<S> {
   }
 }
 
-
+// Box functions.
 impl<T> BBox<T> {
   // TODO(babman): We have not thought yet about how boxes get created initially,
   //               probably we need the policy here too.
@@ -57,6 +58,13 @@ impl<T> BBox<T> {
   }
 }
 
+// String format.
+impl<T: Display> BBox<T> {
+  pub fn format(&self) -> BBox<String> {
+    BBox::new(format!("{}", self.t))
+  }
+}
+
 // Sandbox execute with a container of bboxes.
 pub fn sandbox_execute<
     T: Clone,
@@ -86,6 +94,18 @@ pub fn sandbox_combine<
   BBox::new(lambda(v1, v2))
 }
 
+// Move BBox inside and outside a vec.
+impl<T> From<BBox<Vec<T>>> for Vec<BBox<T>> {
+  fn from(x: BBox<Vec<T>>) -> Vec<BBox<T>> {
+    x.t.into_iter().map(|t| BBox::new(t)).collect()
+  }
+}
+impl<T> From<Vec<BBox<T>>> for BBox<Vec<T>> {
+  fn from(x: Vec<BBox<T>>) -> BBox<Vec<T>> {
+    BBox::new(x.into_iter().map(|b| b.t).collect())
+  }
+}
+
 // TODO(babman): These should be eventually removed.
 impl<T> BBox<T> {
   // Usage of these should be pulled into our library.
@@ -110,3 +130,33 @@ impl<T: Clone> Clone for BBox<T> {
     BBox::new(self.t.clone())
   }
 }
+
+// A type that contains either T or BBox<T>.
+pub enum VBox<T> {
+  Value(T),
+  BBox(BBox<T>),
+}
+
+// VBox is clonable if T is clonable.
+impl<T: Clone> Clone for VBox<T> {
+  fn clone(&self) -> Self {
+    match self {
+      VBox::Value(value) => VBox::Value(value.clone()),
+      VBox::BBox(bbox) => VBox::BBox(bbox.clone()),
+    }
+  }
+}
+
+// From for obvious types.
+impl From<String> for VBox<String> {
+  fn from(x: String) -> VBox<String> {
+    VBox::Value(x)
+  }
+}
+impl<T> From<BBox<T>> for VBox<T> {
+  fn from(x: BBox<T>) -> VBox<T> {
+    VBox::BBox(x)
+  }
+}
+
+

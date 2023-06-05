@@ -10,14 +10,15 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 use serde::Serialize;
 
-use bbox::{BBox, BBoxRender, ValueOrBBox};
+use bbox::{BBox, BBoxRender};
 use bbox_derive::BBoxRender;
-use bbox::db::{from_value};
+use bbox::db::{from_value, from_value_or_null};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
+use crate::helpers::{JoinIdx, left_join};
 
 
 #[derive(Debug, FromForm)]
@@ -25,17 +26,17 @@ pub(crate) struct LectureQuestionSubmission {
     answers: HashMap<u64, BBox<String>>,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(BBoxRender, Clone)]
 pub(crate) struct LectureQuestion {
-    pub id: u64,
-    pub prompt: String,
-    pub answer: Option<String>,
+    pub id: BBox<u64>,
+    pub prompt: BBox<String>,
+    pub answer: BBox<Option<String>>,
 }
 
 #[derive(BBoxRender)]
 pub(crate) struct LectureQuestionsContext {
     pub lec_id: BBox<u8>,
-    pub questions: BBox<Vec<LectureQuestion>>,
+    pub questions: Vec<LectureQuestion>,
     pub parent: String,
 }
 
@@ -156,34 +157,27 @@ pub(crate) fn questions(
         vec![key.into()]);
     drop(bg);
 
-    let make_questions = |questions_res: Vec<Vec<mysql::Value>>, answers_res: Vec<Vec<mysql::Value>>| {
-        let mut answers = HashMap::new();
-        for r in answers_res {
-            let id: u64 = mysql::from_value(r[2].clone());
-            let atext: String = mysql::from_value(r[3].clone());
-            answers.insert(id, atext);
-        }
-
-        let mut questions: Vec<_> = questions_res
-            .into_iter()
-            .map(|r| {
-                let id: u64 = mysql::from_value(r[1].clone());
-                let answer = answers.get(&id).map(|s| s.to_owned());
-                LectureQuestion {
-                    id: id,
-                    prompt: mysql::from_value(r[2].clone()),
-                    answer: answer,
-                }
-            })
-            .collect();
-        questions.sort_by(|a, b| a.id.cmp(&b.id));
+    let questions = bbox::sandbox_combine(questions_result, answers_result, |questions_res: Vec<Vec<mysql::Value>>, answers_res: Vec<Vec<mysql::Value>>| {
+        let mut questions = left_join(questions_res, answers_res, 1, 2, vec![JoinIdx::Left(1), JoinIdx::Left(2), JoinIdx::Right(3)]);
+        questions.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap());
         questions
-    };
-    let questions = bbox::sandbox_combine(questions_result, answers_result, make_questions);
+    });
 
+    let questions: Vec<BBox<Vec<mysql::Value>>> = questions.into();
+    let questions = questions
+        .into_iter()
+        .map(|r| {
+          let r: Vec<BBox<mysql::Value>> = r.into();
+          LectureQuestion {
+            id: from_value(r[0].clone()),
+            prompt: from_value(r[1].clone()),
+            answer: from_value_or_null(r[2].clone())
+          }
+        })
+        .collect();
     let ctx = LectureQuestionsContext {
         lec_id: num,
-        questions: questions.clone(),
+        questions: questions,
         parent: "layout".into(),
     };
 

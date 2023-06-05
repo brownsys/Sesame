@@ -8,7 +8,7 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
 
-use bbox::{BBox, BBoxRender, ValueOrBBox};
+use bbox::{BBox, BBoxRender};
 use bbox_derive::BBoxRender;
 
 use crate::backend::{MySqlBackend, Value};

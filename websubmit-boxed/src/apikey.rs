@@ -13,7 +13,7 @@ use rocket_dyn_templates::Template;
 use rand::{Rng, thread_rng};
 use rand::distributions::Alphanumeric;
 
-use bbox::{BBox, BBoxRender, ValueOrBBox};
+use bbox::{BBox, BBoxRender};
 use bbox::db::from_value;
 use bbox_derive::BBoxRender;
 

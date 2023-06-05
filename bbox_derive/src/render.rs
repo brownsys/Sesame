@@ -34,20 +34,12 @@ pub fn derive_boxed_serialize_impl(input: DeriveInput) -> TokenStream {
   // Impl trait.
   quote! {
     #[automatically_derived]
-    impl BBoxRender for #input_name {
-      fn render<'a>(&'a self) -> ValueOrBBox<'a> {
-        let mut map: BTreeMap<String, ValueOrBBox<'a>> = BTreeMap::new();
+    impl bbox::BBoxRender for #input_name {
+      fn render<'a>(&'a self) -> bbox::Renderable<'a> {
+        let mut map: std::collections::BTreeMap<String, bbox::Renderable<'a>> = std::collections::BTreeMap::new();
         #(#puts)*
-        ValueOrBBox::Dict(map)
+        bbox::Renderable::Dict(map)
       }
     }
   }
 }
-
-
-
-/*
-pub trait BBoxRender {
-  fn render<'a>(&'a self) -> ValueOrBBox<'a>;
-}
-*/

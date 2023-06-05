@@ -18,8 +18,7 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
 
-// TODO(babman): do admin
-// mod admin;
+mod admin;
 mod apikey;
 mod args;
 mod backend;
@@ -27,6 +26,7 @@ mod config;
 mod email;
 mod login;
 mod questions;
+mod helpers;
 //mod grades;
 //mod predict;
 
@@ -109,7 +109,6 @@ async fn main() {
         )
         */
         .mount("/login", routes![login::login])
-        /*
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
@@ -119,6 +118,7 @@ async fn main() {
             "/admin/lec",
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
+        /*
         .mount("/manage/users", routes![manage::get_aggregate_grades])
          */
         .launch()

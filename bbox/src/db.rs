@@ -1,7 +1,7 @@
 extern crate mysql;
 
 // BBox
-use crate::BBox;
+use crate::{BBox, VBox};
 
 // mysql imports.
 pub use mysql::{Opts, Statement, Result, Binary, SetColumns};
@@ -15,28 +15,32 @@ pub type Value = BBox<mysql::Value>;
 pub fn from_value<T: FromValue>(v: Value) -> BBox<T> {
   BBox::new(mysql::from_value(v.t))
 }
+pub fn from_value_or_null<T: FromValue>(v: Value) -> BBox<Option<T>> {
+  if let mysql::Value::NULL = v.t {
+    BBox::new(None)
+  } else {
+    BBox::new(Some(mysql::from_value(v.t)))
+  }
+}
 
 // Our params may be boxed or clear.
 #[derive(Clone)]
-pub enum Param {
-  Value(mysql::Value),
-  BBox(BBox<mysql::Value>),
-}
+pub struct Param (VBox<mysql::Value>);
 
 // Auto convert mysql::Value and bbox to Value.
 impl<T: Into<mysql::Value>> From<T> for Param {
   fn from(x: T) -> Param {
-    Param::Value(x.into())
+    Param(VBox::Value(x.into()))
   }
 }
 impl<T: Into<mysql::Value>> From<BBox<T>> for Param {
   fn from(x: BBox<T>) -> Param {
-    Param::BBox(x.m_into2())
+    Param(VBox::BBox(x.m_into2()))
   }
 }
 impl<T: Into<mysql::Value> + Clone> From<&BBox<T>> for Param {
   fn from(x: &BBox<T>) -> Param {
-    Param::BBox(x.into2())
+    Param(VBox::BBox(x.into2()))
   }
 }
 
@@ -187,8 +191,8 @@ impl Conn {
       Params::Positional(vec) => {
         let unboxed = vec.into_iter().map(|v: Param| {
           match v {
-            Param::Value(v) => v,
-            Param::BBox(bbox) => bbox.t,
+            Param(VBox::Value(v)) => v,
+            Param(VBox::BBox(bbox)) => bbox.t,
           }
         }).collect();
         mysql::params::Params::Positional(unboxed)
