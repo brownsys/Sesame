@@ -43,6 +43,10 @@ impl<T> BBox<T> {
   pub fn m_into2<F>(self) -> BBox<F> where T: Into<F> {
     BBox::new(self.t.into())
   }
+  // Converts &BBox<T> to BBox<&T>.
+  pub fn as_ref(&self) -> BBox<&T> {
+    BBox::new(&self.t)
+  }
 
   // Unbox given a context (need more thinking)
   pub fn unbox(&self, _ctx: &str) -> &T {

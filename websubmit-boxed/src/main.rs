@@ -27,8 +27,8 @@ mod email;
 mod login;
 mod questions;
 mod helpers;
-//mod grades;
-//mod predict;
+mod grades;
+mod predict;
 
 extern crate bbox;
 use bbox::BBox;
@@ -94,20 +94,16 @@ async fn main() {
         )
         .mount("/apikey/check", routes![apikey::check])
         .mount("/apikey/generate", routes![apikey::generate])
-        /*
         .mount(
             "/grades", 
             routes![grades::grades, grades::editg, grades::editg_submit]
         )
-        */
         .mount("/answers", routes![questions::answers])
         .mount("/leclist", routes![questions::leclist])
-        /*
         .mount(
             "/predict", 
             routes![predict::predict, predict::predict_grade]
         )
-        */
         .mount("/login", routes![login::login])
         .mount(
             "/admin/lec/add",

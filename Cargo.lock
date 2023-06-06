@@ -3995,6 +3995,7 @@ dependencies = [
  "chrono",
  "clap",
  "handlebars",
+ "lazy_static",
  "lettre",
  "lettre_email",
  "linfa",
