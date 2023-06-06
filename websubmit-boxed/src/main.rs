@@ -29,6 +29,7 @@ mod questions;
 mod helpers;
 mod grades;
 mod predict;
+mod manage;
 
 extern crate bbox;
 use bbox::BBox;
@@ -114,9 +115,7 @@ async fn main() {
             "/admin/lec",
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
-        /*
         .mount("/manage/users", routes![manage::get_aggregate_grades])
-         */
         .launch()
         .await
     {

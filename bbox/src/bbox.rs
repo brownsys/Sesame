@@ -22,6 +22,13 @@ impl<T, S: Sandboxable<T>> Sandboxable<T> for Vec<S> {
     self.iter().map(|e| e.smap(&lambda)).collect()
   }
 }
+impl<T, S: Sandboxable<T>> Sandboxable<T> for &Vec<S> {
+  type Out = Vec<S::Out>;
+  fn smap<F: Fn(&BBox<T>) -> T>(&self, lambda: F) -> Self::Out {
+    self.iter().map(|e| e.smap(&lambda)).collect()
+  }
+}
+
 
 // Box functions.
 impl<T> BBox<T> {

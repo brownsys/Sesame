@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use std::hash::Hash;
+
+use mysql::prelude::FromValue;
 
 pub enum JoinIdx {
   Left(usize),
@@ -30,4 +33,29 @@ pub fn left_join(left: Vec<Vec<mysql::Value>>, right: Vec<Vec<mysql::Value>>, li
           vec
       })
       .collect()
+}
+
+pub type AvgIdx = usize;
+
+// Compute the average of the given column grouped by the value of the group_by column.
+// Result is on the form:
+// [
+//    [<group1>, <avg1>],
+//    [<group2>, <avg2>],
+//    ...
+// ]
+pub fn average<GroupType>(column: AvgIdx, group_by : AvgIdx, data: Vec<Vec<mysql::Value>>) -> Vec<Vec<mysql::Value>> where GroupType: Eq + Hash + FromValue + Into<mysql::Value> {
+    let map: HashMap<GroupType, (u64, u64)> = HashMap::new();
+    data.into_iter()
+        .fold(map, |mut map, row| {
+            let group: GroupType = mysql::from_value(row[group_by].clone());
+            let value: u64 = mysql::from_value(row[column].clone());
+            let tup: &mut (u64, u64) = map.entry(group).or_default();
+            tup.0 += value;
+            tup.1 += 1;
+            map
+        })
+        .into_iter()
+        .map(|(group, (sum, count))| vec![group.into(), (sum / count).into()])
+        .collect()
 }
