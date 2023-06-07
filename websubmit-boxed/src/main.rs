@@ -30,6 +30,9 @@ mod helpers;
 mod grades;
 mod predict;
 mod manage;
+mod policies;
+
+type User = apikey::ApiKey;
 
 extern crate bbox;
 use bbox::BBox;

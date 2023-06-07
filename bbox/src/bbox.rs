@@ -1,8 +1,11 @@
 use std::fmt;
 use core::fmt::Display;
 
+use crate::policy::Policy;
+
 pub struct BBox<T> {
   pub(crate) t: T,
+  pub(crate) policies: Vec<Box<dyn Policy>>,
 }
 
 // BBox and containers of it are sandboxable.
@@ -35,7 +38,12 @@ impl<T> BBox<T> {
   // TODO(babman): We have not thought yet about how boxes get created initially,
   //               probably we need the policy here too.
   pub fn new(t: T) -> Self {
-    Self { t }
+    Self { t: t, policies: vec![] }
+  }
+  
+  // TODO(babman): new_with_policy should replace new.
+  pub fn new_with_policy(t: T, policies: Vec<Box<dyn Policy>>) -> Self {
+    Self { t, policies }
   }
 
   // Common operations that we are pulling into our library.
@@ -56,6 +64,7 @@ impl<T> BBox<T> {
   }
 
   // Unbox given a context (need more thinking)
+  // TODO(babman): check policy here, make this take a context.
   pub fn unbox(&self, _ctx: &str) -> &T {
     &self.t
   }
@@ -121,7 +130,7 @@ impl<T> From<Vec<BBox<T>>> for BBox<Vec<T>> {
 impl<T> BBox<T> {
   // Usage of these should be pulled into our library.
   pub fn internal_new(t: T) -> Self {
-    Self { t }
+    Self { t: t, policies: vec![] }
   }
   pub fn internal_unbox(&self) -> &T {
     &self.t

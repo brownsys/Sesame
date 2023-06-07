@@ -118,6 +118,7 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
 
 // Our render wrapper takes in some BBoxRender type, transforms it to a figment
 // Value compatible with Rocket, and then calls Rocket's render.
+// TODO(babman): call check on the policy here.
 pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender>(name: S, context: &T)
     -> Result<Template, FError> {
   // First turn context into a figment::value::Value.

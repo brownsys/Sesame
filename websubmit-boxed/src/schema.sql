@@ -3,4 +3,8 @@ CREATE TABLE lectures (id int, label varchar(255), PRIMARY KEY (id));
 CREATE TABLE questions (lec int, q int, question text, PRIMARY KEY (lec, q));
 CREATE TABLE answers (email varchar(255), lec int, q int, answer text, submitted_at datetime, grade int, PRIMARY KEY (email, lec, q));
 
+-- For discussion leaders: a discussion leader has access to read the submitted answers.
+CREATE TABLE discussion_leaders (id int PRIMARY KEY, email varchar(255), lec int);
+
+
 CREATE VIEW lec_qcount as SELECT questions.lec, COUNT(questions.q) AS qcount FROM questions GROUP BY questions.lec;

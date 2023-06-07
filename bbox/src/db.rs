@@ -2,6 +2,7 @@ extern crate mysql;
 
 // BBox
 use crate::{BBox, VBox};
+use crate::policy::{PolicyManager, PolicyFactory};
 
 // mysql imports.
 pub use mysql::{Opts, Statement, Result, Binary, SetColumns};
@@ -94,28 +95,38 @@ into_params_impl!([A, a], [B, b], [C, c], [D, d], [E, e], [F, f], [G, g]);
 into_params_impl!([A, a], [B, b], [C, c], [D, d], [E, e], [F, f], [G, g], [H, h]);
 
 // A result row.
-pub struct Row {
+pub struct Row<'c> {
   row: mysql::Row,
+  manager: &'c PolicyManager,
+  table: String,
 }
-impl Row {
+impl<'c> Row<'c> {
   pub fn get<T: FromValue, I: ColumnIndex>(&self, index: I) -> Option<BBox<T>> {
+    let idx: Option<usize> = index.idx(self.row.columns_ref());
+    let row = self.row.clone().unwrap();
     match self.row.get(index) {
       Option::None => Option::None,
-      Option::Some(t) => Option::Some(BBox::new(t)),
+      Option::Some(t) => {
+        Option::Some(BBox::new_with_policy(t, self.manager.manage(&self.table, idx.unwrap(), &row)))
+      },
     }
   }
   
   pub fn unwrap(self) -> Vec<Value> {
+    let manager = self.manager;
+    let table = &self.table;
     let vals = self.row.unwrap();
-    vals.into_iter().map(|v| BBox::new(v)).collect()
+    vals.iter().enumerate().map(|(i, v)| BBox::new_with_policy(v.clone(), manager.manage(&table, i, &vals))).collect()
   }
 }
 
 // Our result wrapper.
-pub struct QueryResult<'c, 't, 'tc> {
+pub struct QueryResult<'a, 'c, 't, 'tc> {
   result: mysql::QueryResult<'c, 't, 'tc, Binary>,
+  manager: &'a PolicyManager,
+  table: String,
 }
-impl<'c, 't, 'tc> QueryResult<'c, 't, 'tc> {
+impl<'a, 'c, 't, 'tc> QueryResult<'a, 'c, 't, 'tc> {
   pub fn affected_rows(&self) -> u64 {
     self.result.affected_rows()
   }
@@ -126,14 +137,14 @@ impl<'c, 't, 'tc> QueryResult<'c, 't, 'tc> {
     self.result.columns()
   }
 }
-impl<'c, 't, 'tc> Iterator for QueryResult<'c, 't, 'tc> {
-  type Item = Result<Row>;
+impl<'a, 'c, 't, 'tc> Iterator for QueryResult<'a, 'c, 't, 'tc> {
+  type Item = Result<Row<'a>>;
   fn next(&mut self) -> Option<Self::Item> {
     match self.result.next() {
       Option::None => Option::None,
       Option::Some(row) => {
         match row {
-          Ok(row) => Some(Ok(Row { row: row })),
+          Ok(row) => Some(Ok(Row { row: row, manager: self.manager, table: self.table.clone() })),
           Err(e) => Some(Err(e))
         }
       }
@@ -145,13 +156,18 @@ impl<'c, 't, 'tc> Iterator for QueryResult<'c, 't, 'tc> {
 // BBox DB connection
 pub struct Conn {
   conn: mysql::Conn,
+  manager: PolicyManager,
 }
 
 impl Conn {
   // Creating a new DBConn is the same as creating a new mysql::Conn.
   pub fn new<T: Into<Opts>>(opts: T) -> Result<Conn> {
     let conn = mysql::Conn::new(opts)?;
-    Ok(Conn { conn: conn })
+    Ok(Conn { conn: conn, manager: PolicyManager::new() })
+  }
+  
+  pub fn add_policy_factory<T: PolicyFactory + 'static>(&mut self, table: String, column: usize, factory: T) {
+    self.manager.add(table, column, factory)
   }
   
   // Test ping.
@@ -178,10 +194,10 @@ impl Conn {
 
   // Parameterized query and return iterator to result.
   pub fn exec_iter<S: AsStatement, P: Into<Params>>(
-      &mut self, stmt: S, params: P) -> Result<QueryResult<'_, '_, '_>> {
+      &mut self, stmt: S, params: P) -> Result<QueryResult<'_, '_, '_, '_>> {
     let params = self.unbox_params(params.into());
     let result = self.conn.exec_iter(stmt, params)?;
-    Ok(QueryResult { result: result })
+    Ok(QueryResult { result: result, manager: &self.manager, table: String::from("") })
   }
   
   // private helper function.
