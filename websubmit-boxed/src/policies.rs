@@ -7,7 +7,8 @@ use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::request::{self, FromRequest, Request};
 
 use bbox::context::Context;
-use bbox::policy::{Policy, PolicyFactory};
+use bbox::policy::Policy;
+use bbox_derive::schema_policy;
 
 use std::any::Any;
 
@@ -45,13 +46,15 @@ impl<'r> FromRequest<'r> for ContextData {
         };
 
         request.route()
-            .and_then(|route| Some(ContextData { db: db.unwrap(), config: config.unwrap() }))
+            .and_then(|_| Some(ContextData { db: db.unwrap(), config: config.unwrap() }))
             .into_outcome((Status::InternalServerError, ContextDataError::Unconstructible))
     }
 }
 
-
 // Access control policy.
+#[schema_policy(table = "answers", column = 3)]
+// We can add multiple #[schema_policy(...)] definitions
+// here to reuse the policy accross tables/columns.
 pub struct AnswerAccessPolicy {
   owner: String,
   lec_id: u64,
@@ -64,6 +67,13 @@ pub struct AnswerAccessPolicy {
 //      (`P(me)` alter. `is me in set<P(students)>`);
 
 impl Policy for AnswerAccessPolicy {
+    fn from_row(row: &Vec<mysql::Value>) -> Self where Self: Sized {
+      AnswerAccessPolicy {
+        owner: mysql::from_value(row[0].clone()),
+        lec_id: mysql::from_value(row[1].clone())
+      }
+    }
+
     fn check(&self, context: &dyn Any) -> bool {
         let context: &Context<User, ContextData> = context.downcast_ref().unwrap();
     
@@ -92,16 +102,4 @@ impl Policy for AnswerAccessPolicy {
 
         vec.len() > 0
     }
-}
-
-// TODO(babman): replace this with macro and do not use a standalone factory.
-pub struct AnswerAccessPolicyFactory {}
-
-impl PolicyFactory for AnswerAccessPolicyFactory {
-  fn create(&self, row: &Vec<mysql::Value>) -> Arc<Mutex<dyn Policy>> {
-    Arc::new(Mutex::new(AnswerAccessPolicy {
-        owner: mysql::from_value(row[0].clone()),
-        lec_id: mysql::from_value(row[1].clone())
-    }))
-  }
 }

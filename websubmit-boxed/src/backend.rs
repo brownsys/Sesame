@@ -1,8 +1,6 @@
 use bbox::db::{Conn, Opts, Result, Statement, Value, Param};
 use std::collections::HashMap;
 
-use crate::policies::AnswerAccessPolicyFactory;
-
 pub struct MySqlBackend {
     pub handle: Conn,
     pub log: slog::Logger,
@@ -63,9 +61,6 @@ impl MySqlBackend {
                 db.query_drop(line).unwrap();
             }
         }
-        
-        // TODO(babman): this should be a macro.
-        db.add_policy_factory(String::from("answers"), 3, AnswerAccessPolicyFactory{});
 
         Ok(MySqlBackend {
             handle: db,

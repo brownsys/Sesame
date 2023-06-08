@@ -241,11 +241,13 @@ dependencies = [
  "erased-serde",
  "figment",
  "handlebars",
+ "lazy_static",
  "mysql",
  "mysql_common 0.22.2",
  "rocket",
  "rocket_dyn_templates",
  "serde",
+ "small_ctor",
 ]
 
 [[package]]
@@ -3170,6 +3172,12 @@ checksum = "b3bc762e6a4b6c6fcaade73e77f9ebc6991b676f88bb2358bddb56560f073373"
 dependencies = [
  "deunicode",
 ]
+
+[[package]]
+name = "small_ctor"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59c7d21a73f95b248d4a74ef272bc2463c250c74569f29f8ead9563c0a59321e"
 
 [[package]]
 name = "smallvec"
