@@ -97,31 +97,42 @@ into_params_impl!([A, a], [B, b], [C, c], [D, d], [E, e], [F, f], [G, g], [H, h]
 // A result row.
 pub struct Row {
   row: mysql::Row,
-  table: String,
+  raw: Vec<mysql::Value>,
 }
 impl Row {
+  pub fn new(row: mysql::Row) -> Self {
+    let raw = row.clone().unwrap();
+    Row { row, raw }
+  }
   pub fn get<T: FromValue, I: ColumnIndex>(&self, index: I) -> Option<BBox<T>> {
-    let idx = index.idx(self.row.columns_ref()).unwrap();
-    let row = self.row.clone().unwrap();
+    let columns = self.row.columns_ref();
+    let idx = index.idx(columns);
     match self.row.get(index) {
       Option::None => Option::None,
       Option::Some(t) => {
-        Option::Some(BBox::new_with_policy(t, get_schema_policies(self.table.clone(), idx, &row)))
+        let idx = idx.unwrap();
+        let table = columns[idx].table_str().into_owned();
+        Option::Some(BBox::new_with_policy(t, get_schema_policies(table, idx, &self.raw)))
       },
     }
   }
 
   pub fn unwrap(self) -> Vec<Value> {
-    let table = self.table.clone();
-    let vals = self.row.unwrap();
-    vals.iter().enumerate().map(|(i, v)| BBox::new_with_policy(v.clone(), get_schema_policies(table.clone(), i, &vals))).collect()
+    self.raw
+        .iter()
+        .enumerate()
+        .map(|(i, v)| {
+          let columns = self.row.columns_ref();
+          let table = columns[i].table_str().into_owned();
+          BBox::new_with_policy(v.clone(), get_schema_policies(table, i, &self.raw))
+        })
+        .collect()
   }
 }
 
 // Our result wrapper.
 pub struct QueryResult<'c, 't, 'tc> {
   result: mysql::QueryResult<'c, 't, 'tc, Binary>,
-  table: String,
 }
 impl<'c, 't, 'tc> QueryResult<'c, 't, 'tc> {
   pub fn affected_rows(&self) -> u64 {
@@ -141,7 +152,7 @@ impl<'c, 't, 'tc> Iterator for QueryResult<'c, 't, 'tc> {
       None => None,
       Some(row) => {
         match row {
-          Ok(row) => Some(Ok(Row { row: row, table: self.table.clone() })),
+          Ok(row) => Some(Ok(Row::new(row))),
           Err(e) => Some(Err(e))
         }
       }
@@ -189,10 +200,7 @@ impl Conn {
       &mut self, stmt: S, params: P) -> Result<QueryResult<'_, '_, '_>> {
     let params = self.unbox_params(params.into());
     let result = self.conn.exec_iter(stmt, params)?;
-    let columns = result.columns();
-    // TODO(artem): should find a better way to extract table name
-    let table: String = columns.as_ref()[0].table_str().parse()?;
-    Ok(QueryResult { result, table })
+    Ok(QueryResult { result })
   }
   
   // private helper function.
