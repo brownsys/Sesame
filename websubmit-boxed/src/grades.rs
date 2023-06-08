@@ -7,23 +7,23 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
 
-use bbox::{BBox, VBox, BBoxRender};
-use bbox::context::Context;
-use bbox_derive::BBoxRender;
-use bbox::db::from_value;
 use crate::apikey::ApiKey;
+use bbox::context::Context;
+use bbox::db::from_value;
+use bbox::{BBox, BBoxRender, VBox};
+use bbox_derive::BBoxRender;
 
 use crate::backend::MySqlBackend;
 use crate::policies::ContextData;
+use crate::predict::train_and_store;
 use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
-use crate::predict::train_and_store;
 
 #[get("/<num>")]
 pub(crate) fn grades(
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let key = num.into2::<u64>();
 
@@ -37,7 +37,8 @@ pub(crate) fn grades(
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone()).sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
+            time: from_value::<NaiveDateTime>(r[4].clone())
+                .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
             grade: from_value(r[5].clone()),
         })
         .collect();
@@ -51,7 +52,6 @@ pub(crate) fn grades(
     bbox::render("grades", &ctx, &context).unwrap()
 }
 
-
 #[derive(BBoxRender)]
 struct GradeEditContext {
     answer: BBox<String>,
@@ -59,7 +59,7 @@ struct GradeEditContext {
     lec_id: BBox<u8>,
     lec_qnum: BBox<u8>,
     parent: String,
-    user: BBox<String>
+    user: BBox<String>,
 }
 
 #[get("/<user>/<num>/<qnum>")]
@@ -68,7 +68,7 @@ pub(crate) fn editg(
     num: BBox<u8>,
     qnum: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -77,7 +77,8 @@ pub(crate) fn editg(
             user.clone().into(),
             num.into2::<u64>().into(),
             qnum.into2::<u64>().into(),
-        ]);
+        ],
+    );
     drop(bg);
 
     let r = &res[0];
@@ -115,11 +116,12 @@ pub(crate) fn editg_submit(
             user.clone().into(),
             num.into2::<u64>().into(),
             qnum.into2::<u64>().into(),
-        ]);
+        ],
+    );
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    train_and_store(backend);   
+    train_and_store(backend);
 
     bbox::redirect("/grades/{}", vec![&num])
 }

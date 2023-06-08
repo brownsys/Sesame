@@ -17,11 +17,11 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::helpers::average;
 
-use bbox::{BBox, BBoxRender};
-use bbox::context::Context;
-use bbox_derive::BBoxRender;
-use bbox::db::{from_value, from_value_or_null};
 use crate::policies::ContextData;
+use bbox::context::Context;
+use bbox::db::{from_value, from_value_or_null};
+use bbox::{BBox, BBoxRender};
+use bbox_derive::BBoxRender;
 
 pub(crate) struct Manager;
 
@@ -37,14 +37,19 @@ impl<'r> FromRequest<'r> for Manager {
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
-        let context = request.guard::<Context<ApiKey, ContextData>>().await.unwrap();
-        let manager = apikey.user.sandbox_execute(|user| cfg.managers.contains(user));
-        
+        let context = request
+            .guard::<Context<ApiKey, ContextData>>()
+            .await
+            .unwrap();
+        let manager = apikey
+            .user
+            .sandbox_execute(|user| cfg.managers.contains(user));
+
         // TODO(babman): find a better way here.
         let res = if *manager.unbox(&context) {
-          Some(Manager)
+            Some(Manager)
         } else {
-          None
+            None
         };
 
         res.into_outcome((Status::Unauthorized, ManagerError::Unauthorized))
@@ -66,24 +71,23 @@ struct AggregateContext {
 }
 
 fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>>) -> Vec<Aggregate<T>> {
-  let agg: Vec<BBox<Vec<mysql::Value>>> = agg.into();
-  agg.into_iter()
-     .map(|r| {
-       let r: Vec<BBox<mysql::Value>> = r.into();
-       Aggregate {
-        property: from_value(r[0].clone()),
-        average: from_value(r[1].clone()),
-       }
-     })
-     .collect()
+    let agg: Vec<BBox<Vec<mysql::Value>>> = agg.into();
+    agg.into_iter()
+        .map(|r| {
+            let r: Vec<BBox<mysql::Value>> = r.into();
+            Aggregate {
+                property: from_value(r[0].clone()),
+                average: from_value(r[1].clone()),
+            }
+        })
+        .collect()
 }
 
 #[get("/")]
 pub(crate) fn get_aggregate_grades(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>
-
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec(

@@ -1,26 +1,25 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use chrono::Local;
 use chrono::naive::NaiveDateTime;
+use chrono::Local;
 use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
 
-use bbox::{BBox};
-use bbox::context::Context;
-use bbox_derive::BBoxRender;
-use bbox::db::{from_value, from_value_or_null};
 use crate::admin::Admin;
+use bbox::context::Context;
+use bbox::db::{from_value, from_value_or_null};
+use bbox::BBox;
+use bbox_derive::BBoxRender;
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
-use crate::helpers::{JoinIdx, left_join};
+use crate::helpers::{left_join, JoinIdx};
 use crate::policies::ContextData;
-
 
 #[derive(Debug, FromForm)]
 pub(crate) struct LectureQuestionSubmission {
@@ -77,7 +76,7 @@ pub(crate) fn leclist(
     apikey: ApiKey,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -89,13 +88,21 @@ pub(crate) fn leclist(
     drop(bg);
 
     // TODO(babman): pure sandbox.
-    let admin: BBox<bool> = apikey.user.sandbox_execute(|email| config.admins.contains(email));
+    let admin: BBox<bool> = apikey
+        .user
+        .sandbox_execute(|email| config.admins.contains(email));
     let lecs: Vec<LectureListEntry> = res
         .into_iter()
         .map(|r| LectureListEntry {
             id: from_value(r[0].clone()),
             label: from_value(r[1].clone()),
-            num_qs: r[2].sandbox_execute(|v| if *v == mysql::Value::NULL { 0u64 } else { mysql::from_value(v.clone()) }),
+            num_qs: r[2].sandbox_execute(|v| {
+                if *v == mysql::Value::NULL {
+                    0u64
+                } else {
+                    mysql::from_value(v.clone())
+                }
+            }),
             num_answered: 0u64,
         })
         .collect();
@@ -114,7 +121,7 @@ pub(crate) fn answers(
     // _admin: Admin,
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let key = num.into2::<u64>();
@@ -127,7 +134,8 @@ pub(crate) fn answers(
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone()).sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
+            time: from_value::<NaiveDateTime>(r[4].clone())
+                .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
             grade: from_value(r[5].clone()),
         })
         .collect();
@@ -146,7 +154,7 @@ pub(crate) fn questions(
     apikey: ApiKey,
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     use std::collections::HashMap;
 
@@ -157,27 +165,35 @@ pub(crate) fn questions(
         "SELECT answers.* FROM answers WHERE answers.lec = ? AND answers.email = ?",
         vec![key.clone().into(), apikey.user.into()],
     );
-    let questions_result = bg.prep_exec(
-        "SELECT * FROM questions WHERE lec = ?",
-        vec![key.into()]);
+    let questions_result = bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key.into()]);
     drop(bg);
 
-    let questions = bbox::sandbox_combine(questions_result, answers_result, |questions_res: Vec<Vec<mysql::Value>>, answers_res: Vec<Vec<mysql::Value>>| {
-        let mut questions = left_join(questions_res, answers_res, 1, 2, vec![JoinIdx::Left(1), JoinIdx::Left(2), JoinIdx::Right(3)]);
-        questions.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap());
-        questions
-    });
+    let questions = bbox::sandbox_combine(
+        questions_result,
+        answers_result,
+        |questions_res: Vec<Vec<mysql::Value>>, answers_res: Vec<Vec<mysql::Value>>| {
+            let mut questions = left_join(
+                questions_res,
+                answers_res,
+                1,
+                2,
+                vec![JoinIdx::Left(1), JoinIdx::Left(2), JoinIdx::Right(3)],
+            );
+            questions.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap());
+            questions
+        },
+    );
 
     let questions: Vec<BBox<Vec<mysql::Value>>> = questions.into();
     let questions = questions
         .into_iter()
         .map(|r| {
-          let r: Vec<BBox<mysql::Value>> = r.into();
-          LectureQuestion {
-            id: from_value(r[0].clone()),
-            prompt: from_value(r[1].clone()),
-            answer: from_value_or_null(r[2].clone())
-          }
+            let r: Vec<BBox<mysql::Value>> = r.into();
+            LectureQuestion {
+                id: from_value(r[0].clone()),
+                prompt: from_value(r[1].clone()),
+                answer: from_value_or_null(r[2].clone()),
+            }
         })
         .collect();
     let ctx = LectureQuestionsContext {
@@ -196,7 +212,7 @@ pub(crate) fn questions_submit(
     data: Form<LectureQuestionSubmission>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Redirect {
     let num: BBox<u64> = num.m_into2();
     let ts: mysql::Value = Local::now().naive_local().into();
@@ -204,14 +220,17 @@ pub(crate) fn questions_submit(
 
     let mut bg = backend.lock().unwrap();
     for (id, answer) in &data.answers {
-        bg.replace("answers", vec![
-            apikey.user.clone().into(),
-            num.clone().into(),
-            (*id).into(),
-            answer.into(),
-            ts.clone().into(),
-            grade.clone().into(),
-        ]);
+        bg.replace(
+            "answers",
+            vec![
+                apikey.user.clone().into(),
+                num.clone().into(),
+                (*id).into(),
+                answer.into(),
+                ts.clone().into(),
+                grade.clone().into(),
+            ],
+        );
     }
 
     // TODO(babman): the email context..
@@ -234,10 +253,14 @@ pub(crate) fn questions_submit(
             bg.log.clone(),
             apikey.user.unbox(&context).clone(),
             recipients,
-            format!("{} meeting {} questions", config.class, *num.unbox(&context)),
+            format!(
+                "{} meeting {} questions",
+                config.class,
+                *num.unbox(&context)
+            ),
             answer_log,
         )
-            .expect("failed to send email");
+        .expect("failed to send email");
     }
     drop(bg);
 

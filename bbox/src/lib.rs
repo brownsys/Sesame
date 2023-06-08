@@ -6,8 +6,8 @@ mod forms;
 mod render;
 
 // Export these
-pub use bbox::{BBox, VBox, sandbox_execute, sandbox_combine};
-pub use render::{BBoxRender, Renderable, render, redirect};
-pub mod db;
+pub use bbox::{sandbox_combine, sandbox_execute, BBox, VBox};
+pub use render::{redirect, render, BBoxRender, Renderable};
 pub mod context;
+pub mod db;
 pub mod policy;

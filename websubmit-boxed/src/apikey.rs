@@ -3,6 +3,8 @@ use std::sync::{Arc, Mutex};
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use rocket::form::Form;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::outcome::IntoOutcome;
@@ -10,19 +12,16 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
-use rand::{Rng, thread_rng};
-use rand::distributions::Alphanumeric;
 
-use bbox::{BBox, BBoxRender};
 use bbox::context::Context;
 use bbox::db::from_value;
+use bbox::{BBox, BBoxRender};
 use bbox_derive::BBoxRender;
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
 use crate::policies::ContextData;
-
 
 // Errors that we may encounter when authenticating an ApiKey.
 #[derive(Debug)]
@@ -58,7 +57,6 @@ pub(crate) struct ApiKeyResponse {
 pub(crate) struct ApiKeySubmit {
     key: BBox<String>,
 }
-
 
 // Check API key against database.
 pub(crate) fn check_api_key(
@@ -99,7 +97,10 @@ impl<'r> FromRequest<'r> for ApiKey {
             .and_then(|cookie| cookie.value().parse().ok())
             .and_then(|key: String| Some(BBox::internal_new(key)))
             .and_then(|key: BBox<String>| match check_api_key(&be, &key) {
-                Ok(user) => Some(ApiKey { user: user, key: key }),
+                Ok(user) => Some(ApiKey {
+                    user: user,
+                    key: key,
+                }),
                 Err(_) => None,
             })
             .into_outcome((Status::Unauthorized, ApiKeyError::Missing))
@@ -112,27 +113,31 @@ pub(crate) fn generate(
     data: Form<ApiKeyRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let pseudonym: String = thread_rng()
-      .sample_iter(&Alphanumeric)
-      .take(16)
-      .map(char::from)
-      .collect();
+        .sample_iter(&Alphanumeric)
+        .take(16)
+        .map(char::from)
+        .collect();
 
     // generate an API key from email address
     let hash = data.email.sandbox_execute(|email| {
-      let mut hasher = Sha256::new();
-      hasher.input_str(email);
-      // add a secret to make API keys unforgeable without access to the server
-      hasher.input_str(&config.secret);
-      hasher.result_str()
+        let mut hasher = Sha256::new();
+        hasher.input_str(email);
+        // add a secret to make API keys unforgeable without access to the server
+        hasher.input_str(&config.secret);
+        hasher.result_str()
     });
 
     // Check if request corresponds to admin or manager.
     // TODO(babman): pure sandbox.
-    let is_admin = data.email.sandbox_execute(|email| config.admins.contains(email));
-    let is_manager = data.email.sandbox_execute(|email| config.managers.contains(email));
+    let is_admin = data
+        .email
+        .sandbox_execute(|email| config.admins.contains(email));
+    let is_manager = data
+        .email
+        .sandbox_execute(|email| config.managers.contains(email));
     let is_admin: BBox<i8> = is_admin.m_into2();
     let is_manager: BBox<i8> = is_manager.m_into2();
 
@@ -140,16 +145,18 @@ pub(crate) fn generate(
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "users",
-        vec![data.email.clone().into(),
-             hash.clone().into(),
-             is_admin.into(),
-             is_manager.into(),
-             pseudonym.into(),
-             data.gender.clone().into(),
-             data.age.clone().into(),
-             data.ethnicity.clone().into(),
-             data.is_remote.clone().into(),
-             data.education.clone().into()],
+        vec![
+            data.email.clone().into(),
+            hash.clone().into(),
+            is_admin.into(),
+            is_manager.into(),
+            pseudonym.into(),
+            data.gender.clone().into(),
+            data.age.clone().into(),
+            data.ethnicity.clone().into(),
+            data.is_remote.clone().into(),
+            data.education.clone().into(),
+        ],
     );
 
     if config.send_emails {
@@ -159,7 +166,11 @@ pub(crate) fn generate(
             "no-reply@csci2390-submit.cs.brown.edu".into(),
             vec![data.email.unbox(&context).clone()],
             format!("{} API key", config.class),
-            format!("Your {} API key is: {}\n", config.class, hash.unbox(&context)),
+            format!(
+                "Your {} API key is: {}\n",
+                config.class,
+                hash.unbox(&context)
+            ),
         )
         .expect("failed to send API key email");
     }
@@ -167,8 +178,8 @@ pub(crate) fn generate(
 
     // return to user
     let ctx = ApiKeyResponse {
-      apikey_email: data.email.clone(),
-      parent: "layout".into(),
+        apikey_email: data.email.clone(),
+        parent: "layout".into(),
     };
     bbox::render("apikey/generate", &ctx, &context).unwrap()
 }
@@ -198,7 +209,9 @@ pub(crate) fn check(
         Redirect::to("/")
     } else {
         // TODO(babman): should be able to store bboxes in cookies.
-        let cookie = Cookie::build("apikey", data.key.internal_unbox().clone()).path("/").finish();
+        let cookie = Cookie::build("apikey", data.key.internal_unbox().clone())
+            .path("/")
+            .finish();
         cookies.add(cookie);
         Redirect::to("/leclist")
     }

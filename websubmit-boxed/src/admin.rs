@@ -10,10 +10,10 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
 
-use bbox::{BBox, VBox, BBoxRender};
 use bbox::context::Context;
+use bbox::db::from_value;
+use bbox::{BBox, BBoxRender, VBox};
 use bbox_derive::BBoxRender;
-use bbox::db::{from_value};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -35,14 +35,19 @@ impl<'r> FromRequest<'r> for Admin {
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
-        let context = request.guard::<Context<ApiKey, ContextData>>().await.unwrap();
-        let admin = apikey.user.sandbox_execute(|user| cfg.admins.contains(user));
-        
+        let context = request
+            .guard::<Context<ApiKey, ContextData>>()
+            .await
+            .unwrap();
+        let admin = apikey
+            .user
+            .sandbox_execute(|user| cfg.admins.contains(user));
+
         // TODO(babman): find a better way here.
         let res = if *admin.unbox(&context) {
-          Some(Admin)
+            Some(Admin)
         } else {
-          None
+            None
         };
 
         res.into_outcome((Status::Unauthorized, AdminError::Unauthorized))
@@ -79,10 +84,7 @@ pub(crate) fn lec_add_submit(
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "lectures",
-        vec![
-            lec_id.into(),
-            data.lec_label.clone().into(),
-        ],
+        vec![lec_id.into(), data.lec_label.clone().into()],
     );
     drop(bg);
 
@@ -91,9 +93,9 @@ pub(crate) fn lec_add_submit(
 
 #[get("/<num>")]
 pub(crate) fn lec(
-    num: BBox<u8>, 
+    num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let key = num.into2::<u64>();
 
@@ -125,7 +127,6 @@ pub(crate) fn lec(
 
     bbox::render("admin/lec", &ctx, &context).unwrap()
 }
-
 
 #[derive(Debug, FromForm)]
 pub(crate) struct AddLectureQuestionForm {
@@ -160,7 +161,7 @@ pub(crate) fn editq(
     num: BBox<u8>,
     qnum: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -183,7 +184,6 @@ pub(crate) fn editq(
     bbox::render("admin/lecedit", &ctx, &context).unwrap()
 }
 
-
 #[post("/editq/<num>", data = "<data>")]
 pub(crate) fn editq_submit(
     _adm: Admin,
@@ -205,7 +205,6 @@ pub(crate) fn editq_submit(
     bbox::redirect("/admin/lec/{}", vec![&num])
 }
 
-
 #[derive(BBoxRender, Clone)]
 pub(crate) struct User {
     email: BBox<String>,
@@ -224,7 +223,7 @@ pub(crate) fn get_registered_users(
     _adm: Admin,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ApiKey, ContextData>
+    context: Context<ApiKey, ContextData>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", vec![]);
@@ -233,12 +232,12 @@ pub(crate) fn get_registered_users(
     let users: Vec<_> = res
         .into_iter()
         .map(|r| {
-          let id = from_value::<String>(r[0].clone());
-          User {
-            email: from_value(r[0].clone()),
-            apikey: from_value(r[2].clone()),
-            is_admin: id.sandbox_execute(|v| config.admins.contains(v)),
-          }
+            let id = from_value::<String>(r[0].clone());
+            User {
+                email: from_value(r[0].clone()),
+                apikey: from_value(r[2].clone()),
+                is_admin: id.sandbox_execute(|v| config.admins.contains(v)),
+            }
         })
         .collect();
 

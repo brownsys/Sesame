@@ -18,9 +18,9 @@ impl<U, D> Context<U, D> {
     pub fn get_route(&self) -> &str {
         &self.route
     }
-    
+
     pub fn get_data(&self) -> &D {
-      &self.data
+        &self.data
     }
 }
 
@@ -35,20 +35,27 @@ impl<'r, U: FromRequest<'r>, D: FromRequest<'r> + Send> FromRequest<'r> for Cont
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let data: Option<D> = match request.guard::<D>().await {
-            Success(data) => { Some(data) }
-            Failure(_) => { None }
-            Forward(_) => { None }
+            Success(data) => Some(data),
+            Failure(_) => None,
+            Forward(_) => None,
         };
 
         let user: Option<U> = match request.guard::<U>().await {
-            Success(user) => { Some(user) }
-            Failure(_) => { None }
-            Forward(_) => { None }
+            Success(user) => Some(user),
+            Failure(_) => None,
+            Forward(_) => None,
         };
 
-        request.route()
+        request
+            .route()
             // TODO(babman): clean this up
-            .and_then(|route| Some(Context { user: user, route: route.name.as_ref().unwrap().clone().into_owned(), data: data.unwrap() }))
+            .and_then(|route| {
+                Some(Context {
+                    user: user,
+                    route: route.name.as_ref().unwrap().clone().into_owned(),
+                    data: data.unwrap(),
+                })
+            })
             .into_outcome((Status::InternalServerError, ContextError::Unconstructible))
     }
 }

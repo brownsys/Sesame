@@ -24,13 +24,13 @@ mod args;
 mod backend;
 mod config;
 mod email;
-mod login;
-mod questions;
-mod helpers;
 mod grades;
-mod predict;
+mod helpers;
+mod login;
 mod manage;
 mod policies;
+mod predict;
+mod questions;
 
 type User = apikey::ApiKey;
 
@@ -99,14 +99,14 @@ async fn main() {
         .mount("/apikey/check", routes![apikey::check])
         .mount("/apikey/generate", routes![apikey::generate])
         .mount(
-            "/grades", 
-            routes![grades::grades, grades::editg, grades::editg_submit]
+            "/grades",
+            routes![grades::grades, grades::editg, grades::editg_submit],
         )
         .mount("/answers", routes![questions::answers])
         .mount("/leclist", routes![questions::leclist])
         .mount(
-            "/predict", 
-            routes![predict::predict, predict::predict_grade]
+            "/predict",
+            routes![predict::predict, predict::predict_grade],
         )
         .mount("/login", routes![login::login])
         .mount(

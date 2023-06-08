@@ -24,7 +24,7 @@ pub struct Config {
     pub secret: String,
     /// Whether to send emails
     pub send_emails: bool,
-    /// Whether to reset and prime db 
+    /// Whether to reset and prime db
     pub prime: bool,
 }
 

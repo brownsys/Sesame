@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use rocket::State;
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::request::{self, FromRequest, Request};
+use rocket::State;
 
 use bbox::context::Context;
 use bbox::policy::Policy;
@@ -12,14 +12,14 @@ use bbox_derive::schema_policy;
 
 use std::any::Any;
 
-use crate::User;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
+use crate::User;
 
 // Custom developer defined payload attached to every context.
 pub struct ContextData {
-  pub db: Arc<Mutex<MySqlBackend>>,
-  pub config: Config,
+    pub db: Arc<Mutex<MySqlBackend>>,
+    pub config: Config,
 }
 
 #[derive(Debug)]
@@ -34,20 +34,29 @@ impl<'r> FromRequest<'r> for ContextData {
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let db = match request.guard::<&State<Arc<Mutex<MySqlBackend>>>>().await {
-            Success(db) => { Some(db.inner().clone()) }
-            Failure(_) => { None }
-            Forward(_) => { None }
+            Success(db) => Some(db.inner().clone()),
+            Failure(_) => None,
+            Forward(_) => None,
         };
 
         let config = match request.guard::<&State<Config>>().await {
-            Success(config) => { Some(config.inner().clone()) }
-            Failure(_) => { None }
-            Forward(_) => { None }
+            Success(config) => Some(config.inner().clone()),
+            Failure(_) => None,
+            Forward(_) => None,
         };
 
-        request.route()
-            .and_then(|_| Some(ContextData { db: db.unwrap(), config: config.unwrap() }))
-            .into_outcome((Status::InternalServerError, ContextDataError::Unconstructible))
+        request
+            .route()
+            .and_then(|_| {
+                Some(ContextData {
+                    db: db.unwrap(),
+                    config: config.unwrap(),
+                })
+            })
+            .into_outcome((
+                Status::InternalServerError,
+                ContextDataError::Unconstructible,
+            ))
     }
 }
 
@@ -56,8 +65,8 @@ impl<'r> FromRequest<'r> for ContextData {
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy accross tables/columns.
 pub struct AnswerAccessPolicy {
-  owner: String,
-  lec_id: u64,
+    owner: String,
+    lec_id: u64,
 }
 
 // Content of answer column can only be accessed by:
@@ -67,16 +76,19 @@ pub struct AnswerAccessPolicy {
 //      (`P(me)` alter. `is me in set<P(students)>`);
 
 impl Policy for AnswerAccessPolicy {
-    fn from_row(row: &Vec<mysql::Value>) -> Self where Self: Sized {
-      AnswerAccessPolicy {
-        owner: mysql::from_value(row[0].clone()),
-        lec_id: mysql::from_value(row[1].clone())
-      }
+    fn from_row(row: &Vec<mysql::Value>) -> Self
+    where
+        Self: Sized,
+    {
+        AnswerAccessPolicy {
+            owner: mysql::from_value(row[0].clone()),
+            lec_id: mysql::from_value(row[1].clone()),
+        }
     }
 
     fn check(&self, context: &dyn Any) -> bool {
         let context: &Context<User, ContextData> = context.downcast_ref().unwrap();
-    
+
         let user = &context.get_user().as_ref().unwrap().user;
         let db = &context.get_data().db;
         let config = &context.get_data().config;
@@ -84,19 +96,19 @@ impl Policy for AnswerAccessPolicy {
         // user_id == me
         // TODO(babman): context::user should probably not be BBoxed?
         if *user.internal_unbox() == self.owner {
-          return true;
+            return true;
         }
 
         // I am an admin.
         if config.admins.contains(user.internal_unbox()) {
-          return true;
+            return true;
         }
 
         // I am a discussion leader.
         let mut bg = db.lock().unwrap();
         let vec = bg.prep_exec(
             "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-            vec![self.lec_id.into(), user.into()]
+            vec![self.lec_id.into(), user.into()],
         );
         drop(bg);
 

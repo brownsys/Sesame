@@ -1,4 +1,4 @@
-use bbox::db::{Conn, Opts, Result, Statement, Value, Param};
+use bbox::db::{Conn, Opts, Param, Result, Statement, Value};
 use std::collections::HashMap;
 
 pub struct MySqlBackend {
