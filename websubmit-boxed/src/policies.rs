@@ -6,7 +6,6 @@ use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::request::{self, FromRequest, Request};
 
-use bbox::BBox;
 use bbox::context::Context;
 use bbox::policy::{Policy, PolicyFactory};
 
@@ -99,10 +98,10 @@ impl Policy for AnswerAccessPolicy {
 pub struct AnswerAccessPolicyFactory {}
 
 impl PolicyFactory for AnswerAccessPolicyFactory {
-  fn create(&self, row: &Vec<mysql::Value>) -> Box<dyn Policy> {
-    Box::new(AnswerAccessPolicy {
+  fn create(&self, row: &Vec<mysql::Value>) -> Arc<Mutex<dyn Policy>> {
+    Arc::new(Mutex::new(AnswerAccessPolicy {
         owner: mysql::from_value(row[0].clone()),
         lec_id: mysql::from_value(row[1].clone())
-    })
+    }))
   }
 }

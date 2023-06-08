@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -8,12 +7,12 @@ use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
-use serde::Serialize;
 
-use bbox::{BBox, BBoxRender};
+use bbox::{BBox};
 use bbox::context::Context;
 use bbox_derive::BBoxRender;
 use bbox::db::{from_value, from_value_or_null};
+use crate::admin::Admin;
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -112,6 +111,7 @@ pub(crate) fn leclist(
 
 #[get("/<num>")]
 pub(crate) fn answers(
+    // _admin: Admin,
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>

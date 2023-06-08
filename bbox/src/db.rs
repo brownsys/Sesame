@@ -14,13 +14,13 @@ pub type Value = BBox<mysql::Value>;
 
 // Type modification.
 pub fn from_value<T: FromValue>(v: Value) -> BBox<T> {
-  BBox::derived(mysql::from_value(v.t), v.policies.clone())
+  BBox::new_with_policy(mysql::from_value(v.t), v.policies.clone())
 }
 pub fn from_value_or_null<T: FromValue>(v: Value) -> BBox<Option<T>> {
   if let mysql::Value::NULL = v.t {
-    BBox::derived(None, v.policies.clone())
+    BBox::new_with_policy(None, v.policies.clone())
   } else {
-    BBox::derived(Some(mysql::from_value(v.t)), v.policies.clone())
+    BBox::new_with_policy(Some(mysql::from_value(v.t)), v.policies.clone())
   }
 }
 

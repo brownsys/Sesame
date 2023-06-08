@@ -111,7 +111,7 @@ pub(crate) fn lec(
             LectureQuestion {
                 id: id,
                 prompt: from_value(r[2].clone()),
-                answer: BBox::new(None),
+                answer: BBox::new_with_policy(None, vec![]),
             }
         })
         .collect();

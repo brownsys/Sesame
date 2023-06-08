@@ -11,6 +11,7 @@ use crate::BBox;
 impl<'r, T> FromFormField<'r> for BBox<T> where T: Send + Clone + FromStr {
     fn from_value(field: ValueField<'r>) -> form::Result<'r, Self> {
         match field.value.parse::<T>() {
+            // TODO(artem): attach policies here
             Ok(converted) => Ok(BBox::new(converted)),
             Err(_) => Err(Errors::from(ErrorKind::Unexpected))
         }
@@ -27,6 +28,7 @@ impl<'r, T: FromStr> FromParam<'r> for BBox<T> {
 
   fn from_param(param: &'r str) -> Result<Self, Self::Error> {
     match param.parse::<T>() {
+      // TODO(artem): attach policies here
       Ok(converted) => Ok(BBox::new(converted)),
       Err(_) => Err(param)
     }

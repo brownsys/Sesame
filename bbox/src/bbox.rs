@@ -7,7 +7,7 @@ use crate::policy::Policy;
 
 pub struct BBox<T> {
   pub(crate) t: T,
-  pub(crate) policies: Arc<Mutex<Vec<Box<dyn Policy>>>>,
+  pub(crate) policies: Vec<Arc<Mutex<dyn Policy>>>,
 }
 
 // BBox and containers of it are sandboxable.
@@ -40,15 +40,11 @@ impl<T> BBox<T> {
   // TODO(babman): We have not thought yet about how boxes get created initially,
   //               probably we need the policy here too.
   pub fn new(t: T) -> Self {
-    Self { t: t, policies: Arc::new(Mutex::new(vec![])) }
+    Self { t: t, policies: vec![] }
   }
   
   // TODO(babman): new_with_policy should replace new.
-  pub fn new_with_policy(t: T, policies: Vec<Box<dyn Policy>>) -> Self {
-    Self { t, policies: Arc::new(Mutex::new(policies)) }
-  }
-
-  pub(crate) fn derived(t: T, policies: Arc<Mutex<Vec<Box<dyn Policy>>>>) -> Self {
+  pub fn new_with_policy(t: T, policies: Vec<Arc<Mutex<dyn Policy>>>) -> Self {
     Self { t, policies }
   }
 
@@ -57,22 +53,22 @@ impl<T> BBox<T> {
   pub fn into2<F>(
       &self
   ) -> BBox<F> where T: Into<F> + Clone {
-    BBox::derived(self.t.clone().into(), self.policies.clone())
+    BBox::new_with_policy(self.t.clone().into(), self.policies.clone())
   }
 
   // Into that moves.
   pub fn m_into2<F>(self) -> BBox<F> where T: Into<F> {
-    BBox::derived(self.t.into(), self.policies.clone())
+    BBox::new_with_policy(self.t.into(), self.policies.clone())
   }
   // Converts &BBox<T> to BBox<&T>.
   pub fn as_ref(&self) -> BBox<&T> {
-    BBox::derived(&self.t, self.policies.clone())
+    BBox::new_with_policy(&self.t, self.policies.clone())
   }
 
   // Unbox given a context (need more thinking)
   // TODO(babman): check policy here, make this take a context.
   pub fn unbox<U: 'static, D: 'static>(&self, ctx: &Context<U, D>) -> &T {
-    if self.policies.lock().unwrap().iter().all(|policy| policy.check(ctx)) {
+    if self.policies.iter().all(|policy| policy.lock().unwrap().check(ctx)) {
       &self.t
     } else {
       panic!("Policy violation caught!")
@@ -84,14 +80,14 @@ impl<T> BBox<T> {
       &self,
       lambda: F
   ) -> BBox<R> {
-    BBox::derived(lambda(&self.t), self.policies.clone())
+    BBox::new_with_policy(lambda(&self.t), self.policies.clone())
   }
 }
 
 // String format.
 impl<T: Display> BBox<T> {
   pub fn format(&self) -> BBox<String> {
-    BBox::derived(format!("{}", self.t), self.policies.clone())
+    BBox::new_with_policy(format!("{}", self.t), self.policies.clone())
   }
 }
 
@@ -144,7 +140,7 @@ impl<T> From<Vec<BBox<T>>> for BBox<Vec<T>> {
 impl<T> BBox<T> {
   // Usage of these should be pulled into our library.
   pub fn internal_new(t: T) -> Self {
-    Self { t, policies: Arc::new(Mutex::new(vec![])) }
+    Self { t, policies: vec![] }
   }
   pub fn internal_unbox(&self) -> &T {
     &self.t
@@ -154,14 +150,14 @@ impl<T> BBox<T> {
 // Debuggable but in boxed form.
 impl<T> fmt::Debug for BBox<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.write_str(format!("{{ t: <<Boxed Data>>; policies: Vec<{}> }}", self.policies.lock().unwrap().len()).as_str())
+    f.write_str(format!("{{ t: <<Boxed Data>>; policies: Vec<{}> }}", self.policies.len()).as_str())
   }
 }
 
 // BBox is clonable if what is inside is cloneable.
 impl<T: Clone> Clone for BBox<T> {
   fn clone(&self) -> Self {
-    BBox::derived(self.t.clone(), self.policies.clone())
+    BBox::new_with_policy(self.t.clone(), self.policies.clone())
   }
 }
 

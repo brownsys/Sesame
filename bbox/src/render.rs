@@ -88,7 +88,7 @@ render_serialize_impl!(i8);
 // Auto implement BBoxRender for BBox.
 impl<T: Serialize> BBoxRender for BBox<T> {
   fn render(&self) -> Renderable {
-    Renderable::BBox(BBox::derived(&self.t, self.policies.clone()))
+    Renderable::BBox(BBox::new_with_policy(&self.t, self.policies.clone()))
   }
 }
 
@@ -97,7 +97,7 @@ impl<T: Serialize> BBoxRender for VBox<T> {
   fn render(&self) -> Renderable {
     match self {
       VBox::Value(value) => Renderable::Serialize(value),
-      VBox::BBox(bbox) => Renderable::BBox(BBox::derived(&bbox.t, bbox.policies.clone()))
+      VBox::BBox(bbox) => Renderable::BBox(BBox::new_with_policy(&bbox.t, bbox.policies.clone()))
     }
   }
 }
