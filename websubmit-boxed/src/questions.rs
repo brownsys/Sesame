@@ -11,6 +11,7 @@ use rocket_dyn_templates::Template;
 use serde::Serialize;
 
 use bbox::{BBox, BBoxRender};
+use bbox::context::Context;
 use bbox_derive::BBoxRender;
 use bbox::db::{from_value, from_value_or_null};
 
@@ -19,6 +20,7 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
 use crate::helpers::{JoinIdx, left_join};
+use crate::policies::ContextData;
 
 
 #[derive(Debug, FromForm)]
@@ -76,6 +78,7 @@ pub(crate) fn leclist(
     apikey: ApiKey,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -104,13 +107,14 @@ pub(crate) fn leclist(
         parent: "layout".into(),
     };
 
-    bbox::render("leclist", &ctx).unwrap()
+    bbox::render("leclist", &ctx, &context).unwrap()
 }
 
 #[get("/<num>")]
 pub(crate) fn answers(
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let key = num.into2::<u64>();
@@ -130,11 +134,11 @@ pub(crate) fn answers(
 
     let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: answers,
+        answers,
         parent: "layout".into(),
     };
 
-    bbox::render("answers", &ctx).unwrap()
+    bbox::render("answers", &ctx, &context).unwrap()
 }
 
 #[get("/<num>")]
@@ -142,6 +146,7 @@ pub(crate) fn questions(
     apikey: ApiKey,
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     use std::collections::HashMap;
 
@@ -181,7 +186,7 @@ pub(crate) fn questions(
         parent: "layout".into(),
     };
 
-    bbox::render("questions", &ctx).unwrap()
+    bbox::render("questions", &ctx, &context).unwrap()
 }
 
 #[post("/<num>", data = "<data>")]
@@ -191,6 +196,7 @@ pub(crate) fn questions_submit(
     data: Form<LectureQuestionSubmission>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
+    context: Context<ApiKey, ContextData>
 ) -> Redirect {
     let num: BBox<u64> = num.m_into2();
     let ts: mysql::Value = Local::now().naive_local().into();
@@ -213,12 +219,12 @@ pub(crate) fn questions_submit(
         "{}",
         data.answers
             .iter()
-            .map(|(i, t)| format!("Question {}:\n{}", i, t.unbox("email")))
+            .map(|(i, t)| format!("Question {}:\n{}", i, t.unbox(&context)))
             .collect::<Vec<_>>()
             .join("\n-----\n")
     );
     if config.send_emails {
-        let recipients = if *num.unbox("email") < 90 {
+        let recipients = if *num.unbox(&context) < 90 {
             config.staff.clone()
         } else {
             config.admins.clone()
@@ -226,9 +232,9 @@ pub(crate) fn questions_submit(
 
         email::send(
             bg.log.clone(),
-            apikey.user.unbox("email").clone(),
+            apikey.user.unbox(&context).clone(),
             recipients,
-            format!("{} meeting {} questions", config.class, *num.unbox("email")),
+            format!("{} meeting {} questions", config.class, *num.unbox(&context)),
             answer_log,
         )
             .expect("failed to send email");

@@ -65,7 +65,7 @@ impl MySqlBackend {
         }
         
         // TODO(babman): this should be a macro.
-        db.add_policy_factory(String::from("answers"), 2, AnswerAccessPolicyFactory{});
+        db.add_policy_factory(String::from("answers"), 3, AnswerAccessPolicyFactory{});
 
         Ok(MySqlBackend {
             handle: db,

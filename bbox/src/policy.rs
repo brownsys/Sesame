@@ -27,8 +27,8 @@ impl PolicyManager {
 
   pub fn manage(&self, table_name: &str, column: usize, row: &Vec<mysql::Value>) -> Vec<Box<dyn Policy>> {
     match self.map.get(&(String::from(table_name), column)) {
-      Option::None => vec![],
-      Option::Some(factories) => factories.iter().map(|factory| factory.as_ref().create(row)).collect(),
+      None => vec![],
+      Some(factories) => factories.iter().map(|factory| factory.as_ref().create(row)).collect(),
     }
   }
   

@@ -11,12 +11,14 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 
 use bbox::{BBox, VBox, BBoxRender};
+use bbox::context::Context;
 use bbox_derive::BBoxRender;
 use bbox::db::{from_value};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
+use crate::policies::ContextData;
 use crate::questions::{LectureQuestion, LectureQuestionsContext};
 
 pub(crate) struct Admin;
@@ -33,10 +35,11 @@ impl<'r> FromRequest<'r> for Admin {
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
+        let context = request.guard::<Context<ApiKey, ContextData>>().await.unwrap();
         let admin = apikey.user.sandbox_execute(|user| cfg.admins.contains(user));
         
         // TODO(babman): find a better way here.
-        let res = if *admin.unbox("admin request") {
+        let res = if *admin.unbox(&context) {
           Some(Admin)
         } else {
           None
@@ -52,11 +55,11 @@ struct LecAddContext {
 }
 
 #[get("/")]
-pub(crate) fn lec_add() -> Template {
+pub(crate) fn lec_add(context: Context<ApiKey, ContextData>) -> Template {
     let ctx = LecAddContext {
         parent: "layout".into(),
     };
-    bbox::render("admin/lecadd", &ctx).unwrap()
+    bbox::render("admin/lecadd", &ctx, &context).unwrap()
 }
 
 #[derive(Debug, FromForm)]
@@ -89,7 +92,8 @@ pub(crate) fn lec_add_submit(
 #[get("/<num>")]
 pub(crate) fn lec(
     num: BBox<u8>, 
-    backend: &State<Arc<Mutex<MySqlBackend>>>
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let key = num.into2::<u64>();
 
@@ -119,7 +123,7 @@ pub(crate) fn lec(
         parent: "layout".into(),
     };
 
-    bbox::render("admin/lec", &ctx).unwrap()
+    bbox::render("admin/lec", &ctx, &context).unwrap()
 }
 
 
@@ -156,6 +160,7 @@ pub(crate) fn editq(
     num: BBox<u8>,
     qnum: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -168,14 +173,14 @@ pub(crate) fn editq(
     for r in res {
         // TODO(babman): how to handle this?
         let q = from_value::<u64>(r[1].clone());
-        if q.unbox("check") == qnum.into2::<u64>().unbox("check") {
+        if q.unbox(&context) == qnum.into2::<u64>().unbox(&context) {
             ctx.insert("lec_qprompt", from_value(r[2].clone()).into());
         }
     }
     ctx.insert("lec_id", num.format().into());
     ctx.insert("lec_qnum", qnum.format().into());
     ctx.insert("parent", String::from("layout").into());
-    bbox::render("admin/lecedit", &ctx).unwrap()
+    bbox::render("admin/lecedit", &ctx, &context).unwrap()
 }
 
 
@@ -219,6 +224,7 @@ pub(crate) fn get_registered_users(
     _adm: Admin,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", vec![]);
@@ -240,5 +246,5 @@ pub(crate) fn get_registered_users(
         users: users,
         parent: "layout".into(),
     };
-    bbox::render("admin/users", &ctx).unwrap()
+    bbox::render("admin/users", &ctx, &context).unwrap()
 }

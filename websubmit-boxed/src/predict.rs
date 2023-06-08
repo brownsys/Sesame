@@ -15,10 +15,13 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 
 use bbox::{BBox, VBox, BBoxRender};
+use bbox::context::Context;
 use bbox_derive::BBoxRender;
 use bbox::db::from_value;
+use crate::apikey::ApiKey;
 
 use crate::backend::MySqlBackend;
+use crate::policies::ContextData;
 
 lazy_static! {
     static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>>>>> = Arc::new(Mutex::new(Option::None));
@@ -27,7 +30,7 @@ lazy_static! {
 pub(crate) fn model_exists() -> bool {
   let model = MODEL.lock().unwrap();
   match *model {
-    Option::None => false,
+    None => false,
     _ => true,
   }
 }
@@ -83,13 +86,14 @@ struct PredictContext {
 pub(crate) fn predict(
     num: BBox<u8>,
     _backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let ctx = PredictContext {
         lec_id: num,
         parent: "layout".into(),
     };
 
-    bbox::render("predict", &ctx).unwrap()
+    bbox::render("predict", &ctx, &context).unwrap()
 }
 
 #[derive(Debug, FromForm)]
@@ -110,6 +114,7 @@ pub(crate) fn predict_grade(
     num: BBox<u8>,
     data: Form<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     // Train model if it doesnt exist.
     if !model_exists() {
@@ -131,5 +136,5 @@ pub(crate) fn predict_grade(
         grade: grade,
         parent: "layout".into(),
     };
-    bbox::render("predictgrade", &ctx).unwrap()
+    bbox::render("predictgrade", &ctx, &context).unwrap()
 }

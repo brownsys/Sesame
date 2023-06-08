@@ -14,12 +14,14 @@ use rand::{Rng, thread_rng};
 use rand::distributions::Alphanumeric;
 
 use bbox::{BBox, BBoxRender};
+use bbox::context::Context;
 use bbox::db::from_value;
 use bbox_derive::BBoxRender;
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
+use crate::policies::ContextData;
 
 
 // Errors that we may encounter when authenticating an ApiKey.
@@ -110,6 +112,7 @@ pub(crate) fn generate(
     data: Form<ApiKeyRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let pseudonym: String = thread_rng()
       .sample_iter(&Alphanumeric)
@@ -154,9 +157,9 @@ pub(crate) fn generate(
         email::send(
             bg.log.clone(),
             "no-reply@csci2390-submit.cs.brown.edu".into(),
-            vec![data.email.unbox("email").clone()],
+            vec![data.email.unbox(&context).clone()],
             format!("{} API key", config.class),
-            format!("Your {} API key is: {}\n", config.class, hash.unbox("email")),
+            format!("Your {} API key is: {}\n", config.class, hash.unbox(&context)),
         )
         .expect("failed to send API key email");
     }
@@ -167,7 +170,7 @@ pub(crate) fn generate(
       apikey_email: data.email.clone(),
       parent: "layout".into(),
     };
-    bbox::render("apikey/generate", &ctx).unwrap()
+    bbox::render("apikey/generate", &ctx, &context).unwrap()
 }
 
 #[post("/", data = "<data>")]

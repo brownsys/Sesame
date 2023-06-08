@@ -30,7 +30,7 @@ pub enum ContextError {
 }
 
 #[rocket::async_trait]
-impl<'r, U: FromRequest<'r>, D: FromRequest<'r> + std::marker::Send> FromRequest<'r> for Context<U, D> {
+impl<'r, U: FromRequest<'r>, D: FromRequest<'r> + Send> FromRequest<'r> for Context<U, D> {
     type Error = ContextError;
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {

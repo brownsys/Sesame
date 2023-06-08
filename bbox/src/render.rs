@@ -13,11 +13,12 @@ use rocket_dyn_templates::Template;
 
 // Our BBox struct.
 use crate::{BBox, VBox};
+use crate::context::Context;
 
 // A BBox with type T erased, a primitive value, or a collection of mixed-type
 // values.
 pub enum Renderable<'a> {
-  //Cloneable(BBox<Box<&'a dyn Clone + Serialize>>),
+  // Cloneable(BBox<Box<&'a dyn Clone + Serialize>>),
   BBox(BBox<&'a dyn Serialize>),
   Serialize(&'a dyn Serialize),
   Dict(BTreeMap<String, Renderable<'a>>),
@@ -25,14 +26,17 @@ pub enum Renderable<'a> {
 }
 
 impl<'a> Renderable<'a> {
-  pub(crate) fn transform(&self) -> Result<FValue, figment::Error> {
+  pub(crate) fn transform<U:'static, D: 'static>(&self, context: &Context<U, D>) -> Result<FValue, figment::Error> {
     match self {
-      Renderable::BBox(bbox) => FValue::serialize(bbox.t),
+      Renderable::BBox(bbox) => {
+        let t = bbox.unbox(context);
+        FValue::serialize(t)
+      },
       Renderable::Serialize(obj) => FValue::serialize(obj),
       Renderable::Dict(map) => {
         let mut tmap: BTreeMap<String, FValue> = BTreeMap::new();
         for (k, v) in map {
-          let v = v.transform()?;
+          let v = v.transform(context)?;
           tmap.insert(k.clone(), v);
         }
         Ok(FValue::from(tmap))
@@ -40,7 +44,7 @@ impl<'a> Renderable<'a> {
       Renderable::Array(vec) => {
         let mut tvec: Vec<FValue> = Vec::new();
         for v in vec {
-          let v = v.transform()?;
+          let v = v.transform(context)?;
           tvec.push(v);
         }
         Ok(FValue::from(tvec))
@@ -62,7 +66,7 @@ impl<'a> Renderable<'a> {
 // The `bbox_derive` lib provides macros to derive this for structs that consist
 // of other BBoxRender fields.
 pub trait BBoxRender {
-  fn render<'a>(&'a self) -> Renderable<'a>;
+  fn render(&self) -> Renderable;
 }
 
 // Auto implement BBoxRender for unboxed primitive types.
@@ -83,31 +87,31 @@ render_serialize_impl!(i8);
 
 // Auto implement BBoxRender for BBox.
 impl<T: Serialize> BBoxRender for BBox<T> {
-  fn render<'a>(&'a self) -> Renderable<'a> {
-    Renderable::BBox(BBox::new(&self.t))
+  fn render(&self) -> Renderable {
+    Renderable::BBox(BBox::derived(&self.t, self.policies.clone()))
   }
 }
 
 // Auto implement BBoxRender for VBox.
 impl<T: Serialize> BBoxRender for VBox<T> {
-  fn render<'a>(&'a self) -> Renderable<'a> {
+  fn render(&self) -> Renderable {
     match self {
       VBox::Value(value) => Renderable::Serialize(value),
-      VBox::BBox(bbox) => Renderable::BBox(BBox::new(&bbox.t))
+      VBox::BBox(bbox) => Renderable::BBox(BBox::derived(&bbox.t, bbox.policies.clone()))
     }
   }
 }
 
 // Auto implement BBoxRender for Vec.
 impl<T: BBoxRender> BBoxRender for Vec<T> {
-  fn render<'a>(&'a self) -> Renderable<'a> {
+  fn render(&self) -> Renderable {
     Renderable::Array(self.iter().map(|v| v.render()).collect())
   }
 }
 
 // Auto implement BBoxRender for HashMap.
 impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
-  fn render<'a>(&'a self) -> Renderable<'a> {
+  fn render(&self) -> Renderable {
     let mut map = BTreeMap::new();
     for (key, val) in self.iter() {
       map.insert((*key).into(), val.render());
@@ -118,12 +122,10 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
 
 // Our render wrapper takes in some BBoxRender type, transforms it to a figment
 // Value compatible with Rocket, and then calls Rocket's render.
-// TODO(babman): call check on the policy here.
-pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender>(name: S, context: &T)
-    -> Result<Template, FError> {
+pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender, U: 'static, D: 'static>(name: S, params: &T, context: &Context<U, D>)
+                                                               -> Result<Template, FError> {
   // First turn context into a figment::value::Value.
-  let transformed: FValue = context.render().transform()?;
-
+  let transformed: FValue = params.render().transform(context)?;
   // Now render.
   Ok(Template::render(name, transformed))
 }

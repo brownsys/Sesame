@@ -18,8 +18,10 @@ use crate::config::Config;
 use crate::helpers::average;
 
 use bbox::{BBox, BBoxRender};
+use bbox::context::Context;
 use bbox_derive::BBoxRender;
 use bbox::db::{from_value, from_value_or_null};
+use crate::policies::ContextData;
 
 pub(crate) struct Manager;
 
@@ -35,10 +37,11 @@ impl<'r> FromRequest<'r> for Manager {
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
+        let context = request.guard::<Context<ApiKey, ContextData>>().await.unwrap();
         let manager = apikey.user.sandbox_execute(|user| cfg.managers.contains(user));
         
         // TODO(babman): find a better way here.
-        let res = if *manager.unbox("admin request") {
+        let res = if *manager.unbox(&context) {
           Some(Manager)
         } else {
           None
@@ -79,6 +82,8 @@ fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>>) -> Vec
 pub(crate) fn get_aggregate_grades(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
+
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec(
@@ -97,5 +102,5 @@ pub(crate) fn get_aggregate_grades(
         parent: String::from("layout"),
     };
 
-    bbox::render("manage/users", &ctx).unwrap()
+    bbox::render("manage/users", &ctx, &context).unwrap()
 }

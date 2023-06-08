@@ -8,10 +8,13 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 
 use bbox::{BBox, VBox, BBoxRender};
+use bbox::context::Context;
 use bbox_derive::BBoxRender;
 use bbox::db::from_value;
+use crate::apikey::ApiKey;
 
 use crate::backend::MySqlBackend;
+use crate::policies::ContextData;
 use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
 use crate::predict::train_and_store;
@@ -20,6 +23,7 @@ use crate::predict::train_and_store;
 pub(crate) fn grades(
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let key = num.into2::<u64>();
 
@@ -44,7 +48,7 @@ pub(crate) fn grades(
         parent: "layout".into(),
     };
 
-    bbox::render("grades", &ctx).unwrap()
+    bbox::render("grades", &ctx, &context).unwrap()
 }
 
 
@@ -64,6 +68,7 @@ pub(crate) fn editg(
     num: BBox<u8>,
     qnum: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ApiKey, ContextData>
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -85,7 +90,7 @@ pub(crate) fn editg(
         parent: "layout".into(),
     };
 
-    bbox::render("gradeedit", &ctx).unwrap()
+    bbox::render("gradeedit", &ctx, &context).unwrap()
 }
 
 #[derive(Debug, FromForm)]

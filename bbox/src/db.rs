@@ -14,13 +14,13 @@ pub type Value = BBox<mysql::Value>;
 
 // Type modification.
 pub fn from_value<T: FromValue>(v: Value) -> BBox<T> {
-  BBox::new(mysql::from_value(v.t))
+  BBox::derived(mysql::from_value(v.t), v.policies.clone())
 }
 pub fn from_value_or_null<T: FromValue>(v: Value) -> BBox<Option<T>> {
   if let mysql::Value::NULL = v.t {
-    BBox::new(None)
+    BBox::derived(None, v.policies.clone())
   } else {
-    BBox::new(Some(mysql::from_value(v.t)))
+    BBox::derived(Some(mysql::from_value(v.t)), v.policies.clone())
   }
 }
 
@@ -95,19 +95,19 @@ into_params_impl!([A, a], [B, b], [C, c], [D, d], [E, e], [F, f], [G, g]);
 into_params_impl!([A, a], [B, b], [C, c], [D, d], [E, e], [F, f], [G, g], [H, h]);
 
 // A result row.
-pub struct Row<'c> {
+pub struct Row<'a> {
   row: mysql::Row,
-  manager: &'c PolicyManager,
+  manager: &'a PolicyManager,
   table: String,
 }
-impl<'c> Row<'c> {
+impl<'a> Row<'a> {
   pub fn get<T: FromValue, I: ColumnIndex>(&self, index: I) -> Option<BBox<T>> {
     let idx: Option<usize> = index.idx(self.row.columns_ref());
     let row = self.row.clone().unwrap();
     match self.row.get(index) {
-      Option::None => Option::None,
-      Option::Some(t) => {
-        Option::Some(BBox::new_with_policy(t, self.manager.manage(&self.table, idx.unwrap(), &row)))
+      None => None,
+      Some(t) => {
+        Some(BBox::new_with_policy(t, self.manager.manage(&self.table, idx.unwrap(), &row)))
       },
     }
   }
@@ -141,8 +141,8 @@ impl<'a, 'c, 't, 'tc> Iterator for QueryResult<'a, 'c, 't, 'tc> {
   type Item = Result<Row<'a>>;
   fn next(&mut self) -> Option<Self::Item> {
     match self.result.next() {
-      Option::None => Option::None,
-      Option::Some(row) => {
+      None => None,
+      Some(row) => {
         match row {
           Ok(row) => Some(Ok(Row { row: row, manager: self.manager, table: self.table.clone() })),
           Err(e) => Some(Err(e))
@@ -197,7 +197,11 @@ impl Conn {
       &mut self, stmt: S, params: P) -> Result<QueryResult<'_, '_, '_, '_>> {
     let params = self.unbox_params(params.into());
     let result = self.conn.exec_iter(stmt, params)?;
-    Ok(QueryResult { result: result, manager: &self.manager, table: String::from("") })
+
+    let columns = result.columns();
+    // TODO(artem): should find a better way to extract table name
+    let table_name: String = columns.as_ref()[0].table_str().parse()?;
+    Ok(QueryResult { result, manager: &self.manager, table: table_name })
   }
   
   // private helper function.
