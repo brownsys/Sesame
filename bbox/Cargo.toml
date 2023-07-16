@@ -9,6 +9,7 @@ name = "bbox"
 path = "src/lib.rs"
 
 [dependencies]
+futures = "0.3.17"
 serde = "1.0"
 rocket = "0.5.0-rc.1"
 figment = "0.10.6"
@@ -19,6 +20,9 @@ mysql = "21.0.2"
 mysql_common = "0.22"
 dynfmt = { version = "0.1.5", features = ["curly"] }
 small_ctor = "0.1.0"
+cookie = { version = "0.15", features = ["percent-encode"] }
+time = { version = "0.2.11", default-features = false, features = ["std"] }
+indexmap = "1.7.0"
 
 [dependencies.rocket_dyn_templates]
 version = "0.1.0-rc.1"

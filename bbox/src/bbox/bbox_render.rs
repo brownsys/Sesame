@@ -1,24 +1,18 @@
 extern crate erased_serde;
 extern crate figment;
 
-use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 
-use dynfmt::{Format, SimpleCurlyFormat};
 use erased_serde::Serialize;
 use figment::value::Value as FValue;
-use figment::Error as FError;
-use rocket::response::Redirect;
-use rocket_dyn_templates::Template;
 
 // Our BBox struct.
-use crate::context::Context;
-use crate::{BBox, VBox};
+use crate::bbox::{BBox, EitherBBox};
+use crate::policy::Context;
 
 // A BBox with type T erased, a primitive value, or a collection of mixed-type
 // values.
 pub enum Renderable<'a> {
-    // Cloneable(BBox<Box<&'a dyn Clone + Serialize>>),
     BBox(BBox<&'a dyn Serialize>),
     Serialize(&'a dyn Serialize),
     Dict(BTreeMap<String, Renderable<'a>>),
@@ -91,18 +85,16 @@ render_serialize_impl!(i8);
 // Auto implement BBoxRender for BBox.
 impl<T: Serialize> BBoxRender for BBox<T> {
     fn render(&self) -> Renderable {
-        Renderable::BBox(BBox::new_with_policy(&self.t, self.policies.clone()))
+        Renderable::BBox(self.map(|t| t as &dyn Serialize))
     }
 }
 
-// Auto implement BBoxRender for VBox.
-impl<T: Serialize> BBoxRender for VBox<T> {
+// Auto implement BBoxRender for EitherBBox.
+impl<T: Serialize> BBoxRender for EitherBBox<T> {
     fn render(&self) -> Renderable {
         match self {
-            VBox::Value(value) => Renderable::Serialize(value),
-            VBox::BBox(bbox) => {
-                Renderable::BBox(BBox::new_with_policy(&bbox.t, bbox.policies.clone()))
-            }
+            EitherBBox::Value(value) => Renderable::Serialize(value),
+            EitherBBox::BBox(bbox) => bbox.render(),
         }
     }
 }
@@ -123,28 +115,4 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
         }
         Renderable::Dict(map)
     }
-}
-
-// Our render wrapper takes in some BBoxRender type, transforms it to a figment
-// Value compatible with Rocket, and then calls Rocket's render.
-pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender, U: 'static, D: 'static>(
-    name: S,
-    params: &T,
-    context: &Context<U, D>,
-) -> Result<Template, FError> {
-    // First turn context into a figment::value::Value.
-    let transformed: FValue = params.render().transform(context)?;
-    // Now render.
-    Ok(Template::render(name, transformed))
-}
-
-// Our redirect wrapper operates similar to Rocket redirect, but takes in bbox
-// parameters.
-pub fn redirect(name: &str, params: Vec<&dyn BBoxRender>) -> Redirect {
-    let formatted_params: Vec<&dyn Serialize> = params
-        .iter()
-        .map(|x| x.render().try_unbox().unwrap().clone())
-        .collect();
-    let formatted_str: Cow<str> = SimpleCurlyFormat.format(name, formatted_params).unwrap();
-    Redirect::to(Into::<String>::into(formatted_str))
 }

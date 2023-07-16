@@ -5,19 +5,18 @@ extern crate syn;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
 use syn::{Ident, ItemStruct, Lit, Token};
 
 struct NamedArg {
     ident: Ident,
-    assign: Token![=],
+    _assign: Token![=],
     value: Lit,
 }
 impl Parse for NamedArg {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Self {
             ident: input.parse()?,
-            assign: input.parse()?,
+            _assign: input.parse()?,
             value: input.parse()?,
         })
     }
@@ -98,9 +97,9 @@ pub fn schema_policy_impl(args: SchemaPolicyArgs, input: ItemStruct) -> TokenStr
     let func_name = Ident::new(&fname, proc_macro2::Span::call_site());
 
     quote! {
-      #[bbox::policy::register]
+      #[::bbox::policy::register]
       unsafe fn #func_name() {
-          bbox::policy::add_schema_policy::<#name>(String::from(#table), #column);
+          ::bbox::policy::add_schema_policy::<#name>(::std::string::String::from(#table), #column);
       }
     }
 }

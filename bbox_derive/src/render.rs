@@ -6,11 +6,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Data, DataStruct, DeriveInput, Field, Fields, GenericParam};
-
-// Make sure you import these in client code.
-// use std::collections::BTreeMap;
-// use bbox::{ValueOrBBox, BBoxRender};
+use syn::{Data, DataStruct, DeriveInput, Field, Fields};
 
 pub fn derive_boxed_serialize_impl(input: DeriveInput) -> TokenStream {
     // struct name we are deriving for.
@@ -30,42 +26,21 @@ pub fn derive_boxed_serialize_impl(input: DeriveInput) -> TokenStream {
         let field_name: String = field.to_string();
 
         quote! {
-          map.insert(String::from(#field_name), self.#field.render());
+          map.insert(::std::string::String::from(#field_name), self.#field.render());
         }
     });
 
     // Generics if any.
-    let generics = input.generics;
-    let where_clause = &generics.where_clause;
-    let template = generics.lt_token.map(|_| {
-        let params = generics
-            .params
-            .iter()
-            .map(|generic_param| match generic_param {
-                GenericParam::Lifetime(param) => {
-                    let param = &param.lifetime;
-                    quote! { #param }
-                }
-                GenericParam::Type(param) => {
-                    let param = &param.ident;
-                    quote! { #param }
-                }
-                GenericParam::Const(param) => {
-                    let param = &param.ident;
-                    quote! { #param }
-                }
-            });
-        quote! { < #(#params),* > }
-    });
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     // Impl trait.
     quote! {
       #[automatically_derived]
-      impl #generics bbox::BBoxRender for #input_name #template #where_clause {
-        fn render<'a>(&'a self) -> bbox::Renderable<'a> {
-          let mut map: std::collections::BTreeMap<String, bbox::Renderable<'a>> = std::collections::BTreeMap::new();
+      impl #impl_generics ::bbox::bbox::BBoxRender for #input_name #ty_generics #where_clause {
+        fn render<'a>(&'a self) -> ::bbox::bbox::Renderable<'a> {
+          let mut map: ::std::collections::BTreeMap<::std::string::String, ::bbox::bbox::Renderable<'a>> = ::std::collections::BTreeMap::new();
           #(#puts)*
-          bbox::Renderable::Dict(map)
+          ::bbox::bbox::Renderable::Dict(map)
         }
       }
     }

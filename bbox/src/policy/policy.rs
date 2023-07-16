@@ -19,7 +19,7 @@ lazy_static! {
 }
 
 // Create policies for a cell given its entire row and the name of its table.
-pub(crate) fn get_schema_policies(
+pub fn get_schema_policies(
     table_name: String,
     column: usize,
     row: &Vec<mysql::Value>,

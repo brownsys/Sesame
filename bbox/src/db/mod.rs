@@ -1,8 +1,8 @@
 extern crate mysql;
 
 // BBox
+use crate::bbox::{BBox, EitherBBox};
 use crate::policy::get_schema_policies;
-use crate::{BBox, VBox};
 
 // mysql imports.
 pub use crate::db::mysql::prelude::Queryable;
@@ -14,34 +14,36 @@ pub type Value = BBox<mysql::Value>;
 
 // Type modification.
 pub fn from_value<T: FromValue>(v: Value) -> BBox<T> {
-    BBox::new_with_policy(mysql::from_value(v.t), v.policies.clone())
+    v.into_map(|t| mysql::from_value(t))
 }
 pub fn from_value_or_null<T: FromValue>(v: Value) -> BBox<Option<T>> {
-    if let mysql::Value::NULL = v.t {
-        BBox::new_with_policy(None, v.policies.clone())
-    } else {
-        BBox::new_with_policy(Some(mysql::from_value(v.t)), v.policies.clone())
-    }
+    v.into_map(|t| {
+        if let mysql::Value::NULL = t {
+            Option::None
+        } else {
+            mysql::from_value(t)
+        }
+    })
 }
 
 // Our params may be boxed or clear.
 #[derive(Clone)]
-pub struct Param(VBox<mysql::Value>);
+pub struct Param(EitherBBox<mysql::Value>);
 
 // Auto convert mysql::Value and bbox to Value.
 impl<T: Into<mysql::Value>> From<T> for Param {
     fn from(x: T) -> Param {
-        Param(VBox::Value(x.into()))
+        Param(EitherBBox::Value(x.into()))
     }
 }
 impl<T: Into<mysql::Value>> From<BBox<T>> for Param {
     fn from(x: BBox<T>) -> Param {
-        Param(VBox::BBox(x.m_into2()))
+        Param(EitherBBox::BBox(x.into2()))
     }
 }
 impl<T: Into<mysql::Value> + Clone> From<&BBox<T>> for Param {
     fn from(x: &BBox<T>) -> Param {
-        Param(VBox::BBox(x.into2()))
+        Param(EitherBBox::BBox(x.clone().into2()))
     }
 }
 
@@ -121,10 +123,7 @@ impl Row {
             Option::Some(t) => {
                 let idx = idx.unwrap();
                 let table = columns[idx].table_str().into_owned();
-                Option::Some(BBox::new_with_policy(
-                    t,
-                    get_schema_policies(table, idx, &self.raw),
-                ))
+                Option::Some(BBox::new(t, get_schema_policies(table, idx, &self.raw)))
             }
         }
     }
@@ -136,7 +135,7 @@ impl Row {
             .map(|(i, v)| {
                 let columns = self.row.columns_ref();
                 let table = columns[i].table_str().into_owned();
-                BBox::new_with_policy(v.clone(), get_schema_policies(table, i, &self.raw))
+                BBox::new(v.clone(), get_schema_policies(table, i, &self.raw))
             })
             .collect()
     }
@@ -222,8 +221,8 @@ impl Conn {
                 let unboxed = vec
                     .into_iter()
                     .map(|v: Param| match v {
-                        Param(VBox::Value(v)) => v,
-                        Param(VBox::BBox(bbox)) => bbox.t,
+                        Param(EitherBBox::Value(v)) => v,
+                        Param(EitherBBox::BBox(bbox)) => bbox.t,
                     })
                     .collect();
                 mysql::params::Params::Positional(unboxed)
