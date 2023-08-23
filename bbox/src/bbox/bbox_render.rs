@@ -116,3 +116,81 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
         Renderable::Dict(map)
     }
 }
+
+// Unit tests.
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    fn make_test_context() -> Context<String, String> {
+        Context::new(None, String::from(""))
+    }
+
+    #[test]
+    fn test_renderable_serialize() {
+        let string = String::from("my test!");
+        let renderable = string.render();
+        assert!(matches!(renderable, Renderable::Serialize(_)));
+        let result = renderable.transform(&make_test_context());
+        assert!(matches!(result, Result::Ok(FValue::String(_, result)) if result == string));
+    }
+
+    #[test]
+    fn test_renderable_bbox() {
+        let bbox = BBox::new(String::from("my bbox!"), vec![]);
+        let renderable = bbox.render();
+        assert!(matches!(renderable, Renderable::BBox(_)));
+        let result = renderable.transform(&make_test_context());
+        assert!(matches!(result, Result::Ok(FValue::String(_, result)) if result == bbox.t));
+    }
+
+    #[test]
+    fn test_renderable_either() {
+        let either = EitherBBox::Value(String::from("my_test!"));
+        let renderable = either.render();
+        assert!(matches!(renderable, Renderable::Serialize(_)));
+        let result = renderable.transform(&make_test_context());
+        assert!(
+            matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_test!"))
+        );
+
+        let either = EitherBBox::BBox(BBox::new(String::from("my_bbox!"), vec![]));
+        let renderable = either.render();
+        assert!(matches!(renderable, Renderable::BBox(_)));
+        let result = renderable.transform(&make_test_context());
+        assert!(
+            matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_bbox!"))
+        );
+    }
+
+    #[test]
+    fn test_renderable_vec() {
+        let mut vec = Vec::new();
+        vec.push(BBox::new(String::from("hello"), vec![]));
+        vec.push(BBox::new(String::from("bye"), vec![]));
+        let renderable = vec.render();
+        assert!(matches!(renderable, Renderable::Array(_)));
+        let result = renderable.transform(&make_test_context());
+        assert!(matches!(result, Result::Ok(FValue::Array(_, _))));
+        if let Result::Ok(FValue::Array(_, arr)) = result {
+            assert!(matches!(&arr[0], FValue::String(_, e) if e == "hello"));
+            assert!(matches!(&arr[1], FValue::String(_, e) if e == "bye"));
+        }
+    }
+
+    #[test]
+    fn test_renderable_map() {
+        let mut map = HashMap::new();
+        map.insert("key1", BBox::new(String::from("val1"), vec![]));
+        map.insert("key2", BBox::new(String::from("val2"), vec![]));
+        let renderable = map.render();
+        assert!(matches!(renderable, Renderable::Dict(_)));
+        let result = renderable.transform(&make_test_context());
+        assert!(matches!(result, Result::Ok(FValue::Dict(_, _))));
+        if let Result::Ok(FValue::Dict(_, dict)) = result {
+            assert!(matches!(dict.get("key1"), Option::Some(FValue::String(_, e)) if e == "val1"));
+            assert!(matches!(dict.get("key2"), Option::Some(FValue::String(_, e)) if e == "val2"));
+        }
+    }
+}

@@ -22,6 +22,15 @@ impl<U, D> Context<U, D> {
     pub fn get_data(&self) -> &D {
         &self.data
     }
+
+    #[cfg(test)]
+    pub(crate) fn new(user: Option<U>, data: D) -> Self {
+        Context {
+            user,
+            route: String::from("test"),
+            data,
+        }
+    }
 }
 
 #[derive(Debug)]

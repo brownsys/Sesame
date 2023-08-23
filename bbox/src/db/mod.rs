@@ -38,12 +38,12 @@ impl<T: Into<mysql::Value>> From<T> for Param {
 }
 impl<T: Into<mysql::Value>> From<BBox<T>> for Param {
     fn from(x: BBox<T>) -> Param {
-        Param(EitherBBox::BBox(x.into2()))
+        Param(EitherBBox::BBox(x.into()))
     }
 }
 impl<T: Into<mysql::Value> + Clone> From<&BBox<T>> for Param {
     fn from(x: &BBox<T>) -> Param {
-        Param(EitherBBox::BBox(x.clone().into2()))
+        Param(EitherBBox::BBox(x.clone().into()))
     }
 }
 

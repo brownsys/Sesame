@@ -16,12 +16,18 @@ impl<T> BBox<T> {
         self.map(|t| t)
     }
 
-    // Into that moves.
-    pub fn into2<F>(self) -> BBox<F>
+    // Into and from but without the traits (to avoid specialization issues).
+    pub fn into<F>(self) -> BBox<F>
     where
         T: Into<F>,
     {
         self.into_map(|t| t.into())
+    }
+    pub fn from<F>(value: BBox<F>) -> BBox<T>
+    where
+        T: From<F>,
+    {
+        value.into_map(|t| t.into())
     }
 
     // Unbox with policy checks.
@@ -36,13 +42,13 @@ impl<T> BBox<T> {
     }
 
     // Sandbox functions
-    pub fn sandbox_execute<R, F: FnOnce(T) -> R>(self, lambda: F) -> BBox<R> {
+    pub fn into_sandbox_execute<R, F: FnOnce(T) -> R>(self, lambda: F) -> BBox<R> {
         // Do we check policies?
         // Do we check that function is pure?
         // Do we execute in an actual sandbox?
         self.into_map(lambda)
     }
-    pub fn into_sandbox_execute<'a, R, F: FnOnce(&'a T) -> R>(&'a self, lambda: F) -> BBox<R> {
+    pub fn sandbox_execute<'a, R, F: FnOnce(&'a T) -> R>(&'a self, lambda: F) -> BBox<R> {
         // Do we check policies?
         // Do we check that function is pure?
         // Do we execute in an actual sandbox?
@@ -65,9 +71,55 @@ impl<T> Debug for BBox<T> {
     }
 }
 
-// BBox is clonable if what is inside is cloneable.
+// BBox is cloneable if what is inside is cloneable.
 impl<T: Clone> Clone for BBox<T> {
     fn clone(&self) -> Self {
         self.map(|t| t.clone())
+    }
+}
+
+// Unit tests.
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_box() {
+        let bbox = BBox::new(10u64, vec![]);
+        assert_eq!(bbox.t, 10u64);
+    }
+
+    #[test]
+    fn test_unbox() {
+        let bbox = BBox::new(10u64, vec![]);
+        assert_eq!(*bbox.test_unbox(), 10u64);
+    }
+
+    #[test]
+    fn test_as_ref() {
+        let bbox = BBox::new(String::from("hello"), vec![]);
+        assert!(std::ptr::eq(bbox.as_ref().t, &bbox.t));
+    }
+
+    #[test]
+    fn test_into() {
+        let bbox: BBox<u32> = BBox::new(10u32, vec![]);
+        let converted: BBox<u64> = bbox.into::<u64>();
+        assert_eq!(converted.t, 10u64);
+    }
+
+    #[test]
+    fn test_from() {
+        let bbox: BBox<u32> = BBox::new(10u32, vec![]);
+        let converted = BBox::<u64>::from(bbox);
+        assert_eq!(converted.t, 10u64);
+    }
+
+    #[test]
+    fn test_clone() {
+        let bbox = BBox::new(String::from("some very long string! hello!!!!"), vec![]);
+        let cloned = bbox.clone();
+        assert_eq!(bbox.t, cloned.t);
     }
 }
