@@ -27,7 +27,7 @@ impl MySqlBackend {
             Some(l) => l,
         };
 
-        let schema = std::fs::read_to_string("src/schema.sql")?;
+        let schema = std::fs::read_to_string("websubmit/src/schema.sql")?;
 
         debug!(
             log,
@@ -35,8 +35,8 @@ impl MySqlBackend {
         );
         let mut db = mysql::Conn::new(
             Opts::from_url(&format!(
-                "mysql://{}:{}@127.0.0.1/{}",
-                user, password, dbname
+                "mysql://{}:{}@127.0.0.1/",
+                user, password
             ))
             .unwrap(),
         )
@@ -48,7 +48,8 @@ impl MySqlBackend {
                 .unwrap();
             db.query_drop(format!("CREATE DATABASE {};", dbname))
                 .unwrap();
-            // reconnect
+            db.query_drop(format!("USE {};", dbname))
+                .unwrap();
             db = mysql::Conn::new(
                 Opts::from_url(&format!(
                     "mysql://{}:{}@127.0.0.1/{}",
@@ -63,6 +64,9 @@ impl MySqlBackend {
                 }
                 db.query_drop(line).unwrap();
             }
+        } else {
+            db.query_drop(format!("USE {};", dbname))
+                .unwrap();
         }
 
         Ok(MySqlBackend {

@@ -18,11 +18,14 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
 
+/*
 mod admin;
 mod apikey;
+*/
 mod args;
 mod backend;
 mod config;
+/*
 mod email;
 mod grades;
 mod helpers;
@@ -31,11 +34,14 @@ mod manage;
 mod policies;
 mod predict;
 mod questions;
+*/
 
+/*
 type User = apikey::ApiKey;
+*/
 
 extern crate bbox;
-use bbox::BBox;
+use bbox::bbox::BBox;
 
 pub fn new_logger() -> slog::Logger {
     use slog::Drain;
@@ -49,11 +55,14 @@ fn index(cookies: &CookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> 
     if let Some(cookie) = cookies.get("apikey") {
         let apikey: String = cookie.value().parse().ok().unwrap();
         // TODO: cookies must be bboxed.
-        let apikey = BBox::internal_new(apikey);
+        let apikey = BBox::new(apikey, vec![]);
+        /*
         match apikey::check_api_key(&*backend, &apikey) {
             Ok(_user) => Redirect::to("/leclist"),
             Err(_) => Redirect::to("/login"),
         }
+        */
+        Redirect::to("/login")
     } else {
         Redirect::to("/login")
     }
@@ -77,12 +86,14 @@ async fn main() {
 
     let template_dir = config.template_dir.clone();
     let resource_dir = config.resource_dir.clone();
-
-    let template = Template::custom(move |engines| {
-        engines
+    let template = Template::try_custom(move |engines| {
+        let result = engines
             .handlebars
-            .register_templates_directory(".hbs", std::path::Path::new(&template_dir))
-            .expect("failed to set template path!")
+            .register_templates_directory(".hbs", &template_dir);
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Box::new(e))
+        }
     });
 
     if let Err(e) = rocket::build()
@@ -92,6 +103,7 @@ async fn main() {
         .mount("/css", FileServer::from(format!("{}/css", resource_dir)))
         .mount("/js", FileServer::from(format!("{}/js", resource_dir)))
         .mount("/", routes![index])
+        /*
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
@@ -119,6 +131,7 @@ async fn main() {
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
         .mount("/manage/users", routes![manage::get_aggregate_grades])
+         */
         .launch()
         .await
     {

@@ -32,8 +32,8 @@ impl MySqlBackend {
         );
         let mut db = Conn::new(
             Opts::from_url(&format!(
-                "mysql://{}:{}@127.0.0.1/{}",
-                user, password, dbname
+                "mysql://{}:{}@127.0.0.1/",
+                user, password
             ))
             .unwrap(),
         )
@@ -45,21 +45,17 @@ impl MySqlBackend {
                 .unwrap();
             db.query_drop(format!("CREATE DATABASE {};", dbname))
                 .unwrap();
-            // reconnect
-            db = Conn::new(
-                Opts::from_url(&format!(
-                    "mysql://{}:{}@127.0.0.1/{}",
-                    user, password, dbname
-                ))
-                .unwrap(),
-            )
-            .unwrap();
+            db.query_drop(format!("USE {};", dbname))
+                .unwrap();
             for line in schema.lines() {
                 if line.starts_with("--") || line.is_empty() {
                     continue;
                 }
                 db.query_drop(line).unwrap();
             }
+        } else {
+            db.query_drop(format!("USE {};", dbname))
+                .unwrap();
         }
 
         Ok(MySqlBackend {
