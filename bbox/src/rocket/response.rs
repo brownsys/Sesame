@@ -48,7 +48,7 @@ pub struct BBoxRedirect {
     redirect: rocket::response::Redirect,
 }
 impl BBoxRedirect {
-    pub fn redirect(name: &str, params: Vec<&dyn BBoxRender>) -> Self {
+    pub fn to(name: &str, params: Vec<&dyn BBoxRender>) -> Self {
         let params = params
             .iter()
             .map(|x| x.render().try_unbox().unwrap().clone())

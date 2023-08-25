@@ -3,11 +3,10 @@ use std::sync::{Arc, Mutex};
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
-use rocket::request::{self, FromRequest, Request};
 use rocket::State;
 
-use bbox::context::Context;
-use bbox::policy::Policy;
+use bbox::policy::{Context, Policy};
+use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use bbox_derive::schema_policy;
 
 use std::any::Any;
@@ -29,10 +28,12 @@ pub enum ContextDataError {
 
 // Build the custom payload for the context given HTTP request.
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for ContextData {
-    type Error = ContextDataError;
+impl<'r> FromBBoxRequest<'r> for ContextData {
+    type BBoxError = ContextDataError;
 
-    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+    async fn from_bbox_request(
+        request: &'r BBoxRequest<'r, '_>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let db = match request.guard::<&State<Arc<Mutex<MySqlBackend>>>>().await {
             Success(db) => Some(db.inner().clone()),
             Failure(_) => None,
@@ -95,12 +96,12 @@ impl Policy for AnswerAccessPolicy {
 
         // user_id == me
         // TODO(babman): context::user should probably not be BBoxed?
-        if *user.internal_unbox() == self.owner {
+        if *user.test_unbox() == self.owner {
             return true;
         }
 
         // I am an admin.
-        if config.admins.contains(user.internal_unbox()) {
+        if config.admins.contains(user.test_unbox()) {
             return true;
         }
 

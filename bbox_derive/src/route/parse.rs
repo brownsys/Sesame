@@ -99,8 +99,12 @@ impl Parse for RouteURI {
         // Extract path parameters (e.g. ../<x>/..)
         let mut path_params = Vec::new();
         let path = origin.path();
-        let params = path.split('/').filter(|s| is_dynamic_parameter(s.as_ref()));
-        for (i, param) in params.enumerate() {
+        let params = path
+            .split('/')
+            .filter(|s| s.len() > 0)
+            .enumerate()
+            .filter(|(_i, s)| is_dynamic_parameter(s.as_ref()));
+        for (i, param) in params {
             let param = match parse_parameter(param.as_ref()) {
                 Option::Some(param) => param,
                 Option::None => {

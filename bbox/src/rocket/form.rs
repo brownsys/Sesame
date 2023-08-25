@@ -273,7 +273,8 @@ impl_form_via_rocket!(
     Date,
     Time,
     PrimitiveDateTime,
-    String
+    String,
+    bool
 );
 
 // Implement FromBBoxForm for Vec<T: FromBBoxForm>.

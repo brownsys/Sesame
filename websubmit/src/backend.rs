@@ -34,11 +34,7 @@ impl MySqlBackend {
             "Connecting to MySql DB and initializing schema {}...", dbname
         );
         let mut db = mysql::Conn::new(
-            Opts::from_url(&format!(
-                "mysql://{}:{}@127.0.0.1/",
-                user, password
-            ))
-            .unwrap(),
+            Opts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
         )
         .unwrap();
         assert_eq!(db.ping(), true);
@@ -48,8 +44,7 @@ impl MySqlBackend {
                 .unwrap();
             db.query_drop(format!("CREATE DATABASE {};", dbname))
                 .unwrap();
-            db.query_drop(format!("USE {};", dbname))
-                .unwrap();
+            db.query_drop(format!("USE {};", dbname)).unwrap();
             db = mysql::Conn::new(
                 Opts::from_url(&format!(
                     "mysql://{}:{}@127.0.0.1/{}",
@@ -65,8 +60,7 @@ impl MySqlBackend {
                 db.query_drop(line).unwrap();
             }
         } else {
-            db.query_drop(format!("USE {};", dbname))
-                .unwrap();
+            db.query_drop(format!("USE {};", dbname)).unwrap();
         }
 
         Ok(MySqlBackend {

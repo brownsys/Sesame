@@ -1,4 +1,4 @@
-use bbox_derive::{route, FromBBoxForm};
+use bbox_derive::{route, FromBBoxForm, routes};
 
 // POST request data.
 #[derive(FromBBoxForm)]
@@ -68,12 +68,12 @@ fn my_route(
     assert_eq!(*num.test_unbox(), 5);
 
     // all good.
-    bbox::rocket::BBoxRedirect::redirect("ok", vec![])
+    bbox::rocket::BBoxRedirect::to("ok", vec![])
 }
 
 #[test]
 fn simple_from_bbox_form_test() {
     let rocket = bbox::rocket::BBoxRocket::<::rocket::Build>::build()
         .manage(Config::new("test@email.com"))
-        .mount("/test", vec![my_route::info()]);
+        .mount("/test", routes![my_route]);
 }

@@ -11,24 +11,6 @@ use syn::{
     Type,
 };
 
-/*
-#[rocket::async_trait]
-pub trait FromBBoxForm<'r> : Send + Sized {
-  type BBoxContext: Send;
-
-  // Required methods
-  fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext;
-  fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'r>);
-
-  async fn bbox_push_data<'life0, 'life1>(ctxt: &'life0 mut Self::BBoxContext, field: BBoxDataField<'r, 'life1>);
-  fn bbox_finalize(ctxt: Self::BBoxContext) -> BBoxFormResult<'r, Self>;
-
-  // Provided methods
-  fn bbox_push_error(_ctxt: &mut Self::BBoxContext, _error: rocket::form::Error<'r>) { }
-  fn bbox_default(opts: rocket::form::Options) -> Option<Self> { Self::bbox_finalize(Self::bbox_init(opts)).ok() }
-}
-*/
-
 pub fn context_generics(mut generics: Generics) -> Generics {
     generics.params.insert(
         0,
