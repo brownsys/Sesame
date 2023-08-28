@@ -1,7 +1,3 @@
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use chrono::naive::NaiveDateTime;
@@ -10,15 +6,13 @@ use linfa::dataset::Dataset;
 use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
-use rocket::form::{Form, FromForm};
 use rocket::State;
-use rocket_dyn_templates::Template;
 
 use crate::apikey::ApiKey;
-use bbox::context::Context;
-use bbox::db::from_value;
-use bbox::{BBox, BBoxRender, VBox};
-use bbox_derive::BBoxRender;
+use bbox::policy::Context;
+use bbox::bbox::{BBox, sandbox_combine, sandbox_execute};
+use bbox::rocket::{BBoxForm, BBoxTemplate};
+use bbox_derive::{get, post, BBoxRender, FromBBoxForm};
 
 use crate::backend::MySqlBackend;
 use crate::policies::ContextData;
@@ -71,7 +65,7 @@ pub(crate) fn train_and_store(backend: &State<Arc<Mutex<MySqlBackend>>>) {
         model
     };
 
-    let new_model = bbox::sandbox_execute(res, train);
+    let new_model = sandbox_execute(res, train);
     let mut model_ref = MODEL.lock().unwrap();
     *model_ref = Some(new_model);
 }
@@ -87,16 +81,16 @@ pub(crate) fn predict(
     num: BBox<u8>,
     _backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
-) -> Template {
+) -> BBoxTemplate {
     let ctx = PredictContext {
         lec_id: num,
         parent: "layout".into(),
     };
 
-    bbox::render("predict", &ctx, &context).unwrap()
+    BBoxTemplate::render("predict", &ctx, &context)
 }
 
-#[derive(Debug, FromForm)]
+#[derive(Debug, FromBBoxForm)]
 pub(crate) struct PredictGradeForm {
     time: BBox<String>,
 }
@@ -112,10 +106,10 @@ struct PredictGradeContext {
 #[post("/predict_grade/<num>", data = "<data>")]
 pub(crate) fn predict_grade(
     num: BBox<u8>,
-    data: Form<PredictGradeForm>,
+    data: BBoxForm<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
-) -> Template {
+) -> BBoxTemplate {
     // Train model if it doesnt exist.
     if !model_exists() {
         train_and_store(backend);
@@ -125,7 +119,7 @@ pub(crate) fn predict_grade(
     let lock = MODEL.lock().unwrap();
     let model = lock.as_ref().unwrap().as_ref();
     let time = data.time.as_ref();
-    let grade = bbox::sandbox_combine(time, model, |time, model| {
+    let grade = sandbox_combine(time, model, |time, model| {
         let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
         model.params()[0] * (time.unwrap().timestamp() as f64) + model.intercept()
     });
@@ -136,5 +130,5 @@ pub(crate) fn predict_grade(
         grade: grade,
         parent: "layout".into(),
     };
-    bbox::render("predictgrade", &ctx, &context).unwrap()
+    BBoxTemplate::render("predictgrade", &ctx, &context)
 }

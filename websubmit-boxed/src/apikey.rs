@@ -45,7 +45,7 @@ pub(crate) struct ApiKeyRequest {
     gender: BBox<String>,
     age: BBox<u32>,
     ethnicity: BBox<String>,
-    is_remote: BBox<bool>,
+    is_remote: Option<BBox<bool>>,
     education: BBox<String>,
 }
 
@@ -155,7 +155,10 @@ pub(crate) fn generate(
             data.gender.clone().into(),
             data.age.clone().into(),
             data.ethnicity.clone().into(),
-            data.is_remote.clone().into(),
+            match &data.is_remote {
+                Some(is_remote) => is_remote.clone().into(),
+                None => false.into(),
+            },
             data.education.clone().into(),
         ],
     );

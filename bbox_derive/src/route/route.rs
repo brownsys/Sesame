@@ -274,7 +274,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
     quote! {
       #[allow(non_camel_case_types)]
-      struct #fn_name {}
+      pub struct #fn_name {}
       impl #fn_name {
         pub async fn lambda<'r>(_request: ::bbox::rocket::BBoxRequest<'r, '_>, _data: ::bbox::rocket::BBoxData<'r>) -> ::bbox::rocket::BBoxResponseOutcome<'r> {
           // Path parameters.

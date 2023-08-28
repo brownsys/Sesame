@@ -1,18 +1,18 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::hash::{Hash};
 use std::sync::{Arc, Mutex};
 
 use chrono::naive::NaiveDateTime;
 use chrono::Local;
-use rocket::form::{Form, FromForm};
-use rocket::response::Redirect;
 use rocket::State;
-use rocket_dyn_templates::Template;
 
 use crate::admin::Admin;
-use bbox::context::Context;
+use bbox::policy::Context;
 use bbox::db::{from_value, from_value_or_null};
-use bbox::BBox;
-use bbox_derive::BBoxRender;
+use bbox::bbox::{BBox, sandbox_combine};
+use bbox::rocket::{BBoxDataField, BBoxForm, BBoxFormResult, BBoxRedirect, BBoxTemplate, FromBBoxFormField};
+use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -21,9 +21,36 @@ use crate::email;
 use crate::helpers::{left_join, JoinIdx};
 use crate::policies::ContextData;
 
-#[derive(Debug, FromForm)]
+// TODO(babman): what about data that should not be bboxed!
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Fake64(u64);
+
+#[rocket::async_trait]
+impl<'r> FromBBoxFormField<'r> for Fake64 {
+    async fn from_bbox_data<'i>(field: BBoxDataField<'r, 'i>) -> BBoxFormResult<'r, Self> {
+        let boxed = BBox::<u64>::from_bbox_data(field).await;
+        match boxed {
+            Ok(boxed) => Ok(Fake64(boxed.test_unbox().clone())),
+            Err(e) => Err(e)
+        }
+    }
+}
+impl Display for Fake64 {
+    // Required method
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+impl Into<bbox::db::Param> for Fake64 {
+    fn into(self) -> bbox::db::Param {
+        self.0.into()
+    }
+}
+// END OF TODO.
+
+#[derive(Debug, FromBBoxForm)]
 pub(crate) struct LectureQuestionSubmission {
-    answers: HashMap<u64, BBox<String>>,
+    answers: HashMap<Fake64, BBox<String>>,
 }
 
 #[derive(BBoxRender, Clone)]
@@ -77,7 +104,7 @@ pub(crate) fn leclist(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
     context: Context<ApiKey, ContextData>,
-) -> Template {
+) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT lectures.id, lectures.label, lec_qcount.qcount \
@@ -91,11 +118,14 @@ pub(crate) fn leclist(
     let admin: BBox<bool> = apikey
         .user
         .sandbox_execute(|email| config.admins.contains(email));
+
     let lecs: Vec<LectureListEntry> = res
         .into_iter()
         .map(|r| LectureListEntry {
             id: from_value(r[0].clone()),
             label: from_value(r[1].clone()),
+
+            // TODO(babman): also pure sandbox.
             num_qs: r[2].sandbox_execute(|v| {
                 if *v == mysql::Value::NULL {
                     0u64
@@ -113,18 +143,18 @@ pub(crate) fn leclist(
         parent: "layout".into(),
     };
 
-    bbox::render("leclist", &ctx, &context).unwrap()
+    BBoxTemplate::render("leclist", &ctx, &context)
 }
 
 #[get("/<num>")]
 pub(crate) fn answers(
-    // _admin: Admin,
+    _admin: Admin,
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
-) -> Template {
+) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let key = num.into2::<u64>();
+    let key = num.clone().into_bbox::<u64>();
     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.into()]);
     drop(bg);
 
@@ -146,7 +176,7 @@ pub(crate) fn answers(
         parent: "layout".into(),
     };
 
-    bbox::render("answers", &ctx, &context).unwrap()
+    BBoxTemplate::render("answers", &ctx, &context)
 }
 
 #[get("/<num>")]
@@ -155,11 +185,9 @@ pub(crate) fn questions(
     num: BBox<u8>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
-) -> Template {
-    use std::collections::HashMap;
-
+) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let key = num.into2::<u64>();
+    let key = num.clone().into_bbox::<u64>();
 
     let answers_result = bg.prep_exec(
         "SELECT answers.* FROM answers WHERE answers.lec = ? AND answers.email = ?",
@@ -168,7 +196,7 @@ pub(crate) fn questions(
     let questions_result = bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key.into()]);
     drop(bg);
 
-    let questions = bbox::sandbox_combine(
+    let questions = sandbox_combine(
         questions_result,
         answers_result,
         |questions_res: Vec<Vec<mysql::Value>>, answers_res: Vec<Vec<mysql::Value>>| {
@@ -202,19 +230,19 @@ pub(crate) fn questions(
         parent: "layout".into(),
     };
 
-    bbox::render("questions", &ctx, &context).unwrap()
+    BBoxTemplate::render("questions", &ctx, &context)
 }
 
 #[post("/<num>", data = "<data>")]
 pub(crate) fn questions_submit(
     apikey: ApiKey,
     num: BBox<u8>,
-    data: Form<LectureQuestionSubmission>,
+    data: BBoxForm<LectureQuestionSubmission>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
     context: Context<ApiKey, ContextData>,
-) -> Redirect {
-    let num: BBox<u64> = num.m_into2();
+) -> BBoxRedirect {
+    let num: BBox<u64> = num.into_bbox();
     let ts: mysql::Value = Local::now().naive_local().into();
     let grade: mysql::Value = 0.into();
 
@@ -264,5 +292,5 @@ pub(crate) fn questions_submit(
     }
     drop(bg);
 
-    bbox::redirect("/leclist", vec![])
+    BBoxRedirect::to("/leclist", vec![])
 }

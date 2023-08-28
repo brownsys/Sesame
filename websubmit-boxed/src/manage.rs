@@ -1,14 +1,10 @@
-use std::collections::HashMap;
-use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 
 use mysql::prelude::FromValue;
 
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
-use rocket::request::{self, FromRequest, Request};
 use rocket::State;
-use rocket_dyn_templates::Template;
 
 use serde::Serialize;
 
@@ -18,10 +14,11 @@ use crate::config::Config;
 use crate::helpers::average;
 
 use crate::policies::ContextData;
-use bbox::context::Context;
-use bbox::db::{from_value, from_value_or_null};
-use bbox::{BBox, BBoxRender};
-use bbox_derive::BBoxRender;
+use bbox::policy::Context;
+use bbox::db::{from_value};
+use bbox::bbox::{BBox, sandbox_execute};
+use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
+use bbox_derive::{BBoxRender, get};
 
 pub(crate) struct Manager;
 
@@ -31,10 +28,10 @@ pub(crate) enum ManagerError {
 }
 
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for Manager {
-    type Error = ManagerError;
+impl<'r> FromBBoxRequest<'r> for Manager {
+    type BBoxError = ManagerError;
 
-    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+    async fn from_bbox_request(request: &'r BBoxRequest<'r, '_>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
         let context = request
@@ -88,16 +85,16 @@ pub(crate) fn get_aggregate_grades(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
-) -> Template {
+) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec(
         "SELECT pseudonym, gender, is_remote, grade FROM users JOIN answers ON users.email = answers.email;",
         vec![]);
     drop(bg);
 
-    let user_agg = bbox::sandbox_execute(&grades, |grades| average::<String>(3, 0, grades));
-    let gender_agg = bbox::sandbox_execute(&grades, |grades| average::<String>(3, 1, grades));
-    let remote_agg = bbox::sandbox_execute(&grades, |grades| average::<bool>(3, 2, grades));
+    let user_agg = sandbox_execute(&grades, |grades| average::<String>(3, 0, grades));
+    let gender_agg = sandbox_execute(&grades, |grades| average::<String>(3, 1, grades));
+    let remote_agg = sandbox_execute(&grades, |grades| average::<bool>(3, 2, grades));
 
     let ctx = AggregateContext {
         aggregates_per_user: transform(user_agg),
@@ -106,5 +103,5 @@ pub(crate) fn get_aggregate_grades(
         parent: String::from("layout"),
     };
 
-    bbox::render("manage/users", &ctx, &context).unwrap()
+    BBoxTemplate::render("manage/users", &ctx, &context)
 }

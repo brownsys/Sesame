@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{Debug, Display, Formatter, Result};
 use std::sync::{Arc, Mutex};
 
 use crate::policy::{Context, Policy};
@@ -75,6 +75,13 @@ impl<T> Debug for BBox<T> {
 impl<T: Clone> Clone for BBox<T> {
     fn clone(&self) -> Self {
         self.map(|t| t.clone())
+    }
+}
+
+// Formatting to string.
+impl<T: Display> BBox<T> {
+    pub fn format(&self) -> BBox<String> {
+        self.map(|t| format!("{}", t))
     }
 }
 
