@@ -23,7 +23,7 @@ pub fn parse_args() -> Args {
                 .long("config")
                 .takes_value(true)
                 .value_name("CONFIG_FILE")
-                .default_value("sample-config.toml")
+                .default_value("websubmit-boxed/sample-config.toml")
                 .help("Path to the configuration file for the deployment."),
         )
         .arg(

@@ -1,19 +1,15 @@
 extern crate clap;
-extern crate mysql;
-#[macro_use]
-extern crate rocket;
 extern crate lettre;
 extern crate lettre_email;
+extern crate mysql;
+extern crate rocket;
 #[macro_use]
 extern crate slog;
-extern crate slog_term;
-#[macro_use]
 extern crate serde_derive;
+extern crate slog_term;
 
 use backend::MySqlBackend;
 use rocket::fs::FileServer;
-use rocket::http::CookieJar;
-use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
@@ -35,7 +31,8 @@ mod questions;
 type User = apikey::ApiKey;
 
 extern crate bbox;
-use bbox::BBox;
+use bbox::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute};
+use bbox_derive::{get, routes};
 
 pub fn new_logger() -> slog::Logger {
     use slog::Drain;
@@ -45,17 +42,15 @@ pub fn new_logger() -> slog::Logger {
 }
 
 #[get("/")]
-fn index(cookies: &CookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> Redirect {
+fn index(cookies: &BBoxCookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> BBoxRedirect {
     if let Some(cookie) = cookies.get("apikey") {
-        let apikey: String = cookie.value().parse().ok().unwrap();
-        // TODO: cookies must be bboxed.
-        let apikey = BBox::internal_new(apikey);
+        let apikey = cookie.value().into_bbox();
         match apikey::check_api_key(&*backend, &apikey) {
-            Ok(_user) => Redirect::to("/leclist"),
-            Err(_) => Redirect::to("/login"),
+            Ok(_user) => BBoxRedirect::to("/leclist", vec![]),
+            Err(_) => BBoxRedirect::to("/login", vec![]),
         }
     } else {
-        Redirect::to("/login")
+        BBoxRedirect::to("/login", vec![])
     }
 }
 
@@ -77,20 +72,28 @@ async fn main() {
 
     let template_dir = config.template_dir.clone();
     let resource_dir = config.resource_dir.clone();
-
-    let template = Template::custom(move |engines| {
-        engines
+    let template = Template::try_custom(move |engines| {
+        let result = engines
             .handlebars
-            .register_templates_directory(".hbs", std::path::Path::new(&template_dir))
-            .expect("failed to set template path!")
+            .register_templates_directory(".hbs", &template_dir);
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Box::new(e)),
+        }
     });
 
-    if let Err(e) = rocket::build()
+    if let Err(e) = BBoxRocket::build()
         .attach(template)
         .manage(backend)
         .manage(config)
-        .mount("/css", FileServer::from(format!("{}/css", resource_dir)))
-        .mount("/js", FileServer::from(format!("{}/js", resource_dir)))
+        .mount(
+            "/css",
+            BBoxRoute::from(FileServer::from(format!("{}/css", resource_dir))),
+        )
+        .mount(
+            "/js",
+            BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
+        )
         .mount("/", routes![index])
         .mount(
             "/questions",

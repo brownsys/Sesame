@@ -1,22 +1,22 @@
-use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use rocket::form::Form;
-use rocket::http::{Cookie, CookieJar, Status};
+use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
-use rocket::request::{self, FromRequest, Request};
-use rocket::response::Redirect;
 use rocket::State;
-use rocket_dyn_templates::Template;
 
-use bbox::context::Context;
+use bbox::bbox::BBox;
 use bbox::db::from_value;
-use bbox::{BBox, BBoxRender};
-use bbox_derive::BBoxRender;
+use bbox::policy::Context;
+use bbox::rocket::{
+    BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome,
+    BBoxTemplate, FromBBoxRequest,
+};
+
+use bbox_derive::{post, BBoxRender, FromBBoxForm};
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
@@ -32,18 +32,20 @@ pub(crate) enum ApiKeyError {
 }
 
 /// (username, apikey)
+#[allow(unused_tuple_struct_fields)]
 pub(crate) struct ApiKey {
     pub user: BBox<String>,
+    #[allow(dead_code)]
     pub key: BBox<String>,
 }
 
-#[derive(Debug, FromForm)]
+#[derive(Debug, FromBBoxForm)]
 pub(crate) struct ApiKeyRequest {
     email: BBox<String>,
     gender: BBox<String>,
     age: BBox<u32>,
     ethnicity: BBox<String>,
-    is_remote: BBox<bool>,
+    is_remote: Option<BBox<bool>>,
     education: BBox<String>,
 }
 
@@ -53,7 +55,7 @@ pub(crate) struct ApiKeyResponse {
     parent: String,
 }
 
-#[derive(Debug, FromForm)]
+#[derive(Debug, FromBBoxForm)]
 pub(crate) struct ApiKeySubmit {
     key: BBox<String>,
 }
@@ -79,13 +81,14 @@ pub(crate) fn check_api_key(
         Err(ApiKeyError::BackendFailure)
     }
 }
-
 // Auto construct ApiKey from every request using cookies.
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for ApiKey {
-    type Error = ApiKeyError;
+impl<'r> FromBBoxRequest<'r> for ApiKey {
+    type BBoxError = ApiKeyError;
 
-    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+    async fn from_bbox_request(
+        request: &'r BBoxRequest<'r, '_>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let be = request
             .guard::<&State<Arc<Mutex<MySqlBackend>>>>()
             .await
@@ -93,9 +96,7 @@ impl<'r> FromRequest<'r> for ApiKey {
         request
             .cookies()
             .get("apikey")
-            // TODO(babman): cookie must be bbox.
-            .and_then(|cookie| cookie.value().parse().ok())
-            .and_then(|key: String| Some(BBox::internal_new(key)))
+            .and_then(|cookie| Some(cookie.value().into_bbox()))
             .and_then(|key: BBox<String>| match check_api_key(&be, &key) {
                 Ok(user) => Some(ApiKey {
                     user: user,
@@ -110,11 +111,11 @@ impl<'r> FromRequest<'r> for ApiKey {
 // TODO(babman): too many sandboxes, what is reasonable here?
 #[post("/", data = "<data>")]
 pub(crate) fn generate(
-    data: Form<ApiKeyRequest>,
+    data: BBoxForm<ApiKeyRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
     context: Context<ApiKey, ContextData>,
-) -> Template {
+) -> BBoxTemplate {
     let pseudonym: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(16)
@@ -138,8 +139,8 @@ pub(crate) fn generate(
     let is_manager = data
         .email
         .sandbox_execute(|email| config.managers.contains(email));
-    let is_admin: BBox<i8> = is_admin.m_into2();
-    let is_manager: BBox<i8> = is_manager.m_into2();
+    let is_admin: BBox<i8> = is_admin.into_bbox();
+    let is_manager: BBox<i8> = is_manager.into_bbox();
 
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
@@ -154,7 +155,10 @@ pub(crate) fn generate(
             data.gender.clone().into(),
             data.age.clone().into(),
             data.ethnicity.clone().into(),
-            data.is_remote.clone().into(),
+            match &data.is_remote {
+                Some(is_remote) => is_remote.clone().into(),
+                None => false.into(),
+            },
             data.education.clone().into(),
         ],
     );
@@ -181,15 +185,17 @@ pub(crate) fn generate(
         apikey_email: data.email.clone(),
         parent: "layout".into(),
     };
-    bbox::render("apikey/generate", &ctx, &context).unwrap()
+
+    BBoxTemplate::render("apikey/generate", &ctx, &context)
 }
 
 #[post("/", data = "<data>")]
 pub(crate) fn check(
-    data: Form<ApiKeySubmit>,
-    cookies: &CookieJar<'_>,
+    data: BBoxForm<ApiKeySubmit>,
+    cookies: &BBoxCookieJar<'_>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Redirect {
+    context: Context<ApiKey, ContextData>,
+) -> BBoxRedirect {
     // check that the API key exists and set cookie
     let res = check_api_key(&*backend, &data.key);
     match res {
@@ -206,13 +212,12 @@ pub(crate) fn check(
     }
 
     if res.is_err() {
-        Redirect::to("/")
+        BBoxRedirect::to("/", vec![])
     } else {
-        // TODO(babman): should be able to store bboxes in cookies.
-        let cookie = Cookie::build("apikey", data.key.internal_unbox().clone())
+        let cookie = BBoxCookie::build("apikey", data.key.clone(), &context)
             .path("/")
             .finish();
         cookies.add(cookie);
-        Redirect::to("/leclist")
+        BBoxRedirect::to("/leclist", vec![])
     }
 }

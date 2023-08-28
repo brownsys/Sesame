@@ -1,5 +1,3 @@
-use std::boxed::Box;
-
 use crate::rocket::data::BBoxData;
 use crate::rocket::request::BBoxRequest;
 use crate::rocket::response::BBoxResponseOutcome;
@@ -8,23 +6,42 @@ use crate::rocket::response::BBoxResponseOutcome;
 type BBoxFuture<'r> = futures::future::BoxFuture<'r, BBoxResponseOutcome<'r>>;
 
 // Box::new(<BBoxHandlerLambda>) -> BBoxHandler.
-pub type BBoxHandlerLambda =
+pub type BBoxRouteHandlerLambda =
     for<'r> fn(request: BBoxRequest<'r, '_>, data: BBoxData<'r>) -> BBoxFuture<'r>;
 
-// Our #[bbox_get(...)] #[bbox_post(...)], etc macros generate an instance of
-// this.
+// Our #[bbox_get(...)] #[bbox_post(...)], etc macros generate a struct with an ::info() function
+// that returns an instance of this.
 pub struct BBoxRouteInfo {
     pub method: rocket::http::Method,
     pub uri: &'static str,
-    pub bbox_handler: BBoxHandlerLambda,
+    pub bbox_handler: BBoxRouteHandlerLambda,
 }
-impl BBoxRouteInfo {
-    pub(crate) fn to_rocket_route(self) -> rocket::route::Route {
-        rocket::route::Route::new(
-            self.method,
-            self.uri,
-            BBoxRouteWrapper::new(self.bbox_handler),
-        )
+
+// BBoxRoute is just a wrapper around a regular rocket Route.
+// It adds a wrapper that acts as a the plain rocket handler,
+// the wrapper takes in unprotected clear rocket types, e.g. rocket::request::Request,
+// the wrapper then turns them into the BBox versions, e.g. BBoxRequest,
+// and then calls the handler specified by the application.
+pub struct BBoxRoute {
+    pub(crate) route: rocket::route::Route,
+}
+impl From<BBoxRouteInfo> for BBoxRoute {
+    fn from(value: BBoxRouteInfo) -> Self {
+        BBoxRoute {
+            route: rocket::route::Route::new(
+                value.method,
+                value.uri,
+                BBoxRouteHandlerWrapper::new(value.bbox_handler),
+            ),
+        }
+    }
+}
+impl From<rocket::fs::FileServer> for BBoxRoute {
+    fn from(value: rocket::fs::FileServer) -> Self {
+        let mut vec: Vec<rocket::route::Route> = value.into();
+        BBoxRoute {
+            route: vec.pop().unwrap(),
+        }
     }
 }
 
@@ -41,16 +58,16 @@ impl BBoxRouteInfo {
 // This last part removes the BBox protection, but this is OK: application code
 // cannot access this part, as this handler is passed directly to rocket.
 #[derive(Clone)]
-struct BBoxRouteWrapper {
-    bbox_handler: BBoxHandlerLambda,
+struct BBoxRouteHandlerWrapper {
+    bbox_handler: BBoxRouteHandlerLambda,
 }
-impl BBoxRouteWrapper {
-    pub fn new(bbox_handler: BBoxHandlerLambda) -> Self {
-        BBoxRouteWrapper { bbox_handler }
+impl BBoxRouteHandlerWrapper {
+    pub fn new(bbox_handler: BBoxRouteHandlerLambda) -> Self {
+        BBoxRouteHandlerWrapper { bbox_handler }
     }
 }
 #[rocket::async_trait]
-impl rocket::route::Handler for BBoxRouteWrapper {
+impl rocket::route::Handler for BBoxRouteHandlerWrapper {
     async fn handle<'r>(
         &self,
         request: &'r rocket::request::Request<'_>,

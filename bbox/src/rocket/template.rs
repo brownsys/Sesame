@@ -21,12 +21,12 @@ impl BBoxTemplate {
         name: S,
         params: &T,
         context: &Context<U, D>,
-    ) -> Result<Self, figment::Error> {
+    ) -> Self {
         // First turn context into a figment::value::Value.
-        let transformed = params.render().transform(context)?;
+        let transformed = params.render().transform(context).unwrap();
         // Now render.
         let template = rocket_dyn_templates::Template::render(name, transformed);
-        Ok(BBoxTemplate { template })
+        BBoxTemplate { template }
     }
 }
 

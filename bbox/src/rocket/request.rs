@@ -90,6 +90,11 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
             }),
         }
     }
+
+    // Returns information about the route.
+    pub fn route(&self) -> Option<&'r rocket::route::Route> {
+        self.request.route()
+    }
 }
 
 // Our own FromParam trait, applications likely never need to use this themselves.

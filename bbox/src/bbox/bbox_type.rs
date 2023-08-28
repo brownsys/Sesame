@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{Debug, Display, Formatter, Result};
 use std::sync::{Arc, Mutex};
 
 use crate::policy::{Context, Policy};
@@ -17,13 +17,13 @@ impl<T> BBox<T> {
     }
 
     // Into and from but without the traits (to avoid specialization issues).
-    pub fn into<F>(self) -> BBox<F>
+    pub fn into_bbox<F>(self) -> BBox<F>
     where
         T: Into<F>,
     {
         self.into_map(|t| t.into())
     }
-    pub fn from<F>(value: BBox<F>) -> BBox<T>
+    pub fn from_bbox<F>(value: BBox<F>) -> BBox<T>
     where
         T: From<F>,
     {
@@ -78,6 +78,13 @@ impl<T: Clone> Clone for BBox<T> {
     }
 }
 
+// Formatting to string.
+impl<T: Display> BBox<T> {
+    pub fn format(&self) -> BBox<String> {
+        self.map(|t| format!("{}", t))
+    }
+}
+
 // Unit tests.
 #[cfg(test)]
 mod tests {
@@ -103,16 +110,16 @@ mod tests {
     }
 
     #[test]
-    fn test_into() {
+    fn test_into_bbox() {
         let bbox: BBox<u32> = BBox::new(10u32, vec![]);
-        let converted: BBox<u64> = bbox.into::<u64>();
+        let converted: BBox<u64> = bbox.into_bbox::<u64>();
         assert_eq!(converted.t, 10u64);
     }
 
     #[test]
-    fn test_from() {
+    fn test_from_bbox() {
         let bbox: BBox<u32> = BBox::new(10u32, vec![]);
-        let converted = BBox::<u64>::from(bbox);
+        let converted = BBox::<u64>::from_bbox(bbox);
         assert_eq!(converted.t, 10u64);
     }
 

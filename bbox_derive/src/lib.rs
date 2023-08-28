@@ -2,8 +2,10 @@ extern crate proc_macro;
 extern crate syn;
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemFn, ItemStruct};
-
+use quote::quote;
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
+use syn::{parse_macro_input, DeriveInput, ItemFn, ItemStruct, Expr};
 mod form;
 mod policy;
 mod render;
@@ -59,4 +61,16 @@ pub fn post(args: TokenStream, input: TokenStream) -> TokenStream {
     let additional: TokenStream = route::route_impl(args, parsed).into();
     result.extend(additional.into_iter());
     result
+}
+
+#[proc_macro]
+pub fn routes(input: TokenStream) -> TokenStream {
+    use syn::parse::Parser;
+    let parser = Punctuated::<Expr, Comma>::parse_terminated;
+    let input = parser.parse(input).unwrap();
+    let input = input.iter();
+    let result = quote! {
+        vec![#( #input ::info().into()),*]
+    };
+    result.into()
 }

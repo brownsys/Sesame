@@ -67,11 +67,14 @@ async fn main() {
     let template_dir = config.template_dir.clone();
     let resource_dir = config.resource_dir.clone();
 
-    let template = Template::custom(move |engines| {
-        engines
+    let template = Template::try_custom(move |engines| {
+        let result = engines
             .handlebars
-            .register_templates_directory(".hbs", std::path::Path::new(&template_dir))
-            .expect("failed to set template path!");
+            .register_templates_directory(".hbs", std::path::Path::new(&template_dir));
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Box::new(e)),
+        }
     });
 
     if let Err(e) = rocket::build()

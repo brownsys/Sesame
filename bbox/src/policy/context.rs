@@ -1,7 +1,7 @@
+use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
-use rocket::request::{self, FromRequest, Request};
 
 #[derive(Debug)]
 pub struct Context<U, D> {
@@ -39,10 +39,14 @@ pub enum ContextError {
 }
 
 #[rocket::async_trait]
-impl<'r, U: FromRequest<'r>, D: FromRequest<'r> + Send> FromRequest<'r> for Context<U, D> {
-    type Error = ContextError;
+impl<'r, U: FromBBoxRequest<'r>, D: FromBBoxRequest<'r> + Send> FromBBoxRequest<'r>
+    for Context<U, D>
+{
+    type BBoxError = ContextError;
 
-    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+    async fn from_bbox_request(
+        request: &'r BBoxRequest<'r, '_>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let data: Option<D> = match request.guard::<D>().await {
             Success(data) => Some(data),
             Failure(_) => None,
@@ -57,11 +61,10 @@ impl<'r, U: FromRequest<'r>, D: FromRequest<'r> + Send> FromRequest<'r> for Cont
 
         request
             .route()
-            // TODO(babman): clean this up
             .and_then(|route| {
                 Some(Context {
                     user: user,
-                    route: route.name.as_ref().unwrap().clone().into_owned(),
+                    route: route.uri.to_string(),
                     data: data.unwrap(),
                 })
             })

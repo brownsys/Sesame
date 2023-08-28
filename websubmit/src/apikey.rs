@@ -16,8 +16,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// (username, apikey)
+#[allow(unused_tuple_struct_fields)]
 pub(crate) struct ApiKey {
     pub user: String,
+    #[allow(dead_code)]
     pub key: String,
 }
 

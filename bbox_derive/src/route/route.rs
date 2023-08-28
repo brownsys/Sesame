@@ -98,22 +98,6 @@ impl RouteAttribute {
         }
     }
 
-    // The type of the parameter.
-    pub fn type_of(&self, name: &str) -> Option<&Type> {
-        self.types.get(&Parameter::new(name.to_string()))
-    }
-
-    // Type casted to the appropriate BBox trait.
-    pub fn type_of_casted(&self, name: &str) -> Option<TokenStream> {
-        let ty = self.type_of(name)?;
-        Some(match self.class_of(name)? {
-            ParamClass::Data => quote! { < #ty as ::bbox::rocket::FromBBoxData> },
-            ParamClass::Query => quote! { < #ty as ::bbox::rocket::FromBBoxForm> },
-            ParamClass::Path => quote! { < #ty as ::bbox::rocket::FromBBoxParam> },
-            ParamClass::DataGuard => quote! { < #ty as ::bbox::rocket::FromBBoxRequest> },
-        })
-    }
-
     pub fn call_function(&self) -> TokenStream {
         let func = self.func_name.as_ref().unwrap();
         let args = self.args.iter().map(Parameter::to_ident);
@@ -220,7 +204,6 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
         None => quote! {},
         Some(data) => {
             let ident = data.to_ident();
-            let name = data.to_string();
             let ty = args.types.get(data).unwrap();
             quote! {
               let #ident = match <#ty as ::bbox::rocket::FromBBoxData>::from_data(&_request, _data).await {
@@ -290,7 +273,8 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
     };
 
     quote! {
-      struct #fn_name {}
+      #[allow(non_camel_case_types)]
+      pub struct #fn_name {}
       impl #fn_name {
         pub async fn lambda<'r>(_request: ::bbox::rocket::BBoxRequest<'r, '_>, _data: ::bbox::rocket::BBoxData<'r>) -> ::bbox::rocket::BBoxResponseOutcome<'r> {
           // Path parameters.

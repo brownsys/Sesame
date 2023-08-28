@@ -11,7 +11,7 @@ managers = ["malte@cs.brown.edu"]
 # list email addresses who should receive notification emails
 staff = ["malte@cs.brown.edu"]
 # custom template directory
-template_dir = "templates"
+template_dir = "websubmit/templates"
 # custom resource directory (e.g., for images, CSS, JS)
 resource_dir = "/tmp/websubmit"
 # a secret that will be hashed into user's API keys to make them unforgeable
@@ -19,4 +19,4 @@ secret = "SECRET"
 # whether to send emails (set to false for development)
 send_emails = true
 # whether to reset the db (set to false for production)
-prime = true
+prime = false
