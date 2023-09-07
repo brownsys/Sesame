@@ -1,25 +1,25 @@
-use std::any::{Any, TypeId};
 use mysql::Value;
+use std::any::{Any, TypeId};
 
 // Public facing Policy traits.
-pub trait Policy: Send {
+pub trait Policy {
     fn name(&self) -> String;
     fn check(&self, context: &dyn Any) -> bool;
 }
-pub trait SchemaPolicy : Policy {
+pub trait SchemaPolicy: Policy {
     fn from_row(row: &Vec<mysql::Value>) -> Self
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
-pub trait FrontendPolicy : Policy {
+pub trait FrontendPolicy: Policy {
     fn from_request() -> Self
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
-// Any Policy.
-trait TypeIdPolicyTrait : Policy + Any {}
+// Any (owned) Policy.
+trait TypeIdPolicyTrait: Policy + Any {}
 impl<P: Policy + 'static> TypeIdPolicyTrait for P {}
 
 pub struct AnyPolicy {
@@ -27,7 +27,9 @@ pub struct AnyPolicy {
 }
 impl AnyPolicy {
     pub fn new<P: Policy + 'static>(p: P) -> Self {
-        Self { policy: Box::new(p) }
+        Self {
+            policy: Box::new(p),
+        }
     }
     pub fn is<P: Policy + 'static>(&self) -> bool {
         TypeId::of::<P>() == self.policy.as_ref().type_id()

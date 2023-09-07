@@ -1,6 +1,7 @@
 extern crate erased_serde;
 extern crate figment;
 
+use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
 
 use erased_serde::Serialize;
@@ -8,12 +9,44 @@ use figment::value::Value as FValue;
 
 // Our BBox struct.
 use crate::bbox::{BBox, EitherBBox};
-use crate::policy::Context;
+use crate::context::Context;
+use crate::policy::Policy;
+
+// Types for cheap references of BBox with type erasure.
+pub mod refs {
+    use super::{Any, BBox, Policy, Serialize};
+    // AnyPolicy (by ref)
+    pub(super) struct RefPolicy<'a> {
+        policy: &'a dyn Policy,
+    }
+
+    impl<'a> RefPolicy<'a> {
+        fn new(policy: &'a dyn Policy) -> Self {
+            RefPolicy { policy }
+        }
+    }
+
+    impl<'a> Policy for RefPolicy<'a> {
+        fn name(&self) -> String {
+            format!("RefPolicy({})", self.policy.name())
+        }
+        fn check(&self, context: &dyn Any) -> bool {
+            self.policy.check(context)
+        }
+    }
+
+    pub struct RefBBox<'a>(pub(super) BBox<&'a dyn Serialize, RefPolicy<'a>>);
+    impl<'a, T: Serialize, P: Policy> From<&'a BBox<T, P>> for RefBBox<'a> {
+        fn from(value: &'a BBox<T, P>) -> Self {
+            RefBBox(BBox::new(&value.t, RefPolicy::new(&value.p)))
+        }
+    }
+}
 
 // A BBox with type T erased, a primitive value, or a collection of mixed-type
 // values.
 pub enum Renderable<'a> {
-    BBox(BBox<&'a dyn Serialize>),
+    BBox(refs::RefBBox<'a>),
     Serialize(&'a dyn Serialize),
     Dict(BTreeMap<String, Renderable<'a>>),
     Array(Vec<Renderable<'a>>),
@@ -26,7 +59,7 @@ impl<'a> Renderable<'a> {
     ) -> Result<FValue, figment::Error> {
         match self {
             Renderable::BBox(bbox) => {
-                let t = bbox.unbox(context);
+                let t = bbox.0.unbox(context);
                 FValue::serialize(t)
             }
             Renderable::Serialize(obj) => FValue::serialize(obj),
@@ -51,7 +84,7 @@ impl<'a> Renderable<'a> {
 
     pub(crate) fn try_unbox(&self) -> Result<&'a dyn Serialize, &'static str> {
         match self {
-            Renderable::BBox(bbox) => Ok(bbox.t),
+            Renderable::BBox(bbox) => Ok(bbox.0.t),
             Renderable::Serialize(obj) => Ok(*obj),
             Renderable::Dict(_) => Err("unsupported operation"),
             Renderable::Array(_) => Err("unsupported operation"),
@@ -83,14 +116,14 @@ render_serialize_impl!(u8);
 render_serialize_impl!(i8);
 
 // Auto implement BBoxRender for BBox.
-impl<T: Serialize> BBoxRender for BBox<T> {
+impl<T: Serialize, P: Policy + Clone> BBoxRender for BBox<T, P> {
     fn render(&self) -> Renderable {
-        Renderable::BBox(self.map(|t| t as &dyn Serialize))
+        Renderable::BBox(refs::RefBBox::from(self))
     }
 }
 
 // Auto implement BBoxRender for EitherBBox.
-impl<T: Serialize> BBoxRender for EitherBBox<T> {
+impl<T: Serialize, P: Policy + Clone> BBoxRender for EitherBBox<T, P> {
     fn render(&self) -> Renderable {
         match self {
             EitherBBox::Value(value) => Renderable::Serialize(value),
@@ -120,6 +153,7 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
 // Unit tests.
 #[cfg(test)]
 mod tests {
+    use crate::policy::NoPolicy;
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
@@ -138,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_renderable_bbox() {
-        let bbox = BBox::new(String::from("my bbox!"), vec![]);
+        let bbox = BBox::new(String::from("my bbox!"), NoPolicy {});
         let renderable = bbox.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
         let result = renderable.transform(&make_test_context());
@@ -147,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_renderable_either() {
-        let either = EitherBBox::Value(String::from("my_test!"));
+        let either: EitherBBox<String, NoPolicy> = EitherBBox::Value(String::from("my_test!"));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
         let result = renderable.transform(&make_test_context());
@@ -155,7 +189,7 @@ mod tests {
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_test!"))
         );
 
-        let either = EitherBBox::BBox(BBox::new(String::from("my_bbox!"), vec![]));
+        let either = EitherBBox::BBox(BBox::new(String::from("my_bbox!"), NoPolicy {}));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
         let result = renderable.transform(&make_test_context());
@@ -167,8 +201,8 @@ mod tests {
     #[test]
     fn test_renderable_vec() {
         let mut vec = Vec::new();
-        vec.push(BBox::new(String::from("hello"), vec![]));
-        vec.push(BBox::new(String::from("bye"), vec![]));
+        vec.push(BBox::new(String::from("hello"), NoPolicy {}));
+        vec.push(BBox::new(String::from("bye"), NoPolicy {}));
         let renderable = vec.render();
         assert!(matches!(renderable, Renderable::Array(_)));
         let result = renderable.transform(&make_test_context());
@@ -182,8 +216,8 @@ mod tests {
     #[test]
     fn test_renderable_map() {
         let mut map = HashMap::new();
-        map.insert("key1", BBox::new(String::from("val1"), vec![]));
-        map.insert("key2", BBox::new(String::from("val2"), vec![]));
+        map.insert("key1", BBox::new(String::from("val1"), NoPolicy {}));
+        map.insert("key2", BBox::new(String::from("val2"), NoPolicy {}));
         let renderable = map.render();
         assert!(matches!(renderable, Renderable::Dict(_)));
         let result = renderable.transform(&make_test_context());

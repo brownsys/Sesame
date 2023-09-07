@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{RwLock};
+use std::sync::RwLock;
 
 use crate::policy::{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
@@ -32,11 +32,7 @@ pub(crate) fn get_schema_policies(
     let map = SCHEMA_POLICIES.read().unwrap();
     match (*map).get(&(table_name, column)) {
         Option::None => AnyPolicy::new(NoPolicy {}),
-        Option::Some(factories) =>
-            fold_policies(
-                factories
-                    .iter()
-                    .map(|factory| factory(row))),
+        Option::Some(factories) => fold_policies(factories.iter().map(|factory| factory(row))),
     }
 }
 
