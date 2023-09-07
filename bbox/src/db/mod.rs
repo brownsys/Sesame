@@ -2,33 +2,34 @@ extern crate mysql;
 
 // BBox
 use crate::bbox::{BBox, EitherBBox};
-use crate::policy::get_schema_policies;
+use crate::policy::{get_schema_policies, AnyPolicy, Policy};
 
 // mysql imports.
 pub use crate::db::mysql::prelude::Queryable;
 pub use mysql::prelude::{AsStatement, ColumnIndex, FromValue};
-pub use mysql::{Binary, Opts, Result, SetColumns, Statement};
+pub use mysql::{Binary, Opts, SetColumns, Statement};
 
 // What is a (return) value.
-pub type Value = BBox<mysql::Value>;
+pub type Value = BBox<mysql::Value, AnyPolicy>;
 
 // Type modification.
-pub fn from_value<T: FromValue>(v: Value) -> BBox<T> {
-    v.into_map(|t| mysql::from_value(t))
+pub fn from_value<T: FromValue, P: Policy + 'static>(v: Value) -> Result<BBox<T, P>, String> {
+    Ok(BBox::new(mysql::from_value(v.t), v.p.specialize()?))
 }
-pub fn from_value_or_null<T: FromValue>(v: Value) -> BBox<Option<T>> {
-    v.into_map(|t| {
-        if let mysql::Value::NULL = t {
-            Option::None
-        } else {
-            mysql::from_value(t)
-        }
-    })
+pub fn from_value_or_null<T: FromValue, P: Policy + 'static>(
+    v: Value,
+) -> Result<BBox<Option<T>, P>, String> {
+    Ok(BBox::new(
+        match v.t {
+            mysql::Value::NULL => None,
+            t => Some(mysql::from_value(t)),
+        },
+        v.p.specialize()?,
+    ))
 }
 
 // Our params may be boxed or clear.
-#[derive(Clone)]
-pub struct Param(EitherBBox<mysql::Value>);
+pub struct Param(EitherBBox<mysql::Value, AnyPolicy>);
 
 // Auto convert mysql::Value and bbox to Value.
 impl<T: Into<mysql::Value>> From<T> for Param {
@@ -36,14 +37,9 @@ impl<T: Into<mysql::Value>> From<T> for Param {
         Param(EitherBBox::Value(x.into()))
     }
 }
-impl<T: Into<mysql::Value>> From<BBox<T>> for Param {
-    fn from(x: BBox<T>) -> Param {
-        Param(EitherBBox::BBox(x.into_bbox()))
-    }
-}
-impl<T: Into<mysql::Value> + Clone> From<&BBox<T>> for Param {
-    fn from(x: &BBox<T>) -> Param {
-        Param(EitherBBox::BBox(x.clone().into_bbox()))
+impl<T: Into<mysql::Value>, P: Policy + 'static> From<BBox<T, P>> for Param {
+    fn from(x: BBox<T, P>) -> Param {
+        Param(EitherBBox::BBox(x.into_bbox().any_policy()))
     }
 }
 
@@ -115,7 +111,7 @@ impl Row {
         let raw = row.clone().unwrap();
         Row { row, raw }
     }
-    pub fn get<T: FromValue, I: ColumnIndex>(&self, index: I) -> Option<BBox<T>> {
+    pub fn get<T: FromValue, I: ColumnIndex>(&self, index: I) -> Option<BBox<T, AnyPolicy>> {
         let columns = self.row.columns_ref();
         let idx = index.idx(columns);
         match self.row.get(index) {
@@ -157,7 +153,7 @@ impl<'c, 't, 'tc> QueryResult<'c, 't, 'tc> {
     }
 }
 impl<'c, 't, 'tc> Iterator for QueryResult<'c, 't, 'tc> {
-    type Item = Result<Row>;
+    type Item = mysql::Result<Row>;
     fn next(&mut self) -> Option<Self::Item> {
         match self.result.next() {
             None => None,
@@ -176,7 +172,7 @@ pub struct Conn {
 
 impl Conn {
     // Creating a new DBConn is the same as creating a new mysql::Conn.
-    pub fn new<T: Into<Opts>>(opts: T) -> Result<Conn> {
+    pub fn new<T: Into<Opts>>(opts: T) -> mysql::Result<Conn> {
         let conn = mysql::Conn::new(opts)?;
         Ok(Conn { conn: conn })
     }
@@ -187,17 +183,21 @@ impl Conn {
     }
 
     // Prepare a statement.
-    pub fn prep<T: AsRef<str>>(&mut self, query: T) -> Result<Statement> {
+    pub fn prep<T: AsRef<str>>(&mut self, query: T) -> mysql::Result<Statement> {
         self.conn.prep(query)
     }
 
     // Text query and drop result.
-    pub fn query_drop<T: AsRef<str>>(&mut self, query: T) -> Result<()> {
+    pub fn query_drop<T: AsRef<str>>(&mut self, query: T) -> mysql::Result<()> {
         self.conn.query_drop(query)
     }
 
     // Parameterized query and drop result.
-    pub fn exec_drop<S: AsStatement, P: Into<Params>>(&mut self, stmt: S, params: P) -> Result<()> {
+    pub fn exec_drop<S: AsStatement, P: Into<Params>>(
+        &mut self,
+        stmt: S,
+        params: P,
+    ) -> mysql::Result<()> {
         let params = self.unbox_params(params.into());
         self.conn.exec_drop(stmt, params)
     }
@@ -207,7 +207,7 @@ impl Conn {
         &mut self,
         stmt: S,
         params: P,
-    ) -> Result<QueryResult<'_, '_, '_>> {
+    ) -> mysql::Result<QueryResult<'_, '_, '_>> {
         let params = self.unbox_params(params.into());
         let result = self.conn.exec_iter(stmt, params)?;
         Ok(QueryResult { result })

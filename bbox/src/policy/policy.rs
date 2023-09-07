@@ -34,13 +34,17 @@ impl AnyPolicy {
     pub fn is<P: Policy + 'static>(&self) -> bool {
         TypeId::of::<P>() == self.policy.as_ref().type_id()
     }
-    pub fn specialize<P: Policy + 'static>(self) -> Option<P> {
+    pub fn specialize<P: Policy + 'static>(self) -> Result<P, String> {
         if self.is::<P>() {
             let raw = Box::into_raw(self.policy);
             let raw = raw as *mut P;
-            Some(*unsafe { Box::from_raw(raw) })
+            Ok(*unsafe { Box::from_raw(raw) })
         } else {
-            None
+            Err(format!(
+                "Cannot convert '{}' to '{:?}'",
+                self.name(),
+                TypeId::of::<P>()
+            ))
         }
     }
 }

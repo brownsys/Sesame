@@ -1,5 +1,5 @@
 use crate::context::Context;
-use std::fmt::{Debug, Display, Formatter, Result};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::policy::{AnyPolicy, NoPolicy, Policy};
 
@@ -42,10 +42,10 @@ impl<T, P: Policy> BBox<T, P> {
     pub fn into_temporary_unbox(self) -> T {
         self.t
     }
-    pub fn unbox<U, D>(&self, context: &Context<U, D>) -> &T {
+    pub fn unbox<U, D>(&self, _context: &Context<U, D>) -> &T {
         &self.t
     }
-    pub fn into_unbox<U, D>(self, context: &Context<U, D>) -> T {
+    pub fn into_unbox<U, D>(self, _context: &Context<U, D>) -> T {
         self.t
     }
 
@@ -87,11 +87,11 @@ impl<T> BBox<T, AnyPolicy> {
     pub fn is_policy<P: Policy + 'static>(&self) -> bool {
         self.p.is::<P>()
     }
-    pub fn specialize_policy<P: Policy + 'static>(self) -> Option<BBox<T, P>> {
-        match self.p.specialize() {
-            None => None,
-            Some(p) => Some(BBox { t: self.t, p }),
-        }
+    pub fn specialize_policy<P: Policy + 'static>(self) -> Result<BBox<T, P>, String> {
+        Ok(BBox {
+            t: self.t,
+            p: self.p.specialize()?,
+        })
     }
 }
 
@@ -104,7 +104,7 @@ impl<T> BBox<T, NoPolicy> {
 
 // Debuggable but in boxed form.
 impl<T, P: Policy> Debug for BBox<T, P> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("<<Boxed Data>>")
     }
 }
