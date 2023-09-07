@@ -1,45 +1,135 @@
-use std::any::Any;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::any::{Any, TypeId};
+use mysql::Value;
 
-// TODO(babman): can we make this Any any cleaner?
+// Public facing Policy traits.
 pub trait Policy: Send {
-    // fn from_http_request(...) -> Self;
-    fn from_row(row: &Vec<mysql::Value>) -> Self
-    where
-        Self: Sized;
+    fn name(&self) -> String;
     fn check(&self, context: &dyn Any) -> bool;
 }
-
-// Global static singleton.
-type SchemaPolicyFactory = dyn (Fn(&Vec<mysql::Value>) -> Arc<Mutex<dyn Policy>>) + Send + Sync;
-type SchemaPolicyMap = HashMap<(String, usize), Vec<Box<SchemaPolicyFactory>>>;
-lazy_static! {
-    static ref SCHEMA_POLICIES: RwLock<SchemaPolicyMap> = RwLock::new(SchemaPolicyMap::new());
+pub trait SchemaPolicy : Policy {
+    fn from_row(row: &Vec<mysql::Value>) -> Self
+        where
+            Self: Sized;
 }
 
-// Create policies for a cell given its entire row and the name of its table.
-pub fn get_schema_policies(
-    table_name: String,
-    column: usize,
-    row: &Vec<mysql::Value>,
-) -> Vec<Arc<Mutex<dyn Policy>>> {
-    let map = SCHEMA_POLICIES.read().unwrap();
-    match (*map).get(&(table_name, column)) {
-        Option::None => vec![],
-        Option::Some(factories) => factories.iter().map(|factory| factory(row)).collect(),
+pub trait FrontendPolicy : Policy {
+    fn from_request() -> Self
+        where
+            Self: Sized;
+}
+
+// Any Policy.
+trait TypeIdPolicyTrait : Policy + Any {}
+impl<P: Policy + 'static> TypeIdPolicyTrait for P {}
+
+pub struct AnyPolicy {
+    policy: Box<dyn TypeIdPolicyTrait>,
+}
+impl AnyPolicy {
+    pub fn new<P: Policy + 'static>(p: P) -> Self {
+        Self { policy: Box::new(p) }
+    }
+    pub fn is<P: Policy + 'static>(&self) -> bool {
+        TypeId::of::<P>() == self.policy.as_ref().type_id()
+    }
+    pub fn specialize<P: Policy + 'static>(self) -> Option<P> {
+        if self.is::<P>() {
+            let raw = Box::into_raw(self.policy);
+            let raw = raw as *mut P;
+            Some(*unsafe { Box::from_raw(raw) })
+        } else {
+            None
+        }
+    }
+}
+impl Policy for AnyPolicy {
+    fn name(&self) -> String {
+        format!("AnyPolicy({})", self.policy.name())
+    }
+    fn check(&self, context: &dyn Any) -> bool {
+        self.policy.check(context)
     }
 }
 
-// Register Policy T as a schema policy associated with the table and column.
-// Never use this function directly, instead use the #[schema_policy(...)] macro.
-extern crate small_ctor;
-pub use small_ctor::ctor as register;
-pub fn add_schema_policy<T: Policy + 'static>(table_name: String, column: usize) {
-    let mut map = SCHEMA_POLICIES.write().unwrap();
-    map.entry((table_name, column))
-        .or_default()
-        .push(Box::new(|row: &Vec<mysql::Value>| {
-            Arc::new(Mutex::new(T::from_row(row)))
-        }));
+// NoPolicy can be directly discarded.
+#[derive(Clone)]
+pub struct NoPolicy {}
+impl Policy for NoPolicy {
+    fn name(&self) -> String {
+        String::from("NoPolicy")
+    }
+    fn check(&self, _context: &dyn Any) -> bool {
+        true
+    }
+}
+
+// Allows combining policies with AND
+#[derive(Clone)]
+pub struct PolicyAnd<P1: Policy, P2: Policy> {
+    p1: P1,
+    p2: P2,
+}
+impl<P1: Policy, P2: Policy> PolicyAnd<P1, P2> {
+    pub fn new(p1: P1, p2: P2) -> Self {
+        Self { p1, p2 }
+    }
+}
+impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
+    fn name(&self) -> String {
+        format!("({} AND {})", self.p1.name(), self.p2.name())
+    }
+    fn check(&self, context: &dyn Any) -> bool {
+        self.p1.check(context) && self.p2.check(context)
+    }
+}
+impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyAnd<P1, P2> {
+    fn from_row(row: &Vec<Value>) -> Self {
+        Self {
+            p1: P1::from_row(row),
+            p2: P2::from_row(row),
+        }
+    }
+}
+impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyAnd<P1, P2> {
+    fn from_request() -> Self {
+        Self {
+            p1: P1::from_request(),
+            p2: P2::from_request(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PolicyOr<P1: Policy, P2: Policy> {
+    p1: P1,
+    p2: P2,
+}
+impl<P1: Policy, P2: Policy> PolicyOr<P1, P2> {
+    pub fn new(p1: P1, p2: P2) -> Self {
+        Self { p1, p2 }
+    }
+}
+impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
+    fn name(&self) -> String {
+        format!("({} OR {})", self.p1.name(), self.p2.name())
+    }
+    fn check(&self, context: &dyn Any) -> bool {
+        self.p1.check(context) || self.p2.check(context)
+    }
+}
+impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
+    fn from_row(row: &Vec<Value>) -> Self {
+        Self {
+            p1: P1::from_row(row),
+            p2: P2::from_row(row),
+        }
+    }
+}
+impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2> {
+    fn from_request() -> Self {
+        Self {
+            p1: P1::from_request(),
+            p2: P2::from_request(),
+        }
+    }
 }
