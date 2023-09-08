@@ -1,8 +1,11 @@
 use std::fmt::Debug;
 
 use crate::bbox::BBox;
+use crate::policy::{DefaultConstructablePolicy};
 use crate::rocket::form::{BBoxForm, FromBBoxForm};
 use crate::rocket::request::{BBoxRequest, FromFormWrapper};
+use crate::rocket::TmpPolicy;
+
 // For multipart encoded bodies.
 pub struct BBoxData<'r> {
     data: rocket::data::Data<'r>,
@@ -12,12 +15,12 @@ impl<'r> BBoxData<'r> {
     pub fn new(data: rocket::data::Data<'r>) -> Self {
         BBoxData { data }
     }
-    pub fn open(self, limit: rocket::data::ByteUnit) -> BBox<rocket::data::DataStream<'r>> {
-        BBox::new(self.data.open(limit), vec![])
+    pub fn open(self, limit: rocket::data::ByteUnit) -> BBox<rocket::data::DataStream<'r>, TmpPolicy> {
+        BBox::new(self.data.open(limit), TmpPolicy::construct())
     }
-    pub async fn peek(&mut self, num: usize) -> BBox<&[u8]> {
+    pub async fn peek(&mut self, num: usize) -> BBox<&[u8], TmpPolicy> {
         let result = self.data.peek(num).await;
-        BBox::new(result, vec![])
+        BBox::new(result, TmpPolicy::construct())
     }
     pub fn peek_complete(&self) -> bool {
         self.data.peek_complete()

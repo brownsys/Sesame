@@ -1,16 +1,18 @@
+use bbox::bbox::refs::RefBBox;
+use bbox::policy::NoPolicy;
 use bbox_derive::BBoxRender;
 
 #[derive(BBoxRender)]
 struct Simple {
-    t1: bbox::bbox::BBox<String>,
-    t2: bbox::bbox::BBox<u8>,
+    t1: bbox::bbox::BBox<String, NoPolicy>,
+    t2: bbox::bbox::BBox<u8, NoPolicy>,
     t3: String,
 }
 impl Simple {
     pub fn new() -> Self {
         Simple {
-            t1: bbox::bbox::BBox::new(String::from("hello"), vec![]),
-            t2: bbox::bbox::BBox::new(10, vec![]),
+            t1: bbox::bbox::BBox::new(String::from("hello"), NoPolicy {}),
+            t2: bbox::bbox::BBox::new(10, NoPolicy {}),
             t3: String::from("unprotected"),
         }
     }
@@ -22,27 +24,24 @@ fn to_string(v: &Vec<u8>) -> String {
 }
 
 // Helper: serializes BBoxes.
-type SBBox<'r> = bbox::bbox::BBox<&'r dyn erased_serde::Serialize>;
-fn bbox_to_string(bbox: &SBBox<'_>) -> std::result::Result<String, ()> {
-    serialize_to_string(bbox.test_unbox())
+fn bbox_to_string(bbox: &RefBBox<'_>) -> Result<String, ()> {
+    serialize_to_string(bbox.get().temporary_unbox())
 }
 
-fn serialize_to_string(data: &dyn erased_serde::Serialize) -> std::result::Result<String, ()> {
+fn serialize_to_string(data: &dyn erased_serde::Serialize) -> Result<String, ()> {
     use serde::ser::Serialize;
     use serde_json::Serializer;
 
     let mut buf: Vec<u8> = Vec::new();
     let json = &mut Serializer::new(Box::new(&mut buf));
     match data.serialize(json) {
-        Result::Err(_) => Result::Err(()),
-        Result::Ok(_) => Result::Ok(to_string(&buf)),
+        Err(_) => Err(()),
+        Ok(_) => Ok(to_string(&buf)),
     }
 }
 
 #[test]
 fn simple_render_struct() {
-    use std::result::Result;
-
     use bbox::bbox::{BBoxRender, Renderable};
 
     let simple = Simple::new();
@@ -63,15 +62,15 @@ fn simple_render_struct() {
         assert!(matches!(t3, Renderable::Serialize(_)));
 
         if let Renderable::BBox(t1) = t1 {
-            assert_eq!(bbox_to_string(t1), Result::Ok(String::from("\"hello\"")));
+            assert_eq!(bbox_to_string(t1), Ok(String::from("\"hello\"")));
         }
         if let Renderable::BBox(t2) = t2 {
-            assert_eq!(bbox_to_string(t2), Result::Ok(String::from("10")));
+            assert_eq!(bbox_to_string(t2), Ok(String::from("10")));
         }
         if let Renderable::Serialize(t3) = t3 {
             assert_eq!(
                 serialize_to_string(t3),
-                Result::Ok(String::from("\"unprotected\""))
+                Ok(String::from("\"unprotected\""))
             );
         }
     }

@@ -164,7 +164,7 @@ mod tests {
         fn name(&self) -> String {
             String::from("TestPolicy")
         }
-        fn check(&self, context: &dyn Any) -> bool {
+        fn check(&self, _context: &dyn Any) -> bool {
             true
         }
     }
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn test_unbox() {
         let bbox = BBox::new(10u64, NoPolicy {});
-        assert_eq!(bbox.into_unbox(), 10u64);
+        assert_eq!(bbox.into_test_unbox(), 10u64);
     }
 
     #[test]
@@ -197,7 +197,7 @@ mod tests {
         let bbox = bbox.specialize_policy::<TestPolicy>().unwrap();
 
         assert_eq!(bbox.p.attr, String::from("Hello this is a test!"));
-        assert_eq!(bbox.into_unbox(), String::from("hello"));
+        assert_eq!(bbox.into_test_unbox(), String::from("hello"));
     }
 
     #[test]

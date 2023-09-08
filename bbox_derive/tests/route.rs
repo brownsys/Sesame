@@ -1,10 +1,11 @@
+use bbox::rocket::TmpPolicy;
 use bbox_derive::{route, FromBBoxForm, routes};
 
 // POST request data.
 #[derive(FromBBoxForm)]
 struct Simple {
-    f1: bbox::bbox::BBox<String>,
-    f3: bbox::bbox::BBox<u8>,
+    f1: bbox::bbox::BBox<String, TmpPolicy>,
+    f3: bbox::bbox::BBox<u8, TmpPolicy>,
 }
 
 // This struct serves as a request guard.
@@ -43,8 +44,8 @@ impl<'r> bbox::rocket::FromBBoxRequest<'r> for MyGuard {
 // Get request param.
 #[derive(FromBBoxForm)]
 struct Dog {
-    name: bbox::bbox::BBox<String>,
-    age: bbox::bbox::BBox<usize>,
+    name: bbox::bbox::BBox<String, TmpPolicy>,
+    age: bbox::bbox::BBox<usize, TmpPolicy>,
 }
 
 // HTTP reuqest.
@@ -53,19 +54,19 @@ struct Dog {
 #[route(POST, "/route/<num>?<dog>&<a>", data = "<data>")]
 fn my_route(
     guard: MyGuard,
-    num: bbox::bbox::BBox<u8>,
+    num: bbox::bbox::BBox<u8, TmpPolicy>,
     data: bbox::rocket::BBoxForm<Simple>,
     config: &rocket::State<Config>,
-    a: bbox::bbox::BBox<String>,
+    a: bbox::bbox::BBox<String, TmpPolicy>,
     dog: Dog,
 ) -> bbox::rocket::BBoxRedirect {
     assert_eq!(guard.value, "ok");
     assert_eq!(config.debug_mode, false);
     assert_eq!(config.admins.len(), 1);
     assert!(config.admins.contains("test@email.com"));
-    assert_eq!(data.f1.test_unbox(), "str1");
-    assert_eq!(*data.f3.test_unbox(), 10);
-    assert_eq!(*num.test_unbox(), 5);
+    assert_eq!(data.f1.temporary_unbox(), "str1");
+    assert_eq!(*data.f3.temporary_unbox(), 10);
+    assert_eq!(*num.temporary_unbox(), 5);
 
     // all good.
     bbox::rocket::BBoxRedirect::to("ok", vec![])

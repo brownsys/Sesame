@@ -1,15 +1,16 @@
+use bbox::rocket::TmpPolicy;
 use bbox_derive::FromBBoxForm;
 
 #[derive(FromBBoxForm)]
 struct Nested {
-    inner: bbox::bbox::BBox<String>,
+    inner: bbox::bbox::BBox<String, TmpPolicy>,
 }
 
 #[derive(FromBBoxForm)]
 struct Simple {
-    f1: bbox::bbox::BBox<String>,
+    f1: bbox::bbox::BBox<String, TmpPolicy>,
     f2: Nested,
-    f3: bbox::bbox::BBox<u8>,
+    f3: bbox::bbox::BBox<u8, TmpPolicy>,
 }
 
 #[test]

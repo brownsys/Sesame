@@ -1,3 +1,30 @@
+use std::any::Any;
+use crate::policy::{DefaultConstructablePolicy, FrontendPolicy, Policy};
+
+#[derive(Clone)]
+pub struct TmpPolicy {}
+impl Policy for TmpPolicy {
+    fn name(&self) -> String {
+        String::from("TmpPolicy")
+    }
+    fn check(&self, _context: &dyn Any) -> bool {
+        true
+    }
+}
+impl FrontendPolicy for TmpPolicy {
+    fn from_request() -> Self {
+        TmpPolicy {}
+    }
+    fn from_cookie() -> Self {
+        TmpPolicy {}
+    }
+}
+impl DefaultConstructablePolicy for TmpPolicy {
+    fn construct() -> Self {
+        TmpPolicy {}
+    }
+}
+
 mod cookie;
 mod data;
 mod form;
@@ -15,13 +42,6 @@ pub use crate::rocket::response::*;
 pub use crate::rocket::rocket::*;
 pub use crate::rocket::route::*;
 pub use crate::rocket::template::*;
-
-// TODO(babman): * Implement macro to derive FromBBoxForm.
-
-// TODO(babman): * Macro like #[get(...)] #[post(...)] that adds in code for extracting boxed params, guards, and forms, and produces BBoxRouteInfo.
-//               * Add tests for GET and POST requests with different params, guards, and forms, incl. url-encoded and multipart
-//               * Update websubmit-boxed
-//               * Consider using more regular looking BBox<...> instead of BBoxTemplate, BBoxData, etc
 
 // TODO(babman): Put policy in BBox statically.
 // TODO(babman): Later: Policy  ----> PolicyClause and PolicyType

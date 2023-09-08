@@ -1,32 +1,46 @@
 use bbox_derive::schema_policy;
 
-use bbox::policy::Policy;
+use bbox::policy::{NoPolicy, Policy, SchemaPolicy};
 
 use std::any::Any;
+use mysql::Value;
 
 #[schema_policy(table = "my_table", column = 3)]
 pub struct SamplePolicy {}
 impl Policy for SamplePolicy {
-    fn from_row(_: &Vec<mysql::Value>) -> Self
-    where
-        Self: Sized,
-    {
-        SamplePolicy {}
+    fn name(&self) -> String {
+        String::from("SamplePolicy")
     }
     fn check(&self, _: &dyn Any) -> bool {
         true
     }
 }
+impl SchemaPolicy for SamplePolicy {
+    fn from_row(_row: &Vec<Value>) -> Self {
+        SamplePolicy {}
+    }
+}
 
 #[test]
 fn simple_render_struct() {
-    let policies = bbox::policy::get_schema_policies(String::from("my_table"), 3, &vec![]);
-    assert_eq!(policies.len(), 1);
-    assert!(policies[0].lock().unwrap().check(&""));
+    let policy = bbox::policy::get_schema_policies(String::from("my_table"), 3, &vec![]);
+    assert_eq!(policy.name(), String::from("AnyPolicy(SamplePolicy)"));
+    assert!(policy.check(&""));
+    assert!(policy.is::<SamplePolicy>());
+    let policy: SamplePolicy = policy.specialize().unwrap();
+    assert_eq!(policy.name(), String::from("SamplePolicy"));
 
-    let policies = bbox::policy::get_schema_policies(String::from("my_table"), 2, &vec![]);
-    assert_eq!(policies.len(), 0);
+    let policy = bbox::policy::get_schema_policies(String::from("my_table"), 2, &vec![]);
+    assert_eq!(policy.name(), String::from("AnyPolicy(NoPolicy)"));
+    assert!(policy.check(&""));
+    assert!(policy.is::<NoPolicy>());
+    let policy: NoPolicy = policy.specialize().unwrap();
+    assert_eq!(policy.name(), String::from("NoPolicy"));
 
-    let policies = bbox::policy::get_schema_policies(String::from("table"), 3, &vec![]);
-    assert_eq!(policies.len(), 0);
+    let policy = bbox::policy::get_schema_policies(String::from("table"), 3, &vec![]);
+    assert_eq!(policy.name(), String::from("AnyPolicy(NoPolicy)"));
+    assert!(policy.check(&""));
+    assert!(policy.is::<NoPolicy>());
+    let policy: NoPolicy = policy.specialize().unwrap();
+    assert_eq!(policy.name(), String::from("NoPolicy"));
 }

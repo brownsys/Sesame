@@ -6,4 +6,4 @@ pub mod bbox;
 pub mod context;
 pub mod db;
 pub mod policy;
-// pub mod rocket;
+pub mod rocket;

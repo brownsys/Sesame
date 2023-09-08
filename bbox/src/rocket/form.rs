@@ -1,7 +1,6 @@
 extern crate indexmap;
 
 use std::borrow::Cow;
-use std::boxed::Box;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
@@ -17,6 +16,7 @@ use rocket::Either;
 use crate::bbox::BBox;
 use crate::rocket::data::BBoxData;
 use crate::rocket::request::BBoxRequest;
+use crate::policy::DefaultConstructablePolicy;
 
 // TODO(babman): make sure errors do not leak bboxed info.
 pub type BBoxFormResult<'v, T> = Result<T, rocket::form::Errors<'v>>;
@@ -49,7 +49,7 @@ impl<T> DerefMut for BBoxForm<T> {
 // For url encoded bodies.
 pub struct BBoxValueField<'r> {
     pub name: rocket::form::name::NameView<'r>,
-    pub value: BBox<String>,
+    pub value: BBox<String, TmpPolicy>,
     pub(crate) plain_value: &'r str,
 }
 impl<'r> BBoxValueField<'r> {
@@ -72,7 +72,7 @@ impl<'r> BBoxValueField<'r> {
     pub fn from_value(value: &'r str) -> Self {
         BBoxValueField {
             name: rocket::form::name::NameView::new(""),
-            value: BBox::new(value.to_string(), vec![]),
+            value: BBox::new(value.to_string(), TmpPolicy::construct()),
             plain_value: value,
         }
     }
@@ -136,7 +136,7 @@ pub trait FromBBoxForm<'r>: Send + Sized {
 // Auto implement FromBBoxForm for everything that implements FromBBoxFormField.
 pub struct FromBBoxFieldContext<'r, T: FromBBoxFormField<'r>> {
     field_name: Option<rocket::form::name::NameView<'r>>,
-    field_value: Option<BBox<String>>,
+    field_value: Option<BBox<String, TmpPolicy>>,
     opts: rocket::form::Options,
     value: Option<BBoxFormResult<'r, T>>,
     pushes: usize,
@@ -219,13 +219,13 @@ impl<'r, T: FromBBoxFormField<'r>> FromBBoxForm<'r> for T {
 // FromFormField is defined by rocket and is safe.
 macro_rules! impl_form_via_rocket {
   ($($T:ident),+ $(,)?) => ($(
-      impl<'r> FromBBoxFormField<'r> for BBox<$T> {
+      impl<'r> FromBBoxFormField<'r> for BBox<$T, TmpPolicy> {
           #[inline(always)]
           fn from_bbox_value(field: BBoxValueField<'r>) -> BBoxFormResult<'r, Self> {
               use rocket::form::FromFormField;
               let pfield = rocket::form::ValueField{ name: field.name, value: field.plain_value};
               let pvalue = $T::from_value(pfield)?;
-              BBoxFormResult::Ok(field.value.map(|_| pvalue))
+              BBoxFormResult::Ok(BBox::new(pvalue, TmpPolicy::construct()))
           }
       }
   )+)
@@ -237,6 +237,7 @@ use std::num::{
     NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
 };
 use time::{Date, PrimitiveDateTime, Time};
+use crate::rocket::TmpPolicy;
 impl_form_via_rocket!(
     f32,
     f64,

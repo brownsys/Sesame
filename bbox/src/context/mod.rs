@@ -1,9 +1,7 @@
-/*
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
- */
 
 #[derive(Debug)]
 pub struct Context<U, D> {
@@ -34,7 +32,6 @@ impl<U, D> Context<U, D> {
     }
 }
 
-/*
 #[derive(Debug)]
 pub enum ContextError {
     Unconstructible,
@@ -73,4 +70,3 @@ impl<'r, U: FromBBoxRequest<'r>, D: FromBBoxRequest<'r> + Send> FromBBoxRequest<
             .into_outcome((Status::InternalServerError, ContextError::Unconstructible))
     }
 }
-*/

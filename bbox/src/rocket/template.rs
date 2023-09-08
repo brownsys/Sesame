@@ -6,7 +6,7 @@ use std::result::Result;
 
 // Our BBox struct.
 use crate::bbox::BBoxRender;
-use crate::policy::Context;
+use crate::context::Context;
 use crate::rocket::request::BBoxRequest;
 use crate::rocket::response::{BBoxResponder, BBoxResponse, BBoxResponseResult};
 

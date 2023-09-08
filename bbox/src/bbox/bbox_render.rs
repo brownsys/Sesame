@@ -14,9 +14,10 @@ use crate::policy::Policy;
 
 // Types for cheap references of BBox with type erasure.
 pub mod refs {
+    use crate::policy::AnyPolicy;
     use super::{Any, BBox, Policy, Serialize};
     // AnyPolicy (by ref)
-    pub(super) struct RefPolicy<'a> {
+    pub struct RefPolicy<'a> {
         policy: &'a dyn Policy,
     }
 
@@ -39,6 +40,11 @@ pub mod refs {
     impl<'a, T: Serialize, P: Policy> From<&'a BBox<T, P>> for RefBBox<'a> {
         fn from(value: &'a BBox<T, P>) -> Self {
             RefBBox(BBox::new(&value.t, RefPolicy::new(&value.p)))
+        }
+    }
+    impl<'a> RefBBox<'a> {
+        pub fn get(&self) -> &BBox<&'a dyn Serialize, RefPolicy<'a>> {
+            &self.0
         }
     }
 }

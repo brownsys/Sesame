@@ -16,6 +16,15 @@ pub trait FrontendPolicy: Policy {
     fn from_request() -> Self
     where
         Self: Sized;
+    fn from_cookie() -> Self
+    where
+        Self: Sized;
+}
+
+pub trait DefaultConstructablePolicy: Policy {
+    fn construct() -> Self
+    where
+        Self: Sized;
 }
 
 // Any (owned) Policy.
@@ -103,6 +112,20 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyAnd<P1, P2
             p2: P2::from_request(),
         }
     }
+    fn from_cookie() -> Self {
+        Self {
+            p1: P1::from_cookie(),
+            p2: P2::from_cookie(),
+        }
+    }
+}
+impl<P1: DefaultConstructablePolicy, P2: DefaultConstructablePolicy> DefaultConstructablePolicy for PolicyAnd<P1, P2> {
+    fn construct() -> Self {
+        Self {
+            p1: P1::construct(),
+            p2: P2::construct(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -136,6 +159,20 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2>
         Self {
             p1: P1::from_request(),
             p2: P2::from_request(),
+        }
+    }
+    fn from_cookie() -> Self {
+        Self {
+            p1: P1::from_cookie(),
+            p2: P2::from_cookie(),
+        }
+    }
+}
+impl<P1: DefaultConstructablePolicy, P2: DefaultConstructablePolicy> DefaultConstructablePolicy for PolicyOr<P1, P2> {
+    fn construct() -> Self {
+        Self {
+            p1: P1::construct(),
+            p2: P2::construct(),
         }
     }
 }
