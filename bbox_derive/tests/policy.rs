@@ -2,8 +2,8 @@ use bbox_derive::schema_policy;
 
 use bbox::policy::{NoPolicy, Policy, SchemaPolicy};
 
-use std::any::Any;
 use mysql::Value;
+use std::any::Any;
 
 #[schema_policy(table = "my_table", column = 3)]
 pub struct SamplePolicy {}

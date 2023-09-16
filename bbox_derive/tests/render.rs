@@ -68,10 +68,7 @@ fn simple_render_struct() {
             assert_eq!(bbox_to_string(t2), Ok(String::from("10")));
         }
         if let Renderable::Serialize(t3) = t3 {
-            assert_eq!(
-                serialize_to_string(t3),
-                Ok(String::from("\"unprotected\""))
-            );
+            assert_eq!(serialize_to_string(t3), Ok(String::from("\"unprotected\"")));
         }
     }
 }

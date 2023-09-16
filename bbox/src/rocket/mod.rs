@@ -1,30 +1,3 @@
-use std::any::Any;
-use crate::policy::{DefaultConstructablePolicy, FrontendPolicy, Policy};
-
-#[derive(Clone)]
-pub struct TmpPolicy {}
-impl Policy for TmpPolicy {
-    fn name(&self) -> String {
-        String::from("TmpPolicy")
-    }
-    fn check(&self, _context: &dyn Any) -> bool {
-        true
-    }
-}
-impl FrontendPolicy for TmpPolicy {
-    fn from_request() -> Self {
-        TmpPolicy {}
-    }
-    fn from_cookie() -> Self {
-        TmpPolicy {}
-    }
-}
-impl DefaultConstructablePolicy for TmpPolicy {
-    fn construct() -> Self {
-        TmpPolicy {}
-    }
-}
-
 mod cookie;
 mod data;
 mod form;

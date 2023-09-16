@@ -7,10 +7,10 @@ use std::option::Option;
 use std::result::Result;
 
 use crate::bbox::BBox;
+use crate::policy::{FrontendPolicy, Policy};
 use crate::rocket::cookie::BBoxCookieJar;
 use crate::rocket::data::BBoxData;
 use crate::rocket::form::{BBoxDataField, BBoxFormResult, BBoxValueField, FromBBoxForm};
-use crate::policy::DefaultConstructablePolicy;
 
 pub type BBoxRequestOutcome<T, E> = rocket::outcome::Outcome<T, (rocket::http::Status, E), ()>;
 
@@ -23,7 +23,7 @@ pub struct BBoxRequest<'a, 'r> {
 impl<'a, 'r> BBoxRequest<'a, 'r> {
     pub fn new(request: &'a rocket::Request<'r>) -> Self {
         BBoxRequest {
-            request: request,
+            request,
             jar: BBoxCookieJar::new(request.cookies()),
         }
     }
@@ -32,16 +32,16 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
         self.request
     }
 
-    pub fn client_ip(&self) -> Option<BBox<IpAddr, TmpPolicy>> {
+    pub fn client_ip<P: FrontendPolicy>(&self) -> Option<BBox<IpAddr, P>> {
         match self.request.client_ip() {
             None => None,
-            Some(ip) => Some(BBox::new(ip, TmpPolicy::construct())),
+            Some(ip) => Some(BBox::new(ip, P::from_request(self))),
         }
     }
-    pub fn remote(&self) -> Option<BBox<SocketAddr, TmpPolicy>> {
+    pub fn remote<P: FrontendPolicy>(&self) -> Option<BBox<SocketAddr, P>> {
         match self.request.remote() {
             None => None,
-            Some(sock) => Some(BBox::new(sock, TmpPolicy::construct())),
+            Some(sock) => Some(BBox::new(sock, P::from_request(self))),
         }
     }
 
@@ -53,8 +53,7 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
     pub fn query_fields(&self) -> impl Iterator<Item = BBoxValueField<'_>> {
         self.request.query_fields().map(|field| BBoxValueField {
             name: field.name,
-            value: BBox::new(field.value.to_string(), TmpPolicy::construct()),
-            plain_value: field.value,
+            value: field.value,
         })
     }
 
@@ -69,13 +68,13 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
     }
 
     // Use this to retrieve (boxed) parameters in the url (e.g. /endpoint/<id>).
-    pub fn param<'x, T>(&'x self, n: usize) -> Option<Result<T, T::BBoxError>>
+    pub fn param<'x, T, P: FrontendPolicy>(&'x self, n: usize) -> Option<Result<T, T::BBoxError>>
     where
-        T: FromBBoxParam,
+        T: FromBBoxParam<P>,
     {
         let res = self.request.param::<String>(n)?;
         let res = res.unwrap();
-        Some(T::from_bbox_param(BBox::new(res, TmpPolicy::construct())))
+        Some(T::from_bbox_param(BBox::new(res, P::from_request(self))))
     }
 
     // Retrieve (boxed) get parameter(s) that has given name (e.g. /endpoint/<id>?a=<THIS>)
@@ -99,9 +98,9 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
 }
 
 // Our own FromParam trait, applications likely never need to use this themselves.
-pub trait FromBBoxParam: Sized {
+pub trait FromBBoxParam<P: Policy>: Sized {
     type BBoxError: Debug;
-    fn from_bbox_param(param: BBox<String, TmpPolicy>) -> Result<Self, Self::BBoxError>;
+    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError>;
 }
 
 // Our own FromRequest trait, receives an instance of our Request struct.
@@ -119,7 +118,7 @@ pub trait FromBBoxRequest<'r>: Sized {
 pub(super) struct FromFormWrapper<T>(pub(super) T);
 
 #[rocket::async_trait]
-impl<'r, T: FromBBoxForm<'r>> rocket::form::FromForm<'r> for FromFormWrapper<T> {
+impl<'r, T: FromBBoxForm<'r> + Send> rocket::form::FromForm<'r> for FromFormWrapper<T> {
     type Context = T::BBoxContext;
 
     fn init(opts: rocket::form::Options) -> Self::Context {
@@ -129,8 +128,7 @@ impl<'r, T: FromBBoxForm<'r>> rocket::form::FromForm<'r> for FromFormWrapper<T> 
     fn push_value(ctxt: &mut Self::Context, field: rocket::form::ValueField<'r>) {
         let bbox_field = BBoxValueField {
             name: field.name,
-            value: BBox::new(field.value.to_string(), TmpPolicy::construct()),
-            plain_value: field.value,
+            value: field.value,
         };
         T::bbox_push_value(ctxt, bbox_field);
     }
@@ -167,11 +165,11 @@ impl<'r, T: FromBBoxForm<'r>> rocket::form::FromForm<'r> for FromFormWrapper<T> 
     }
 }
 
-impl FromBBoxParam for BBox<String, TmpPolicy> {
+impl<P: Policy> FromBBoxParam<P> for BBox<String, P> {
     type BBoxError = ();
 
     #[inline(always)]
-    fn from_bbox_param(param: BBox<String, TmpPolicy>) -> Result<Self, Self::BBoxError> {
+    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
         Ok(param)
     }
 }
@@ -179,15 +177,15 @@ impl FromBBoxParam for BBox<String, TmpPolicy> {
 // Implement FromBBoxParam for standard types.
 macro_rules! impl_param_via_fromstr {
   ($($T:ident),+ $(,)?) => ($(
-      impl FromBBoxParam for BBox<$T, TmpPolicy> {
+      impl<P: Policy> FromBBoxParam<P> for BBox<$T, P> {
         type BBoxError = String;
 
         #[inline(always)]
-        fn from_bbox_param(param: BBox<String, TmpPolicy>) -> Result<Self, Self::BBoxError> {
+        fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
           use std::str::FromStr;
           match <$T as FromStr>::from_str(&param.t) {
             Err(_) => Err(String::from("Cannot parse <boxed> param")),
-            Ok(parsed) => Ok(BBox::new(parsed, TmpPolicy::construct())),
+            Ok(parsed) => Ok(BBox::new(parsed, param.p)),
           }
         }
       }
@@ -238,22 +236,21 @@ impl_param_via_fromstr!(
 // Implement FromBBoxParam for a few other types that rocket controls safetly
 // outside application reach.
 use std::path::PathBuf;
-use crate::rocket::TmpPolicy;
 
-impl FromBBoxParam for BBox<PathBuf, TmpPolicy> {
+impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;
     #[inline(always)]
-    fn from_bbox_param(param: BBox<String, TmpPolicy>) -> Result<Self, Self::BBoxError> {
+    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
         match <PathBuf as rocket::request::FromParam>::from_param(&param.t) {
             Err(_) => Err(String::from("Cannot parse <boxed> param")),
-            Ok(parsed) => Ok(BBox::new(parsed, TmpPolicy::construct())),
+            Ok(parsed) => Ok(BBox::new(parsed, param.p)),
         }
     }
 }
-impl<T: FromBBoxParam> FromBBoxParam for Option<T> {
+impl<P: Policy, T: FromBBoxParam<P>> FromBBoxParam<P> for Option<T> {
     type BBoxError = ();
     #[inline(always)]
-    fn from_bbox_param(param: BBox<String, TmpPolicy>) -> Result<Self, Self::BBoxError> {
+    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
         match T::from_bbox_param(param) {
             Ok(parsed) => Ok(Some(parsed)),
             Err(_) => Ok(None),
@@ -263,7 +260,7 @@ impl<T: FromBBoxParam> FromBBoxParam for Option<T> {
 
 // Implement FromBBoxRequest for some standard types.
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for BBox<IpAddr, TmpPolicy> {
+impl<'r, P: FrontendPolicy> FromBBoxRequest<'r> for BBox<IpAddr, P> {
     type BBoxError = std::convert::Infallible;
     async fn from_bbox_request(
         request: &'r BBoxRequest<'r, '_>,
@@ -276,7 +273,7 @@ impl<'r> FromBBoxRequest<'r> for BBox<IpAddr, TmpPolicy> {
 }
 
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for BBox<SocketAddr, TmpPolicy> {
+impl<'r, P: FrontendPolicy> FromBBoxRequest<'r> for BBox<SocketAddr, P> {
     type BBoxError = std::convert::Infallible;
     async fn from_bbox_request(
         request: &'r BBoxRequest<'r, '_>,

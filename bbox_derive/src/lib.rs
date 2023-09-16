@@ -5,7 +5,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_macro_input, DeriveInput, ItemFn, ItemStruct, Expr};
+use syn::{parse_macro_input, DeriveInput, Expr, ItemFn, ItemStruct};
 mod form;
 mod policy;
 mod render;

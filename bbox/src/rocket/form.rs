@@ -14,11 +14,10 @@ use rocket::http::uncased::AsUncased;
 use rocket::Either;
 
 use crate::bbox::BBox;
+use crate::policy::FrontendPolicy;
 use crate::rocket::data::BBoxData;
 use crate::rocket::request::BBoxRequest;
-use crate::policy::DefaultConstructablePolicy;
 
-// TODO(babman): make sure errors do not leak bboxed info.
 pub type BBoxFormResult<'v, T> = Result<T, rocket::form::Errors<'v>>;
 
 // BBoxForm is just a wrapper around types that satisify FromBBoxForm.
@@ -49,8 +48,7 @@ impl<T> DerefMut for BBoxForm<T> {
 // For url encoded bodies.
 pub struct BBoxValueField<'r> {
     pub name: rocket::form::name::NameView<'r>,
-    pub value: BBox<String, TmpPolicy>,
-    pub(crate) plain_value: &'r str,
+    pub(crate) value: &'r str, // Should be boxed when exposed.
 }
 impl<'r> BBoxValueField<'r> {
     pub fn shift(mut self) -> Self {
@@ -72,16 +70,18 @@ impl<'r> BBoxValueField<'r> {
     pub fn from_value(value: &'r str) -> Self {
         BBoxValueField {
             name: rocket::form::name::NameView::new(""),
-            value: BBox::new(value.to_string(), TmpPolicy::construct()),
-            plain_value: value,
+            value,
         }
+    }
+    pub fn to_bbox<P: FrontendPolicy>(self) -> BBox<String, P> {
+        BBox::new(self.value.to_string(), P::from_cookie())
     }
 }
 
-pub struct BBoxDataField<'r, 'i> {
+pub struct BBoxDataField<'r, 'a> {
     pub name: rocket::form::name::NameView<'r>,
     pub content_type: rocket::http::ContentType,
-    pub request: BBoxRequest<'r, 'i>,
+    pub request: BBoxRequest<'r, 'a>,
     pub data: BBoxData<'r>,
 }
 impl<'r, 'i> BBoxDataField<'r, 'i> {
@@ -100,13 +100,13 @@ impl<'r, 'i> BBoxDataField<'r, 'i> {
 #[rocket::async_trait]
 pub trait FromBBoxFormField<'r>: Send + Sized {
     fn from_bbox_value(field: BBoxValueField<'r>) -> BBoxFormResult<'r, Self> {
-        Result::Err(field.unexpected())?
+        Err(field.unexpected())?
     }
     async fn from_bbox_data<'i>(field: BBoxDataField<'r, 'i>) -> BBoxFormResult<'r, Self> {
-        Result::Err(field.unexpected())?
+        Err(field.unexpected())?
     }
     fn default() -> Option<Self> {
-        Option::None
+        None
     }
 }
 
@@ -136,7 +136,6 @@ pub trait FromBBoxForm<'r>: Send + Sized {
 // Auto implement FromBBoxForm for everything that implements FromBBoxFormField.
 pub struct FromBBoxFieldContext<'r, T: FromBBoxFormField<'r>> {
     field_name: Option<rocket::form::name::NameView<'r>>,
-    field_value: Option<BBox<String, TmpPolicy>>,
     opts: rocket::form::Options,
     value: Option<BBoxFormResult<'r, T>>,
     pushes: usize,
@@ -170,8 +169,7 @@ impl<'r, T: FromBBoxFormField<'r>> FromBBoxForm<'r> for T {
     fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
         FromBBoxFieldContext {
             opts,
-            field_name: Option::None,
-            field_value: Option::None,
+            field_name: None,
             value: None,
             pushes: 0,
         }
@@ -179,7 +177,6 @@ impl<'r, T: FromBBoxFormField<'r>> FromBBoxForm<'r> for T {
 
     fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'r>) {
         if ctxt.should_push() {
-            ctxt.field_value = Option::Some(field.value.clone());
             ctxt.push(field.name, Self::from_bbox_value(field))
         }
     }
@@ -192,26 +189,20 @@ impl<'r, T: FromBBoxFormField<'r>> FromBBoxForm<'r> for T {
 
     fn bbox_finalize(ctxt: Self::BBoxContext) -> BBoxFormResult<'r, Self> {
         let mut errors = match ctxt.value {
-            Option::Some(BBoxFormResult::Ok(val)) if !ctxt.opts.strict || ctxt.pushes <= 1 => {
-                return BBoxFormResult::Ok(val)
-            }
-            Option::Some(BBoxFormResult::Ok(_)) => {
-                rocket::form::Errors::from(rocket::form::error::ErrorKind::Duplicate)
-            }
-            Option::Some(BBoxFormResult::Err(errors)) => errors,
-            Option::None if !ctxt.opts.strict => match <T as FromBBoxFormField>::default() {
-                Option::Some(default) => return Ok(default),
-                Option::None => rocket::form::Errors::from(rocket::form::error::ErrorKind::Missing),
+            Some(Ok(val)) if !ctxt.opts.strict || ctxt.pushes <= 1 => return Ok(val),
+            Some(Ok(_)) => rocket::form::Errors::from(rocket::form::error::ErrorKind::Duplicate),
+            Some(Err(errors)) => errors,
+            None if !ctxt.opts.strict => match <T as FromBBoxFormField>::default() {
+                Some(default) => return Ok(default),
+                None => rocket::form::Errors::from(rocket::form::error::ErrorKind::Missing),
             },
-            Option::None => rocket::form::Errors::from(rocket::form::error::ErrorKind::Missing),
+            None => rocket::form::Errors::from(rocket::form::error::ErrorKind::Missing),
         };
-        if let Option::Some(name) = ctxt.field_name {
+        if let Some(name) = ctxt.field_name {
             errors.set_name(name);
+            errors.set_value("<boxed>")
         }
-        if let Option::Some(_value) = ctxt.field_value {
-            errors.set_value("<boxed>");
-        }
-        BBoxFormResult::Err(errors)
+        Err(errors)
     }
 }
 
@@ -219,13 +210,13 @@ impl<'r, T: FromBBoxFormField<'r>> FromBBoxForm<'r> for T {
 // FromFormField is defined by rocket and is safe.
 macro_rules! impl_form_via_rocket {
   ($($T:ident),+ $(,)?) => ($(
-      impl<'r> FromBBoxFormField<'r> for BBox<$T, TmpPolicy> {
+      impl<'r, P: FrontendPolicy> FromBBoxFormField<'r> for BBox<$T, P> {
           #[inline(always)]
           fn from_bbox_value(field: BBoxValueField<'r>) -> BBoxFormResult<'r, Self> {
               use rocket::form::FromFormField;
-              let pfield = rocket::form::ValueField{ name: field.name, value: field.plain_value};
+              let pfield = rocket::form::ValueField{ name: field.name, value: field.value};
               let pvalue = $T::from_value(pfield)?;
-              BBoxFormResult::Ok(BBox::new(pvalue, TmpPolicy::construct()))
+              BBoxFormResult::Ok(BBox::new(pvalue, P::from_cookie()))
           }
       }
   )+)
@@ -237,7 +228,6 @@ use std::num::{
     NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
 };
 use time::{Date, PrimitiveDateTime, Time};
-use crate::rocket::TmpPolicy;
 impl_form_via_rocket!(
     f32,
     f64,

@@ -121,8 +121,8 @@ impl<'r> BBoxCookieJar<'r> {
     }
     pub fn get<P: FrontendPolicy>(&self, name: &str) -> Option<BBoxCookie<'static, P>> {
         match self.jar.get(name) {
-            Option::None => Option::None,
-            Option::Some(cookie) => Option::Some(BBoxCookie {
+            None => None,
+            Some(cookie) => Some(BBoxCookie {
                 cookie: cookie.clone(),
                 _policy: PhantomData,
             }),

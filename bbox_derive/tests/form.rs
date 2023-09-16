@@ -1,5 +1,24 @@
-use bbox::rocket::TmpPolicy;
+use bbox::policy::{FrontendPolicy, Policy};
+use bbox::rocket::BBoxRequest;
 use bbox_derive::FromBBoxForm;
+use std::any::Any;
+pub struct TmpPolicy {}
+impl Policy for TmpPolicy {
+    fn name(&self) -> String {
+        String::from("SamplePolicy")
+    }
+    fn check(&self, _: &dyn Any) -> bool {
+        true
+    }
+}
+impl FrontendPolicy for TmpPolicy {
+    fn from_request<'a, 'r>(_: &'a BBoxRequest<'a, 'r>) -> Self {
+        TmpPolicy {}
+    }
+    fn from_cookie() -> Self {
+        TmpPolicy {}
+    }
+}
 
 #[derive(FromBBoxForm)]
 struct Nested {

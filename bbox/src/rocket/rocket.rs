@@ -15,7 +15,7 @@ impl BBoxRocket<rocket::Build> {
         }
     }
     // Finish building by launching and awaiting result.
-    pub async fn launch(self) -> std::result::Result<(), rocket::Error> {
+    pub async fn launch(self) -> Result<(), rocket::Error> {
         self.frontend.launch().await
     }
 

@@ -14,7 +14,6 @@ use crate::policy::Policy;
 
 // Types for cheap references of BBox with type erasure.
 pub mod refs {
-    use crate::policy::AnyPolicy;
     use super::{Any, BBox, Policy, Serialize};
     // AnyPolicy (by ref)
     pub struct RefPolicy<'a> {

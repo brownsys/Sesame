@@ -1,4 +1,4 @@
-use mysql::Value;
+use crate::rocket::BBoxRequest;
 use std::any::{Any, TypeId};
 
 // Public facing Policy traits.
@@ -12,17 +12,12 @@ pub trait SchemaPolicy: Policy {
         Self: Sized;
 }
 
-pub trait FrontendPolicy: Policy {
-    fn from_request() -> Self
+pub trait FrontendPolicy: Policy + Send {
+    fn from_request(request: &BBoxRequest<'_, '_>) -> Self
     where
         Self: Sized;
+    // TODO(babman): from_cookie should become from_request.
     fn from_cookie() -> Self
-    where
-        Self: Sized;
-}
-
-pub trait DefaultConstructablePolicy: Policy {
-    fn construct() -> Self
     where
         Self: Sized;
 }
@@ -98,7 +93,7 @@ impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
     }
 }
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyAnd<P1, P2> {
-    fn from_row(row: &Vec<Value>) -> Self {
+    fn from_row(row: &Vec<mysql::Value>) -> Self {
         Self {
             p1: P1::from_row(row),
             p2: P2::from_row(row),
@@ -106,24 +101,16 @@ impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyAnd<P1, P2> {
     }
 }
 impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyAnd<P1, P2> {
-    fn from_request() -> Self {
+    fn from_request<'a, 'r>(request: &'a BBoxRequest<'a, 'r>) -> Self {
         Self {
-            p1: P1::from_request(),
-            p2: P2::from_request(),
+            p1: P1::from_request(request),
+            p2: P2::from_request(request),
         }
     }
     fn from_cookie() -> Self {
         Self {
             p1: P1::from_cookie(),
             p2: P2::from_cookie(),
-        }
-    }
-}
-impl<P1: DefaultConstructablePolicy, P2: DefaultConstructablePolicy> DefaultConstructablePolicy for PolicyAnd<P1, P2> {
-    fn construct() -> Self {
-        Self {
-            p1: P1::construct(),
-            p2: P2::construct(),
         }
     }
 }
@@ -147,7 +134,7 @@ impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     }
 }
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
-    fn from_row(row: &Vec<Value>) -> Self {
+    fn from_row(row: &Vec<mysql::Value>) -> Self {
         Self {
             p1: P1::from_row(row),
             p2: P2::from_row(row),
@@ -155,24 +142,16 @@ impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
     }
 }
 impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2> {
-    fn from_request() -> Self {
+    fn from_request<'a, 'r>(request: &'a BBoxRequest<'a, 'r>) -> Self {
         Self {
-            p1: P1::from_request(),
-            p2: P2::from_request(),
+            p1: P1::from_request(request),
+            p2: P2::from_request(request),
         }
     }
     fn from_cookie() -> Self {
         Self {
             p1: P1::from_cookie(),
             p2: P2::from_cookie(),
-        }
-    }
-}
-impl<P1: DefaultConstructablePolicy, P2: DefaultConstructablePolicy> DefaultConstructablePolicy for PolicyOr<P1, P2> {
-    fn construct() -> Self {
-        Self {
-            p1: P1::construct(),
-            p2: P2::construct(),
         }
     }
 }
