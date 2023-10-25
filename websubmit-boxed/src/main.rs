@@ -14,21 +14,25 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
 
-mod admin;
+
+//mod admin;
 mod apikey;
 mod args;
 mod backend;
 mod config;
 mod email;
+/* 
 mod grades;
 mod helpers;
 mod login;
 mod manage;
+*/
 mod policies;
-mod predict;
-mod questions;
+//mod predict;
+//mod questions;
 
-type User = apikey::ApiKey;
+
+//type User = apikey::ApiKey;
 
 extern crate bbox;
 use bbox::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute};
@@ -69,7 +73,7 @@ async fn main() {
         )
         .unwrap(),
     ));
-
+    
     let template_dir = config.template_dir.clone();
     let resource_dir = config.resource_dir.clone();
     let template = Template::try_custom(move |engines| {
@@ -94,6 +98,7 @@ async fn main() {
             "/js",
             BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
         )
+        /* 
         .mount("/", routes![index])
         .mount(
             "/questions",
@@ -112,6 +117,7 @@ async fn main() {
             routes![predict::predict, predict::predict_grade],
         )
         .mount("/login", routes![login::login])
+        
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
@@ -121,7 +127,8 @@ async fn main() {
             "/admin/lec",
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
-        .mount("/manage/users", routes![manage::get_aggregate_grades])
+        //.mount("/manage/users", routes![manage::get_aggregate_grades])
+        */
         .launch()
         .await
     {

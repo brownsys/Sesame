@@ -10,7 +10,10 @@ use rocket::State;
 
 use bbox::bbox::BBox;
 use bbox::db::from_value;
-use bbox::policy::Context;
+
+use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use bbox::context::Context;
+
 use bbox::rocket::{
     BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome,
     BBoxTemplate, FromBBoxRequest,
@@ -34,37 +37,37 @@ pub(crate) enum ApiKeyError {
 /// (username, apikey)
 #[allow(unused_tuple_struct_fields)]
 pub(crate) struct ApiKey {
-    pub user: BBox<String>,
+    pub user: BBox<String, NoPolicy>,
     #[allow(dead_code)]
-    pub key: BBox<String>,
+    pub key: BBox<String, NoPolicy>,
 }
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct ApiKeyRequest {
-    email: BBox<String>,
-    gender: BBox<String>,
-    age: BBox<u32>,
-    ethnicity: BBox<String>,
-    is_remote: Option<BBox<bool>>,
-    education: BBox<String>,
+    email: BBox<String, NoPolicy>,
+    gender: BBox<String, NoPolicy>,
+    age: BBox<u32, NoPolicy>,
+    ethnicity: BBox<String, NoPolicy>,
+    is_remote: Option<BBox<bool, NoPolicy>>,
+    education: BBox<String, NoPolicy>,
 }
 
 #[derive(BBoxRender)]
 pub(crate) struct ApiKeyResponse {
-    apikey_email: BBox<String>,
+    apikey_email: BBox<String, NoPolicy>,
     parent: String,
 }
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct ApiKeySubmit {
-    key: BBox<String>,
+    key: BBox<String, NoPolicy>,
 }
 
 // Check API key against database.
 pub(crate) fn check_api_key(
     backend: &Arc<Mutex<MySqlBackend>>,
-    key: &BBox<String>,
-) -> Result<BBox<String>, ApiKeyError> {
+    key: &BBox<String, NoPolicy>,
+) -> Result<BBox<String, NoPolicy>, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
     let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.into()]);
     drop(bg);
@@ -97,7 +100,7 @@ impl<'r> FromBBoxRequest<'r> for ApiKey {
             .cookies()
             .get("apikey")
             .and_then(|cookie| Some(cookie.value().into_bbox()))
-            .and_then(|key: BBox<String>| match check_api_key(&be, &key) {
+            .and_then(|key: BBox<String, NoPolicy>| match check_api_key(&be, &key) {
                 Ok(user) => Some(ApiKey {
                     user: user,
                     key: key,
@@ -111,7 +114,7 @@ impl<'r> FromBBoxRequest<'r> for ApiKey {
 // TODO(babman): too many sandboxes, what is reasonable here?
 #[post("/", data = "<data>")]
 pub(crate) fn generate(
-    data: BBoxForm<ApiKeyRequest>,
+    data: BBoxForm<ApiKeyRequest>, 
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
     context: Context<ApiKey, ContextData>,
@@ -139,8 +142,8 @@ pub(crate) fn generate(
     let is_manager = data
         .email
         .sandbox_execute(|email| config.managers.contains(email));
-    let is_admin: BBox<i8> = is_admin.into_bbox();
-    let is_manager: BBox<i8> = is_manager.into_bbox();
+    let is_admin: BBox<i8, NoPolicy> = is_admin.into_bbox();
+    let is_manager: BBox<i8, NoPolicy> = is_manager.into_bbox();
 
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
