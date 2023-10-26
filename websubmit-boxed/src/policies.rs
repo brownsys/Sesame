@@ -5,7 +5,9 @@ use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::State;
 
-use bbox::policy::{Context, Policy};
+use bbox::policy::Policy;
+use bbox::context::Context;
+
 use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use bbox_derive::schema_policy;
 
@@ -13,7 +15,7 @@ use std::any::Any;
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
-use crate::User;
+use crate::User; 
 
 // Custom developer defined payload attached to every context.
 pub struct ContextData {
