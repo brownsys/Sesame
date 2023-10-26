@@ -1,5 +1,6 @@
-use bbox::db::{Conn, Opts, Param, QueryResult, Statement, Value}; //include QueryResult? previously just Result
+use bbox::db::{Conn, Opts, Param, Statement, Value}; //include QueryResult? previously had Result
 use std::collections::HashMap;
+use mysql::*; // is the point to not use mysql directly? this covers the Result return type from MySqlBackend
 
 pub struct MySqlBackend {
     pub handle: Conn,
@@ -11,14 +12,14 @@ pub struct MySqlBackend {
     db_name: String,
 }
 
-impl MySqlBackend {
+impl MySqlBackend { 
     pub fn new(
         user: &str,
         password: &str,
         dbname: &str,
         log: Option<slog::Logger>,
         prime: bool,
-    ) -> Result<Self> { //bbox::db::QueryResult as Result wrapper (?) but it's not a type
+    ) -> Result<Self> { //bbox::db::QueryResult as Result wrapper (?) 
         let log = match log {
             None => slog::Logger::root(slog::Discard, o!()),
             Some(l) => l,
