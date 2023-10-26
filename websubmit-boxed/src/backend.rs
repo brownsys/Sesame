@@ -1,4 +1,4 @@
-use bbox::db::{Conn, Opts, Param, Result, Statement, Value};
+use bbox::db::{Conn, Opts, Param, QueryResult, Statement, Value}; //include QueryResult? previously just Result
 use std::collections::HashMap;
 
 pub struct MySqlBackend {
@@ -18,7 +18,7 @@ impl MySqlBackend {
         dbname: &str,
         log: Option<slog::Logger>,
         prime: bool,
-    ) -> Result<Self> {
+    ) -> Result<Self> { //bbox::db::QueryResult as Result wrapper (?) but it's not a type
         let log = match log {
             None => slog::Logger::root(slog::Discard, o!()),
             Some(l) => l,
