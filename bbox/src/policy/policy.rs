@@ -72,16 +72,14 @@ impl Policy for NoPolicy {
         true
     }
 }
-
 impl FrontendPolicy for NoPolicy {
-    fn from_request<'a, 'r>(_request: &'a BBoxRequest<'a, 'r>) -> Self { //need var request for signature? 
+    fn from_request<'a, 'r>(_request: &'a BBoxRequest<'a, 'r>) -> Self { //need var _request for signature? 
         Self {}
     }
     fn from_cookie() -> Self {
         Self {}
     }
 }
-
 
 // Allows combining policies with AND
 #[derive(Clone)]
