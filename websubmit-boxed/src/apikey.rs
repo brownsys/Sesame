@@ -9,7 +9,7 @@ use rocket::outcome::IntoOutcome;
 use rocket::State;
 
 use bbox::bbox::BBox;
-use bbox::db::from_value;
+use bbox::db::from_value; //{from_value, Param};
 
 use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 use bbox::context::Context;
@@ -69,8 +69,14 @@ pub(crate) fn check_api_key(
     key: &BBox<String, NoPolicy>,
 ) -> Result<BBox<String, NoPolicy>, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
-    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.into()]);
+    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.clone().into()]);
     drop(bg);
+
+    let rs = rs.into_iter().map(|row| {
+        row.into_iter().map(|cell| {
+            cell.specialize_policy::<NoPolicy>()
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
 
     if rs.len() < 1 {
         Err(ApiKeyError::Missing)
@@ -78,7 +84,7 @@ pub(crate) fn check_api_key(
         Err(ApiKeyError::Ambiguous)
     } else if rs.len() >= 1 {
         // user email
-        let user = from_value::<String>(rs[0][0].clone());
+        let user = from_value::<String>(rs[0][0].clone().any_policy());
         Ok(user)
     } else {
         Err(ApiKeyError::BackendFailure)

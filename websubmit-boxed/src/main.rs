@@ -32,11 +32,11 @@ mod policies;
 //mod questions;
 
 
-//type User = apikey::ApiKey;
+type User = apikey::ApiKey;
 
 extern crate bbox;
 use bbox::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute};
-use bbox_derive::{get, routes};
+use bbox_derive::get; //{get, routes};
 
 pub fn new_logger() -> slog::Logger {
     use slog::Drain;
