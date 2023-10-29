@@ -111,10 +111,14 @@ impl Policy for AnswerAccessPolicy {
         let mut bg = db.lock().unwrap();
         let vec = bg.prep_exec(
             "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-            vec![self.lec_id.into(), user.into()],
+            vec![self.lec_id.into(), user.discard_box().into()],
         );
         drop(bg);
 
         vec.len() > 0
+    }
+
+    fn name(&self) -> String {
+        format!("AnswerAccessPolicy({} for {})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
     }
 }
