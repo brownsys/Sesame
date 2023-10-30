@@ -11,7 +11,7 @@ use rocket::State;
 use bbox::bbox::BBox;
 use bbox::db::from_value; //{from_value, Param};
 
-use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 use bbox::context::Context;
 
 use bbox::rocket::{
@@ -69,12 +69,13 @@ pub(crate) fn check_api_key(
     key: &BBox<String, NoPolicy>,
 ) -> Result<BBox<String, NoPolicy>, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
+    //let key_clone = key.specialize_policy::<NoPolicy>().unwrap().clone().into();
     let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.clone().into()]);
     drop(bg);
 
     let rs = rs.into_iter().map(|row| {
         row.into_iter().map(|cell| {
-            cell.specialize_policy::<NoPolicy>()
+            cell.specialize_policy::<NoPolicy>().unwrap()
         }).collect::<Vec<_>>()
     }).collect::<Vec<_>>();
 
@@ -84,8 +85,12 @@ pub(crate) fn check_api_key(
         Err(ApiKeyError::Ambiguous)
     } else if rs.len() >= 1 {
         // user email
-        let user = from_value::<String>(rs[0][0].clone().any_policy());
-        Ok(user)
+        // cast back w/ .any_policy() bc from_value implemented for AnyPolicy
+        // unwrap Result<BBox<T, P>, String> of from_value, 
+        let user = from_value::<String, AnyPolicy>(rs[0][0].clone().any_policy()).unwrap();
+        let unwrapped_user = user.specialize_policy::<NoPolicy>().unwrap();
+        // rewrap with Result<BBox<String, AnyPolicy>, ApiKeyError>
+        Ok(unwrapped_user) 
     } else {
         Err(ApiKeyError::BackendFailure)
     }
