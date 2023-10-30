@@ -5,7 +5,7 @@ use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::State;
 
-use bbox::policy::Policy;
+use bbox::policy::{Policy, SchemaPolicy};
 use bbox::context::Context;
 
 use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
@@ -79,16 +79,6 @@ pub struct AnswerAccessPolicy {
 //      (`P(me)` alter. `is me in set<P(students)>`);
 
 impl Policy for AnswerAccessPolicy {
-    fn from_row(row: &Vec<mysql::Value>) -> Self
-    where
-        Self: Sized,
-    {
-        AnswerAccessPolicy {
-            owner: mysql::from_value(row[0].clone()),
-            lec_id: mysql::from_value(row[1].clone()),
-        }
-    }
-
     fn check(&self, context: &dyn Any) -> bool {
         let context: &Context<User, ContextData> = context.downcast_ref().unwrap();
 
@@ -120,5 +110,17 @@ impl Policy for AnswerAccessPolicy {
 
     fn name(&self) -> String {
         format!("AnswerAccessPolicy({} for {})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
+    }
+}
+
+impl SchemaPolicy for AnswerAccessPolicy {
+    fn from_row(row: &Vec<mysql::Value>) -> Self
+    where
+        Self: Sized,
+    {
+        AnswerAccessPolicy {
+            owner: mysql::from_value(row[0].clone()),
+            lec_id: mysql::from_value(row[1].clone()),
+        }
     }
 }
