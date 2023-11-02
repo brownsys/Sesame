@@ -29,6 +29,7 @@ pub fn from_value_or_null<T: FromValue, P: Policy + 'static>(
 }
 
 // Our params may be boxed or clear.
+#[derive(Clone)] //TODO(corinn) this is improper w AnyPolicy
 pub struct Param(EitherBBox<mysql::Value, AnyPolicy>);
 
 // Auto convert mysql::Value and bbox to Value.
