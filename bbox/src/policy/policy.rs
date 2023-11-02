@@ -61,6 +61,15 @@ impl Policy for AnyPolicy {
     }
 }
 
+impl Clone for AnyPolicy { //FIX(corinn) AnyPolicy should be uncloneable - just impl for compilation
+    fn clone(&self) -> Self {
+        let p = NoPolicy{};
+        Self {
+            policy: Box::new(p),
+        }
+    }
+}
+
 // NoPolicy can be directly discarded.
 #[derive(Clone)]
 pub struct NoPolicy {}
