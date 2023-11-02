@@ -88,12 +88,12 @@ impl Policy for AnswerAccessPolicy {
 
         // user_id == me
         // TODO(babman): context::user should probably not be BBoxed?
-        if *user.test_unbox() == self.owner {
+        if *user.unbox(context) == self.owner {
             return true;
         }
 
         // I am an admin.
-        if config.admins.contains(user.test_unbox()) {
+        if config.admins.contains(user.unbox(context)) {
             return true;
         }
 
