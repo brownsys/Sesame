@@ -87,7 +87,7 @@ impl MySqlBackend {
         loop {
             match self
                 .handle
-                .exec_iter(self.prep_stmts[sql].clone(), params.clone()) // clone failing when EitherBBox<mysql::Value, AnyPolicy> passed
+                .exec_iter(self.prep_stmts[sql].clone(), params.clone())
             {
                 Err(e) => {
                     warn!(
