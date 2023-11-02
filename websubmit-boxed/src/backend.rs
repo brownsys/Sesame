@@ -1,6 +1,7 @@
 use bbox::db::{Conn, Opts, Param, Statement, Value}; 
 use std::collections::HashMap;
 use std::result::Result;
+use std::error::Error;
 
 pub struct MySqlBackend {
     pub handle: Conn,
@@ -19,7 +20,7 @@ impl MySqlBackend {
         dbname: &str,
         log: Option<slog::Logger>,
         prime: bool,
-    ) -> Result<Self, ()> { 
+    ) -> Result<Self, Box<dyn Error>> { 
         let log = match log {
             None => slog::Logger::root(slog::Discard, o!()),
             Some(l) => l,
@@ -86,7 +87,7 @@ impl MySqlBackend {
         loop {
             match self
                 .handle
-                .exec_iter(self.prep_stmts[sql].clone(), params.clone())
+                .exec_iter(self.prep_stmts[sql].clone(), params.clone()) // clone failing when EitherBBox<mysql::Value, AnyPolicy> passed
             {
                 Err(e) => {
                     warn!(
