@@ -8,11 +8,12 @@ use chrono::Local;
 use rocket::State;
 
 use crate::admin::Admin;
-use bbox::policy::Context;
+use bbox::context::Context;
 use bbox::db::{from_value, from_value_or_null};
 use bbox::bbox::{BBox, sandbox_combine};
 use bbox::rocket::{BBoxDataField, BBoxForm, BBoxFormResult, BBoxRedirect, BBoxTemplate, FromBBoxFormField};
 use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
+use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -28,9 +29,9 @@ pub struct Fake64(u64);
 #[rocket::async_trait]
 impl<'r> FromBBoxFormField<'r> for Fake64 {
     async fn from_bbox_data<'i>(field: BBoxDataField<'r, 'i>) -> BBoxFormResult<'r, Self> {
-        let boxed = BBox::<u64>::from_bbox_data(field).await;
+        let boxed = BBox::<u64, NoPolicy>::from_bbox_data(field).await;
         match boxed {
-            Ok(boxed) => Ok(Fake64(boxed.test_unbox().clone())),
+            Ok(boxed) => Ok(Fake64(boxed.discard_box().clone())), //TODO need type conversion btwn BBoxes
             Err(e) => Err(e)
         }
     }
@@ -50,50 +51,50 @@ impl Into<bbox::db::Param> for Fake64 {
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct LectureQuestionSubmission {
-    answers: HashMap<Fake64, BBox<String>>,
+    answers: HashMap<Fake64, BBox<String, NoPolicy>>, //(corinn) answer.into() 
 }
 
 #[derive(BBoxRender, Clone)]
 pub(crate) struct LectureQuestion {
-    pub id: BBox<u64>,
-    pub prompt: BBox<String>,
-    pub answer: BBox<Option<String>>,
+    pub id: BBox<u64, NoPolicy>,
+    pub prompt: BBox<String, NoPolicy>,
+    pub answer: BBox<Option<String>, NoPolicy>,
 }
 
 #[derive(BBoxRender)]
 pub(crate) struct LectureQuestionsContext {
-    pub lec_id: BBox<u8>,
+    pub lec_id: BBox<u8, NoPolicy>,
     pub questions: Vec<LectureQuestion>,
     pub parent: String,
 }
 
 #[derive(BBoxRender)]
 pub struct LectureAnswer {
-    pub id: BBox<u64>,
-    pub user: BBox<String>,
-    pub answer: BBox<String>,
-    pub time: BBox<String>,
-    pub grade: BBox<u64>,
+    pub id: BBox<u64, NoPolicy>,
+    pub user: BBox<String, NoPolicy>,
+    pub answer: BBox<String, NoPolicy>,
+    pub time: BBox<String, NoPolicy>,
+    pub grade: BBox<u64, NoPolicy>,
 }
 
 #[derive(BBoxRender)]
 pub struct LectureAnswersContext {
-    pub lec_id: BBox<u8>,
+    pub lec_id: BBox<u8, NoPolicy>,
     pub answers: Vec<LectureAnswer>,
     pub parent: String,
 }
 
 #[derive(BBoxRender)]
 struct LectureListEntry {
-    id: BBox<u64>,
-    label: BBox<String>,
-    num_qs: BBox<u64>,
+    id: BBox<u64, NoPolicy>,
+    label: BBox<String, NoPolicy>,
+    num_qs: BBox<u64, NoPolicy>,
     num_answered: u64,
 }
 
 #[derive(BBoxRender)]
 struct LectureListContext {
-    admin: BBox<bool>,
+    admin: BBox<bool, NoPolicy>,
     lectures: Vec<LectureListEntry>,
     parent: String,
 }
@@ -114,16 +115,22 @@ pub(crate) fn leclist(
     );
     drop(bg);
 
+    let res = res.into_iter().map(|row| { //HERE
+        row.into_iter().map(|cell| {
+            cell.specialize_policy::<NoPolicy>().unwrap()
+        }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
+
     // TODO(babman): pure sandbox.
-    let admin: BBox<bool> = apikey
+    let admin: BBox<bool, NoPolicy> = apikey
         .user
         .sandbox_execute(|email| config.admins.contains(email));
 
     let lecs: Vec<LectureListEntry> = res
         .into_iter()
         .map(|r| LectureListEntry {
-            id: from_value(r[0].clone()),
-            label: from_value(r[1].clone()),
+            id: from_value(r[0].clone().any_policy()).unwrap(), 
+            label: from_value(r[1].clone().any_policy()).unwrap(),
 
             // TODO(babman): also pure sandbox.
             num_qs: r[2].sandbox_execute(|v| {
@@ -149,7 +156,7 @@ pub(crate) fn leclist(
 #[get("/<num>")]
 pub(crate) fn answers(
     _admin: Admin,
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
@@ -161,12 +168,13 @@ pub(crate) fn answers(
     let answers: Vec<LectureAnswer> = res
         .into_iter()
         .map(|r| LectureAnswer {
-            id: from_value(r[2].clone()),
-            user: from_value(r[0].clone()),
-            answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone())
+            id: from_value(r[2].clone().any_policy()).unwrap(), 
+            user: from_value(r[0].clone().any_policy()).unwrap(), 
+            answer: from_value(r[3].clone().any_policy()).unwrap(), 
+            time: from_value::<NaiveDateTime, AnyPolicy>(r[4].clone().any_policy()).unwrap()
+                .specialize_policy::<NoPolicy>().unwrap() 
                 .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
-            grade: from_value(r[5].clone()),
+            grade: from_value(r[5].clone().any_policy()).unwrap(), 
         })
         .collect();
 
@@ -182,7 +190,7 @@ pub(crate) fn answers(
 #[get("/<num>")]
 pub(crate) fn questions(
     apikey: ApiKey,
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
@@ -212,15 +220,15 @@ pub(crate) fn questions(
         },
     );
 
-    let questions: Vec<BBox<Vec<mysql::Value>>> = questions.into();
+    let questions: Vec<BBox<Vec<mysql::Value>, NoPolicy>> = questions.into();
     let questions = questions
         .into_iter()
         .map(|r| {
-            let r: Vec<BBox<mysql::Value>> = r.into();
+            let r: Vec<BBox<mysql::Value, NoPolicy>> = r.into();
             LectureQuestion {
-                id: from_value(r[0].clone()),
-                prompt: from_value(r[1].clone()),
-                answer: from_value_or_null(r[2].clone()),
+                id: from_value(r[0].clone().any_policy()).unwrap(),
+                prompt: from_value(r[1].clone().any_policy()).unwrap(),
+                answer: from_value_or_null(r[2].clone().any_policy()).unwrap(),
             }
         })
         .collect();
@@ -236,13 +244,13 @@ pub(crate) fn questions(
 #[post("/<num>", data = "<data>")]
 pub(crate) fn questions_submit(
     apikey: ApiKey,
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     data: BBoxForm<LectureQuestionSubmission>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxRedirect {
-    let num: BBox<u64> = num.into_bbox();
+    let num: BBox<u64, NoPolicy> = num.into_bbox();
     let ts: mysql::Value = Local::now().naive_local().into();
     let grade: mysql::Value = 0.into();
 
@@ -254,7 +262,7 @@ pub(crate) fn questions_submit(
                 apikey.user.clone().into(),
                 num.clone().into(),
                 (*id).into(),
-                answer.into(),
+                answer.clone().into(),
                 ts.clone().into(),
                 grade.clone().into(),
             ],

@@ -15,21 +15,19 @@ use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
 
 
-//mod admin;
+mod admin;
 mod apikey;
 mod args;
 mod backend;
 mod config;
 mod email;
-/* 
-mod grades;
+//mod grades;
 mod helpers;
-mod login;
-mod manage;
-*/
+//mod login;
+//mod manage;
 mod policies;
 //mod predict;
-//mod questions;
+mod questions;
 
 
 type User = apikey::ApiKey;

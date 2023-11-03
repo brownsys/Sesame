@@ -5,11 +5,13 @@ use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::State;
 
-use bbox::policy::Context;
+use bbox::context::Context;
 use bbox::db::from_value;
 use bbox::bbox::{BBox, EitherBBox};
 use bbox::rocket::{BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
 use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
+use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -65,8 +67,8 @@ pub(crate) fn lec_add(context: Context<ApiKey, ContextData>) -> BBoxTemplate {
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct AdminLecAdd {
-    lec_id: BBox<u8>,
-    lec_label: BBox<String>,
+    lec_id: BBox<u8, NoPolicy>,
+    lec_label: BBox<String, NoPolicy>,
 }
 
 #[post("/", data = "<data>")]
@@ -91,7 +93,7 @@ pub(crate) fn lec_add_submit(
 
 #[get("/<num>")]
 pub(crate) fn lec(
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
@@ -107,11 +109,11 @@ pub(crate) fn lec(
     let questions: Vec<LectureQuestion> = res
         .into_iter()
         .map(|r| {
-            let id: BBox<u64> = from_value(r[1].clone());
+            let id: BBox<u64, NoPolicy> = from_value(r[1].clone()).unwrap();
             LectureQuestion {
                 id: id,
-                prompt: from_value(r[2].clone()),
-                answer: BBox::new(None, vec![]),
+                prompt: from_value(r[2].clone()).unwrap(),
+                answer: BBox::new(None, NoPolicy{}), //(corinn) this was previously BBox::new(None, vec![])
             }
         })
         .collect();
@@ -129,14 +131,14 @@ pub(crate) fn lec(
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct AddLectureQuestionForm {
-    q_id: BBox<u64>,
-    q_prompt: BBox<String>,
+    q_id: BBox<u64, NoPolicy>,
+    q_prompt: BBox<String, NoPolicy>,
 }
 
 #[post("/<num>", data = "<data>")]
 pub(crate) fn addq(
     _adm: Admin,
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     data: BBoxForm<AddLectureQuestionForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> BBoxRedirect {
@@ -159,8 +161,8 @@ pub(crate) fn addq(
 #[get("/<num>/<qnum>")]
 pub(crate) fn editq(
     _adm: Admin,
-    num: BBox<u8>,
-    qnum: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
+    qnum: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
@@ -171,12 +173,12 @@ pub(crate) fn editq(
     );
     drop(bg);
 
-    let mut ctx: HashMap<&str, EitherBBox<String>> = HashMap::new();
+    let mut ctx: HashMap<&str, EitherBBox<String, NoPolicy>> = HashMap::new();
     for r in res {
         // TODO(babman): how to handle this?
-        let q = from_value::<u64>(r[1].clone());
+        let q = from_value::<u64, AnyPolicy>(r[1].clone().any_policy()).unwrap();
         if q.unbox(&context) == qnum.clone().into_bbox::<u64>().unbox(&context) {
-            ctx.insert("lec_qprompt", from_value(r[2].clone()).into());
+            ctx.insert("lec_qprompt", from_value(r[2].clone()).unwrap().into());
         }
     }
     ctx.insert("lec_id", num.format().into());
@@ -188,7 +190,7 @@ pub(crate) fn editq(
 #[post("/editq/<num>", data = "<data>")]
 pub(crate) fn editq_submit(
     _adm: Admin,
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     data: BBoxForm<AddLectureQuestionForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> BBoxRedirect {
@@ -209,9 +211,9 @@ pub(crate) fn editq_submit(
 
 #[derive(BBoxRender, Clone)]
 pub(crate) struct User {
-    email: BBox<String>,
-    apikey: BBox<String>,
-    is_admin: BBox<bool>,
+    email: BBox<String, NoPolicy>,
+    apikey: BBox<String, NoPolicy>,
+    is_admin: BBox<bool, NoPolicy>,
 }
 
 #[derive(BBoxRender)]
@@ -234,10 +236,11 @@ pub(crate) fn get_registered_users(
     let users: Vec<_> = res
         .into_iter()
         .map(|r| {
-            let id = from_value::<String>(r[0].clone());
+            let id = from_value::<String, AnyPolicy>(r[0].clone().any_policy()).unwrap()
+                                                        .specialize_policy::<NoPolicy>().unwrap();  
             User {
-                email: from_value(r[0].clone()),
-                apikey: from_value(r[2].clone()),
+                email: from_value(r[0].clone().any_policy()).unwrap(),
+                apikey: from_value(r[2].clone().any_policy()).unwrap(),
                 is_admin: id.sandbox_execute(|v| config.admins.contains(v)),
             }
         })

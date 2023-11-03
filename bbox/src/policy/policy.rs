@@ -60,12 +60,11 @@ impl Policy for AnyPolicy {
         self.policy.check(context)
     }
 }
-
-impl Clone for AnyPolicy { //FIX(corinn) AnyPolicy should be uncloneable - just impl for compilation
+impl Clone for AnyPolicy { //TODO(corinn) AnyPolicy should be uncloneable - just impl for compilation
     fn clone(&self) -> Self {
         let p = NoPolicy{};
         Self {
-            policy: Box::new(p),
+            policy: Box::new(p), 
         }
     }
 }
