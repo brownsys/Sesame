@@ -137,6 +137,13 @@ impl<T: Display, P: Policy> BBox<T, P> {
     }
 }
 
+//(corinn) in order to use as_ref() in predict.rs
+impl<T, P: Policy> AsRef<BBox<T, P>> for BBox<T, P> {
+    fn as_ref(&self) -> &BBox<T, P> {
+        self
+    }
+}
+
 // Can unbox without context during tests.
 #[cfg(test)]
 impl<T, P: Policy> BBox<T, P> {
