@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-
 use rocket::State;
-use bbox::policy::Context;
 
+use bbox::context::Context;
+use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 use bbox::rocket::BBoxTemplate;
 use bbox_derive::get;
 

@@ -23,7 +23,7 @@ mod config;
 mod email;
 mod grades;
 mod helpers;
-//mod login;
+mod login;
 //mod manage;
 mod policies;
 mod predict;
@@ -117,7 +117,7 @@ async fn main() {
             routes![predict::predict, predict::predict_grade],
         )
         
-        //.mount("/login", routes![login::login])
+        .mount("/login", routes![login::login])
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
