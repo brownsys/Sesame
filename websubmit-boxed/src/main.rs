@@ -34,7 +34,7 @@ type User = apikey::ApiKey;
 
 extern crate bbox;
 use bbox::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute};
-use bbox_derive::get; //{get, routes};
+use bbox_derive::{get, routes};
 
 pub fn new_logger() -> slog::Logger {
     use slog::Drain;
@@ -96,26 +96,32 @@ async fn main() {
             "/js",
             BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
         )
-        /* 
+        
         .mount("/", routes![index])
+        
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
         )
         .mount("/apikey/check", routes![apikey::check])
+        
         .mount("/apikey/generate", routes![apikey::generate])
+        /* 
         .mount(
             "/grades",
             routes![grades::grades, grades::editg, grades::editg_submit],
         )
+        */
         .mount("/answers", routes![questions::answers])
         .mount("/leclist", routes![questions::leclist])
+        /* 
         .mount(
             "/predict",
             routes![predict::predict, predict::predict_grade],
         )
-        .mount("/login", routes![login::login])
         
+        .mount("/login", routes![login::login])
+        */
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
@@ -126,7 +132,7 @@ async fn main() {
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
         //.mount("/manage/users", routes![manage::get_aggregate_grades])
-        */
+        
         .launch()
         .await
     {
