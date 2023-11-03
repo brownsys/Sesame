@@ -3,13 +3,14 @@ use std::sync::{Arc, Mutex};
 use chrono::naive::NaiveDateTime;
 use rocket::State;
 
-use crate::apikey::ApiKey;
-use bbox::policy::Context;
+use bbox::context::Context;
 use bbox::db::from_value;
 use bbox::bbox::{BBox};
 use bbox::rocket::{BBoxTemplate, BBoxRedirect, BBoxForm};
 use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
+use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
+use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::policies::ContextData;
 use crate::predict::train_and_store;
@@ -18,7 +19,7 @@ use crate::questions::LectureAnswersContext;
 
 #[get("/<num>")]
 pub(crate) fn grades(
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
@@ -31,12 +32,12 @@ pub(crate) fn grades(
     let answers: Vec<LectureAnswer> = res
         .into_iter()
         .map(|r| LectureAnswer {
-            id: from_value(r[2].clone()),
-            user: from_value(r[0].clone()),
-            answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone())
+            id: from_value(r[2].clone()).unwrap(),
+            user: from_value(r[0].clone()).unwrap(),
+            answer: from_value(r[3].clone()).unwrap(),
+            time: from_value::<NaiveDateTime, NoPolicy>(r[4].clone()).unwrap()
                 .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
-            grade: from_value(r[5].clone()),
+            grade: from_value(r[5].clone()).unwrap(),
         })
         .collect();
 
@@ -51,19 +52,19 @@ pub(crate) fn grades(
 
 #[derive(BBoxRender)]
 struct GradeEditContext {
-    answer: BBox<String>,
-    grade: BBox<u64>,
-    lec_id: BBox<u8>,
-    lec_qnum: BBox<u8>,
+    answer: BBox<String, NoPolicy>,
+    grade: BBox<u64, NoPolicy>,
+    lec_id: BBox<u8, NoPolicy>,
+    lec_qnum: BBox<u8, NoPolicy>,
     parent: String,
-    user: BBox<String>,
+    user: BBox<String, NoPolicy>,
 }
 
 #[get("/<user>/<num>/<qnum>")]
 pub(crate) fn editg(
-    user: BBox<String>,
-    num: BBox<u8>,
-    qnum: BBox<u8>,
+    user: BBox<String, NoPolicy>,
+    num: BBox<u8, NoPolicy>,
+    qnum: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
@@ -80,8 +81,8 @@ pub(crate) fn editg(
 
     let r = &res[0];
     let ctx = GradeEditContext {
-        answer: from_value(r[0].clone()),
-        grade: from_value(r[1].clone()),
+        answer: from_value(r[0].clone()).unwrap(),
+        grade: from_value(r[1].clone()).unwrap(),
         user: user,
         lec_id: num,
         lec_qnum: qnum,
@@ -93,14 +94,14 @@ pub(crate) fn editg(
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct EditGradeForm {
-    grade: BBox<u64>,
+    grade: BBox<u64, NoPolicy>,
 }
 
 #[post("/editg/<user>/<num>/<qnum>", data = "<data>")]
 pub(crate) fn editg_submit(
-    user: BBox<String>,
-    num: BBox<u8>,
-    qnum: BBox<u8>,
+    user: BBox<String, NoPolicy>,
+    num: BBox<u8, NoPolicy>,
+    qnum: BBox<u8, NoPolicy>,
     data: BBoxForm<EditGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> BBoxRedirect {
