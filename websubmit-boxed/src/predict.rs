@@ -9,16 +9,18 @@ use ndarray::prelude::*;
 use rocket::State;
 
 use crate::apikey::ApiKey;
-use bbox::policy::Context;
+use bbox::context::Context;
 use bbox::bbox::{BBox, sandbox_combine, sandbox_execute};
 use bbox::rocket::{BBoxForm, BBoxTemplate};
 use bbox_derive::{get, post, BBoxRender, FromBBoxForm};
+use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+
 
 use crate::backend::MySqlBackend;
 use crate::policies::ContextData;
 
 lazy_static! {
-    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>>>>> =
+    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, NoPolicy>>>> =
         Arc::new(Mutex::new(Option::None));
 }
 
@@ -72,13 +74,13 @@ pub(crate) fn train_and_store(backend: &State<Arc<Mutex<MySqlBackend>>>) {
 
 #[derive(BBoxRender)]
 struct PredictContext {
-    lec_id: BBox<u8>,
+    lec_id: BBox<u8, NoPolicy>,
     parent: String,
 }
 
 #[get("/<num>")]
 pub(crate) fn predict(
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     _backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
@@ -92,20 +94,20 @@ pub(crate) fn predict(
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct PredictGradeForm {
-    time: BBox<String>,
+    time: BBox<String, NoPolicy>,
 }
 
 #[derive(BBoxRender)]
 struct PredictGradeContext {
-    lec_id: BBox<u8>,
-    time: BBox<String>,
-    grade: BBox<f64>,
+    lec_id: BBox<u8, NoPolicy>,
+    time: BBox<String, NoPolicy>,
+    grade: BBox<f64, NoPolicy>,
     parent: String,
 }
 
 #[post("/predict_grade/<num>", data = "<data>")]
 pub(crate) fn predict_grade(
-    num: BBox<u8>,
+    num: BBox<u8, NoPolicy>,
     data: BBoxForm<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,

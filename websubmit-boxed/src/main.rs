@@ -21,12 +21,12 @@ mod args;
 mod backend;
 mod config;
 mod email;
-//mod grades;
+mod grades;
 mod helpers;
 //mod login;
 //mod manage;
 mod policies;
-//mod predict;
+mod predict;
 mod questions;
 
 
@@ -106,22 +106,18 @@ async fn main() {
         .mount("/apikey/check", routes![apikey::check])
         
         .mount("/apikey/generate", routes![apikey::generate])
-        /* 
         .mount(
             "/grades",
             routes![grades::grades, grades::editg, grades::editg_submit],
         )
-        */
         .mount("/answers", routes![questions::answers])
         .mount("/leclist", routes![questions::leclist])
-        /* 
         .mount(
             "/predict",
             routes![predict::predict, predict::predict_grade],
         )
         
-        .mount("/login", routes![login::login])
-        */
+        //.mount("/login", routes![login::login])
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
