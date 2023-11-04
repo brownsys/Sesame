@@ -8,7 +8,7 @@ use bbox::db::from_value;
 use bbox::bbox::{BBox};
 use bbox::rocket::{BBoxTemplate, BBoxRedirect, BBoxForm};
 use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
-use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;

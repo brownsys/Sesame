@@ -13,7 +13,7 @@ use bbox::context::Context;
 use bbox::bbox::{BBox, sandbox_combine, sandbox_execute};
 use bbox::rocket::{BBoxForm, BBoxTemplate};
 use bbox_derive::{get, post, BBoxRender, FromBBoxForm};
-use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
 
 use crate::backend::MySqlBackend;
