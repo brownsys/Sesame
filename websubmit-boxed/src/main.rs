@@ -24,7 +24,7 @@ mod email;
 mod grades;
 mod helpers;
 mod login;
-//mod manage;
+mod manage;
 mod policies;
 mod predict;
 mod questions;
@@ -127,7 +127,7 @@ async fn main() {
             "/admin/lec",
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
-        //.mount("/manage/users", routes![manage::get_aggregate_grades])
+        .mount("/manage/users", routes![manage::get_aggregate_grades])
         
         .launch()
         .await

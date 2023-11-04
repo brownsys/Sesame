@@ -14,9 +14,10 @@ use crate::config::Config;
 use crate::helpers::average;
 
 use crate::policies::ContextData;
-use bbox::policy::Context;
-use bbox::db::{from_value};
+use bbox::context::Context;
+use bbox::db::{Value, from_value};
 use bbox::bbox::{BBox, sandbox_execute};
+use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
 use bbox_derive::{BBoxRender, get};
 
@@ -55,8 +56,8 @@ impl<'r> FromBBoxRequest<'r> for Manager {
 
 #[derive(BBoxRender)]
 pub(crate) struct Aggregate<T: Serialize> {
-    property: BBox<T>,
-    average: BBox<f64>,
+    property: BBox<T, NoPolicy>,
+    average: BBox<f64, NoPolicy>,
 }
 
 #[derive(BBoxRender)]
@@ -67,14 +68,14 @@ struct AggregateContext {
     parent: String,
 }
 
-fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>>) -> Vec<Aggregate<T>> {
-    let agg: Vec<BBox<Vec<mysql::Value>>> = agg.into();
+fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>, NoPolicy>) -> Vec<Aggregate<T>> {
+    let agg: Vec<BBox<Vec<mysql::Value>, NoPolicy>> = agg.into();
     agg.into_iter()
         .map(|r| {
-            let r: Vec<BBox<mysql::Value>> = r.into();
+            let r: Vec<BBox<mysql::Value, NoPolicy>> = r.into();
             Aggregate {
-                property: from_value(r[0].clone()),
-                average: from_value(r[1].clone()),
+                property: from_value(r[0].clone().any_policy()).unwrap(), 
+                average: from_value(r[1].clone().any_policy()).unwrap(), 
             }
         })
         .collect()
@@ -87,14 +88,14 @@ pub(crate) fn get_aggregate_grades(
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let grades = bg.prep_exec(
+    let grades: Vec<Vec<Value>> = bg.prep_exec(
         "SELECT pseudonym, gender, is_remote, grade FROM users JOIN answers ON users.email = answers.email;",
         vec![]);
     drop(bg);
-
-    let user_agg = sandbox_execute(&grades, |grades| average::<String>(3, 0, grades));
-    let gender_agg = sandbox_execute(&grades, |grades| average::<String>(3, 1, grades));
-    let remote_agg = sandbox_execute(&grades, |grades| average::<bool>(3, 2, grades));
+    
+    let user_agg = sandbox_execute(grades.clone(), |grades| average::<String>(3, 0, grades));
+    let gender_agg = sandbox_execute(grades.clone(), |grades| average::<String>(3, 1, grades));
+    let remote_agg = sandbox_execute(grades.clone(), |grades| average::<bool>(3, 2, grades));
 
     let ctx = AggregateContext {
         aggregates_per_user: transform(user_agg),
