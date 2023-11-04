@@ -113,7 +113,7 @@ pub(crate) fn lec(
             LectureQuestion {
                 id: id,
                 prompt: from_value(r[2].clone()).unwrap(),
-                answer: BBox::new(None, NoPolicy{}), //(corinn) this was previously BBox::new(None, vec![])
+                answer: BBox::new(None, NoPolicy{}), //TODO(corinn) check fix - this was previously BBox::new(None, vec![])
             }
         })
         .collect();

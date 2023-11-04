@@ -51,7 +51,7 @@ impl Into<bbox::db::Param> for Fake64 {
 
 #[derive(Debug, FromBBoxForm)]
 pub(crate) struct LectureQuestionSubmission {
-    answers: HashMap<Fake64, BBox<String, NoPolicy>>, //(corinn) answer.into() 
+    answers: HashMap<Fake64, BBox<String, NoPolicy>>,
 }
 
 #[derive(BBoxRender, Clone)]
@@ -115,7 +115,7 @@ pub(crate) fn leclist(
     );
     drop(bg);
 
-    let res = res.into_iter().map(|row| { //HERE
+    let res = res.into_iter().map(|row| {
         row.into_iter().map(|cell| {
             cell.specialize_policy::<NoPolicy>().unwrap()
         }).collect::<Vec<_>>()

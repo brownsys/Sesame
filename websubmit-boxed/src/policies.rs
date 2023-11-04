@@ -101,7 +101,7 @@ impl Policy for AnswerAccessPolicy {
         let mut bg = db.lock().unwrap();
         let vec = bg.prep_exec(
             "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-            vec![self.lec_id.into(), user.clone().discard_box().into()], //is user.clone() a valid fix here?
+            vec![self.lec_id.into(), user.clone().discard_box().into()], 
         );
         drop(bg);
 
