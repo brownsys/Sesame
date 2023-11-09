@@ -29,7 +29,7 @@ pub fn from_value_or_null<T: FromValue, P: Policy + 'static>(
 }
 
 // Our params may be boxed or clear.
-#[derive(Clone)] //TODO(corinn) Clone is improper for AnyPolicy
+#[derive(Clone)] 
 pub struct Param(EitherBBox<mysql::Value, AnyPolicy>);
 
 // Auto convert mysql::Value and bbox to Value.
@@ -38,7 +38,7 @@ impl<T: Into<mysql::Value>> From<T> for Param {
         Param(EitherBBox::Value(x.into()))
     }
 }
-impl<T: Into<mysql::Value>, P: Policy + 'static> From<BBox<T, P>> for Param {
+impl<T: Into<mysql::Value>, P: Policy + Clone + 'static> From<BBox<T, P>> for Param {
     fn from(x: BBox<T, P>) -> Param {
         Param(EitherBBox::BBox(x.into_bbox().any_policy()))
     }

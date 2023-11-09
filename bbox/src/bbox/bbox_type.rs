@@ -75,7 +75,7 @@ impl<T, P: Policy + Clone> BBox<T, P> {
 }
 
 // Up and downcasting policy with AnyPolicy.
-impl<T, P: Policy + 'static> BBox<T, P> {
+impl<T, P: Policy + Clone + 'static> BBox<T, P> {
     pub fn any_policy(self) -> BBox<T, AnyPolicy> {
         BBox {
             t: self.t,

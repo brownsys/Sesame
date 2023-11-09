@@ -40,7 +40,7 @@ pub fn get_schema_policies(
 // Never use this function directly, instead use the #[schema_policy(...)] macro.
 extern crate small_ctor;
 pub use small_ctor::ctor as register;
-pub fn add_schema_policy<T: SchemaPolicy + 'static>(table_name: String, column: usize) {
+pub fn add_schema_policy<T: SchemaPolicy + Clone + 'static>(table_name: String, column: usize) {
     let mut map = SCHEMA_POLICIES.write().unwrap();
     map.entry((table_name, column))
         .or_default()

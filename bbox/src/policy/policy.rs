@@ -23,14 +23,20 @@ pub trait FrontendPolicy: Policy + Send {
 }
 
 // Any (owned) Policy.
-trait TypeIdPolicyTrait: Policy + Any {}
-impl<P: Policy + 'static> TypeIdPolicyTrait for P {}
+trait TypeIdPolicyTrait: Policy + Any {
+    fn clone(&self) -> Box<dyn TypeIdPolicyTrait>;
+}
+impl<P: Policy + Clone + 'static> TypeIdPolicyTrait for P {
+    fn clone(&self) -> Box<dyn TypeIdPolicyTrait> {
+        Box::new(self.clone())
+    }
+}
 
 pub struct AnyPolicy {
     policy: Box<dyn TypeIdPolicyTrait>,
 }
 impl AnyPolicy {
-    pub fn new<P: Policy + 'static>(p: P) -> Self {
+    pub fn new<P: Policy + Clone + 'static>(p: P) -> Self {
         Self {
             policy: Box::new(p),
         }
@@ -60,10 +66,10 @@ impl Policy for AnyPolicy {
         self.policy.check(context)
     }
 }
-impl Clone for AnyPolicy { //TODO(corinn) AnyPolicy should be uncloneable - just impl for compilation
+impl Clone for AnyPolicy { 
     fn clone(&self) -> Self {
         Self {
-            policy: Box::new(NoPolicy{}), 
+            policy: self.policy.clone() 
         }
     }
 }

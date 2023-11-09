@@ -67,6 +67,7 @@ impl<'r> FromBBoxRequest<'r> for ContextData {
 #[schema_policy(table = "answers", column = 3)]
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy accross tables/columns.
+#[derive(Clone)]
 pub struct AnswerAccessPolicy {
     owner: String,
     lec_id: u64,
