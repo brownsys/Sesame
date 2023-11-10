@@ -11,6 +11,9 @@ pub trait SchemaPolicy: Policy {
     where
         Self: Sized;
 }
+pub trait Conjunction: Policy {
+    fn join(&self, p2: &Self) -> Self; 
+}
 
 pub trait FrontendPolicy: Policy + Send {
     fn from_request(request: &BBoxRequest<'_, '_>) -> Self
