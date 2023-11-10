@@ -70,8 +70,8 @@ impl<'r> FromBBoxRequest<'r> for ContextData {
 // here to reuse the policy accross tables/columns.
 #[derive(Clone)]
 pub struct AnswerAccessPolicy {
-    owner: Option<String>, //even if no owner, admins may access
-    lec_id: Option<u64>, 
+    owner: Option<String>, // even if no owner, admins may access
+    lec_id: Option<u64>,  // no lec_id bc Policy for multiple Answers
 } 
 
 // Content of answer column can only be accessed by:
@@ -182,24 +182,3 @@ impl Conjunction for ACLPolicy {
         ACLPolicy{owners: owners}
     }
 }
-
-/* 
-//would need to convert AnswerAccessPolicy to ACL first? 
-//but you don't really want to iterate twice? but maybe i
-pub fn fold_acl<T>(box_vec: Vec<BBox<T, ACLPolicy>>) -> BBox<Vec<T>, ACLPolicy>>{
-    box_vec.iter().reduce(|acc, x| acc.join(x))
-}
-
-prototype like this, then figure out how to make an abstraction of ACLPolicy like a PolicyAnd/ComposedPolicy
-
-just make ACLPolicy a provided Policy type bc it's common? would make this a smoother, 
-but would require logical step of what policies can be shifted into ACLs
-
-need same signature for leaf(AnswerAccess) vs branch (ACL/And)? or will individs vs set work fine
-
-impl From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> in bbox_fold
-fn from(x: BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
-    let p = x.p;
-    x.t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
-}
-*/
