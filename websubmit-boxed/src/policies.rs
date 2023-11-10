@@ -5,13 +5,14 @@ use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::State;
 
-use bbox::policy::{Policy, SchemaPolicy};
+use bbox::policy::{Policy, SchemaPolicy, Conjunction};
 use bbox::context::Context;
 
 use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use bbox_derive::schema_policy;
 
 use std::any::Any;
+use std::collections::HashSet;
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
@@ -69,9 +70,9 @@ impl<'r> FromBBoxRequest<'r> for ContextData {
 // here to reuse the policy accross tables/columns.
 #[derive(Clone)]
 pub struct AnswerAccessPolicy {
-    owner: String,
-    lec_id: u64,
-}
+    owner: Option<String>, //even if no owner, admins may access
+    lec_id: Option<u64>, 
+} 
 
 // Content of answer column can only be accessed by:
 //   1. The user who submitted the answer (`user_id == me`);
@@ -89,8 +90,13 @@ impl Policy for AnswerAccessPolicy {
 
         // user_id == me
         // TODO(babman): context::user should probably not be BBoxed?
-        if *user.unbox(context) == self.owner {
-            return true;
+        match self.owner.clone() {
+            Some(owner) => 
+                if *user.unbox(context) == owner {
+                    return true;
+                }
+            None => ()
+                
         }
 
         // I am an admin.
@@ -99,18 +105,24 @@ impl Policy for AnswerAccessPolicy {
         }
 
         // I am a discussion leader.
-        let mut bg = db.lock().unwrap();
-        let vec = bg.prep_exec(
-            "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-            vec![self.lec_id.into(), user.clone().discard_box().into()], 
-        );
-        drop(bg);
-
-        vec.len() > 0
+        match self.lec_id {
+            // if lec_id, is the user the appropriate discussion leader?
+            Some(lec_id) => {
+                let mut bg = db.lock().unwrap();
+                let vec = bg.prep_exec(
+                    "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
+                    vec![lec_id.into(), user.clone().discard_box().into()], 
+                );
+                drop(bg);
+                vec.len() > 0
+            }
+            // No lec_id, don't check the discussion leaders
+            None => 
+                return false, 
+        }
     }
-
     fn name(&self) -> String {
-        format!("AnswerAccessPolicy({} for {})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
+        format!("AnswerAccessPolicy({:?} for {:?})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
     }
 }
 
@@ -125,3 +137,69 @@ impl SchemaPolicy for AnswerAccessPolicy {
         }
     }
 }
+/* ------------------------------------------------------------------------- */
+impl Conjunction for AnswerAccessPolicy {
+    fn join(&self, p2: &Self) -> Self {     
+        let comp_owner: Option<String>;  
+        let comp_lec_id: Option<u64>;
+        if self.owner.eq(&p2.owner) {  
+           comp_owner = self.owner.clone();
+        } else {
+            comp_owner = None;
+        }
+        if self.lec_id.eq(&p2.lec_id) {  
+            comp_lec_id = self.lec_id.clone();
+        } else {
+            comp_lec_id = None;
+        }
+
+        AnswerAccessPolicy{
+            owner: comp_owner,
+            lec_id: comp_lec_id
+        }
+    }
+}
+/* ------------------------------------------------------------------------- */
+pub struct ACLPolicy {
+    owners: HashSet<String>,
+} 
+
+impl Policy for ACLPolicy {
+    fn check(&self, context: &dyn Any) -> bool {
+        let context: &Context<User, ContextData> = context.downcast_ref().unwrap();
+        let user = &context.get_user().as_ref().unwrap().user;
+        self.owners.contains(user.unbox(context)) 
+    }
+    fn name(&self) -> String {
+        format!("AccessPolicy(owners: {:?})", self.owners) 
+    }
+}
+
+impl Conjunction for ACLPolicy {
+    fn join(&self, p2: &Self) -> Self {     
+        let intersection: HashSet<_> = self.owners.intersection(&p2.owners).collect();
+        let owners = intersection.into_iter().map(|owner| owner.clone()).collect(); 
+        ACLPolicy{owners: owners}
+    }
+}
+
+/* 
+//would need to convert AnswerAccessPolicy to ACL first? 
+//but you don't really want to iterate twice? but maybe i
+pub fn fold_acl<T>(box_vec: Vec<BBox<T, ACLPolicy>>) -> BBox<Vec<T>, ACLPolicy>>{
+    box_vec.iter().reduce(|acc, x| acc.join(x))
+}
+
+prototype like this, then figure out how to make an abstraction of ACLPolicy like a PolicyAnd/ComposedPolicy
+
+just make ACLPolicy a provided Policy type bc it's common? would make this a smoother, 
+but would require logical step of what policies can be shifted into ACLs
+
+need same signature for leaf(AnswerAccess) vs branch (ACL/And)? or will individs vs set work fine
+
+impl From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> in bbox_fold
+fn from(x: BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
+    let p = x.p;
+    x.t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
+}
+*/
