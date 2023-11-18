@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::hash::{Hash};
+use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 
 use chrono::naive::NaiveDateTime;
@@ -14,13 +14,14 @@ use bbox::bbox::{BBox, sandbox_combine};
 use bbox::rocket::{BBoxDataField, BBoxForm, BBoxFormResult, BBoxRedirect, BBoxTemplate, FromBBoxFormField};
 use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
 use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use bbox::bbox::fold_out_box;
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
 use crate::helpers::{left_join, JoinIdx};
-use crate::policies::ContextData;
+use crate::policies::{ContextData, AnswerAccessPolicy};
 
 // TODO(babman): what about data that should not be bboxed!
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -165,7 +166,30 @@ pub(crate) fn answers(
     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.into()]);
     drop(bg);
 
-    let answers: Vec<LectureAnswer> = res
+    /*
+    apply AnswerAccessPolicy to AnyPolicies 
+    -> correct policy should eventually be an automatic feature of retrieving data (SchemaPolicy trait) 
+    goal is to be boxed end-to-end so static analysis can check
+    */
+    let res: Vec<Vec<BBox<mysql::Value, AnswerAccessPolicy>>> = 
+                    res
+                    .into_iter().map(|row| {
+                        row.into_iter().map(|cell| 
+                            cell.specialize_policy::<AnswerAccessPolicy>().unwrap())
+                        .collect()
+                    }).collect();
+
+    // Move box from inside of nested Vecs to one outside
+    let outer_box_res: BBox<Vec<Vec<mysql::Value>>, AnswerAccessPolicy> = 
+                    fold_out_box(res
+                        .into_iter().map(|vec| 
+                            fold_out_box(vec).unwrap())
+                        .collect())
+                    .unwrap();
+
+    //want BBox<Vec<LectureAnswer>>
+    let answers: Vec<LectureAnswer> = outer_box_res
+        .temporary_unbox().clone() //TODO(corinn) want to keep BBox around - ask about BBox::into_iter ?
         .into_iter()
         .map(|r| LectureAnswer {
             id: from_value(r[2].clone().any_policy()).unwrap(), 
@@ -177,7 +201,7 @@ pub(crate) fn answers(
             grade: from_value(r[5].clone().any_policy()).unwrap(), 
         })
         .collect();
-
+    
     let ctx = LectureAnswersContext {
         lec_id: num,
         answers,
@@ -237,6 +261,7 @@ pub(crate) fn questions(
         questions: questions,
         parent: "layout".into(),
     };
+    
 
     BBoxTemplate::render("questions", &ctx, &context)
 }
