@@ -34,6 +34,10 @@ impl<T, P: Policy> BBox<T, P> {
             p: value.p,
         }
     }
+    //retrieve policy
+    pub fn policy(&self) -> &P{ //TODO(corinn) confirm
+        &self.p
+    }
 
     // Unbox with policy checks.
     pub fn temporary_unbox(&self) -> &T {
