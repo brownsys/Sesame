@@ -71,7 +71,7 @@ impl<'r> FromBBoxRequest<'r> for ContextData {
 #[derive(Clone)]
 pub struct AnswerAccessPolicy {
     owner: Option<String>, // even if no owner, admins may access
-    lec_id: Option<u64>,  // no lec_id bc Policy for multiple Answers
+    lec_id: Option<u64>,  // no lec_id when Policy for multiple Answers
 } 
 
 // Content of answer column can only be accessed by:
@@ -96,14 +96,11 @@ impl Policy for AnswerAccessPolicy {
                     return true;
                 }
             None => ()
-                
         }
-
         // I am an admin.
         if config.admins.contains(user.unbox(context)) {
             return true;
         }
-
         // I am a discussion leader.
         match self.lec_id {
             // if lec_id, is the user the appropriate discussion leader?
@@ -137,9 +134,9 @@ impl SchemaPolicy for AnswerAccessPolicy {
         }
     }
 }
-/* ------------------------------------------------------------------------- */
-impl Conjunction for AnswerAccessPolicy {
-    fn join(&self, p2: &Self) -> Self {     
+
+impl Conjunction<()> for AnswerAccessPolicy {
+    fn join(&self, p2: &Self) -> Result<Self, ()> {     
         let comp_owner: Option<String>;  
         let comp_lec_id: Option<u64>;
         if self.owner.eq(&p2.owner) {  
@@ -153,13 +150,13 @@ impl Conjunction for AnswerAccessPolicy {
             comp_lec_id = None;
         }
 
-        AnswerAccessPolicy{
+        Ok(AnswerAccessPolicy{
             owner: comp_owner,
             lec_id: comp_lec_id
-        }
+        })
     }
 }
-/* ------------------------------------------------------------------------- */
+
 pub struct ACLPolicy {
     owners: HashSet<String>,
 } 
@@ -171,14 +168,18 @@ impl Policy for ACLPolicy {
         self.owners.contains(user.unbox(context)) 
     }
     fn name(&self) -> String {
-        format!("AccessPolicy(owners: {:?})", self.owners) 
+        format!("ACLPolicy(owners: {:?})", self.owners) 
     }
 }
 
-impl Conjunction for ACLPolicy {
-    fn join(&self, p2: &Self) -> Self {     
+impl Conjunction<&'static str> for ACLPolicy {
+    fn join(&self, p2: &Self) -> Result<Self, &'static str> {     
         let intersection: HashSet<_> = self.owners.intersection(&p2.owners).collect();
-        let owners = intersection.into_iter().map(|owner| owner.clone()).collect(); 
-        ACLPolicy{owners: owners}
+        let owners: HashSet<String> = intersection.into_iter().map(|owner| owner.clone()).collect(); 
+        if owners.len() > 0 {
+            Ok(ACLPolicy{owners: owners})
+        } else {
+            Err("Composite ACLPolicy unsatisfiable")
+        }
     }
 }

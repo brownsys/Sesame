@@ -11,8 +11,8 @@ pub trait SchemaPolicy: Policy {
     where
         Self: Sized;
 }
-pub trait Conjunction: Policy {
-    fn join(&self, p2: &Self) -> Self; 
+pub trait Conjunction<E>: Policy + Sized {
+    fn join(&self, p2: &Self) -> Result<Self, E>;
 }
 
 pub trait FrontendPolicy: Policy + Send {
@@ -96,6 +96,13 @@ impl FrontendPolicy for NoPolicy {
         Self {}
     }
 }
+/* 
+impl Conjunction<()> for NoPolicy {
+    fn join(&self, _p2: &Self) -> Result<Self, ()> {  
+        Ok(NoPolicy { })
+    } 
+}
+*/
 
 // Allows combining policies with AND
 #[derive(Clone)]
