@@ -69,7 +69,7 @@ pub(crate) struct LectureQuestionsContext {
     pub parent: String,
 }
 
-#[derive(BBoxRender)]
+#[derive(BBoxRender, Clone)]
 pub struct LectureAnswer {
     pub id: BBox<u64, NoPolicy>,
     pub user: BBox<String, NoPolicy>,
@@ -99,6 +99,56 @@ struct LectureListContext {
     lectures: Vec<LectureListEntry>,
     parent: String,
 }
+
+/* ---------------------------------------------------------------- */
+
+#[derive(BBoxRender, Clone)]
+pub struct LectureAnswerLite {
+    pub id: u64,
+    pub user: String,
+    pub answer: String,
+    pub time: String,
+    pub grade: u64,
+}
+
+#[derive(BBoxRender)]
+pub struct LectureAnswersContextLite {
+    pub lec_id: BBox<u8, NoPolicy>,
+    pub answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy>,
+    pub parent: String,
+}
+
+//convert LectureAnswer with BBox around each field to boxed LectureAnswerLite
+impl LectureAnswer {
+    fn unbox_fields(&self) -> LectureAnswerLite {
+        let id = self.id.clone().into_temporary_unbox(); 
+        let user = self.user.clone().into_temporary_unbox();
+        let answer = self.answer.clone().into_temporary_unbox();
+        let time = self.time.clone().into_temporary_unbox();
+        let grade = self.grade.clone().into_temporary_unbox();
+        LectureAnswerLite{
+            id: id, 
+            user: user, 
+            answer: answer, 
+            time: time, 
+            grade: grade, 
+        }
+    } 
+}
+
+fn fold_out_field_boxes(lecture_answers: Vec<LectureAnswer>, lec_id: u64) -> Vec<BBox<LectureAnswerLite, AnswerAccessPolicy>> {
+    lecture_answers.into_iter()
+                    .map(|answer| {
+                        let lec_answer = answer.unbox_fields();
+                        let policy = AnswerAccessPolicy::new(
+                             Some(lec_answer.user.clone()),
+                            Some(lec_id));
+                        BBox::new(lec_answer, policy)
+                     })
+                    .collect()
+}
+ 
+/* ---------------------------------------------------------------- */
 
 #[get("/")]
 pub(crate) fn leclist(
@@ -166,48 +216,37 @@ pub(crate) fn answers(
     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.into()]);
     drop(bg);
 
-    /*
-    apply AnswerAccessPolicy to AnyPolicies 
-    -> correct policy should eventually be an automatic feature of retrieving data (SchemaPolicy trait) 
-    goal is to be boxed end-to-end so static analysis can check
+    /* AnyPolicies around individ items in res -> want AnswerAccessPolicy?
+        -> correct policy should eventually be an automatic feature of retrieving data (SchemaPolicy trait) 
+        goal is to be boxed end-to-end so static analysis can check 
     */
-    let res: Vec<Vec<BBox<mysql::Value, AnswerAccessPolicy>>> = 
-                    res
-                    .into_iter().map(|row| {
-                        row.into_iter().map(|cell| 
-                            cell.specialize_policy::<AnswerAccessPolicy>().unwrap())
-                        .collect()
-                    }).collect();
 
-    // Move box from inside of nested Vecs to one outside
-    let outer_box_res: BBox<Vec<Vec<mysql::Value>>, AnswerAccessPolicy> = 
-                    fold_out_box(res
-                        .into_iter().map(|vec| 
-                            fold_out_box(vec).unwrap())
-                        .collect())
-                    .unwrap();
-
-    //want BBox<Vec<LectureAnswer>>
-    let answers: Vec<LectureAnswer> = outer_box_res
-        .temporary_unbox().clone() //TODO(corinn) want to keep BBox around - ask about BBox::into_iter ?
+    let answers: Vec<LectureAnswer> = res
         .into_iter()
         .map(|r| LectureAnswer {
-            id: from_value(r[2].clone().any_policy()).unwrap(), 
-            user: from_value(r[0].clone().any_policy()).unwrap(), 
-            answer: from_value(r[3].clone().any_policy()).unwrap(), 
-            time: from_value::<NaiveDateTime, AnyPolicy>(r[4].clone().any_policy()).unwrap()
+            id: from_value(r[2].clone()).unwrap(), 
+            user: from_value(r[0].clone()).unwrap(), 
+            answer: from_value(r[3].clone()).unwrap(), 
+            time: from_value::<NaiveDateTime, AnyPolicy>(r[4].clone()).unwrap()
                 .specialize_policy::<NoPolicy>().unwrap() 
                 .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
-            grade: from_value(r[5].clone().any_policy()).unwrap(), 
+            grade: from_value(r[5].clone()).unwrap(), 
         })
         .collect();
-    
-    let ctx = LectureAnswersContext {
+
+    // fold from LectureAnswer into LectureAnswerLite
+    let lec_id = num.clone().into_bbox::<u64>().into_temporary_unbox(); 
+    let inner_box_answers: Vec<BBox<LectureAnswerLite, AnswerAccessPolicy>> = fold_out_field_boxes(answers.clone(), lec_id); 
+
+    // Move box from around each LectureAnswer in vec to one bbox outside vec
+    let outer_box_answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy> = fold_out_box(inner_box_answers).unwrap();
+
+    //TODO(corinn) need Serialize for Vec<LectureAnswerLite>
+    let ctx = LectureAnswersContextLite {
         lec_id: num,
-        answers,
+        answers: outer_box_answers,
         parent: "layout".into(),
     };
-
     BBoxTemplate::render("answers", &ctx, &context)
 }
 
