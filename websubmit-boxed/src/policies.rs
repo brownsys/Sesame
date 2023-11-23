@@ -74,6 +74,12 @@ pub struct AnswerAccessPolicy {
     lec_id: Option<u64>,  // no lec_id when Policy for multiple Answers
 } 
 
+impl AnswerAccessPolicy{
+    pub fn new(owner: Option<String>, lec_id: Option<u64>) -> AnswerAccessPolicy { 
+        AnswerAccessPolicy { owner: owner, lec_id: lec_id }
+    }
+}
+
 // Content of answer column can only be accessed by:
 //   1. The user who submitted the answer (`user_id == me`);
 //   2. The admin(s) (`is me in set<admins>`);
@@ -149,7 +155,6 @@ impl Conjunction<()> for AnswerAccessPolicy {
         } else {
             comp_lec_id = None;
         }
-
         Ok(AnswerAccessPolicy{
             owner: comp_owner,
             lec_id: comp_lec_id
