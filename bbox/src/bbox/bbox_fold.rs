@@ -28,7 +28,7 @@ impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
 }
 
 pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
-                    (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, P>, ()> {
+                    (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, P>, &'static str> {
     let values = bbox_vec
                         .clone().into_iter()
                         .map(|bbox| bbox.clone().temporary_unbox().clone())
@@ -37,7 +37,7 @@ pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
                         .clone().into_iter()
                         .map(|bbox| bbox.clone().policy().clone())
                         .collect();
-    //if policies_vec.len() > 0 {
+    if policies_vec.len() > 0 {
         let base = policies_vec[0].clone(); 
         let composed_policy = policies_vec
                             .into_iter()
@@ -45,14 +45,13 @@ pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
                                 |acc, elem|
                                 acc.join(&elem).unwrap());
         Ok(BBox::new(values, composed_policy))
-    //} else {
-        //not sure of desired behavior - useless BBox for len 0 vector? would need same type P
-        //Ok(BBox::new(values, NoPolicy{ })) 
-        //Err("Folding box out of empty vector - no policies to fold")
-    //    Err(())
-    //}
+    } else {
+        //TODO(corinn)
+        //Desired behavior: BBox around empty vec + empty constructor of Policy P
+        //Ok(BBox::new(values, P::new())) 
+        Err("Folding box out of empty vector - no policies to fold")
+    }
 }
-
 
 pub fn fold_in_box<T: Clone, P: Policy + Clone + Conjunction<()>>
                     (boxed_vec : BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
