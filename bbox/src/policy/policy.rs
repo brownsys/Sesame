@@ -76,6 +76,17 @@ impl Clone for AnyPolicy {
         }
     }
 }
+impl Conjunction for AnyPolicy {
+    fn join(&self, p2: &Self) -> Result<Self, ()> {
+        let self_policy_type = self.policy.as_ref().type_id();
+        let p2_policy_type = p2.policy.as_ref().type_id();
+        if self_policy_type == p2_policy_type { //
+            Ok(AnyPolicy::new(self.policy.join(p2.policy)))
+        } else {
+            Ok(AnyPolicy::new(PolicyAnd::new(self.policy, p2.policy)))
+        }
+    }
+}
 
 // NoPolicy can be directly discarded.
 #[derive(Clone)]
@@ -143,6 +154,16 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyAnd<P1, P2
             p1: P1::from_cookie(),
             p2: P2::from_cookie(),
         }
+    }
+}
+/* (corinn) Are Conjunction and PolicyAnd too redundant?
+    basically a way to wrap non-matching types in order to join()
+    can we make Conjunction more general to allow for this?
+*/
+impl Conjunction for PolicyAnd { 
+    fn join(&self, p2: &Self) -> Result<Self, ()>{
+        //TODO(corinn) recursively check component policies to see if any can be matched and joined
+        Ok(PolicyAnd::new(self, p2))
     }
 }
 
