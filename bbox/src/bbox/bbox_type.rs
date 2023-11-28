@@ -1,5 +1,5 @@
 use crate::context::Context;
-use std::fmt::{Debug, Display, Formatter};
+use std::{fmt::{Debug, Display, Formatter}, any::Any};
 
 use crate::policy::{AnyPolicy, NoPolicy, Policy};
 
@@ -75,6 +75,14 @@ impl<T, P: Policy + Clone> BBox<T, P> {
             t: lambda(&self.t),
             p: self.p.clone(),
         }
+    }
+}
+
+impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> { 
+    pub fn to_any_type_and_policy(self) -> BBox<Box<dyn Any>, AnyPolicy> {
+        let any_policy: AnyPolicy = AnyPolicy::new(self.p); 
+        let any_value: Box<dyn Any> = Box::new(self.t);
+        BBox::new(any_value, any_policy)
     }
 }
 
