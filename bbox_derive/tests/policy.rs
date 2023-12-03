@@ -6,6 +6,7 @@ use mysql::Value;
 use std::any::Any;
 
 #[schema_policy(table = "my_table", column = 3)]
+#[derive(Clone)]
 pub struct SamplePolicy {}
 impl Policy for SamplePolicy {
     fn name(&self) -> String {

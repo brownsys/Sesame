@@ -35,7 +35,7 @@ impl<T, P: Policy> BBox<T, P> {
         }
     }
     //retrieve policy
-    pub fn policy(&self) -> &P{ //TODO(corinn) confirm
+    pub fn policy(&self) -> &P{
         &self.p
     }
 
@@ -80,9 +80,8 @@ impl<T, P: Policy + Clone> BBox<T, P> {
 
 impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> { 
     pub fn to_any_type_and_policy(self) -> BBox<Box<dyn Any>, AnyPolicy> {
-        let any_policy: AnyPolicy = AnyPolicy::new(self.p); 
-        let any_value: Box<dyn Any> = Box::new(self.t);
-        BBox::new(any_value, any_policy)
+        BBox::new(Box::new(self.t),
+                  AnyPolicy::new(self.p))
     }
 }
 
