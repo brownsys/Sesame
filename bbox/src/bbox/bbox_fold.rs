@@ -1,6 +1,9 @@
 use crate::bbox::BBox;
-use crate::policy::{Policy, Conjunction};
+use crate::policy::{Policy, AnyPolicy, Conjunction, NoPolicy};
 use std::convert::TryFrom;
+
+use crate::bbox::{MagicUnbox, MagicUnboxEnum};
+//use crate::context::Context; 
 
 // TODO(artem): think about how both of these interact with the policies
 //              we likely need some sort of foldable trait for each direction
@@ -27,6 +30,9 @@ impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
     }
 }
 
+/* ---------------------------------------------------------------- */
+
+//intermediate but over-specialized box folding - no recursion for inner boxes
 pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
                     (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, P>, &'static str> {
     let values = bbox_vec
@@ -53,6 +59,7 @@ pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
     }
 }
 
+
 pub fn fold_in_box<T: Clone, P: Policy + Clone + Conjunction<()>>
                     (boxed_vec : BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
     let policy = boxed_vec.clone().policy().clone(); 
@@ -62,4 +69,32 @@ pub fn fold_in_box<T: Clone, P: Policy + Clone + Conjunction<()>>
             .collect()
 }
 
+/* ---------------------------------------------------------------- */
+
+pub fn magic_box_fold<S: MagicUnbox>(strct: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
+    let e = strct.to_enum(); 
+    let composed_policy = e.enum_policy()?; //Err propagates if policy composition fails
+    let e = magic_fold_helper(e); //remove bbox
+    let e = S::from_enum(e)?; //convert back to defined S::Out type
+    match composed_policy {
+        Some(policy) => Ok(BBox::new(e, policy)), 
+        None => Ok(BBox::new(e, AnyPolicy::new(NoPolicy::new())))
+    }
+}
+
+pub(crate) fn magic_fold_helper(e: MagicUnboxEnum) -> MagicUnboxEnum {
+    match e {
+        MagicUnboxEnum::Value(val) => MagicUnboxEnum::Value(val), 
+        MagicUnboxEnum::BBox(bbox) => MagicUnboxEnum::Value(bbox.t), //remove bbox        
+        MagicUnboxEnum::Vec(vec) => {
+            MagicUnboxEnum::Vec(vec.into_iter().map(|e| magic_fold_helper(e)).collect())
+        }
+        MagicUnboxEnum::Struct(hashmap) => MagicUnboxEnum::Struct(
+            hashmap
+                .into_iter()
+                .map(|(key, val)| (key, magic_fold_helper(val)))
+                .collect(),
+        ),
+    }
+}
 
