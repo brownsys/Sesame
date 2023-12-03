@@ -76,21 +76,29 @@ impl Clone for AnyPolicy {
         }
     }
 }
-impl Conjunction for AnyPolicy {
+impl Conjunction<()> for AnyPolicy {
     fn join(&self, p2: &Self) -> Result<Self, ()> {
-        let self_policy_type = self.policy.as_ref().type_id();
+        //TODO(corinn) this is the key to reconciling MagicUnbox and Conjunction 
+        // need to be able to call policy.join(p2.policy) when doing magic_fold
+        /*let self_policy_type = self.policy.as_ref().type_id();
         let p2_policy_type = p2.policy.as_ref().type_id();
         if self_policy_type == p2_policy_type { //
             Ok(AnyPolicy::new(self.policy.join(p2.policy)))
-        } else {
-            Ok(AnyPolicy::new(PolicyAnd::new(self.policy, p2.policy)))
-        }
+        } else { */
+        //funky clone() syntax to disambiguate which Clone
+        Ok(AnyPolicy::new(PolicyAnd::new(Clone::clone(&self), Clone::clone(&p2)))) 
+        //}
     }
 }
 
 // NoPolicy can be directly discarded.
 #[derive(Clone)]
 pub struct NoPolicy {}
+impl NoPolicy {
+    pub fn new () -> Self {
+        Self {}
+    }
+}
 impl Policy for NoPolicy {
     fn name(&self) -> String {
         String::from("NoPolicy")
@@ -107,14 +115,41 @@ impl FrontendPolicy for NoPolicy {
         Self {}
     }
 }
-/* 
 impl Conjunction<()> for NoPolicy {
     fn join(&self, _p2: &Self) -> Result<Self, ()> {  
         Ok(NoPolicy { })
     } 
 }
-*/
 
+#[derive(Clone)]
+pub struct PolicyAnd {
+    p1: AnyPolicy,
+    p2: AnyPolicy,
+}
+impl PolicyAnd {
+    pub fn new(p1: AnyPolicy, p2: AnyPolicy) -> Self {
+        Self { p1, p2 }
+    }
+}
+impl Policy for PolicyAnd {
+    fn name(&self) -> String {
+        format!("({} AND {})", self.p1.name(), self.p2.name())
+    }
+    fn check(&self, context: &dyn Any) -> bool {
+        self.p1.check(context) && self.p2.check(context)
+    }
+}
+impl Conjunction<()> for PolicyAnd { 
+    fn join(&self, p2: &Self) -> Result<Self, ()> {
+        //TODO(corinn) recursively check component policies to see if any can be matched and joined
+        Ok(
+            PolicyAnd::new(
+            AnyPolicy::new(Clone::clone(self)), 
+            AnyPolicy::new(Clone::clone(p2))))
+    }
+} 
+
+/*
 // Allows combining policies with AND
 #[derive(Clone)]
 pub struct PolicyAnd<P1: Policy, P2: Policy> {
@@ -156,16 +191,16 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyAnd<P1, P2
         }
     }
 }
-/* (corinn) Are Conjunction and PolicyAnd too redundant?
+/* Are Conjunction and PolicyAnd too redundant?
     basically a way to wrap non-matching types in order to join()
     can we make Conjunction more general to allow for this?
 */
-impl Conjunction for PolicyAnd { 
-    fn join(&self, p2: &Self) -> Result<Self, ()>{
+impl <P1: Policy, P2: Policy> Conjunction<()> for PolicyAnd<P1, P2> { 
+    fn join(&self, p2: &Self) -> Result<Self, ()> {
         //TODO(corinn) recursively check component policies to see if any can be matched and joined
-        Ok(PolicyAnd::new(self, p2))
+        Ok(PolicyAnd::new(self.clone(), p2.clone()))
     }
-}
+} */
 
 #[derive(Clone)]
 pub struct PolicyOr<P1: Policy, P2: Policy> {
