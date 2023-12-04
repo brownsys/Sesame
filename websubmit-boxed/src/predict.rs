@@ -10,7 +10,7 @@ use rocket::State;
 
 use crate::apikey::ApiKey;
 use bbox::context::Context;
-use bbox::bbox::{BBox, sandbox_combine, sandbox_execute};
+use bbox::bbox::{BBox, sandbox_combine, sandbox_execute, MagicUnbox, MagicUnboxEnum};
 use bbox::rocket::{BBoxForm, BBoxTemplate};
 use bbox_derive::{get, post, BBoxRender, FromBBoxForm};
 use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
@@ -18,6 +18,27 @@ use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
 use crate::backend::MySqlBackend;
 use crate::policies::ContextData;
+
+pub struct FittedLinRegWrapper {
+    x: FittedLinearRegression<f64>
+}
+
+//TODO: Derive once MagicUnbox is derivable>
+impl MagicUnbox for FittedLinRegWrapper {
+    type Out = FittedLinRegWrapper; 
+    fn to_enum(self) -> MagicUnboxEnum {
+        MagicUnboxEnum::Value(Box::new(self))
+    }
+    fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()> {
+        match e {
+            MagicUnboxEnum::Value(v) => match v.downcast() {
+                Ok(v) => Ok(*v),
+                _ => Err(()),
+            }
+            _ => Err(()),
+        }
+    }
+}
 
 lazy_static! {
     static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, NoPolicy>>>> =
@@ -119,8 +140,8 @@ pub(crate) fn predict_grade(
 
     // Evaluate model.
     let lock = MODEL.lock().unwrap();
-    let model = lock.as_ref().unwrap().as_ref();
-    let time = data.time.as_ref();
+    let model = lock.as_ref().unwrap().as_ref().clone(); 
+    let time = data.time.as_ref().clone();
     let grade = sandbox_combine(time, model, |time, model| {
         let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
         model.params()[0] * (time.unwrap().timestamp() as f64) + model.intercept()
