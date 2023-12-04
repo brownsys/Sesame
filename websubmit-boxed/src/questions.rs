@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
+use serde::Serialize; //for issue with Vec as un-Serializable
 
 use chrono::naive::NaiveDateTime;
 use chrono::Local;
@@ -10,11 +11,12 @@ use rocket::State;
 use crate::admin::Admin;
 use bbox::context::Context;
 use bbox::db::{from_value, from_value_or_null};
-use bbox::bbox::{BBox, sandbox_combine};
+use bbox::bbox::{BBox, sandbox_combine, magic_box_fold};
 use bbox::rocket::{BBoxDataField, BBoxForm, BBoxFormResult, BBoxRedirect, BBoxTemplate, FromBBoxFormField};
 use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
 use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
-use bbox::bbox::fold_out_box;
+
+use bbox::bbox::{MagicUnbox, MagicUnboxEnum};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -102,7 +104,7 @@ struct LectureListContext {
 
 /* ---------------------------------------------------------------- */
 
-#[derive(BBoxRender, Clone)]
+#[derive(BBoxRender, Clone, Serialize)]
 pub struct LectureAnswerLite {
     pub id: u64,
     pub user: String,
@@ -114,11 +116,13 @@ pub struct LectureAnswerLite {
 #[derive(BBoxRender)]
 pub struct LectureAnswersContextLite {
     pub lec_id: BBox<u8, NoPolicy>,
-    pub answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy>,
+    pub answers: BBox<Vec<LectureAnswerLite>, NoPolicy>,
     pub parent: String,
 }
 
-//convert LectureAnswer with BBox around each field to boxed LectureAnswerLite
+//Manually LectureAnswer with BBox around each field to boxed LectureAnswerLite
+//unbox_fields will be generalized with MagicUnbox;
+//call to fold_out_field_boxes then fold_out_box will be recursively performed via MagicUnboxing 
 impl LectureAnswer {
     fn unbox_fields(&self) -> LectureAnswerLite {
         let id = self.id.clone().into_temporary_unbox(); 
@@ -136,7 +140,7 @@ impl LectureAnswer {
     } 
 }
 
-fn fold_out_field_boxes(lecture_answers: Vec<LectureAnswer>, lec_id: u64) -> Vec<BBox<LectureAnswerLite, AnswerAccessPolicy>> {
+fn _fold_out_field_boxes(lecture_answers: Vec<LectureAnswer>, lec_id: u64) -> Vec<BBox<LectureAnswerLite, AnswerAccessPolicy>> {
     lecture_answers.into_iter()
                     .map(|answer| {
                         let lec_answer = answer.unbox_fields();
@@ -147,7 +151,35 @@ fn fold_out_field_boxes(lecture_answers: Vec<LectureAnswer>, lec_id: u64) -> Vec
                      })
                     .collect()
 }
- 
+
+/* ---------------------------------------------------------------- */
+// Later, this will be Derived rather than impl'd on client side
+impl MagicUnbox for LectureAnswer {
+    type Out = LectureAnswerLite; 
+    fn to_enum(self) -> MagicUnboxEnum {
+        let hashmap = HashMap::from([
+            (String::from("id"), self.id.to_enum()),
+            (String::from("user"), self.user.to_enum()),
+            (String::from("answer"), self.answer.to_enum()),
+            (String::from("time"), self.time.to_enum()),
+            (String::from("grade"), self.grade.to_enum()),
+        ]);
+        MagicUnboxEnum::Struct(hashmap)  
+    }
+    fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()> {
+        match e {
+            MagicUnboxEnum::Struct(mut hashmap) => Ok(Self::Out {
+                id: <u64 as MagicUnbox>::from_enum(hashmap.remove("id").unwrap())?,
+                user: <String as MagicUnbox>::from_enum(hashmap.remove("user").unwrap())?,
+                answer: <String as MagicUnbox>::from_enum(hashmap.remove("answer").unwrap())?,
+                time: <String as MagicUnbox>::from_enum(hashmap.remove("time").unwrap())?,
+                grade: <u64 as MagicUnbox>::from_enum(hashmap.remove("grade").unwrap())?,
+            }),
+            _ => Err(()),
+        }
+    }
+    
+  }
 /* ---------------------------------------------------------------- */
 
 #[get("/")]
@@ -221,6 +253,7 @@ pub(crate) fn answers(
         goal is to be boxed end-to-end so static analysis can check 
     */
 
+    //this wraps incoming column data in LectureAnswer format
     let answers: Vec<LectureAnswer> = res
         .into_iter()
         .map(|r| LectureAnswer {
@@ -233,14 +266,21 @@ pub(crate) fn answers(
             grade: from_value(r[5].clone()).unwrap(), 
         })
         .collect();
-
-    // fold from LectureAnswer into LectureAnswerLite
+    
+    /* // Before, with manual folding: 
+    // Fold from LectureAnswer into LectureAnswerLite
     let lec_id = num.clone().into_bbox::<u64>().into_temporary_unbox(); 
     let inner_box_answers: Vec<BBox<LectureAnswerLite, AnswerAccessPolicy>> = fold_out_field_boxes(answers.clone(), lec_id); 
-
     // Move box from around each LectureAnswer in vec to one bbox outside vec
     let outer_box_answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy> = fold_out_box(inner_box_answers).unwrap();
+    */
 
+    // Now, with magic folding!                         NoPolicy is for NoPolicy in fields of LectureAnswer
+    let outer_box_answers: BBox<Vec<LectureAnswerLite>, NoPolicy> = magic_box_fold(answers)
+                                                                                    .unwrap()
+                                                                                    .specialize_policy::<NoPolicy>()
+                                                                                    .unwrap(); 
+    
     //TODO(corinn) need Serialize for Vec<LectureAnswerLite>
     let ctx = LectureAnswersContextLite {
         lec_id: num,
