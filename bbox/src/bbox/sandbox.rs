@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::any::Any;
 
 use crate::bbox::BBox;
-use crate::policy::{Policy, Conjunction, AnyPolicy}; //NoPolicy};
+use crate::policy::{Policy, Conjunction, AnyPolicy, NoPolicy};
 use crate::bbox::magic_box_fold;
 
 // BBox and containers of it are MagicUnboxable.
@@ -12,7 +12,7 @@ pub enum MagicUnboxEnum {
     Vec(Vec<MagicUnboxEnum>),
     Struct(HashMap<String, MagicUnboxEnum>),
 }
-// Public: client code must Derive this, and can call magic_box_fold, but should not be able to call from_enum
+// Public: client code should Derive this, and can call magic_box_fold, but should not be able to call from_enum
 pub trait MagicUnbox {
     type Out; //Lite form of struct
     fn to_enum(self) -> MagicUnboxEnum;
@@ -153,25 +153,30 @@ impl<S: MagicUnbox> MagicUnbox for Vec<S> {
 pub fn sandbox_execute<S: MagicUnbox, R, F: FnOnce(S::Out) -> R>(
     s: S,
     lambda: F,
-) -> BBox<R, AnyPolicy>{ //TODO should this return a Result?
+) -> BBox<R, NoPolicy>{ //TODO should this return a Result? 
+                        //and should the result be wrapped in the og Policy
+
     let outer_boxed = magic_box_fold(s).unwrap(); 
-    let cached_policy = outer_boxed.policy().clone();
-    BBox::new(lambda(outer_boxed.into_temporary_unbox()), cached_policy.clone())
+    // cached_policy isn't necessarily the correct Policy for the whole struct - the outer_boxed policy inside AnyPolicy is the correct composed one
+    let _cached_policy = outer_boxed.policy().clone(); 
+    BBox::new(lambda(outer_boxed.into_temporary_unbox()), NoPolicy::new())
 }
+
 pub fn sandbox_combine<S1: MagicUnbox, S2: MagicUnbox, R, F: FnOnce(S1::Out, S2::Out) -> R>(
     s1: S1,
     s2: S2,
     lambda: F,
-) -> BBox<R, AnyPolicy> {
+) -> BBox<R, NoPolicy> {
     let outer_boxed1 = magic_box_fold(s1).unwrap(); 
     let cached_policy1 = outer_boxed1.policy().clone();
     let outer_boxed2 = magic_box_fold(s2).unwrap(); 
     let cached_policy2 = outer_boxed2.policy().clone();
-    let composed_policy = cached_policy1.join(&cached_policy2).unwrap(); 
+    let _composed_policy = cached_policy1.join(&cached_policy2).unwrap(); 
     BBox::new(lambda(outer_boxed1.into_temporary_unbox(), 
                       outer_boxed2.into_temporary_unbox()),
-              composed_policy)
+              NoPolicy::new())
 }
+
 /*  
 impl<'a, S> Sandboxable for &'a Vec<S>
 where
