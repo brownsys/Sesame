@@ -1,5 +1,8 @@
 use crate::rocket::BBoxRequest;
-use std::any::{Any, TypeId};
+use std::{any::{Any, TypeId}, collections::HashSet};
+
+use crate::context::Context;
+
 
 // Public facing Policy traits.
 pub trait Policy {
@@ -243,13 +246,14 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2>
     }
 }
 
-pub struct ACLPolicy {
+/*  Need to fix parameterized type with Context
+pub struct ACLPolicy<U, D> {
     owners: HashSet<String>,
 } 
 
-impl Policy for ACLPolicy {
+impl<U, D> Policy for ACLPolicy<U, D> {
     fn check(&self, context: &dyn Any) -> bool {
-        let context: &Context<User, ContextData> = context.downcast_ref().unwrap();
+        let context: &Context<U, D> = context.downcast_ref().unwrap();
         let user = &context.get_user().as_ref().unwrap().user;
         self.owners.contains(user.unbox(context)) 
     }
@@ -258,7 +262,7 @@ impl Policy for ACLPolicy {
     }
 }
 
-impl Conjunction<&'static str> for ACLPolicy {
+impl<U, D> Conjunction<&'static str> for ACLPolicy<U, D> {
     fn join(&self, p2: &Self) -> Result<Self, &'static str> {     
         let intersection: HashSet<_> = self.owners.intersection(&p2.owners).collect();
         let owners: HashSet<String> = intersection.into_iter().map(|owner| owner.clone()).collect(); 
@@ -269,3 +273,4 @@ impl Conjunction<&'static str> for ACLPolicy {
         }
     }
 }
+*/
