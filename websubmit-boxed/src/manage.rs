@@ -17,7 +17,7 @@ use crate::policies::ContextData;
 use bbox::context::Context;
 use bbox::db::{Value, from_value};
 use bbox::bbox::{BBox, sandbox_execute};
-use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use bbox::policy::NoPolicy; // NoPolicy, PolicyAnd, SchemaPolicy};
 use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
 use bbox_derive::{BBoxRender, get};
 
