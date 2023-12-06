@@ -3,6 +3,7 @@ use std::{fmt::{Debug, Display, Formatter}, any::Any};
 
 use crate::policy::{AnyPolicy, NoPolicy, Policy};
 
+#[derive(PartialEq)]
 pub struct BBox<T, P: Policy> {
     pub(crate) t: T,
     pub(crate) p: P,
