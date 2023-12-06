@@ -153,7 +153,8 @@ impl Conjunction<()> for PolicyAnd {
 } 
 
 /*
-// Allows combining policies with AND
+// This is the previous version of PolicyAnd which takes in parameterized types rather than AnyPolicy
+
 #[derive(Clone)]
 pub struct PolicyAnd<P1: Policy, P2: Policy> {
     p1: P1,
@@ -245,32 +246,3 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2>
         }
     }
 }
-
-/*  Need to fix parameterized type with Context
-pub struct ACLPolicy<U, D> {
-    owners: HashSet<String>,
-} 
-
-impl<U, D> Policy for ACLPolicy<U, D> {
-    fn check(&self, context: &dyn Any) -> bool {
-        let context: &Context<U, D> = context.downcast_ref().unwrap();
-        let user = &context.get_user().as_ref().unwrap().user;
-        self.owners.contains(user.unbox(context)) 
-    }
-    fn name(&self) -> String {
-        format!("ACLPolicy(owners: {:?})", self.owners) 
-    }
-}
-
-impl<U, D> Conjunction<&'static str> for ACLPolicy<U, D> {
-    fn join(&self, p2: &Self) -> Result<Self, &'static str> {     
-        let intersection: HashSet<_> = self.owners.intersection(&p2.owners).collect();
-        let owners: HashSet<String> = intersection.into_iter().map(|owner| owner.clone()).collect(); 
-        if owners.len() > 0 {
-            Ok(ACLPolicy{owners: owners})
-        } else {
-            Err("Composite ACLPolicy unsatisfiable")
-        }
-    }
-}
-*/
