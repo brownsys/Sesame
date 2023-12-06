@@ -34,7 +34,7 @@ impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
 
 //intermediate but over-specialized box folding - no recursion for inner boxes
 pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
-                    (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, P>, &'static str> {
+                    (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, P>, ()> {
     let values = bbox_vec
                         .clone().into_iter()
                         .map(|bbox| bbox.clone().temporary_unbox().clone())
@@ -55,7 +55,7 @@ pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
         //TODO(corinn)
         //Desired behavior: BBox around empty vec + empty constructor of Policy P
         //Ok(BBox::new(values, P::new())) 
-        Err("Folding box out of empty vector - no policies to fold")
+        Err(())
     }
 }
 
@@ -100,7 +100,7 @@ pub(crate) fn magic_fold_helper(e: MagicUnboxEnum) -> MagicUnboxEnum {
 
 mod tests {
     use crate::policy::{Policy, Conjunction, PolicyAnd};
-    use crate::bbox::{magic_box_fold, BBox, MagicUnbox, MagicUnboxEnum};
+    use crate::bbox::{BBox, magic_box_fold, fold_out_box, MagicUnbox, MagicUnboxEnum};
     use crate::context::Context;
 
     use std::any::Any;
@@ -134,14 +134,14 @@ mod tests {
             format!("ACLPolicy(owners: {:?})", self.owners) 
         }
     }
-    impl Conjunction<&'static str> for ACLPolicy {
-        fn join(&self, p2: &Self) -> Result<Self, &'static str> {     
+    impl Conjunction<()> for ACLPolicy {
+        fn join(&self, p2: &Self) -> Result<Self, ()> {     
             let intersection: HashSet<_> = self.owners.intersection(&p2.owners).collect();
             let owners: HashSet<String> = intersection.into_iter().map(|owner| owner.clone()).collect(); 
             if owners.len() > 0 {
                 Ok(ACLPolicy{owners: owners})
             } else {
-                Err("Composite ACLPolicy unsatisfiable")
+                Err(())
             }
         }
     }
@@ -187,6 +187,45 @@ mod tests {
         }
     }
 
+    #[test]
+    fn fold_out_box_test(){
+        //test manual folding
+        let alice = String::from("Alice");
+        let bob = String::from("Bob"); 
+        let allen = String::from("Allen");
+
+        let pol1 = ACLPolicy::new(HashSet::from([alice.clone(), bob.clone()]));
+        let pol2 = ACLPolicy::new(HashSet::from([alice.clone(), allen.clone()]));
+
+        let mut orig_vec = Vec::new();
+        let mut expected = Vec::new();
+        let mut i = 0;
+
+
+        while i < 20 {
+            if i % 2 == 0 {
+                orig_vec.push(BBox::new(i, pol1.clone()));
+            } else {
+                orig_vec.push(BBox::new(i, pol2.clone()));
+            }
+            expected.push(i);
+            i = i + 1;
+        }
+
+        // Values are correct
+        let folded = fold_out_box(orig_vec).unwrap();
+        assert_eq!(expected, folded.t);
+
+        //ACLPolicy conjunction worked
+        let allowed = ContextData{ user: alice}; 
+        let unallowed1 =  ContextData{ user: bob}; 
+        let unallowed2 =  ContextData{ user: allen}; 
+
+        assert!(folded.policy().check(&allowed));
+        assert!(!folded.policy().check(&unallowed1));
+        assert!(!folded.policy().check(&unallowed2));
+    }
+
     #[test] 
     fn fold_nobox() {
         let alice = String::from("Alice");
@@ -204,7 +243,7 @@ mod tests {
 
         // Any user is allowed access to aggregated vector bc resultant BBox has NoPolicy
         let allowed = ContextData{ user: String::from("")}; 
-        //anyone can access 
+        //arbitrary user can access all results
         assert!(alice_res.as_ref().unwrap()
                     .policy().check(&allowed));
         assert!(num_res.as_ref().unwrap()
