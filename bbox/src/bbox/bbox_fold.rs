@@ -149,7 +149,6 @@ mod tests {
     #[derive(Clone, PartialEq, Debug)]
     pub struct BoxedStruct {
         pub score: BBox<u64, ACLPolicy>,
-        //secret: BBox<String, ACLPolicy>,
     }
     impl BoxedStruct {
         pub fn new(score: u64, policy: ACLPolicy) -> Self {
@@ -189,7 +188,33 @@ mod tests {
     }
 
     #[test] 
-    fn fold_nonboxed_vec() {
+    fn fold_nobox() {
+        let alice = String::from("Alice");
+        let num = 28; 
+        let deci = 32.0; 
+
+        //Call magic_box_fold on unboxed data w/ MagicUnbox impl'd
+        let alice_res = magic_box_fold(alice.clone());
+        let num_res = magic_box_fold(num.clone());
+        let deci_res = magic_box_fold(deci.clone());
+        //The aggregated data is as expected
+        assert_eq!(alice_res.as_ref().unwrap().t, alice.clone());
+        assert_eq!(num_res.as_ref().unwrap().t, num.clone());
+        assert_eq!(deci_res.as_ref().unwrap().t, deci.clone());
+
+        // Any user is allowed access to aggregated vector bc resultant BBox has NoPolicy
+        let allowed = ContextData{ user: String::from("")}; 
+        //anyone can access 
+        assert!(alice_res.as_ref().unwrap()
+                    .policy().check(&allowed));
+        assert!(num_res.as_ref().unwrap()
+                    .policy().check(&allowed));
+        assert!(deci_res.as_ref().unwrap()
+                    .policy().check(&allowed));
+    }
+
+    #[test] 
+    fn fold_nobox_vec() {
         let admin1 = String::from("Admin1");
         let alice = String::from("Alice");
         let bob = String::from("Bob"); 
@@ -214,9 +239,8 @@ mod tests {
                     .policy().check(&allowed_admin1));
     }
 
-    
     #[test]
-    fn fold_boxes_vec() {
+    fn fold_simple_boxes_vec() {
         let admin1 = String::from("Admin1");
         let admin2 = String::from("Admin2");
         let alice = String::from("Alice");
@@ -286,12 +310,7 @@ mod tests {
         //The aggregated data is as expected
         assert_eq!(agg.as_ref().unwrap().t, unboxed_vec);
 
-        //assert_eq!(agg.as_ref().unwrap().policy().clone()
-        //                .specialize::<PolicyAnd>().unwrap(), 
-        //            HashSet::from([admin.clone()]));
-        println!("{}", agg.as_ref().unwrap().policy().name());
-        //                .specialize::<PolicyAnd>().unwrap());
-
+        println!("PolicyAnd on aggregated vector: \n{} \n", agg.as_ref().unwrap().policy().name());
 
         // Users are allowed and disallowed access to aggregated vector as expected  
         let allowed_admin = ContextData{ user: admin.clone()}; 
@@ -303,7 +322,6 @@ mod tests {
                     .policy().check(&ContextData{user: String::from("Bob") }));
         assert!(!agg.as_ref().unwrap()
                     .policy().check(&ContextData{user: String::from("Allen") }));
-
     }
 
     
