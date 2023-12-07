@@ -201,7 +201,6 @@ mod tests {
         let mut expected = Vec::new();
         let mut i = 0;
 
-
         while i < 20 {
             if i % 2 == 0 {
                 orig_vec.push(BBox::new(i, pol1.clone()));
@@ -227,7 +226,7 @@ mod tests {
     }
 
     #[test] 
-    fn fold_nobox() {
+    fn fold_raw_data() {
         let alice = String::from("Alice");
         let num = 28; 
         let deci = 32.0; 
@@ -305,7 +304,6 @@ mod tests {
         assert_eq!(agg.as_ref().unwrap().t, unboxed_vec);
     
         // Users are allowed access to aggregated vector as expected  
-    
         let allowed_admin1 = ContextData{ user: admin1.clone()}; 
         let allowed_admin2 = ContextData{ user: admin2.clone()}; 
         assert!(agg.as_ref().unwrap()
@@ -342,7 +340,6 @@ mod tests {
         unboxed_vec.extend([BoxedStructLite::new(100), 
                                   BoxedStructLite::new(95), 
                                   BoxedStructLite::new(98)]);
-        
         //Call to magic_box_fold 
         let agg = magic_box_fold(boxed_vec.clone());
 
@@ -362,6 +359,4 @@ mod tests {
         assert!(!agg.as_ref().unwrap()
                     .policy().check(&ContextData{user: String::from("Allen") }));
     }
-
-    
 }

@@ -115,7 +115,6 @@ impl MagicUnbox for f64 {
     }
 }
 
-
 impl MagicUnbox for String {
     type Out = String; 
     fn to_enum(self) -> MagicUnboxEnum {
