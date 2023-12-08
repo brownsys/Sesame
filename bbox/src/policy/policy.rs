@@ -83,11 +83,14 @@ impl Conjunction<()> for AnyPolicy {
     fn join(&self, p2: &Self) -> Result<Self, ()> {
         //TODO(corinn) this is the key to reconciling MagicUnbox and Conjunction 
         // need to be able to call policy.join(p2.policy) when doing magic_fold
-        /*let self_policy_type = self.policy.as_ref().type_id();
+
+        /*
+        let self_policy_type = self.policy.as_ref().type_id();
         let p2_policy_type = p2.policy.as_ref().type_id();
         if self_policy_type == p2_policy_type { //
             Ok(AnyPolicy::new(self.policy.join(p2.policy)))
-        } else { */
+        } else { 
+        */
         //funky clone() syntax to disambiguate which Clone
         Ok(AnyPolicy::new(PolicyAnd::new(Clone::clone(&self), Clone::clone(&p2)))) 
         //}

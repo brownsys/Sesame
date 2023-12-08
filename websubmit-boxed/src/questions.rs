@@ -57,7 +57,7 @@ pub(crate) struct LectureQuestionSubmission {
     answers: HashMap<Fake64, BBox<String, NoPolicy>>,
 }
 
-#[derive(BBoxRender, Clone)]//, MagicUnbox)] //toggle to compile
+#[derive(BBoxRender, Clone)]//, MagicUnbox)] 
 pub(crate) struct LectureQuestion {
     pub id: BBox<u64, NoPolicy>,
     pub prompt: BBox<String, NoPolicy>,
@@ -71,7 +71,7 @@ pub(crate) struct LectureQuestionsContext {
     pub parent: String,
 }
 
-#[derive(BBoxRender, Clone)]
+#[derive(BBoxRender, Clone)] 
 pub struct LectureAnswer {
     pub id: BBox<u64, NoPolicy>,
     pub user: BBox<String, NoPolicy>,
@@ -178,7 +178,6 @@ impl MagicUnbox for LectureAnswer {
             _ => Err(()),
         }
     }
-    
   }
 /* ---------------------------------------------------------------- */
 
@@ -281,7 +280,6 @@ pub(crate) fn answers(
                                                                                     .specialize_policy::<NoPolicy>()
                                                                                     .unwrap(); 
     
-    //TODO(corinn) need Serialize for Vec<LectureAnswerLite>
     let ctx = LectureAnswersContextLite {
         lec_id: num,
         answers: outer_box_answers,
