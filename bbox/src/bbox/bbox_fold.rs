@@ -1,5 +1,5 @@
 use crate::bbox::BBox;
-use crate::policy::{Policy, AnyPolicy, Conjunction, NoPolicy};
+use crate::policy::{Policy, AnyPolicy, NoPolicy}; //Conjunction};
 use std::convert::TryFrom;
 
 use crate::bbox::{MagicUnbox, MagicUnboxEnum};
@@ -33,15 +33,15 @@ impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
 /* ---------------------------------------------------------------- */
 
 //intermediate but over-specialized box folding - no recursion for inner boxes
-pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
-                    (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, P>, ()> {
+pub fn fold_out_box<T: Clone, P: Policy + Clone + 'static> // + Conjunction<()>>
+                    (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, AnyPolicy>, ()> {
     let values = bbox_vec
                         .clone().into_iter()
                         .map(|bbox| bbox.clone().temporary_unbox().clone())
                         .collect();
-    let policies_vec: Vec<P> = bbox_vec
+    let policies_vec: Vec<AnyPolicy> = bbox_vec
                         .clone().into_iter()
-                        .map(|bbox| bbox.clone().policy().clone())
+                        .map(|bbox| AnyPolicy::new(bbox.clone().policy().clone()))
                         .collect();
     if policies_vec.len() > 0 {
         let base = policies_vec[0].clone(); 
@@ -49,7 +49,7 @@ pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
                             .into_iter()
                             .fold(base,  //base 0th instead of reduce bc don't need to unwrap()
                                 |acc, elem|
-                                acc.join(&elem).unwrap());
+                                acc.join(elem).unwrap());
         Ok(BBox::new(values, composed_policy))
     } else {
         //TODO(corinn)
@@ -60,7 +60,7 @@ pub fn fold_out_box<T: Clone, P: Policy + Clone + Conjunction<()>>
 }
 
 
-pub fn fold_in_box<T: Clone, P: Policy + Clone + Conjunction<()>>
+pub fn fold_in_box<T: Clone, P: Policy + Clone> //+ Conjunction<()>>
                     (boxed_vec : BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
     let policy = boxed_vec.clone().policy().clone(); 
     boxed_vec.clone().temporary_unbox().clone()
@@ -99,7 +99,7 @@ pub(crate) fn magic_fold_helper(e: MagicUnboxEnum) -> MagicUnboxEnum {
 }
 
 mod tests {
-    use crate::policy::{Policy, Conjunction, PolicyAnd};
+    use crate::policy::{Policy, PolicyAnd, AnyPolicy}; // , Conjunction};
     use crate::bbox::{BBox, magic_box_fold, fold_out_box, MagicUnbox, MagicUnboxEnum};
     use crate::context::Context;
 
@@ -133,10 +133,19 @@ mod tests {
         fn name(&self) -> String {
             format!("ACLPolicy(owners: {:?})", self.owners) 
         }
-    }
-    impl Conjunction<()> for ACLPolicy {
-        fn join(&self, p2: &Self) -> Result<Self, ()> {     
-            let intersection: HashSet<_> = self.owners.intersection(&p2.owners).collect();
+        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
+            if other.is::<ACLPolicy>() { //Policies are combinable
+                let other = other.specialize::<ACLPolicy>().unwrap();
+                Ok(AnyPolicy::new(self.join_logic(other)?))
+            } else {                    //Policies must be stacked
+                Ok(AnyPolicy::new(
+                    PolicyAnd::new(
+                        AnyPolicy::new(self.clone()),
+                        other)))
+            }
+        }
+        fn join_logic(&self, other: Self) -> Result<Self, ()> {
+            let intersection: HashSet<_> = self.owners.intersection(&other.owners).collect();
             let owners: HashSet<String> = intersection.into_iter().map(|owner| owner.clone()).collect(); 
             if owners.len() > 0 {
                 Ok(ACLPolicy{owners: owners})
@@ -145,7 +154,13 @@ mod tests {
             }
         }
     }
-
+    /*
+    impl Conjunction<()> for ACLPolicy {
+        fn join(&self, p2: &Self) -> Result<Self, ()> {     
+            todo!()
+        }
+    }
+    */
     #[derive(Clone, PartialEq, Debug)]
     pub struct BoxedStruct {
         pub score: BBox<u64, ACLPolicy>,
@@ -188,8 +203,8 @@ mod tests {
     }
     
     #[test]
-    fn fold_out_box_test(){
-        //test manual folding
+    fn fold_out_box_test(){ //test * manual * folding
+        
         let alice = String::from("Alice");
         let bob = String::from("Bob"); 
         let allen = String::from("Allen");
@@ -278,6 +293,31 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn fold_unsatisfiable_boxes_vec() {
+        let admin1 = String::from("Admin1");
+        let admin2 = String::from("Admin2");
+        let alice = String::from("Alice");
+        let bob = String::from("Bob"); 
+        let allen = String::from("Allen");
+        
+        let alice_acl = HashSet::from([alice.clone()]);
+        let bob_acl = HashSet::from([bob.clone()]);
+        let allen_acl = HashSet::from([allen.clone(), admin1.clone(), admin2.clone()]);
+        
+        let mut boxed_vec = Vec::new();
+        boxed_vec.extend([BBox::new(100, ACLPolicy::new(alice_acl)), 
+                                    BBox::new(99, ACLPolicy::new(bob_acl)), 
+                                    BBox::new(95, ACLPolicy::new(allen_acl))]);
+        
+        let mut unboxed_vec = Vec::new(); 
+        unboxed_vec.extend([100, 99, 95]);
+            
+        //Call to magic_box_fold -> will panic bc Policy join() was unsuccessful
+        let _agg = magic_box_fold(boxed_vec).unwrap();
+    }
+
+    #[test]
     fn fold_simple_boxes_vec() {
         let admin1 = String::from("Admin1");
         let admin2 = String::from("Admin2");
@@ -318,6 +358,8 @@ mod tests {
                         .policy().check(&ContextData{user: String::from("Bob") }));
         assert!(!agg.as_ref().unwrap()
                         .policy().check(&ContextData{user: String::from("Allen") }));
+        
+        println!("Final policy on aggregate: {}", agg.unwrap().policy().name());
     
     }
 
