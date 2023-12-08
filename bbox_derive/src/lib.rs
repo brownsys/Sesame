@@ -10,6 +10,7 @@ mod form;
 mod policy;
 mod render;
 mod route;
+mod magic_unbox;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
@@ -73,4 +74,10 @@ pub fn routes(input: TokenStream) -> TokenStream {
         vec![#( #input ::info().into()),*]
     };
     result.into()
+}
+
+#[proc_macro_derive(MagicUnbox)]
+pub fn derive_magic_unbox(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    magic_unbox::derive_magic_unbox_impl(input).into()
 }
