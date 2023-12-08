@@ -186,7 +186,7 @@ mod tests {
             }
         }
     }
-
+    
     #[test]
     fn fold_out_box_test(){
         //test manual folding
