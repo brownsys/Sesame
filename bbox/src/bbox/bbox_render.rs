@@ -10,11 +10,11 @@ use figment::value::Value as FValue;
 // Our BBox struct.
 use crate::bbox::{BBox, EitherBBox};
 use crate::context::Context;
-use crate::policy::Policy;
+use crate::policy::{Policy, AnyPolicy};
 
 // Types for cheap references of BBox with type erasure.
 pub mod refs {
-    use super::{Any, BBox, Policy, Serialize};
+    use super::{Any, BBox, Policy, AnyPolicy, Serialize};
     // AnyPolicy (by ref)
     pub struct RefPolicy<'a> {
         policy: &'a dyn Policy,
@@ -32,6 +32,12 @@ pub mod refs {
         }
         fn check(&self, context: &dyn Any) -> bool {
             self.policy.check(context)
+        }
+        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+            todo!()
+        }
+        fn join_logic(&self, other: Self) -> Result<Self, ()> {
+            todo!()
         }
     }
 

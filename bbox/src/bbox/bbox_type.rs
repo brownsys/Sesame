@@ -186,6 +186,12 @@ mod tests {
         fn check(&self, _context: &dyn Any) -> bool {
             true
         }
+        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
+            Ok(AnyPolicy::new(self.clone()))
+        }
+        fn join_logic(&self, other: Self) -> Result<Self, ()> {
+            Ok(TestPolicy { attr: String::from("") })
+        }
     }
 
     #[test]

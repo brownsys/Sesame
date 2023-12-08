@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::any::Any;
 
 use crate::bbox::BBox;
-use crate::policy::{Policy, Conjunction, AnyPolicy, NoPolicy};
+use crate::policy::{Policy, AnyPolicy, NoPolicy}; //, Conjunction};
 use crate::bbox::magic_box_fold;
 
 // BBox and containers of it are MagicUnboxable.
@@ -30,7 +30,7 @@ fn compose_option_policies(policies_vec: Vec<Option<AnyPolicy>>) -> Result<Optio
         let composed_policy = filtered_policies
                             .into_iter()
                             .fold(base, |acc, elem|
-                                acc.join(&elem).unwrap());
+                                acc.join(elem).unwrap());
         Ok(Some(composed_policy))
     } else if policies_vec.len() > 0 {
         Ok(None)
@@ -170,7 +170,6 @@ pub fn sandbox_execute<S: MagicUnbox, R, F: FnOnce(S::Out) -> R>(
     s: S,
     lambda: F,
 ) -> BBox<R, NoPolicy>{ //TODO should this return a Result? 
-                        //and should the result be wrapped in the og Policy
 
     let outer_boxed = magic_box_fold(s).unwrap(); 
     // cached_policy isn't necessarily the correct Policy for the whole struct - the outer_boxed policy inside AnyPolicy is the correct composed one
@@ -187,7 +186,7 @@ pub fn sandbox_combine<S1: MagicUnbox, S2: MagicUnbox, R, F: FnOnce(S1::Out, S2:
     let cached_policy1 = outer_boxed1.policy().clone();
     let outer_boxed2 = magic_box_fold(s2).unwrap(); 
     let cached_policy2 = outer_boxed2.policy().clone();
-    let _composed_policy = cached_policy1.join(&cached_policy2).unwrap(); 
+    let _composed_policy = cached_policy1.join(cached_policy2).unwrap(); 
     BBox::new(lambda(outer_boxed1.into_temporary_unbox(), 
                       outer_boxed2.into_temporary_unbox()),
               NoPolicy::new())

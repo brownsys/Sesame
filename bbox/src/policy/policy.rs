@@ -1,23 +1,24 @@
 use crate::rocket::BBoxRequest;
-use std::{any::{Any, TypeId}, collections::HashSet};
-
-use crate::context::Context;
+use std::any::{Any, TypeId};
 
 
 // Public facing Policy traits.
 pub trait Policy {
     fn name(&self) -> String;
     fn check(&self, context: &dyn Any) -> bool;
+    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()>;
+    fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized;
 }
 pub trait SchemaPolicy: Policy {
     fn from_row(row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized;
 }
+/* 
 pub trait Conjunction<E>: Policy + Sized {
     fn join(&self, p2: &Self) -> Result<Self, E>;
 }
-
+*/
 pub trait FrontendPolicy: Policy + Send {
     fn from_request(request: &BBoxRequest<'_, '_>) -> Self
     where
@@ -71,6 +72,12 @@ impl Policy for AnyPolicy {
     fn check(&self, context: &dyn Any) -> bool {
         self.policy.check(context)
     }
+    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        self.policy.join(other)        
+    }
+    fn join_logic(&self, other: Self) -> Result<Self, ()> {
+      todo!()
+    }
 }
 impl Clone for AnyPolicy { 
     fn clone(&self) -> Self {
@@ -79,6 +86,7 @@ impl Clone for AnyPolicy {
         }
     }
 }
+/* 
 impl Conjunction<()> for AnyPolicy {
     fn join(&self, p2: &Self) -> Result<Self, ()> {
         //TODO(corinn) this is the key to reconciling MagicUnbox and Conjunction 
@@ -96,6 +104,7 @@ impl Conjunction<()> for AnyPolicy {
         //}
     }
 }
+*/
 
 // NoPolicy can be directly discarded.
 #[derive(Clone)]
@@ -112,6 +121,13 @@ impl Policy for NoPolicy {
     fn check(&self, _context: &dyn Any) -> bool {
         true
     }
+    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        Ok(AnyPolicy::new(NoPolicy::new()))
+    }
+    fn join_logic(&self, other: Self) -> Result<Self, ()> {
+        Ok(NoPolicy {  })
+    }
+    
 }
 impl FrontendPolicy for NoPolicy {
     fn from_request<'a, 'r>(_request: &'a BBoxRequest<'a, 'r>) -> Self { 
@@ -121,12 +137,13 @@ impl FrontendPolicy for NoPolicy {
         Self {}
     }
 }
+/* 
 impl Conjunction<()> for NoPolicy {
     fn join(&self, _p2: &Self) -> Result<Self, ()> {  
         Ok(NoPolicy { })
     } 
 }
-
+*/
 #[derive(Clone)]
 pub struct PolicyAnd {
     p1: AnyPolicy,
@@ -137,6 +154,7 @@ impl PolicyAnd {
         Self { p1, p2 }
     }
 }
+
 impl Policy for PolicyAnd {
     fn name(&self) -> String {
         format!("({} AND {})", self.p1.name(), self.p2.name())
@@ -144,7 +162,14 @@ impl Policy for PolicyAnd {
     fn check(&self, context: &dyn Any) -> bool {
         self.p1.check(context) && self.p2.check(context)
     }
+    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        todo!()
+    }
+    fn join_logic(&self, other: Self) -> Result<Self, ()> {
+        todo!()
+    }
 }
+/* 
 impl Conjunction<()> for PolicyAnd { 
     fn join(&self, p2: &Self) -> Result<Self, ()> {
         //TODO(corinn) recursively check component policies to see if any can be matched and joined
@@ -154,7 +179,7 @@ impl Conjunction<()> for PolicyAnd {
             AnyPolicy::new(Clone::clone(p2))))
     }
 } 
-
+*/
 /*
 // This is the previous version of PolicyAnd which takes in parameterized types rather than AnyPolicy
 
@@ -225,6 +250,12 @@ impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     }
     fn check(&self, context: &dyn Any) -> bool {
         self.p1.check(context) || self.p2.check(context)
+    }
+    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        todo!()
+    }
+    fn join_logic(&self, other: Self) -> Result<Self, ()> {
+      todo!()
     }
 }
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {

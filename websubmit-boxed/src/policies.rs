@@ -1,18 +1,17 @@
 use std::sync::{Arc, Mutex};
+use std::any::Any;
 
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::State;
 
-use bbox::policy::{Policy, SchemaPolicy, Conjunction};
+use bbox::policy::{Policy, AnyPolicy, PolicyAnd, SchemaPolicy}; //Conjunction};
 use bbox::context::Context;
 
 use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use bbox_derive::schema_policy;
 
-use std::any::Any;
-use std::collections::HashSet;
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
@@ -127,6 +126,35 @@ impl Policy for AnswerAccessPolicy {
     fn name(&self) -> String {
         format!("AnswerAccessPolicy({:?} for {:?})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
     }
+    fn join(&self, other: bbox::policy::AnyPolicy) -> Result<AnyPolicy, ()> {
+        if other.is::<AnswerAccessPolicy>() { //Policies are combinable
+            let other = other.specialize::<AnswerAccessPolicy>().unwrap();
+            Ok(AnyPolicy::new(self.join_logic(other)?))
+        } else {                    //Policies must be stacked
+            Ok(AnyPolicy::new(
+                PolicyAnd::new(
+                    AnyPolicy::new(self.clone()),
+                    other)))
+        }
+    }
+    fn join_logic(&self, p2: Self) -> Result<Self, ()> {     
+        let comp_owner: Option<String>;  
+        let comp_lec_id: Option<u64>;
+        if self.owner.eq(&p2.owner) {  
+           comp_owner = self.owner.clone();
+        } else {
+            comp_owner = None;
+        }
+        if self.lec_id.eq(&p2.lec_id) {  
+            comp_lec_id = self.lec_id.clone();
+        } else {
+            comp_lec_id = None;
+        }
+        Ok(AnswerAccessPolicy{
+            owner: comp_owner,
+            lec_id: comp_lec_id
+        })
+    }
 }
 
 impl SchemaPolicy for AnswerAccessPolicy {
@@ -140,7 +168,7 @@ impl SchemaPolicy for AnswerAccessPolicy {
         }
     }
 }
-
+/*
 impl Conjunction<()> for AnswerAccessPolicy {
     fn join(&self, p2: &Self) -> Result<Self, ()> {     
         let comp_owner: Option<String>;  
@@ -160,4 +188,4 @@ impl Conjunction<()> for AnswerAccessPolicy {
             lec_id: comp_lec_id
         })
     }
-}
+} */
