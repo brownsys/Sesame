@@ -13,7 +13,7 @@ use bbox::context::Context;
 use bbox::db::{from_value, from_value_or_null};
 use bbox::bbox::{BBox, sandbox_combine, magic_box_fold};
 use bbox::rocket::{BBoxDataField, BBoxForm, BBoxFormResult, BBoxRedirect, BBoxTemplate, FromBBoxFormField};
-use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
+use bbox_derive::{BBoxRender, FromBBoxForm, get, post, MagicUnbox};
 use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
 use bbox::bbox::{MagicUnbox, MagicUnboxEnum};
@@ -57,7 +57,7 @@ pub(crate) struct LectureQuestionSubmission {
     answers: HashMap<Fake64, BBox<String, NoPolicy>>,
 }
 
-#[derive(BBoxRender, Clone)]
+#[derive(BBoxRender, Clone)]//, MagicUnbox)] //toggle to compile
 pub(crate) struct LectureQuestion {
     pub id: BBox<u64, NoPolicy>,
     pub prompt: BBox<String, NoPolicy>,
