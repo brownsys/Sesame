@@ -41,8 +41,8 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     let field_for_struct = fields.clone().into_iter().map(|field| {
       let field = field.ident.unwrap();
       let field_name: String = field.to_string();
-      let field_type =  field_type_map.get(&field_name);
-      quote! { //trying to pop the fields into the new struct
+      let field_type =  field_type_map.get(&field_name).unwrap().clone();
+      quote! { //trying to pop the fields into the new struct - not sure if it knows what 'hashmap' is
         #field_name: <#field_type as MagicUnbox>::from_enum(hashmap.remove(#field_name).unwrap())?,
       }
     });
@@ -61,9 +61,12 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     // Impl trait.
     quote! {
       #[automatically_derived]
+
+      #new_struct //to make new struct?
+
       impl #impl_generics ::bbox::bbox::MagicUnbox for #input_name #ty_generics #where_clause {
 
-        type Out = #lite_struct_name;
+        type Out = #lite_struct_name; //should this be #lite_struct_name or #new_struct?
 
         fn to_enum(self) -> ::bbox::bbox::MagicUnboxEnum {
           let mut map: ::std::collections::HashMap<::std::string::String, ::bbox::bbox::MagicUnboxEnum> = ::std::collections::HashMap::new();
