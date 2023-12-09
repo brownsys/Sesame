@@ -76,7 +76,7 @@ impl Policy for AnyPolicy {
         self.policy.join(other)        
     }
     fn join_logic(&self, other: Self) -> Result<Self, ()> {
-      todo!()
+        self.policy.join(other) 
     }
 }
 impl Clone for AnyPolicy { 
@@ -278,5 +278,178 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2>
             p1: P1::from_cookie(),
             p2: P2::from_cookie(),
         }
+    }
+}
+
+mod tests {
+    use crate::policy::{Policy, PolicyAnd, AnyPolicy}; 
+    use std::any::Any;
+    use std::collections::{HashSet};
+
+    pub struct ContextData {
+        pub user: String,
+    }
+    impl ContextData {
+        pub fn get_user(&self) -> &String {
+            &self.user
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct BasicPolicy {
+        owner: String,
+    }
+    impl BasicPolicy {
+        pub fn new(owner: String) -> Self {
+            Self{owner: owner}
+        }
+    }
+    impl Policy for BasicPolicy {
+        fn check(&self, context: &dyn Any) -> bool {
+            let context: &ContextData = context.downcast_ref().unwrap();
+            let user: &String = context.get_user();
+            self.owner == user.clone()
+        }
+        fn name(&self) -> String {
+            format!("BasicPolicy(owner: {:?})", self.owner) 
+        }
+        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
+            if other.is::<BasicPolicy>() { //Policies are combinable
+                let other = other.specialize::<BasicPolicy>().unwrap();
+                Ok(AnyPolicy::new(self.join_logic(other)?)) 
+            } else {                    //Policies must be stacked
+                Ok(AnyPolicy::new(
+                    PolicyAnd::new(
+                        AnyPolicy::new(self.clone()),
+                        other)))
+            }
+        }
+        fn join_logic(&self, other: Self) -> Result<Self, ()> {
+            if self.owner == other.owner {
+                Ok(Self::new(self.owner.clone()))
+            } else {
+                Err(())
+            }
+        }
+    }
+
+    #[derive(Clone, PartialEq)]
+    pub struct ACLPolicy {
+        owners: HashSet<String>,
+    } 
+    impl ACLPolicy {
+        pub fn new(owners: HashSet<String>) -> Self {
+            Self{owners: owners}
+        }
+    }
+    impl Policy for ACLPolicy {
+        fn check(&self, context: &dyn Any) -> bool {
+            let context: &ContextData = context.downcast_ref().unwrap();
+            let user: &String = context.get_user();
+            self.owners.contains(user)
+        }
+        fn name(&self) -> String {
+            format!("ACLPolicy(owners: {:?})", self.owners) 
+        }
+        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
+            if other.is::<ACLPolicy>() { //Policies are combinable
+                let other = other.specialize::<ACLPolicy>().unwrap();
+                Ok(AnyPolicy::new(self.join_logic(other)?))
+            } else {                    //Policies must be stacked
+                Ok(AnyPolicy::new(
+                    PolicyAnd::new(
+                        AnyPolicy::new(self.clone()),
+                        other)))
+            }
+        }
+        fn join_logic(&self, other: Self) -> Result<Self, ()> {
+            let intersection: HashSet<_> = self.owners.intersection(&other.owners).collect();
+            let owners: HashSet<String> = intersection.into_iter().map(|owner| owner.clone()).collect(); 
+            if owners.len() > 0 {
+                Ok(ACLPolicy{owners: owners})
+            } else {
+                Err(())
+            }
+        }
+    }
+
+    # [test]
+    fn join_policies(){
+        let admin1 = String::from("Admin1");
+        let admin2 = String::from("Admin2");
+        let alice = String::from("Alice");
+        let bob = String::from("Bob");
+
+        
+        let mult_acl: HashSet<String> = HashSet::from([alice.clone(), admin1.clone(), admin2.clone()]);
+        let alice_acl: HashSet<String> = HashSet::from([alice.clone(), bob.clone()]);
+
+        let acl_pol = ACLPolicy::new(mult_acl); 
+        let alice_pol = ACLPolicy::new(alice_acl); 
+        
+        //combine in each direction
+        let combined_pol: AnyPolicy = acl_pol.join(AnyPolicy::new(alice_pol.clone())).unwrap();
+
+        let specialized = combined_pol.clone().specialize::<ACLPolicy>().unwrap(); 
+            
+        // Users are allowed access to aggregated vector as expected  
+        assert!(combined_pol.check(&ContextData{user: String::from("Alice")}));
+        assert!(specialized.check(&ContextData{user: String::from("Alice")}));
+
+        //and correct users are disallowed access
+        let admin1 = ContextData{ user: admin1.clone()}; 
+        let admin2 = ContextData{ user: admin2.clone()}; 
+        assert!(!combined_pol.check(&admin1));
+        assert!(!combined_pol.check(&admin2));
+        
+        println!("Final policy on aggregate of mixed policies: {}", combined_pol.name());
+    }
+
+    #[test]
+    #[should_panic]
+    fn panic_policies(){
+        let admin1 = String::from("Admin1");
+        let admin2 = String::from("Admin2");
+        let alice = String::from("Alice");
+        let bob = String::from("Bob");
+
+        let acl_pol = ACLPolicy::new(HashSet::from([alice.clone(), admin1.clone(), admin2.clone()])); 
+        let bob_pol = ACLPolicy::new(HashSet::from([bob.clone()])); 
+        
+        //should panic - unsatisfiable policy
+        let _combined_pol: AnyPolicy = acl_pol.join(AnyPolicy::new(bob_pol.clone())).unwrap();
+    }
+
+    # [test]
+    fn stack_policies(){
+        let admin1 = String::from("Admin1");
+        let admin2 = String::from("Admin2");
+        let alice = String::from("Alice");
+        
+        let alice_acl = HashSet::from([alice.clone(), admin1.clone(), admin2.clone()]);
+
+        let acl_pol = ACLPolicy::new(alice_acl); 
+        let basic_pol = BasicPolicy::new(alice); 
+        
+        //combine in each direction
+        let combined_pol1: AnyPolicy = acl_pol.join(AnyPolicy::new(basic_pol.clone())).unwrap();
+        let combined_pol2: AnyPolicy = basic_pol.join(AnyPolicy::new(acl_pol)).unwrap();
+            
+        // Users are allowed access to aggregated vector as expected  
+        assert!(combined_pol1.check(&ContextData{user: String::from("Alice")}));
+        assert!(combined_pol2.check(&ContextData{user: String::from("Alice")}));
+
+        //and correct users are disallowed access
+        let admin1 = ContextData{ user: admin1.clone()}; 
+        let admin2 = ContextData{ user: admin2.clone()}; 
+
+        assert!(!combined_pol1.check(&admin1));
+        assert!(!combined_pol2.check(&admin1));
+
+        assert!(!combined_pol1.check(&admin2));
+        assert!(!combined_pol2.check(&admin2));
+        
+        println!("Final policy on aggregate of mixed policies: {}", combined_pol1.name());
+        println!("Final policy on aggregate of mixed policies: {}", combined_pol2.name());
     }
 }

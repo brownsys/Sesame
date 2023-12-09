@@ -101,7 +101,6 @@ pub(crate) fn magic_fold_helper(e: MagicUnboxEnum) -> MagicUnboxEnum {
 mod tests {
     use crate::policy::{Policy, PolicyAnd, AnyPolicy}; // , Conjunction};
     use crate::bbox::{BBox, magic_box_fold, fold_out_box, MagicUnbox, MagicUnboxEnum};
-    use crate::context::Context;
 
     use std::any::Any;
     use std::collections::{HashSet, HashMap};
@@ -201,10 +200,10 @@ mod tests {
             }
         }
     }
+
     
     #[test]
-    fn fold_out_box_test(){ //test * manual * folding
-        
+    fn fold_out_box_test(){ //test *manual* folding
         let alice = String::from("Alice");
         let bob = String::from("Bob"); 
         let allen = String::from("Allen");
