@@ -374,7 +374,7 @@ mod tests {
     }
 
     # [test]
-    fn join_policies(){
+    fn join_homog_policies(){ //join policies of the same type
         let admin1 = String::from("Admin1");
         let admin2 = String::from("Admin2");
         let alice = String::from("Alice");
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn panic_policies(){
+    fn panic_policies(){ //unsatisfiable policies of same type panic when combined
         let admin1 = String::from("Admin1");
         let admin2 = String::from("Admin2");
         let alice = String::from("Alice");
@@ -449,7 +449,7 @@ mod tests {
         assert!(!combined_pol1.check(&admin2));
         assert!(!combined_pol2.check(&admin2));
         
-        println!("Final policy on aggregate of mixed policies: {}", combined_pol1.name());
-        println!("Final policy on aggregate of mixed policies: {}", combined_pol2.name());
+        println!("Final policy from mixed policies: {}", combined_pol1.name());
+        println!("Final policy from mixed policies: {}", combined_pol2.name());
     }
 }
