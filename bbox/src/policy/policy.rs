@@ -14,11 +14,7 @@ pub trait SchemaPolicy: Policy {
     where
         Self: Sized;
 }
-/* 
-pub trait Conjunction<E>: Policy + Sized {
-    fn join(&self, p2: &Self) -> Result<Self, E>;
-}
-*/
+
 pub trait FrontendPolicy: Policy + Send {
     fn from_request(request: &BBoxRequest<'_, '_>) -> Self
     where
@@ -86,25 +82,6 @@ impl Clone for AnyPolicy {
         }
     }
 }
-/* 
-impl Conjunction<()> for AnyPolicy {
-    fn join(&self, p2: &Self) -> Result<Self, ()> {
-        //TODO(corinn) this is the key to reconciling MagicUnbox and Conjunction 
-        // need to be able to call policy.join(p2.policy) when doing magic_fold
-
-        /*
-        let self_policy_type = self.policy.as_ref().type_id();
-        let p2_policy_type = p2.policy.as_ref().type_id();
-        if self_policy_type == p2_policy_type { //
-            Ok(AnyPolicy::new(self.policy.join(p2.policy)))
-        } else { 
-        */
-        //funky clone() syntax to disambiguate which Clone
-        Ok(AnyPolicy::new(PolicyAnd::new(Clone::clone(&self), Clone::clone(&p2)))) 
-        //}
-    }
-}
-*/
 
 // NoPolicy can be directly discarded.
 #[derive(Clone)]
@@ -169,70 +146,6 @@ impl Policy for PolicyAnd {
         todo!()
     }
 }
-/* 
-impl Conjunction<()> for PolicyAnd { 
-    fn join(&self, p2: &Self) -> Result<Self, ()> {
-        //TODO(corinn) recursively check component policies to see if any can be matched and joined
-        Ok(
-            PolicyAnd::new(
-            AnyPolicy::new(Clone::clone(self)), 
-            AnyPolicy::new(Clone::clone(p2))))
-    }
-} 
-*/
-/*
-// This is the previous version of PolicyAnd which takes in parameterized types rather than AnyPolicy
-
-#[derive(Clone)]
-pub struct PolicyAnd<P1: Policy, P2: Policy> {
-    p1: P1,
-    p2: P2,
-}
-impl<P1: Policy, P2: Policy> PolicyAnd<P1, P2> {
-    pub fn new(p1: P1, p2: P2) -> Self {
-        Self { p1, p2 }
-    }
-}
-impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
-    fn name(&self) -> String {
-        format!("({} AND {})", self.p1.name(), self.p2.name())
-    }
-    fn check(&self, context: &dyn Any) -> bool {
-        self.p1.check(context) && self.p2.check(context)
-    }
-}
-impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyAnd<P1, P2> {
-    fn from_row(row: &Vec<mysql::Value>) -> Self {
-        Self {
-            p1: P1::from_row(row),
-            p2: P2::from_row(row),
-        }
-    }
-}
-impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyAnd<P1, P2> {
-    fn from_request<'a, 'r>(request: &'a BBoxRequest<'a, 'r>) -> Self {
-        Self {
-            p1: P1::from_request(request),
-            p2: P2::from_request(request),
-        }
-    }
-    fn from_cookie() -> Self {
-        Self {
-            p1: P1::from_cookie(),
-            p2: P2::from_cookie(),
-        }
-    }
-}
-/* Are Conjunction and PolicyAnd too redundant?
-    basically a way to wrap non-matching types in order to join()
-    can we make Conjunction more general to allow for this?
-*/
-impl <P1: Policy, P2: Policy> Conjunction<()> for PolicyAnd<P1, P2> { 
-    fn join(&self, p2: &Self) -> Result<Self, ()> {
-        //TODO(corinn) recursively check component policies to see if any can be matched and joined
-        Ok(PolicyAnd::new(self.clone(), p2.clone()))
-    }
-} */
 
 #[derive(Clone)]
 pub struct PolicyOr<P1: Policy, P2: Policy> {

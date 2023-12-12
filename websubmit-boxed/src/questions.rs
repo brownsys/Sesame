@@ -57,7 +57,7 @@ pub(crate) struct LectureQuestionSubmission {
     answers: HashMap<Fake64, BBox<String, NoPolicy>>,
 }
 
-#[derive(BBoxRender, Clone)]//, MagicUnbox)] 
+#[derive(BBoxRender, Clone)] 
 pub(crate) struct LectureQuestion {
     pub id: BBox<u64, NoPolicy>,
     pub prompt: BBox<String, NoPolicy>,

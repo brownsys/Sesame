@@ -59,7 +59,6 @@ pub fn fold_out_box<T: Clone, P: Policy + Clone + 'static> // + Conjunction<()>>
     }
 }
 
-
 pub fn fold_in_box<T: Clone, P: Policy + Clone> //+ Conjunction<()>>
                     (boxed_vec : BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
     let policy = boxed_vec.clone().policy().clone(); 
@@ -153,13 +152,7 @@ mod tests {
             }
         }
     }
-    /*
-    impl Conjunction<()> for ACLPolicy {
-        fn join(&self, p2: &Self) -> Result<Self, ()> {     
-            todo!()
-        }
-    }
-    */
+
     #[derive(Clone, PartialEq, Debug)]
     pub struct BoxedStruct {
         pub score: BBox<u64, ACLPolicy>,

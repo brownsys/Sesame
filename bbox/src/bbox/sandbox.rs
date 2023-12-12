@@ -170,9 +170,7 @@ pub fn sandbox_execute<S: MagicUnbox, R, F: FnOnce(S::Out) -> R>(
     s: S,
     lambda: F,
 ) -> BBox<R, NoPolicy>{ //TODO should this return a Result? 
-
     let outer_boxed = magic_box_fold(s).unwrap(); 
-    // cached_policy isn't necessarily the correct Policy for the whole struct - the outer_boxed policy inside AnyPolicy is the correct composed one
     let _cached_policy = outer_boxed.policy().clone(); 
     BBox::new(lambda(outer_boxed.into_temporary_unbox()), NoPolicy::new())
 }
