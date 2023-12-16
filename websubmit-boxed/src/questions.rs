@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use serde::Serialize; //for issue with Vec as un-Serializable
 
 use chrono::naive::NaiveDateTime;
@@ -14,7 +15,7 @@ use bbox::db::{from_value, from_value_or_null};
 use bbox::bbox::{BBox, sandbox_combine, magic_box_fold};
 use bbox::rocket::{BBoxDataField, BBoxForm, BBoxFormResult, BBoxRedirect, BBoxTemplate, FromBBoxFormField};
 use bbox_derive::{BBoxRender, FromBBoxForm, get, post, MagicUnbox};
-use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use bbox::policy::{NoPolicy, AnyPolicy, Policy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
 
 use bbox::bbox::{MagicUnbox, MagicUnboxEnum};
 
@@ -73,11 +74,11 @@ pub(crate) struct LectureQuestionsContext {
 
 #[derive(BBoxRender, Clone)] 
 pub struct LectureAnswer {
-    pub id: BBox<u64, NoPolicy>,
-    pub user: BBox<String, NoPolicy>,
-    pub answer: BBox<String, NoPolicy>,
-    pub time: BBox<String, NoPolicy>,
-    pub grade: BBox<u64, NoPolicy>,
+    pub id: BBox<u64, AnswerAccessPolicy>,
+    pub user: BBox<String, AnswerAccessPolicy>,
+    pub answer: BBox<String, AnswerAccessPolicy>,
+    //pub time: BBox<String, AnswerAccessPolicy>,
+    pub grade: BBox<u64, AnswerAccessPolicy>,
 }
 
 #[derive(BBoxRender)]
@@ -109,14 +110,14 @@ pub struct LectureAnswerLite {
     pub id: u64,
     pub user: String,
     pub answer: String,
-    pub time: String,
+    //pub time: String,
     pub grade: u64,
 }
 
 #[derive(BBoxRender)]
 pub struct LectureAnswersContextLite {
     pub lec_id: BBox<u8, NoPolicy>,
-    pub answers: BBox<Vec<LectureAnswerLite>, NoPolicy>,
+    pub answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy>,
     pub parent: String,
 }
 
@@ -128,13 +129,13 @@ impl LectureAnswer {
         let id = self.id.clone().into_temporary_unbox(); 
         let user = self.user.clone().into_temporary_unbox();
         let answer = self.answer.clone().into_temporary_unbox();
-        let time = self.time.clone().into_temporary_unbox();
+        //let time = self.time.clone().into_temporary_unbox();
         let grade = self.grade.clone().into_temporary_unbox();
         LectureAnswerLite{
             id: id, 
             user: user, 
             answer: answer, 
-            time: time, 
+            //time: time, 
             grade: grade, 
         }
     } 
@@ -161,7 +162,7 @@ impl MagicUnbox for LectureAnswer {
             (String::from("id"), self.id.to_enum()),
             (String::from("user"), self.user.to_enum()),
             (String::from("answer"), self.answer.to_enum()),
-            (String::from("time"), self.time.to_enum()),
+            //(String::from("time"), self.time.to_enum()),
             (String::from("grade"), self.grade.to_enum()),
         ]);
         MagicUnboxEnum::Struct(hashmap)  
@@ -172,7 +173,7 @@ impl MagicUnbox for LectureAnswer {
                 id: <u64 as MagicUnbox>::from_enum(hashmap.remove("id").unwrap())?,
                 user: <String as MagicUnbox>::from_enum(hashmap.remove("user").unwrap())?,
                 answer: <String as MagicUnbox>::from_enum(hashmap.remove("answer").unwrap())?,
-                time: <String as MagicUnbox>::from_enum(hashmap.remove("time").unwrap())?,
+                //time: <String as MagicUnbox>::from_enum(hashmap.remove("time").unwrap())?,
                 grade: <u64 as MagicUnbox>::from_enum(hashmap.remove("grade").unwrap())?,
             }),
             _ => Err(()),
@@ -235,11 +236,12 @@ pub(crate) fn leclist(
     BBoxTemplate::render("leclist", &ctx, &context)
 }
 
-#[get("/<num>")]
-pub(crate) fn answers(
-    _admin: Admin,
+// #[get("/<num>")]
+pub(crate) fn composed_answers(
+    //_admin: Admin,
     num: BBox<u8, NoPolicy>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    //backend: &State<Arc<Mutex<MySqlBackend>>>,
+    backend: Arc<Mutex<MySqlBackend>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
@@ -247,44 +249,68 @@ pub(crate) fn answers(
     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.into()]);
     drop(bg);
 
-    /* AnyPolicies around individ items in res -> want AnswerAccessPolicy?
-        -> correct policy should eventually be an automatic feature of retrieving data (SchemaPolicy trait) 
-        goal is to be boxed end-to-end so static analysis can check 
-    */
+    // Wraps incoming column data in LectureAnswer format
+    let answers: Vec<LectureAnswer> = res
+        .into_iter()
+        .map(|r|
+            LectureAnswer {
+            id: from_value(r[2].clone()).unwrap(),
+            user: from_value(r[0].clone()).unwrap(), 
+            answer: from_value(r[3].clone()).unwrap(), 
+            //time: from_value(r[4].clone()).unwrap()
+            //    .sandbox_execute(|v: &NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string()),
+            grade: from_value(r[5].clone()).unwrap(), 
+        })
+        .collect();
 
-    //this wraps incoming column data in LectureAnswer format
+    // Now, with magic folding!                         
+    let now = Instant::now();
+    let outer_box_answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy> = magic_box_fold(answers)
+        .unwrap()
+        .specialize_policy::<AnswerAccessPolicy>()
+        .unwrap();
+    let end = now.elapsed().as_micros();
+    println!("Time elapsed for magic: {}", end);
+
+    let ctx = LectureAnswersContextLite {
+        lec_id: num,
+        answers: outer_box_answers,
+        parent: "layout".into(),
+    };
+    BBoxTemplate::render("answers", &ctx, &context)
+}
+
+pub(crate) fn naive_answers(
+    //_admin: Admin,
+    num: BBox<u8, NoPolicy>,
+    backend: Arc<Mutex<MySqlBackend>>,
+    context: Context<ApiKey, ContextData>,
+) -> BBoxTemplate {
+    let mut bg = backend.lock().unwrap();
+    let key = num.clone().into_bbox::<u64>();
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.into()]);
+    drop(bg);
+
+    // Wraps incoming column data in LectureAnswer format
     let answers: Vec<LectureAnswer> = res
         .into_iter()
         .map(|r| LectureAnswer {
             id: from_value(r[2].clone()).unwrap(), 
             user: from_value(r[0].clone()).unwrap(), 
             answer: from_value(r[3].clone()).unwrap(), 
-            time: from_value::<NaiveDateTime, AnyPolicy>(r[4].clone()).unwrap()
-                .specialize_policy::<NoPolicy>().unwrap() 
-                .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
+            //time: from_value(r[4].clone()).unwrap()
+            //    .sandbox_execute(|v: &NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string()),
             grade: from_value(r[5].clone()).unwrap(), 
         })
         .collect();
+    println!("{}", answers[0].id.clone().policy().clone().name());
     
-    /* // Before, with manual folding: 
-    // Fold from LectureAnswer into LectureAnswerLite
-    let lec_id = num.clone().into_bbox::<u64>().into_temporary_unbox(); 
-    let inner_box_answers: Vec<BBox<LectureAnswerLite, AnswerAccessPolicy>> = fold_out_field_boxes(answers.clone(), lec_id); 
-    // Move box from around each LectureAnswer in vec to one bbox outside vec
-    let outer_box_answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy> = fold_out_box(inner_box_answers).unwrap();
-    */
-
-    // Now, with magic folding!                         NoPolicy is for NoPolicy in fields of LectureAnswer
-    let outer_box_answers: BBox<Vec<LectureAnswerLite>, NoPolicy> = magic_box_fold(answers)
-                                                                                    .unwrap()
-                                                                                    .specialize_policy::<NoPolicy>()
-                                                                                    .unwrap(); 
-    
-    let ctx = LectureAnswersContextLite {
+    let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: outer_box_answers,
+        answers: answers,
         parent: "layout".into(),
     };
+    
     BBoxTemplate::render("answers", &ctx, &context)
 }
 

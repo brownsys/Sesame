@@ -27,18 +27,19 @@ impl MySqlBackend {
         };
 
         let schema = std::fs::read_to_string("websubmit-boxed/src/schema.sql")?;
+        //let schema = std::fs::read_to_string("data/prime.sql")?;
 
         debug!(
             log,
             "Connecting to MySql DB and initializing schema {}...", dbname
         );
-        let mut db = Conn::new(
+        let mut db = Conn::new( // this is the user and password from the config.toml file
             Opts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
         )
         .unwrap();
         assert_eq!(db.ping(), true);
 
-        if prime {
+        /*if prime {
             db.query_drop(format!("DROP DATABASE IF EXISTS {};", dbname))
                 .unwrap();
             db.query_drop(format!("CREATE DATABASE {};", dbname))
@@ -51,8 +52,9 @@ impl MySqlBackend {
                 db.query_drop(line).unwrap();
             }
         } else {
-            db.query_drop(format!("USE {};", dbname)).unwrap();
-        }
+            //db.query_drop(format!("USE {};", dbname)).unwrap();
+        }*/
+        db.query_drop(format!("USE alohomora;")).unwrap();
 
         Ok(MySqlBackend {
             handle: db,
@@ -100,7 +102,7 @@ impl MySqlBackend {
                     for row in res {
                         rows.push(row.unwrap().unwrap());
                     }
-                    debug!(self.log, "executed query {}, got {} rows", sql, rows.len());
+                    //debug!(self.log, "executed query {}, got {} rows", sql, rows.len());
                     return rows;
                 }
             }

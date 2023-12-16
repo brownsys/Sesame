@@ -4,7 +4,7 @@ use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 
 #[derive(Debug)]
-pub struct Context<U, D> {
+pub struct Context<U: 'static, D:'static> {
     user: Option<U>,
     route: String,
     data: D,
@@ -22,14 +22,22 @@ impl<U, D> Context<U, D> {
         &self.data
     }
 
-    #[cfg(test)]
+    pub fn new(user: Option<U>, route: String, data: D) -> Self {
+        Self {
+            user,
+            route: route,
+            data,
+        }
+    } 
+
+    /*#[cfg(test)]
     pub(crate) fn new(user: Option<U>, data: D) -> Self {
         Context {
             user,
             route: String::from("test"),
             data,
         }
-    }
+    }*/
 }
 
 #[derive(Debug)]

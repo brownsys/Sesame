@@ -64,13 +64,17 @@ impl<'r> FromBBoxRequest<'r> for ContextData {
 }
 
 // Access control policy.
+#[schema_policy(table = "answers", column = 0)]
+#[schema_policy(table = "answers", column = 1)]
+#[schema_policy(table = "answers", column = 2)]
 #[schema_policy(table = "answers", column = 3)]
+#[schema_policy(table = "answers", column = 5)]
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy accross tables/columns.
 #[derive(Clone)]
 pub struct AnswerAccessPolicy {
     owner: Option<String>, // even if no owner, admins may access
-    lec_id: Option<u64>,  // no lec_id when Policy for multiple Answers
+    lec_id: Option<u64>,  // no lec_id when Policy for multiple Answers from different lecs
 } 
 
 impl AnswerAccessPolicy{
@@ -124,7 +128,7 @@ impl Policy for AnswerAccessPolicy {
         }
     }
     fn name(&self) -> String {
-        format!("AnswerAccessPolicy({:?} for {:?})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
+        format!("AnswerAccessPolicy(lec id{:?} for user {:?})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
     }
     fn join(&self, other: bbox::policy::AnyPolicy) -> Result<AnyPolicy, ()> {
         if other.is::<AnswerAccessPolicy>() { //Policies are combinable
@@ -168,24 +172,3 @@ impl SchemaPolicy for AnswerAccessPolicy {
         }
     }
 }
-/*
-impl Conjunction<()> for AnswerAccessPolicy {
-    fn join(&self, p2: &Self) -> Result<Self, ()> {     
-        let comp_owner: Option<String>;  
-        let comp_lec_id: Option<u64>;
-        if self.owner.eq(&p2.owner) {  
-           comp_owner = self.owner.clone();
-        } else {
-            comp_owner = None;
-        }
-        if self.lec_id.eq(&p2.lec_id) {  
-            comp_lec_id = self.lec_id.clone();
-        } else {
-            comp_lec_id = None;
-        }
-        Ok(AnswerAccessPolicy{
-            owner: comp_owner,
-            lec_id: comp_lec_id
-        })
-    }
-} */

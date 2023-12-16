@@ -35,8 +35,8 @@ pub(crate) fn grades(
             id: from_value(r[2].clone()).unwrap(),
             user: from_value(r[0].clone()).unwrap(),
             answer: from_value(r[3].clone()).unwrap(),
-            time: from_value::<NaiveDateTime, NoPolicy>(r[4].clone()).unwrap()
-                .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
+            //time: from_value::<NaiveDateTime, NoPolicy>(r[4].clone()).unwrap()
+            //    .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
             grade: from_value(r[5].clone()).unwrap(),
         })
         .collect();

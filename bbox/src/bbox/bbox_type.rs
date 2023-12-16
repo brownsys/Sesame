@@ -47,8 +47,13 @@ impl<T, P: Policy> BBox<T, P> {
     pub fn into_temporary_unbox(self) -> T {
         self.t
     }
-    pub fn unbox<U, D>(&self, _context: &Context<U, D>) -> &T {
-        &self.t
+    pub fn unbox<U, D>(&self, context: &Context<U, D>) -> &T {
+        if self.p.check(context){
+            &self.t
+        } else {
+            panic!()
+        }
+        
     }
     pub fn into_unbox<U, D>(self, _context: &Context<U, D>) -> T {
         self.t
