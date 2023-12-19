@@ -32,44 +32,6 @@ impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
 
 /* ---------------------------------------------------------------- */
 
-//intermediate but over-specialized box folding - no recursion for inner boxes
-pub fn fold_out_box<T: Clone, P: Policy + Clone + 'static> // + Conjunction<()>>
-                    (bbox_vec : Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, AnyPolicy>, ()> {
-    let values = bbox_vec
-                        .clone().into_iter()
-                        .map(|bbox| bbox.clone().temporary_unbox().clone())
-                        .collect();
-    let policies_vec: Vec<AnyPolicy> = bbox_vec
-                        .clone().into_iter()
-                        .map(|bbox| AnyPolicy::new(bbox.clone().policy().clone()))
-                        .collect();
-    if policies_vec.len() > 0 {
-        let base = policies_vec[0].clone(); 
-        let composed_policy = policies_vec
-                            .into_iter()
-                            .fold(base,  //base 0th instead of reduce bc don't need to unwrap()
-                                |acc, elem|
-                                acc.join(elem).unwrap());
-        Ok(BBox::new(values, composed_policy))
-    } else {
-        //TODO(corinn)
-        //Desired behavior: BBox around empty vec + empty constructor of Policy P
-        //Ok(BBox::new(values, P::new())) 
-        Err(())
-    }
-}
-
-pub fn fold_in_box<T: Clone, P: Policy + Clone> //+ Conjunction<()>>
-                    (boxed_vec : BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
-    let policy = boxed_vec.clone().policy().clone(); 
-    boxed_vec.clone().temporary_unbox().clone()
-            .into_iter()
-            .map(|item: T| BBox::new(item, policy.clone()))
-            .collect()
-}
-
-/* ---------------------------------------------------------------- */
-
 pub fn magic_box_fold<S: MagicUnbox>(strct: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
     let e = strct.to_enum(); 
     let composed_policy = e.enum_policy()?; //Err propagates if policy composition fails
@@ -99,7 +61,7 @@ pub(crate) fn magic_fold_helper(e: MagicUnboxEnum) -> MagicUnboxEnum {
 
 mod tests {
     use crate::policy::{Policy, PolicyAnd, AnyPolicy}; // , Conjunction};
-    use crate::bbox::{BBox, magic_box_fold, fold_out_box, MagicUnbox, MagicUnboxEnum};
+    use crate::bbox::{BBox, magic_box_fold, MagicUnbox, MagicUnboxEnum};
 
     use std::any::Any;
     use std::collections::{HashSet, HashMap};
@@ -192,44 +154,6 @@ mod tests {
                 _ => Err(()),
             }
         }
-    }
-
-    
-    #[test]
-    fn fold_out_box_test(){ //test *manual* folding
-        let alice = String::from("Alice");
-        let bob = String::from("Bob"); 
-        let allen = String::from("Allen");
-
-        let pol1 = ACLPolicy::new(HashSet::from([alice.clone(), bob.clone()]));
-        let pol2 = ACLPolicy::new(HashSet::from([alice.clone(), allen.clone()]));
-
-        let mut orig_vec = Vec::new();
-        let mut expected = Vec::new();
-        let mut i = 0;
-
-        while i < 20 {
-            if i % 2 == 0 {
-                orig_vec.push(BBox::new(i, pol1.clone()));
-            } else {
-                orig_vec.push(BBox::new(i, pol2.clone()));
-            }
-            expected.push(i);
-            i = i + 1;
-        }
-
-        // Values are correct
-        let folded = fold_out_box(orig_vec).unwrap();
-        assert_eq!(expected, folded.t);
-
-        //ACLPolicy conjunction worked
-        let allowed = ContextData{ user: alice}; 
-        let unallowed1 =  ContextData{ user: bob}; 
-        let unallowed2 =  ContextData{ user: allen}; 
-
-        assert!(folded.policy().check(&allowed));
-        assert!(!folded.policy().check(&unallowed1));
-        assert!(!folded.policy().check(&unallowed2));
     }
 
     #[test] 

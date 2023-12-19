@@ -121,38 +121,6 @@ pub struct LectureAnswersContextLite {
     pub parent: String,
 }
 
-//Manually LectureAnswer with BBox around each field to boxed LectureAnswerLite
-//unbox_fields will be generalized with MagicUnbox;
-//call to fold_out_field_boxes then fold_out_box will be recursively performed via MagicUnboxing 
-impl LectureAnswer {
-    fn unbox_fields(&self) -> LectureAnswerLite {
-        let id = self.id.clone().into_temporary_unbox(); 
-        let user = self.user.clone().into_temporary_unbox();
-        let answer = self.answer.clone().into_temporary_unbox();
-        //let time = self.time.clone().into_temporary_unbox();
-        let grade = self.grade.clone().into_temporary_unbox();
-        LectureAnswerLite{
-            id: id, 
-            user: user, 
-            answer: answer, 
-            //time: time, 
-            grade: grade, 
-        }
-    } 
-}
-
-fn _fold_out_field_boxes(lecture_answers: Vec<LectureAnswer>, lec_id: u64) -> Vec<BBox<LectureAnswerLite, AnswerAccessPolicy>> {
-    lecture_answers.into_iter()
-                    .map(|answer| {
-                        let lec_answer = answer.unbox_fields();
-                        let policy = AnswerAccessPolicy::new(
-                             Some(lec_answer.user.clone()),
-                            Some(lec_id));
-                        BBox::new(lec_answer, policy)
-                     })
-                    .collect()
-}
-
 /* ---------------------------------------------------------------- */
 // Later, this will be Derived rather than impl'd on client side
 impl MagicUnbox for LectureAnswer {
