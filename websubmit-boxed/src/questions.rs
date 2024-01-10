@@ -73,7 +73,7 @@ pub(crate) struct LectureQuestionsContext {
 }
 
 #[derive(BBoxRender, Clone, MagicUnbox)]             
-pub struct LectureAnswer {                            //FLAG example for standard boxes
+pub struct LectureAnswer {                            
     pub id: BBox<u64, AnswerAccessPolicy>,
     pub user: BBox<String, AnswerAccessPolicy>,
     pub answer: BBox<String, AnswerAccessPolicy>,
@@ -89,7 +89,7 @@ pub struct LectureAnswersContext {
 }
 
 #[derive(BBoxRender, MagicUnbox)]
-struct LectureListEntry {                             //FLAG example for unboxed values
+struct LectureListEntry {                             
     id: BBox<u64, NoPolicy>,
     label: BBox<String, NoPolicy>,
     num_qs: BBox<u64, NoPolicy>,
@@ -110,49 +110,6 @@ pub struct LectureAnswersContextLite {
     pub answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy>,
     pub parent: String,
 }
-
-#[derive(MagicUnbox)]
-pub struct VectorBoxes {                                //FLAG (dummy) example for unsupported case 
-    lectures: Vec<BBox<String, NoPolicy>>,
-}
-
-/* ---------------------------------------------------------------- 
-// Now, this can be Derived rather than impl'd on client side
-
-#[derive(BBoxRender, Clone, Serialize)]
-pub struct LectureAnswerLite {
-    pub id: u64,
-    pub user: String,
-    pub answer: String,
-    pub grade: u64,
-}
-
-impl MagicUnbox for LectureAnswer {
-    type Out = LectureAnswerLite; 
-    fn to_enum(self) -> MagicUnboxEnum {
-        let hashmap = HashMap::from([
-            (String::from("id"), self.id.to_enum()),
-            (String::from("user"), self.user.to_enum()),
-            (String::from("answer"), self.answer.to_enum()),
-            (String::from("grade"), self.grade.to_enum()),
-        ]);
-        MagicUnboxEnum::Struct(hashmap)  
-    }
-    fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()> {
-        match e {
-            MagicUnboxEnum::Struct(mut hashmap) => Ok(Self::Out {
-                id: <u64 as MagicUnbox>::from_enum(hashmap.remove("id").unwrap())?,
-                user: <String as MagicUnbox>::from_enum(hashmap.remove("user").unwrap())?,
-                answer: <String as MagicUnbox>::from_enum(hashmap.remove("answer").unwrap())?,
-                grade: <u64 as MagicUnbox>::from_enum(hashmap.remove("grade").unwrap())?,
-            }),
-            _ => Err(()),
-        }
-    }
-  }
-  
----------------------------------------------------------------- */
-
 
 #[get("/")]
 pub(crate) fn leclist(
