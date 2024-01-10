@@ -10,46 +10,6 @@ use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Field, Fields};
 use std::collections::HashMap;
 use syn::{GenericArgument, Path, PathArguments, PathSegment};
 
-
-fn extract_type_path(ty: &syn::Type) -> Option<&Path> {
-  match *ty {
-      syn::Type::Path(ref typepath) if typepath.qself.is_none() => Some(&typepath.path),
-      _ => None,
-  }
-}
-
-fn extract_bboxed_segment(path: &Path) -> Option<&PathSegment> {
-  let idents_of_path = path
-      .segments
-      .iter()
-      .into_iter()
-      .fold(String::new(), |mut acc, v| {
-          acc.push_str(&v.ident.to_string());
-          acc.push('|');
-          acc
-      });
-  vec!["BBox|", "bbox|BBox|"]   //possible ways to write BBox
-      .into_iter()
-      .find(|s| &idents_of_path == *s)
-      .and_then(|_| path.segments.last())
-}
-
-fn extract_type_from_bbox(ty: &syn::Type) -> Option<&syn::Type> {
-    extract_type_path(ty)
-      .and_then(|path| extract_bboxed_segment(path))
-      .and_then(|path_seg| {
-          let type_params = &path_seg.arguments;
-          match *type_params {
-              PathArguments::AngleBracketed(ref params) => params.args.first(),
-              _ => None,
-          }
-      })
-      .and_then(|generic_arg| match *generic_arg {
-          GenericArgument::Type(ref ty) => Some(ty),
-          _ => None,
-      })
-}
-
 pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream { 
     // struct name we are deriving for.
     let input_name = input.ident;
@@ -68,13 +28,8 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     let build_struct = fields.clone().into_iter().map(|field| {
       let field_ident = field.ident.clone().unwrap();
       let field_type = field.ty;
-      let field_type2 = field_type.clone();
-      let unboxed_field_type = match extract_type_from_bbox(&field_type) {
-          None => field_type,
-          Some(ty) => ty.clone(),
-      }; 
       quote! { // TODO test mechanics of unboxing types
-        pub #field_ident: <#field_type2 as MagicUnbox>::Out
+        pub #field_ident: <#field_type as MagicUnbox>::Out
       }
     }); 
 
@@ -101,7 +56,6 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     // Impl trait.
     quote! {
       #[automatically_derived]
-
       
       // #[derive(BBoxRender, Clone, Serialize)] // TODO less rigid option?
       pub struct #derived_name {
