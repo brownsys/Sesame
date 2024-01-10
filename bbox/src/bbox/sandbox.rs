@@ -12,7 +12,7 @@ pub enum MagicUnboxEnum {
     Vec(Vec<MagicUnboxEnum>),
     Struct(HashMap<String, MagicUnboxEnum>),
 }
-// Public: client code should Derive this, and can call magic_box_fold, but should not be able to call from_enum
+// Public: client code should Derive this and can call magic_box_fold
 pub trait MagicUnbox {
     type Out; //Lite form of struct
     fn to_enum(self) -> MagicUnboxEnum;
@@ -199,23 +199,5 @@ where
     fn unbox(self) -> Self::Out {
         self.iter().map(|s| s.unbox()).collect()
     }
-}
-
-// TODO(artem): merge policies together or use lambda to acquire policy.
-// Sandbox execute with a container of bboxes.
-pub fn sandbox_execute<S: Sandboxable, R, F: FnOnce(S::Out) -> R>(
-    s: S,
-    lambda: F,
-) -> BBox<R, NoPolicy> {
-
-    BBox::new(lambda(s.unbox()), NoPolicy {})
-}
-// Need to generalize this to many arguments.
-pub fn sandbox_combine<S1: Sandboxable, S2: Sandboxable, R, F: FnOnce(S1::Out, S2::Out) -> R>(
-    s1: S1,
-    s2: S2,
-    lambda: F,
-) -> BBox<R, NoPolicy> {
-    BBox::new(lambda(s1.unbox(), s2.unbox()), NoPolicy {})
 }
 */

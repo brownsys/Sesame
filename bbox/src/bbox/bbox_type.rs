@@ -53,7 +53,6 @@ impl<T, P: Policy> BBox<T, P> {
         } else {
             panic!()
         }
-        
     }
     pub fn into_unbox<U, D>(self, _context: &Context<U, D>) -> T {
         self.t
