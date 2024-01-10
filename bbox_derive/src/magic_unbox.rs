@@ -68,12 +68,13 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     let build_struct = fields.clone().into_iter().map(|field| {
       let field_ident = field.ident.clone().unwrap();
       let field_type = field.ty;
+      let field_type2 = field_type.clone();
       let unboxed_field_type = match extract_type_from_bbox(&field_type) {
           None => field_type,
           Some(ty) => ty.clone(),
       }; 
       quote! { // TODO test mechanics of unboxing types
-        #field_ident: #unboxed_field_type
+        pub #field_ident: <#field_type2 as MagicUnbox>::Out
       }
     }); 
 
@@ -101,7 +102,8 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     quote! {
       #[automatically_derived]
 
-     #[derive(BBoxRender, Clone, Serialize)] // TODO less rigid option?
+      
+      // #[derive(BBoxRender, Clone, Serialize)] // TODO less rigid option?
       pub struct #derived_name {
         #(#build_struct,)*
       } 
