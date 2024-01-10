@@ -2,14 +2,55 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Data, DataStruct, DeriveInput, Field, Fields};
+use syn::{parse_macro_input, Data, DataStruct, DeriveInput, Field, Fields};
 use std::collections::HashMap;
+use syn::{GenericArgument, Path, PathArguments, PathSegment};
 
-pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
+
+fn extract_type_path(ty: &syn::Type) -> Option<&Path> {
+  match *ty {
+      syn::Type::Path(ref typepath) if typepath.qself.is_none() => Some(&typepath.path),
+      _ => None,
+  }
+}
+
+fn extract_bboxed_segment(path: &Path) -> Option<&PathSegment> {
+  let idents_of_path = path
+      .segments
+      .iter()
+      .into_iter()
+      .fold(String::new(), |mut acc, v| {
+          acc.push_str(&v.ident.to_string());
+          acc.push('|');
+          acc
+      });
+  vec!["BBox|", "bbox|BBox|"]   //possible ways to write BBox
+      .into_iter()
+      .find(|s| &idents_of_path == *s)
+      .and_then(|_| path.segments.last())
+}
+
+fn extract_type_from_bbox(ty: &syn::Type) -> Option<&syn::Type> {
+    extract_type_path(ty)
+      .and_then(|path| extract_bboxed_segment(path))
+      .and_then(|path_seg| {
+          let type_params = &path_seg.arguments;
+          match *type_params {
+              PathArguments::AngleBracketed(ref params) => params.args.first(),
+              _ => None,
+          }
+      })
+      .and_then(|generic_arg| match *generic_arg {
+          GenericArgument::Type(ref ty) => Some(ty),
+          _ => None,
+      })
+}
+
+pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream { 
     // struct name we are deriving for.
     let input_name = input.ident;
 
@@ -22,38 +63,36 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
         _ => panic!("this derive macro only works on structs with named fields"),
     };
 
-    let mut field_type_map = HashMap::new();
-    
-    for field in fields.clone(){
-      let field_name: String = field.ident.unwrap().to_string();
+    let derived_name: Ident = syn::Ident::new(&format!("{}Lite", input_name), input_name.span());
+
+    let build_struct = fields.clone().into_iter().map(|field| {
+      let field_ident = field.ident.clone().unwrap();
       let field_type = field.ty;
-      field_type_map.insert(field_name, field_type.clone());
-    } 
+      let unboxed_field_type = match extract_type_from_bbox(&field_type) {
+          None => field_type,
+          Some(ty) => ty.clone(),
+      }; 
+      quote! { // TODO test mechanics of unboxing types
+        #field_ident: #unboxed_field_type
+      }
+    }); 
 
     let puts_to_enum = fields.clone().into_iter().map(|field| {
-        let field = field.ident.unwrap();
-        let field_name: String = field.to_string();
-        quote! {
-          map.insert(::std::string::String::from(#field_name), self.#field.to_enum());
+        let field_ident = field.ident.unwrap();
+        let field_name: String = field_ident.to_string();
+        quote! { //map is HashMap defined in to_enum
+          map.insert(::std::string::String::from(#field_name), self.#field_ident.to_enum());
         }
     });
 
-    let field_for_struct = fields.clone().into_iter().map(|field| {
-      let field = field.ident.unwrap();
-      let field_name: String = field.to_string();
-      let field_type =  field_type_map.get(&field_name).unwrap().clone();
-      quote! { //trying to pop the fields into the new struct - not sure if it knows what 'hashmap' is
-        #field_name: <#field_type as MagicUnbox>::from_enum(hashmap.remove(#field_name).unwrap())?,
+     let gets_from_enum = fields.clone().into_iter().map(|field| {
+      let field_ident = field.ident.unwrap();
+      let field_name: String = field_ident.to_string();
+      let field_type = field.ty;
+      quote! { //pop the fields into the new struct 
+        #field_ident: <#field_type as MagicUnbox>::from_enum(hashmap.remove(#field_name).unwrap())?,
       }
-    });
-
-    let lite_struct_name = syn::Ident::new(&format!("{}Lite", input_name), input_name.span());
-
-    let new_struct = quote! {
-      struct #lite_struct_name {
-          #fields,
-      }
-    };
+    }); 
 
     // Generics if any.
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -62,27 +101,29 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     quote! {
       #[automatically_derived]
 
-      #new_struct //to make new struct?
+     #[derive(BBoxRender, Clone, Serialize)] // TODO less rigid option?
+      pub struct #derived_name {
+        #(#build_struct,)*
+      } 
 
       impl #impl_generics ::bbox::bbox::MagicUnbox for #input_name #ty_generics #where_clause {
-
-        type Out = #lite_struct_name; //should this be #lite_struct_name or #new_struct?
+        type Out = #derived_name; 
+        //type Out = #input_name;
 
         fn to_enum(self) -> ::bbox::bbox::MagicUnboxEnum {
           let mut map: ::std::collections::HashMap<::std::string::String, ::bbox::bbox::MagicUnboxEnum> = ::std::collections::HashMap::new();
           #(#puts_to_enum)*
-          ::bbox::bbox::MagicUnbox::Struct(map)
+          ::bbox::bbox::MagicUnboxEnum::Struct(map)
         }
 
         fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()> {
           match e {
             MagicUnboxEnum::Struct(mut hashmap) => Ok(Self::Out {
-                #(#field_for_struct)*
+                #(#gets_from_enum)* 
             }),
             _ => Err(()),
           }
         }
       }
     }
-}
-
+  }

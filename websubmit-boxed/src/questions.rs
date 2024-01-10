@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use serde::Serialize; //for issue with Vec as un-Serializable
+use serde::Serialize; 
 
 use chrono::naive::NaiveDateTime;
 use chrono::Local;
@@ -72,8 +72,8 @@ pub(crate) struct LectureQuestionsContext {
     pub parent: String,
 }
 
-#[derive(BBoxRender, Clone)] 
-pub struct LectureAnswer {
+#[derive(BBoxRender, Clone, MagicUnbox)]             
+pub struct LectureAnswer {                            //FLAG example for standard boxes
     pub id: BBox<u64, AnswerAccessPolicy>,
     pub user: BBox<String, AnswerAccessPolicy>,
     pub answer: BBox<String, AnswerAccessPolicy>,
@@ -88,8 +88,8 @@ pub struct LectureAnswersContext {
     pub parent: String,
 }
 
-#[derive(BBoxRender)]
-struct LectureListEntry {
+#[derive(BBoxRender, MagicUnbox)]
+struct LectureListEntry {                             //FLAG example for unboxed values
     id: BBox<u64, NoPolicy>,
     label: BBox<String, NoPolicy>,
     num_qs: BBox<u64, NoPolicy>,
@@ -103,17 +103,7 @@ struct LectureListContext {
     parent: String,
 }
 
-/* ---------------------------------------------------------------- */
-
-#[derive(BBoxRender, Clone, Serialize)]
-pub struct LectureAnswerLite {
-    pub id: u64,
-    pub user: String,
-    pub answer: String,
-    //pub time: String,
-    pub grade: u64,
-}
-
+// This cannot be derived at the moment because we want to keep some BBoxes
 #[derive(BBoxRender)]
 pub struct LectureAnswersContextLite {
     pub lec_id: BBox<u8, NoPolicy>,
@@ -121,8 +111,22 @@ pub struct LectureAnswersContextLite {
     pub parent: String,
 }
 
-/* ---------------------------------------------------------------- */
-// Later, this will be Derived rather than impl'd on client side
+#[derive(MagicUnbox)]
+pub struct VectorBoxes {                                //FLAG (dummy) example for unsupported case 
+    lectures: Vec<BBox<String, NoPolicy>>,
+}
+
+/* ---------------------------------------------------------------- 
+// Now, this can be Derived rather than impl'd on client side
+
+#[derive(BBoxRender, Clone, Serialize)]
+pub struct LectureAnswerLite {
+    pub id: u64,
+    pub user: String,
+    pub answer: String,
+    pub grade: u64,
+}
+
 impl MagicUnbox for LectureAnswer {
     type Out = LectureAnswerLite; 
     fn to_enum(self) -> MagicUnboxEnum {
@@ -130,7 +134,6 @@ impl MagicUnbox for LectureAnswer {
             (String::from("id"), self.id.to_enum()),
             (String::from("user"), self.user.to_enum()),
             (String::from("answer"), self.answer.to_enum()),
-            //(String::from("time"), self.time.to_enum()),
             (String::from("grade"), self.grade.to_enum()),
         ]);
         MagicUnboxEnum::Struct(hashmap)  
@@ -141,14 +144,15 @@ impl MagicUnbox for LectureAnswer {
                 id: <u64 as MagicUnbox>::from_enum(hashmap.remove("id").unwrap())?,
                 user: <String as MagicUnbox>::from_enum(hashmap.remove("user").unwrap())?,
                 answer: <String as MagicUnbox>::from_enum(hashmap.remove("answer").unwrap())?,
-                //time: <String as MagicUnbox>::from_enum(hashmap.remove("time").unwrap())?,
                 grade: <u64 as MagicUnbox>::from_enum(hashmap.remove("grade").unwrap())?,
             }),
             _ => Err(()),
         }
     }
   }
-/* ---------------------------------------------------------------- */
+  
+---------------------------------------------------------------- */
+
 
 #[get("/")]
 pub(crate) fn leclist(
@@ -231,7 +235,6 @@ pub(crate) fn composed_answers(
         })
         .collect();
 
-    // Now, with magic folding!                         
     let now = Instant::now();
     let outer_box_answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy> = magic_box_fold(answers)
         .unwrap()
