@@ -72,7 +72,8 @@ pub(crate) struct LectureQuestionsContext {
     pub parent: String,
 }
 
-#[derive(BBoxRender, Clone, MagicUnbox)]             
+#[derive(BBoxRender, Clone, MagicUnbox)]    
+#[magic_unbox_out(name = "LectureAnswerLite", to_derive = [BBoxRender, Clone, Serialize])]         
 pub struct LectureAnswer {                            
     pub id: BBox<u64, AnswerAccessPolicy>,
     pub user: BBox<String, AnswerAccessPolicy>,
@@ -89,6 +90,7 @@ pub struct LectureAnswersContext {
 }
 
 #[derive(BBoxRender, MagicUnbox)]
+#[magic_unbox_out(name = "LectureListOut", to_derive = [BBoxRender, Clone])]         
 struct LectureListEntry {                             
     id: BBox<u64, NoPolicy>,
     label: BBox<String, NoPolicy>,
