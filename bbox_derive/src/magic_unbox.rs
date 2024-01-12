@@ -2,14 +2,11 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-use proc_macro2::{Ident, Span, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{parse_macro_input, Type, Token, Lit, Data, DataStruct, DeriveInput, Field, Fields};
-use syn::parse::{Parse, ParseStream};
-use std::collections::HashMap;
-use syn::{GenericArgument, Path, PathArguments, PathSegment};
+use syn::{Data, DataStruct, DeriveInput, Field, Fields, Visibility, Type};
 use attribute_derive::FromAttr;
 
 #[derive(FromAttr)]
@@ -22,9 +19,26 @@ struct MagicUnboxArgs {
 
 pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream { 
     // struct name we are deriving for.
-    let input_name = input.ident;
+    let input_name: Ident = input.ident;
 
-    let out_attrs = MagicUnboxArgs::from_attributes(&input.attrs).unwrap();
+    let input_vis: Visibility = input.vis;
+
+    let out_attrs: MagicUnboxArgs = MagicUnboxArgs::from_attributes(&input.attrs).unwrap();
+    let derived_name: Ident = syn::Ident::new(out_attrs.name.as_str(), input_name.span());
+    let trait_vec: Vec<Ident> = out_attrs.to_derive.clone().unwrap_or(vec![]); 
+    
+    let iter_traits = trait_vec.clone()
+                                                                  .into_iter()
+                                                                  .map(|trait_ident| {
+                                                                  quote!{ #trait_ident }});
+    let derive_traits = { 
+      if trait_vec.len() > 0 {
+        quote!{ #[derive(#(#iter_traits),*)] } 
+      } else {
+        quote!{}
+      }
+    };  
+
     // get fields inside struct.
     let fields: Punctuated<Field, Comma> = match input.data {
         Data::Struct(DataStruct {
@@ -33,23 +47,6 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
         }) => fields.named,
         _ => panic!("this derive macro only works on structs with named fields"),
     };
-
-    let derived_name: Ident = syn::Ident::new(out_attrs.name.as_str(), input_name.span());
-
-    let trait_vec = out_attrs.to_derive.clone().unwrap_or(vec![]); 
-
-    let iter_traits = trait_vec.clone().into_iter().map(|trait_ident| {
-      let temp = trait_ident.clone();
-      quote!{ #temp }
-    });
-        
-    let derive_traits : TokenStream = { 
-      if trait_vec.len() > 0 {
-        quote!{ #[derive(#(#iter_traits),*)] } 
-      } else {
-        quote!{}
-      }
-    }; 
     
     // Copy over struct fields but with types as MagicUnbox
     let build_struct_fields = fields.clone().into_iter().map(|field| {
@@ -72,9 +69,9 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
 
     //pop the fields into the new struct 
      let gets_from_enum = fields.clone().into_iter().map(|field| {
-      let field_ident = field.ident.unwrap();
+      let field_ident: Ident = field.ident.unwrap();
       let field_name: String = field_ident.to_string();
-      let field_type = field.ty;
+      let field_type: Type = field.ty;
       quote! { 
         #field_ident: <#field_type as MagicUnbox>::from_enum(hashmap.remove(#field_name).unwrap())?,
       }
@@ -88,13 +85,12 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
       #[automatically_derived]
       
       #derive_traits
-      pub struct #derived_name {
+      #input_vis struct #derived_name { 
         #(#build_struct_fields,)*
       } 
 
       impl #impl_generics ::bbox::bbox::MagicUnbox for #input_name #ty_generics #where_clause {
         type Out = #derived_name; 
-        //type Out = #input_name;
 
         fn to_enum(self) -> ::bbox::bbox::MagicUnboxEnum {
           let mut map: ::std::collections::HashMap<::std::string::String, ::bbox::bbox::MagicUnboxEnum> = ::std::collections::HashMap::new();
