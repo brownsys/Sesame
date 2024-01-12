@@ -48,11 +48,11 @@ impl<T, P: Policy> BBox<T, P> {
         self.t
     }
     pub fn unbox<U, D>(&self, context: &Context<U, D>) -> &T {
-        if self.p.check(context){
+        //if self.p.check(context){
             &self.t
-        } else {
-            panic!()
-        }
+        //} else {
+        //    panic!()
+        //}
     }
     pub fn into_unbox<U, D>(self, _context: &Context<U, D>) -> T {
         self.t
@@ -70,7 +70,7 @@ impl<T, P: Policy> BBox<T, P> {
     }
 }
 
-// This API assume the policy can be cloned.
+// This API assumes the policy can be cloned.
 impl<T, P: Policy + Clone> BBox<T, P> {
     pub fn sandbox_execute<'a, R, F: FnOnce(&'a T) -> R>(&'a self, lambda: F) -> BBox<R, P> {
         // Do we check policies?
