@@ -76,7 +76,6 @@ pub fn routes(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-//want to use as #[magic_unbox_out(name = AnswerAccessLite, derive_traits = [Clone, BBoxRender])]
 #[proc_macro_derive(MagicUnbox, attributes(magic_unbox_out))] 
 pub fn derive_magic_unbox(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
