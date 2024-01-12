@@ -6,15 +6,16 @@ use crate::policy::{Policy, AnyPolicy, NoPolicy}; //, Conjunction};
 use crate::bbox::magic_box_fold;
 
 // BBox and containers of it are MagicUnboxable.
+#[derive(Debug)]
 pub enum MagicUnboxEnum {
     BBox(BBox<Box<dyn Any>, AnyPolicy>),
     Value(Box<dyn Any>),
     Vec(Vec<MagicUnboxEnum>),
     Struct(HashMap<String, MagicUnboxEnum>),
 }
-// Public: client code should Derive this and can call magic_box_fold
+// Public: client code should derive this and can call magic_box_fold
 pub trait MagicUnbox {
-    type Out; //Lite form of struct
+    type Out; //Unboxed form of struct
     fn to_enum(self) -> MagicUnboxEnum;
     fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()>;
 }
@@ -83,6 +84,22 @@ impl MagicUnbox for i32 {
     }
 }
 
+impl MagicUnbox for u8 {
+    type Out = u8; 
+    fn to_enum(self) -> MagicUnboxEnum {
+        MagicUnboxEnum::Value(Box::new(self))
+    }
+    fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()> {
+        match e {
+            MagicUnboxEnum::Value(v) => match v.downcast() {
+                Err(_) => Err(()),
+                Ok(v) => Ok(*v),
+            },
+            _ => Err(()),
+        }
+    }
+}
+
 impl MagicUnbox for u64 {
     type Out = u64; 
     fn to_enum(self) -> MagicUnboxEnum {
@@ -132,7 +149,7 @@ impl MagicUnbox for String {
 }
 
 impl<T: 'static, P: Policy + Clone + 'static> MagicUnbox for BBox<T, P> {
-    type Out = T;
+    type Out = T; // Why BBox<Struct, P> as Out -> Struct instead of StructLite
     fn to_enum(self) -> MagicUnboxEnum { 
         MagicUnboxEnum::BBox(self.to_any_type_and_policy()) 
     }
@@ -166,6 +183,7 @@ impl<S: MagicUnbox> MagicUnbox for Vec<S> {
     }
 }
 
+//TODO(corinn): check policy logic
 pub fn sandbox_execute<S: MagicUnbox, R, F: FnOnce(S::Out) -> R>(
     s: S,
     lambda: F,
