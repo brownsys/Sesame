@@ -1,18 +1,24 @@
-
-/* Testing Overview
+/* 
+Testing Overview
         Derived for these genres of struct:
+            Fields w/o boxes + doesn't provide a new struct name
+
             Fields without BBoxes
             Fields with BBoxes
             Fields with collection (Vec) of BBoxes
-            Fields with custom struct that impls MagicUnbox       
+            Fields with custom struct that impls MagicUnbox    
+
 
         Tested that the Out struct names are as specified + the traits are derived
         Tested that name not specified panics
-        Tested form + contents of to_enum and from_enum
+        
+        For both impls with a generated struct and without, 
+            tested form + contents of to_enum and from_enum
 
-        Checked that struct and field visibility transfer properly via cargo expand output, 
-        but that's not foolproof + rust analyzer shows every generated struct and field as pub.
-*/
+        NOTE: Checked that struct and field visibility transfer properly via cargo expand output, 
+        and the visibilities should be correct because the macro directly inserts the parsed types,
+        but rust analyzer shows every generated struct and field as pub.
+ */
 
 mod tests {
     use bbox::policy::NoPolicy;
@@ -21,8 +27,7 @@ mod tests {
 
     use std::collections::HashMap;
 
-    #[derive(MagicUnbox, Clone, PartialEq, Debug)]
-    #[magic_unbox_out(name = "NoBoxesLite", to_derive = [Clone, Debug, PartialEq])]
+    #[derive(MagicUnbox, Clone, PartialEq, Debug)] //Keep same out type
     pub struct NoBoxes {
         f1: u64, 
         f2: String,
@@ -53,21 +58,16 @@ mod tests {
     pub struct ContainsStruct {
         f1: SimpleBoxed,
         f2: BBox<SimpleBoxed, NoPolicy>,
-        f3: NoBoxes, 
+        f3: NoBoxes, //when not preserving the Out type for NoBoxes, this becomes NoBoxesLite
         f4: BBox<NoBoxes, NoPolicy>, 
         f5: VecBoxed,
     }
 
-    /*  
-        The MagicUnboxOut structs have the specified names,
+    /*  The MagicUnboxOut structs have the specified names,
         we can impl on them (the compiler agrees they exist), 
         and the types to construct them are correctly Unboxed. 
     */
-    impl NoBoxesLite {
-        pub fn new(f1: u64, f2: String) -> Self {
-            Self{f1: f1, f2: f2}
-        }
-    }
+
     impl SimpleBoxedLite {
         pub fn new(f1: u64, f2: String) -> Self {
             Self{f1: f1, f2: f2}
@@ -83,9 +83,9 @@ mod tests {
             Self{f1: f1}
         }
     }
-    impl ContainsStructLite { // TODO discuss discrepancy btwn f1/f2 and f3/f4
+    impl ContainsStructLite { // TODO discuss discrepancy btwn f1/f2 (still funky but acceptable) and f3/f4 (now fixed with "same" Out type)
         pub fn new( f1: SimpleBoxedLite, f2: SimpleBoxed, 
-                    f3: NoBoxesLite, f4: NoBoxes, 
+                    f3: NoBoxes,     f4: NoBoxes, 
                     f5: VecBoxedLite) -> Self { 
             Self{f1: f1, f2: f2, f3: f3, f4: f4, f5: f5} 
         }
@@ -101,34 +101,23 @@ mod tests {
             format!("Debug: {item_clone:?}")
         }
 
-        let no_boxes = NoBoxesLite::new(num.clone(), hi.clone()); 
+        //let no_boxes = NoBoxes::new(num.clone(), hi.clone()); 
         let simple_boxes= SimpleBoxedLite::new(num.clone(), hi.clone()); 
         let mixed_boxes = MixedBoxedLite::new(num.clone(), hi.clone()); 
         let vec_boxes = VecBoxedLite::new(vec![num.clone()]); 
 
         // More importantly, the traits derived correctly
-        assert_eq!(clone_and_debug(no_boxes), "Debug: NoBoxesLite { f1: 42, f2: \"hi\" }");
+        //assert_eq!(clone_and_debug(no_boxes), "Debug: NoBoxesLite { f1: 42, f2: \"hi\" }");
         assert_eq!(clone_and_debug(simple_boxes), "Debug: SimpleBoxedLite { f1: 42, f2: \"hi\" }");
         assert_eq!(clone_and_debug(mixed_boxes), "Debug: MixedBoxedLite { f1: 42, f2: \"hi\" }");
         assert_eq!(clone_and_debug(vec_boxes), "Debug: VecBoxedLite { f1: [42] }");
     }
 
-    /* ----- No names panic at compile time ----- */
-
     #[test]
-    //#[should_panic]
-    fn no_name_specified(){
+    //#[should_panic] //Panics at compile time
+    fn derive_typo_trait(){
         //#[derive(MagicUnbox)]
-        pub struct MyStruct {
-            f1: String,
-        }
-    }
-
-    #[test]
-    //#[should_panic]
-    fn no_name_specified_2(){
-        //#[derive(MagicUnbox)]
-        //#[magic_unbox_out(to_derive = [Debug])]
+        //#[magic_unbox_out(name = "MyStructOut", to_derive = [Debog])]
         pub struct MyStruct {
             f1: String,
         }
@@ -186,10 +175,55 @@ mod tests {
         impl MixedVisOut {}
     }
 
-    /* --------------- testing to_enum and from_enum-------------------------------- */ 
+    /* ----------- Tests for perfunctory/no-name MagicUnbox derive ------------ */
 
     #[test]
-    fn simple_to_enum() {
+    fn no_name_to_enum(){
+        #[derive(MagicUnbox, PartialEq, Debug)]
+        #[magic_unbox_out(to_derive = [Debug])] //TODO to_derive doesn't do anything when keeping same struct 
+        pub struct Boxless {
+            f1: u64,
+        }
+
+        //Testing to_enum
+        let simple = Boxless {f1: 10};
+        let magical_enum: MagicUnboxEnum = simple.to_enum();
+        assert!(matches!(magical_enum, MagicUnboxEnum::Value(_)));
+        
+        if let MagicUnboxEnum::Value(any_data) = magical_enum {
+            let data: Result<Boxless, &str> = match any_data.downcast::<Boxless>() {
+                Err(_) => Err("This Errored"),
+                Ok(v) => Ok(*v),
+            }; 
+            assert_eq!(data, Ok(Boxless {f1: 10}));
+        }
+    }
+
+    #[test]
+    fn no_name_from_enum(){
+        #[derive(MagicUnbox)]
+        #[magic_unbox_out(to_derive = [Debug])] //TODO to_derive doesn't do anything when keeping same struct -> 
+        pub struct Boxless {
+            f1: u64,
+        }
+        let boxless = Boxless { f1: 10}; 
+        let magical_enum = MagicUnboxEnum::Value(Box::new(boxless));
+
+        // Call from_enum to generate an Out struct
+        let output_res: Result<Boxless, ()> = <Boxless>::from_enum(magical_enum);
+        
+        //From_enum didn't fail
+        assert!(matches!(output_res, Ok(_)));
+        let output = output_res.unwrap(); 
+        
+        // Out struct has correct data
+        assert_eq!(output.f1, 10);
+    }
+
+    /* --------------- Testing discrete Out type -> to_enum and from_enum -------------------------------- */ 
+
+    #[test]
+    fn cased_fields_to_enum() {
         #[derive(MagicUnbox)]
         #[magic_unbox_out(name = "SimpleOut")]
         pub struct Simple {
@@ -250,8 +284,8 @@ mod tests {
                 }; 
                 assert_eq!(data, Ok(10));
             }
-            if let MagicUnboxEnum::Value(val) = t3 { 
-                let data: Result<String, ()> = match val.downcast() {
+            if let MagicUnboxEnum::Value(any_data) = t3 { 
+                let data: Result<String, ()> = match any_data.downcast() {
                     Err(_) => Err(()),
                     Ok(v) => Ok(*v),
                 }; 
@@ -261,31 +295,39 @@ mod tests {
     }
 
     #[test]
-    fn simple_from_enum() {
+    fn cased_fields_from_enum() {
         #[derive(MagicUnbox)]
         #[magic_unbox_out(name = "SimpleOut")]
         pub struct Simple {
-            t1: bbox::bbox::BBox<String, NoPolicy>,
+            t1: Vec<bbox::bbox::BBox<bool, NoPolicy>>,
             t2: bbox::bbox::BBox<u8, NoPolicy>,
             t3: String,
         }
+        impl SimpleOut {
+            pub fn new(t1: Vec<bool>, t2: u8, t3: String) -> Self {
+                Self{t1: t1, t2: t2, t3: t3}
+            }
+
+        }
         let ten: u8 = 10;
         let hashmap = HashMap::from([
-            (String::from("t1"), String::from("hello").to_enum()),
+            (String::from("t1"), vec![true, true, true].to_enum()),
             (String::from("t2"), ten.to_enum()),
             (String::from("t3"), String::from("unprotected").to_enum()),
         ]);
         let magical_enum = MagicUnboxEnum::Struct(hashmap); 
 
         // Call from_enum to generate an Out struct
-        let output_res = Simple::from_enum(magical_enum);
+        let output_res = <Simple as MagicUnbox>::from_enum(magical_enum);
         
         //From_enum didn't fail
         assert!(matches!(output_res, Ok(_)));
         let output = output_res.unwrap(); 
         
         // Out struct has correct data
-        assert_eq!(output.t1, String::from("hello"));
+        for b in output.t1 {
+            assert_eq!(b, true);
+        }
         assert_eq!(output.t2, 10);
         assert_eq!(output.t3, String::from("unprotected"));
     }
