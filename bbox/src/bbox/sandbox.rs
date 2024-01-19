@@ -132,6 +132,22 @@ impl MagicUnbox for f64 {
     }
 }
 
+impl MagicUnbox for bool {
+    type Out = bool; 
+    fn to_enum(self) -> MagicUnboxEnum {
+        MagicUnboxEnum::Value(Box::new(self))
+    }
+    fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()> {
+        match e {
+            MagicUnboxEnum::Value(v) => match v.downcast() {
+                Err(_) => Err(()),
+                Ok(v) => Ok(*v),
+            },
+            _ => Err(()),
+        }
+    }
+}
+
 impl MagicUnbox for String {
     type Out = String; 
     fn to_enum(self) -> MagicUnboxEnum {
