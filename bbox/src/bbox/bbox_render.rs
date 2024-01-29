@@ -125,6 +125,7 @@ render_serialize_impl!(u64);
 render_serialize_impl!(i64);
 render_serialize_impl!(u8);
 render_serialize_impl!(i8);
+render_serialize_impl!(bool);
 
 // Auto implement BBoxRender for BBox.
 impl<T: Serialize, P: Policy + Clone> BBoxRender for BBox<T, P> {
