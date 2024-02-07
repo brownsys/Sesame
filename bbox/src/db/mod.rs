@@ -214,6 +214,18 @@ impl Conn {
         Ok(QueryResult { result })
     }
 
+    // Chained prep and exec function
+    pub fn prep_exec_iter<T: AsRef<str>, P: Into<Params>>(
+        &mut self,
+        query: T,
+        params: P
+    ) -> mysql::Result<QueryResult<'_, '_, '_>> {
+        let stmt = self.prep(query).unwrap();
+        let params = self.unbox_params(params.into());
+        let result = self.conn.exec_iter(stmt, params)?;
+        Ok(QueryResult { result })
+    }
+
     // private helper function.
     fn unbox_params(&self, params: Params) -> mysql::params::Params {
         match params {
