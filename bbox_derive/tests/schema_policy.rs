@@ -1,6 +1,6 @@
 use bbox_derive::schema_policy;
 
-use bbox::policy::{NoPolicy, Policy, SchemaPolicy};
+use bbox::policy::{AnyPolicy, NoPolicy, Policy, SchemaPolicy};
 
 use mysql::Value;
 use std::any::Any;
@@ -15,6 +15,12 @@ impl Policy for SamplePolicy {
     fn check(&self, _: &dyn Any) -> bool {
         true
     }
+    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        todo!()
+    }
+    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+        todo!()
+    }
 }
 impl SchemaPolicy for SamplePolicy {
     fn from_row(_row: &Vec<Value>) -> Self {
@@ -23,7 +29,7 @@ impl SchemaPolicy for SamplePolicy {
 }
 
 #[test]
-fn simple_render_struct() {
+fn schema_policy_registration_test() {
     let policy = bbox::policy::get_schema_policies(String::from("my_table"), 3, &vec![]);
     assert_eq!(policy.name(), String::from("AnyPolicy(SamplePolicy)"));
     assert!(policy.check(&""));

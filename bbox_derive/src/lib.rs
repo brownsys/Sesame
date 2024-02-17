@@ -10,7 +10,7 @@ mod form;
 mod policy;
 mod render;
 mod route;
-mod magic_unbox;
+mod alohomora_type;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
@@ -76,8 +76,8 @@ pub fn routes(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(MagicUnbox, attributes(magic_unbox_out))] 
-pub fn derive_magic_unbox(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(AlohomoraType, attributes(alohomora_out_type))]
+pub fn derive_alohomora_type(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    magic_unbox::derive_magic_unbox_impl(input).into()
+    alohomora_type::derive_alohomora_type_impl(input).into()
 }

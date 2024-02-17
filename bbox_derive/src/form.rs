@@ -196,7 +196,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
               __opts: opts,
               __errors: ::rocket::form::prelude::Errors::new(),
               __parent: ::std::option::Option::None,
-              // TODO
+              // TODO(babman): default values?
               #( #fields_idents: ::std::option::Option::None, )*
             }
           }

@@ -3,6 +3,7 @@ use std::{fmt::{Debug, Display, Formatter}, any::Any};
 
 use crate::policy::{AnyPolicy, NoPolicy, Policy};
 
+// TODO(babman): special case BBox<T, TestPolicy> so that PartialEq is implemented as well as direct unboxing.
 #[derive(PartialEq)]
 pub struct BBox<T, P: Policy> {
     pub(crate) t: T,
@@ -48,11 +49,11 @@ impl<T, P: Policy> BBox<T, P> {
         self.t
     }
     pub fn unbox<U, D>(&self, context: &Context<U, D>) -> &T {
-        //if self.p.check(context){
+        if self.p.check(context){
             &self.t
-        //} else {
-        //    panic!()
-        //}
+        } else {
+            panic!()
+        }
     }
     pub fn into_unbox<U, D>(self, _context: &Context<U, D>) -> T {
         self.t
@@ -66,19 +67,6 @@ impl<T, P: Policy> BBox<T, P> {
         BBox {
             t: lambda(self.t),
             p: self.p,
-        }
-    }
-}
-
-// This API assumes the policy can be cloned.
-impl<T, P: Policy + Clone> BBox<T, P> {
-    pub fn sandbox_execute<'a, R, F: FnOnce(&'a T) -> R>(&'a self, lambda: F) -> BBox<R, P> {
-        // Do we check policies?
-        // Do we check that function is pure?
-        // Do we execute in an actual sandbox?
-        BBox {
-            t: lambda(&self.t),
-            p: self.p.clone(),
         }
     }
 }
@@ -153,13 +141,8 @@ impl<T: Display, P: Policy> BBox<T, P> {
     }
 }
 
-//TODO(corinn) in order to use as_ref() in predict.rs - double check valid
-impl<T, P: Policy> AsRef<BBox<T, P>> for BBox<T, P> {
-    fn as_ref(&self) -> &BBox<T, P> {
-        self
-    }
-}
-
+// TODO(babman): does not work when tests are part of application crate,
+//               rely on TestPolicy instead.
 // Can unbox without context during tests.
 #[cfg(test)]
 impl<T, P: Policy> BBox<T, P> {
@@ -190,10 +173,10 @@ mod tests {
         fn check(&self, _context: &dyn Any) -> bool {
             true
         }
-        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
+        fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
             Ok(AnyPolicy::new(self.clone()))
         }
-        fn join_logic(&self, other: Self) -> Result<Self, ()> {
+        fn join_logic(&self, _other: Self) -> Result<Self, ()> {
             Ok(TestPolicy { attr: String::from("") })
         }
     }

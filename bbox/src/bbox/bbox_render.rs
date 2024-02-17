@@ -33,10 +33,10 @@ pub mod refs {
         fn check(&self, context: &dyn Any) -> bool {
             self.policy.check(context)
         }
-        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
             todo!()
         }
-        fn join_logic(&self, other: Self) -> Result<Self, ()> {
+        fn join_logic(&self, _other: Self) -> Result<Self, ()> {
             todo!()
         }
     }
@@ -54,6 +54,7 @@ pub mod refs {
     }
 }
 
+// TODO(babman): re-use fold and AlohomoraType here?
 // A BBox with type T erased, a primitive value, or a collection of mixed-type
 // values.
 pub enum Renderable<'a> {
@@ -166,11 +167,10 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
 #[cfg(test)]
 mod tests {
     use crate::policy::NoPolicy;
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
-    fn make_test_context() -> Context<String, String> {
-        Context::new(None, String::from(""))
+    fn make_test_context() -> Context<String, ()> {
+        Context::new(None, String::from(""), ())
     }
 
     #[test]

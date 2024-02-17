@@ -10,18 +10,18 @@ use syn::{Data, DataStruct, DeriveInput, Field, Fields, Visibility, Type};
 use attribute_derive::FromAttr;
 
 #[derive(FromAttr)]
-#[attribute(ident = magic_unbox_out)]
-struct MagicUnboxArgs {
+#[attribute(ident = alohomora_out_type)]
+struct AlohomoraTypeArgs {
   //#[attribute(optional = false)]
   name: Option<String>,
   to_derive: Option<Vec<Ident>>, 
 }
 
-pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream { 
+pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
   // Struct name we are deriving for.
   let input_ident: Ident = input.ident;
   let input_vis: Visibility = input.vis;
-  let out_attrs: MagicUnboxArgs = MagicUnboxArgs::from_attributes(&input.attrs).unwrap();
+  let out_attrs = AlohomoraTypeArgs::from_attributes(&input.attrs).unwrap();
 
   // Get traits to derive for new struct (if it exists)
   let trait_vec: Vec<Ident> = out_attrs.to_derive.clone().unwrap_or(vec![]); 
@@ -45,13 +45,13 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
       }) => fields.named,
       _ => panic!("this derive macro only works on structs with named fields"),
   };
-  // Copy over struct fields but with types as MagicUnbox
+  // Copy over struct fields but with types as AlohomoraType
   let build_struct_fields = fields.clone().into_iter().map(|field| {
     let field_vis = field.vis; 
     let field_ident = field.ident.clone().unwrap();
     let field_type = field.ty;
     quote! { 
-      #field_vis #field_ident: <#field_type as MagicUnbox>::Out
+      #field_vis #field_ident: <#field_type as ::bbox::r#type::AlohomoraType>::Out
     }
   }); 
 
@@ -78,7 +78,7 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
       quote!() 
     };
 
-  // Create map of struct fields to MagicUnboxEnums
+  // Create map of struct fields to AlohomoraTypeEnums
   let puts_to_enum = fields.clone().into_iter().map(|field| {
       let field_ident = field.ident.unwrap();
       let field_name: String = field_ident.to_string();
@@ -90,12 +90,12 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
   // Build to_enum
   let to_enum_body = if new_out_type {
     quote!{
-      let mut map: ::std::collections::HashMap<::std::string::String, ::bbox::bbox::MagicUnboxEnum> = ::std::collections::HashMap::new();
+      let mut map: ::std::collections::HashMap<::std::string::String, ::bbox::r#type::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
       #(#puts_to_enum)*
-      ::bbox::bbox::MagicUnboxEnum::Struct(map)
+      ::bbox::r#type::AlohomoraTypeEnum::Struct(map)
     }} else {
       quote!{
-        MagicUnboxEnum::Value(Box::new(self))
+        ::bbox::r#type::AlohomoraTypeEnum::Value(Box::new(self))
       }
     };
   
@@ -107,7 +107,7 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
       let field_name: String = field_ident.to_string();
       let field_type: Type = field.ty;
       quote! { 
-        #field_ident: <#field_type as MagicUnbox>::from_enum(hashmap.remove(#field_name).unwrap())?,
+        #field_ident: <#field_type as ::bbox::r#type::AlohomoraType>::from_enum(hashmap.remove(#field_name).unwrap())?,
       }
     }); 
   
@@ -115,7 +115,7 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
   let from_enum_body = if new_out_type {
       quote!{
         match e {
-          MagicUnboxEnum::Struct(mut hashmap) => Ok(Self::Out {
+          ::bbox::r#type::AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
             #(#gets_from_enum)* 
           }),
           _ => Err(()),
@@ -123,7 +123,7 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     } else {
         quote!{
           match e {
-            MagicUnboxEnum::Value(v) => match v.downcast() {
+            ::bbox::r#type::AlohomoraTypeEnum::Value(v) => match v.downcast() {
                 Ok(v) => Ok(*v),
                 Err(_) => Err(()),
             },
@@ -140,14 +140,14 @@ pub fn derive_magic_unbox_impl(input: DeriveInput) -> TokenStream {
     
     #new_struct_or_blank
 
-    impl #impl_generics ::bbox::bbox::MagicUnbox for #input_ident #ty_generics #where_clause {
+    impl #impl_generics ::bbox::r#type::AlohomoraType for #input_ident #ty_generics #where_clause {
       type Out = #out_ident; 
 
-      fn to_enum(self) -> ::bbox::bbox::MagicUnboxEnum {
+      fn to_enum(self) -> ::bbox::r#type::AlohomoraTypeEnum {
         #to_enum_body
       }
 
-      fn from_enum(e: MagicUnboxEnum) -> Result<Self::Out, ()> {
+      fn from_enum(e: ::bbox::r#type::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
         #from_enum_body
       }
     }

@@ -1,197 +1,32 @@
 use crate::rocket::BBoxRequest;
-use std::any::{Any, TypeId};
-
+use std::any::Any;
+use crate::policy::AnyPolicy;
 
 // Public facing Policy traits.
 pub trait Policy {
     fn name(&self) -> String;
     fn check(&self, context: &dyn Any) -> bool;
+    // Stream line join, find way to make join combine inside AndPolicy instead of stacking!
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()>;
     fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized;
 }
+
+// Schema policies can be constructed from DB rows.
 pub trait SchemaPolicy: Policy {
     fn from_row(row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized;
 }
 
+// Front end policy can be constructed from HTTP requests and from cookies.
 pub trait FrontendPolicy: Policy + Send {
     fn from_request(request: &BBoxRequest<'_, '_>) -> Self
-    where
-        Self: Sized;
+        where
+            Self: Sized;
     // TODO(babman): from_cookie should become from_request.
     fn from_cookie() -> Self
-    where
-        Self: Sized;
-}
-
-// Any (owned) Policy.
-trait TypeIdPolicyTrait: Policy + Any {
-    fn clone(&self) -> Box<dyn TypeIdPolicyTrait>;
-}
-impl<P: Policy + Clone + 'static> TypeIdPolicyTrait for P {
-    fn clone(&self) -> Box<dyn TypeIdPolicyTrait> {
-        Box::new(self.clone())
-    }
-}
-
-pub struct AnyPolicy {
-    policy: Box<dyn TypeIdPolicyTrait>,
-}
-impl AnyPolicy {
-    pub fn new<P: Policy + Clone + 'static>(p: P) -> Self {
-        Self {
-            policy: Box::new(p),
-        }
-    }
-    pub fn is<P: Policy + 'static>(&self) -> bool {
-        TypeId::of::<P>() == self.policy.as_ref().type_id()
-    }
-    pub fn specialize<P: Policy + 'static>(self) -> Result<P, String> {
-        if self.is::<P>() {
-            let raw = Box::into_raw(self.policy);
-            let raw = raw as *mut P;
-            Ok(*unsafe { Box::from_raw(raw) })
-        } else {
-            Err(format!(
-                "Cannot convert '{}' to '{:?}'",
-                self.name(),
-                TypeId::of::<P>()
-            ))
-        }
-    }
-}
-impl Policy for AnyPolicy {
-    fn name(&self) -> String {
-        format!("AnyPolicy({})", self.policy.name())
-    }
-    fn check(&self, context: &dyn Any) -> bool {
-        self.policy.check(context)
-    }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        self.policy.join(other)        
-    }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        self.policy.join(other) 
-    }
-}
-impl Clone for AnyPolicy { 
-    fn clone(&self) -> Self {
-        Self {
-            policy: self.policy.clone() 
-        }
-    }
-}
-
-// NoPolicy can be directly discarded.
-#[derive(Clone)]
-pub struct NoPolicy {}
-impl NoPolicy {
-    pub fn new () -> Self {
-        Self {}
-    }
-}
-impl Policy for NoPolicy {
-    fn name(&self) -> String {
-        String::from("NoPolicy")
-    }
-    fn check(&self, _context: &dyn Any) -> bool {
-        true
-    }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        Ok(AnyPolicy::new(NoPolicy::new()))
-    }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        Ok(NoPolicy {  })
-    }
-    
-}
-impl FrontendPolicy for NoPolicy {
-    fn from_request<'a, 'r>(_request: &'a BBoxRequest<'a, 'r>) -> Self { 
-        Self {}
-    }
-    fn from_cookie() -> Self {
-        Self {}
-    }
-}
-/* 
-impl Conjunction<()> for NoPolicy {
-    fn join(&self, _p2: &Self) -> Result<Self, ()> {  
-        Ok(NoPolicy { })
-    } 
-}
-*/
-#[derive(Clone)]
-pub struct PolicyAnd {
-    p1: AnyPolicy,
-    p2: AnyPolicy,
-}
-impl PolicyAnd {
-    pub fn new(p1: AnyPolicy, p2: AnyPolicy) -> Self {
-        Self { p1, p2 }
-    }
-}
-
-impl Policy for PolicyAnd {
-    fn name(&self) -> String {
-        format!("({} AND {})", self.p1.name(), self.p2.name())
-    }
-    fn check(&self, context: &dyn Any) -> bool {
-        self.p1.check(context) && self.p2.check(context)
-    }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        todo!()
-    }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        todo!()
-    }
-}
-
-#[derive(Clone)]
-pub struct PolicyOr<P1: Policy, P2: Policy> {
-    p1: P1,
-    p2: P2,
-}
-impl<P1: Policy, P2: Policy> PolicyOr<P1, P2> {
-    pub fn new(p1: P1, p2: P2) -> Self {
-        Self { p1, p2 }
-    }
-}
-impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
-    fn name(&self) -> String {
-        format!("({} OR {})", self.p1.name(), self.p2.name())
-    }
-    fn check(&self, context: &dyn Any) -> bool {
-        self.p1.check(context) || self.p2.check(context)
-    }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        todo!()
-    }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
-      todo!()
-    }
-}
-impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
-    fn from_row(row: &Vec<mysql::Value>) -> Self {
-        Self {
-            p1: P1::from_row(row),
-            p2: P2::from_row(row),
-        }
-    }
-}
-impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2> {
-    fn from_request<'a, 'r>(request: &'a BBoxRequest<'a, 'r>) -> Self {
-        Self {
-            p1: P1::from_request(request),
-            p2: P2::from_request(request),
-        }
-    }
-    fn from_cookie() -> Self {
-        Self {
-            p1: P1::from_cookie(),
-            p2: P2::from_cookie(),
-        }
-    }
+        where
+            Self: Sized;
 }
 
 mod tests {
@@ -214,17 +49,17 @@ mod tests {
     }
     impl BasicPolicy {
         pub fn new(owner: String) -> Self {
-            Self{owner: owner}
+            Self { owner }
         }
     }
     impl Policy for BasicPolicy {
+        fn name(&self) -> String {
+            format!("BasicPolicy(owner: {:?})", self.owner)
+        }
         fn check(&self, context: &dyn Any) -> bool {
             let context: &ContextData = context.downcast_ref().unwrap();
             let user: &String = context.get_user();
             self.owner == user.clone()
-        }
-        fn name(&self) -> String {
-            format!("BasicPolicy(owner: {:?})", self.owner) 
         }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
             if other.is::<BasicPolicy>() { //Policies are combinable
@@ -249,20 +84,15 @@ mod tests {
     #[derive(Clone, PartialEq)]
     pub struct ACLPolicy {
         owners: HashSet<String>,
-    } 
-    impl ACLPolicy {
-        pub fn new(owners: HashSet<String>) -> Self {
-            Self{owners: owners}
-        }
     }
     impl Policy for ACLPolicy {
+        fn name(&self) -> String {
+            format!("ACLPolicy(owners: {:?})", self.owners)
+        }
         fn check(&self, context: &dyn Any) -> bool {
             let context: &ContextData = context.downcast_ref().unwrap();
             let user: &String = context.get_user();
             self.owners.contains(user)
-        }
-        fn name(&self) -> String {
-            format!("ACLPolicy(owners: {:?})", self.owners) 
         }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
             if other.is::<ACLPolicy>() { //Policies are combinable
@@ -279,7 +109,7 @@ mod tests {
             let intersection: HashSet<_> = self.owners.intersection(&other.owners).collect();
             let owners: HashSet<String> = intersection.into_iter().map(|owner| owner.clone()).collect(); 
             if owners.len() > 0 {
-                Ok(ACLPolicy{owners: owners})
+                Ok(ACLPolicy { owners })
             } else {
                 Err(())
             }
@@ -293,12 +123,11 @@ mod tests {
         let alice = String::from("Alice");
         let bob = String::from("Bob");
 
-        
         let mult_acl: HashSet<String> = HashSet::from([alice.clone(), admin1.clone(), admin2.clone()]);
         let alice_acl: HashSet<String> = HashSet::from([alice.clone(), bob.clone()]);
 
-        let acl_pol = ACLPolicy::new(mult_acl); 
-        let alice_pol = ACLPolicy::new(alice_acl); 
+        let acl_pol = ACLPolicy { owners: mult_acl };
+        let alice_pol = ACLPolicy { owners: alice_acl };
         
         //combine in each direction
         let combined_pol: AnyPolicy = acl_pol.join(AnyPolicy::new(alice_pol.clone())).unwrap();
@@ -326,8 +155,8 @@ mod tests {
         let alice = String::from("Alice");
         let bob = String::from("Bob");
 
-        let acl_pol = ACLPolicy::new(HashSet::from([alice.clone(), admin1.clone(), admin2.clone()])); 
-        let bob_pol = ACLPolicy::new(HashSet::from([bob.clone()])); 
+        let acl_pol = ACLPolicy { owners: HashSet::from([alice.clone(), admin1.clone(), admin2.clone()]) };
+        let bob_pol = ACLPolicy { owners: HashSet::from([bob.clone()]) };
         
         //should panic - unsatisfiable policy
         let _combined_pol: AnyPolicy = acl_pol.join(AnyPolicy::new(bob_pol.clone())).unwrap();
@@ -341,7 +170,7 @@ mod tests {
         
         let alice_acl = HashSet::from([alice.clone(), admin1.clone(), admin2.clone()]);
 
-        let acl_pol = ACLPolicy::new(alice_acl); 
+        let acl_pol = ACLPolicy { owners: alice_acl };
         let basic_pol = BasicPolicy::new(alice); 
         
         //combine in each direction

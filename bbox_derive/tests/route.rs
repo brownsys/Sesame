@@ -1,4 +1,4 @@
-use bbox::policy::{FrontendPolicy, Policy};
+use bbox::policy::{AnyPolicy, FrontendPolicy, Policy};
 use bbox::rocket::BBoxRequest;
 use bbox_derive::{route, routes, FromBBoxForm};
 use std::any::Any;
@@ -10,6 +10,12 @@ impl Policy for TmpPolicy {
     }
     fn check(&self, _: &dyn Any) -> bool {
         true
+    }
+    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        todo!()
+    }
+    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+        todo!()
     }
 }
 impl FrontendPolicy for TmpPolicy {
@@ -68,7 +74,9 @@ struct Dog {
     age: bbox::bbox::BBox<usize, TmpPolicy>,
 }
 
-// HTTP reuqest.
+// TODO(babman): get endpoint
+// TODO(babman): actually invoke endpoint
+// HTTP request.
 // POST /route/<num>?<dog>&<a>
 // Example: /route/5?a=apple&dog.name=Max&dog.age=10
 #[route(POST, "/route/<num>?<dog>&<a>", data = "<data>")]
@@ -87,6 +95,9 @@ fn my_route(
     assert_eq!(data.f1.temporary_unbox(), "str1");
     assert_eq!(*data.f3.temporary_unbox(), 10);
     assert_eq!(*num.temporary_unbox(), 5);
+    assert_eq!(a.temporary_unbox(), "apple");
+    assert_eq!(dog.name.temporary_unbox(), "Max");
+    assert_eq!(*dog.age.temporary_unbox(), 10);
 
     // all good.
     bbox::rocket::BBoxRedirect::to("ok", vec![])
@@ -94,7 +105,7 @@ fn my_route(
 
 #[test]
 fn simple_from_bbox_form_test() {
-    let rocket = bbox::rocket::BBoxRocket::<::rocket::Build>::build()
+    let _rocket = bbox::rocket::BBoxRocket::<::rocket::Build>::build()
         .manage(Config::new("test@email.com"))
         .mount("/test", routes![my_route]);
 }

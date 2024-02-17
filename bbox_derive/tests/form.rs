@@ -1,4 +1,4 @@
-use bbox::policy::{FrontendPolicy, Policy};
+use bbox::policy::{AnyPolicy, FrontendPolicy, Policy};
 use bbox::rocket::BBoxRequest;
 use bbox_derive::FromBBoxForm;
 use std::any::Any;
@@ -9,6 +9,12 @@ impl Policy for TmpPolicy {
     }
     fn check(&self, _: &dyn Any) -> bool {
         true
+    }
+    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        todo!()
+    }
+    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+        todo!()
     }
 }
 impl FrontendPolicy for TmpPolicy {
@@ -22,15 +28,20 @@ impl FrontendPolicy for TmpPolicy {
 
 #[derive(FromBBoxForm)]
 struct Nested {
+    #[allow(dead_code)]
     inner: bbox::bbox::BBox<String, TmpPolicy>,
 }
 
 #[derive(FromBBoxForm)]
 struct Simple {
+    #[allow(dead_code)]
     f1: bbox::bbox::BBox<String, TmpPolicy>,
+    #[allow(dead_code)]
     f2: Nested,
+    #[allow(dead_code)]
     f3: bbox::bbox::BBox<u8, TmpPolicy>,
 }
 
+// TODO(babman): Test Form data is being parsed correctly!
 #[test]
 fn simple_from_bbox_form_test() {}
