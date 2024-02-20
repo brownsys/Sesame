@@ -18,10 +18,10 @@ Testing Overview
 
 // TODO(babman): simplify these tests and test the from_enum/to_enum/fold pipeline
 mod tests {
-    use bbox::policy::NoPolicy;
-    use bbox::bbox::BBox;
-    use bbox::r#type::{AlohomoraType, AlohomoraTypeEnum};
-    use bbox_derive::AlohomoraType;
+    use alohomora::policy::NoPolicy;
+    use alohomora::bbox::BBox;
+    use alohomora::r#type::{AlohomoraType, AlohomoraTypeEnum};
+    use alohomora_derive::AlohomoraType;
 
     use std::collections::HashMap;
 

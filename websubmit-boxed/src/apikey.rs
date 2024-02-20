@@ -8,18 +8,16 @@ use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::State;
 
-use bbox::bbox::BBox;
-use bbox::db::from_value; //{from_value, Param};
+use alohomora::bbox::{BBox, BBoxRender};
+use alohomora::db::from_value;
 
-use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
-use bbox::context::Context;
+use alohomora::policy::{NoPolicy, AnyPolicy};
+use alohomora::context::Context;
 
-use bbox::rocket::{
+use alohomora::rocket::{
     BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome,
-    BBoxTemplate, FromBBoxRequest,
+    BBoxTemplate, FromBBoxRequest, post, FromBBoxForm
 };
-
-use bbox_derive::{post, BBoxRender, FromBBoxForm};
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
@@ -70,7 +68,7 @@ pub(crate) fn check_api_key(
 ) -> Result<BBox<String, NoPolicy>, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
     //let key_clone = key.specialize_policy::<NoPolicy>().unwrap().clone().into();
-    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.clone().into()]);
+    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", (key.clone(),));
     drop(bg);
 
     let rs = rs.into_iter().map(|row| {
@@ -87,7 +85,7 @@ pub(crate) fn check_api_key(
         // user email
         // cast back w/ .any_policy() bc from_value implemented for AnyPolicy
         // unwrap Result<BBox<T, P>, String> of from_value, 
-        let user = from_value::<String, AnyPolicy>(rs[0][0].clone().any_policy()).unwrap();
+        let user = from_value::<String, AnyPolicy>(rs[0][0].clone().into_any_policy()).unwrap();
         let unwrapped_user = user.specialize_policy::<NoPolicy>().unwrap();
         // rewrap with Result<BBox<String, AnyPolicy>, ApiKeyError>
         Ok(unwrapped_user) 
@@ -110,7 +108,7 @@ impl<'r> FromBBoxRequest<'r> for ApiKey {
         request
             .cookies()
             .get("apikey")
-            .and_then(|cookie| Some(cookie.value().into_bbox()))
+            .and_then(|cookie: BBoxCookie<'_, NoPolicy>| Some(cookie.value().into_bbox()))
             .and_then(|key: BBox<String, NoPolicy>| match check_api_key(&be, &key) {
                 Ok(user) => Some(ApiKey {
                     user: user,
@@ -137,9 +135,9 @@ pub(crate) fn generate(
         .collect();
 
     // generate an API key from email address
-    let hash = data.email.sandbox_execute(|email| {
+    let hash = alohomora::sandbox::sandbox(data.email.clone(), |email| {
         let mut hasher = Sha256::new();
-        hasher.input_str(email);
+        hasher.input_str(&email);
         // add a secret to make API keys unforgeable without access to the server
         hasher.input_str(&config.secret);
         hasher.result_str()
@@ -147,34 +145,30 @@ pub(crate) fn generate(
 
     // Check if request corresponds to admin or manager.
     // TODO(babman): pure sandbox.
-    let is_admin = data
-        .email
-        .sandbox_execute(|email| config.admins.contains(email));
-    let is_manager = data
-        .email
-        .sandbox_execute(|email| config.managers.contains(email));
-    let is_admin: BBox<i8, NoPolicy> = is_admin.into_bbox();
-    let is_manager: BBox<i8, NoPolicy> = is_manager.into_bbox();
+    let is_admin = alohomora::sandbox::sandbox(data.email.clone(), |email| config.admins.contains(&email));
+    let is_manager = alohomora::sandbox::sandbox(data.email.clone(), |email| config.managers.contains(&email));
+    let is_admin: BBox<i8, AnyPolicy> = is_admin.into_bbox();
+    let is_manager: BBox<i8, AnyPolicy> = is_manager.into_bbox();
 
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "users",
-        vec![
-            data.email.clone().into(),
-            hash.clone().into(),
-            is_admin.into(),
-            is_manager.into(),
-            pseudonym.into(),
-            data.gender.clone().into(),
-            data.age.clone().into(),
-            data.ethnicity.clone().into(),
+        (
+            data.email.clone(),
+            hash.clone(),
+            is_admin,
+            is_manager,
+            pseudonym,
+            data.gender.clone(),
+            data.age.clone(),
+            data.ethnicity.clone(),
             match &data.is_remote {
-                Some(is_remote) => is_remote.clone().into(),
-                None => false.into(),
+                Some(is_remote) => is_remote.clone(),
+                None => BBox::new(false, NoPolicy {}),
             },
-            data.education.clone().into(),
-        ],
+            data.education.clone(),
+        ),
     );
 
     if config.send_emails {

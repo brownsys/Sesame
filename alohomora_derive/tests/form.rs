@@ -1,6 +1,7 @@
-use bbox::policy::{AnyPolicy, FrontendPolicy, Policy};
-use bbox::rocket::BBoxRequest;
-use bbox_derive::FromBBoxForm;
+use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
+use alohomora::rocket::BBoxRequest;
+use alohomora_derive::FromBBoxForm;
+
 use std::any::Any;
 pub struct TmpPolicy {}
 impl Policy for TmpPolicy {
@@ -29,17 +30,17 @@ impl FrontendPolicy for TmpPolicy {
 #[derive(FromBBoxForm)]
 struct Nested {
     #[allow(dead_code)]
-    inner: bbox::bbox::BBox<String, TmpPolicy>,
+    inner: alohomora::bbox::BBox<String, TmpPolicy>,
 }
 
 #[derive(FromBBoxForm)]
 struct Simple {
     #[allow(dead_code)]
-    f1: bbox::bbox::BBox<String, TmpPolicy>,
+    f1: alohomora::bbox::BBox<String, TmpPolicy>,
     #[allow(dead_code)]
     f2: Nested,
     #[allow(dead_code)]
-    f3: bbox::bbox::BBox<u8, TmpPolicy>,
+    f3: alohomora::bbox::BBox<u8, TmpPolicy>,
 }
 
 // TODO(babman): Test Form data is being parsed correctly!

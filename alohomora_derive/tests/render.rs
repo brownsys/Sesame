@@ -1,18 +1,21 @@
-use bbox::bbox::refs::RefBBox;
-use bbox::policy::NoPolicy;
-use bbox_derive::BBoxRender;
+use alohomora::context::Context;
+use alohomora::policy::{Policy, RefPolicy, NoPolicy};
+use alohomora_derive::BBoxRender;
+use erased_serde::Serialize;
+
+type RefBBox<'a> = alohomora::bbox::BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
 #[derive(BBoxRender)]
 struct Simple {
-    t1: bbox::bbox::BBox<String, NoPolicy>,
-    t2: bbox::bbox::BBox<u8, NoPolicy>,
+    t1: alohomora::bbox::BBox<String, NoPolicy>,
+    t2: alohomora::bbox::BBox<u8, NoPolicy>,
     t3: String,
 }
 impl Simple {
     pub fn new() -> Self {
         Simple {
-            t1: bbox::bbox::BBox::new(String::from("hello"), NoPolicy {}),
-            t2: bbox::bbox::BBox::new(10, NoPolicy {}),
+            t1: alohomora::bbox::BBox::new(String::from("hello"), NoPolicy {}),
+            t2: alohomora::bbox::BBox::new(10, NoPolicy {}),
             t3: String::from("unprotected"),
         }
     }
@@ -25,7 +28,8 @@ fn to_string(v: &Vec<u8>) -> String {
 
 // Helper: serializes BBoxes.
 fn bbox_to_string(bbox: &RefBBox<'_>) -> Result<String, ()> {
-    serialize_to_string(bbox.get().temporary_unbox())
+    let context = Context::new(Option::None::<()>, String::from(""), ());
+    serialize_to_string(bbox.unbox(&context))
 }
 
 fn serialize_to_string(data: &dyn erased_serde::Serialize) -> Result<String, ()> {
@@ -42,7 +46,7 @@ fn serialize_to_string(data: &dyn erased_serde::Serialize) -> Result<String, ()>
 
 #[test]
 fn simple_render_struct() {
-    use bbox::bbox::{BBoxRender, Renderable};
+    use alohomora::bbox::{BBoxRender, Renderable};
 
     let simple = Simple::new();
     let renderable = simple.render();

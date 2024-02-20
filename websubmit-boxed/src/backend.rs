@@ -1,13 +1,13 @@
-use bbox::db::{Conn, Opts, Param, Statement, Value}; 
+use alohomora::db::{BBoxConn, BBoxOpts, BBoxParams, BBoxStatement, BBoxValue}; 
 use std::collections::HashMap;
 use std::result::Result;
 use std::error::Error;
 
 pub struct MySqlBackend {
-    pub handle: Conn,
+    pub handle: BBoxConn,
     pub log: slog::Logger,
     _schema: String,
-    prep_stmts: HashMap<String, Statement>,
+    prep_stmts: HashMap<String, BBoxStatement>,
     db_user: String,
     db_password: String,
     db_name: String,
@@ -33,8 +33,8 @@ impl MySqlBackend {
             log,
             "Connecting to MySql DB and initializing schema {}...", dbname
         );
-        let mut db = Conn::new( // this is the user and password from the config.toml file
-            Opts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
+        let mut db = BBoxConn::new( // this is the user and password from the config.toml file
+            BBoxOpts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
         )
         .unwrap();
         assert_eq!(db.ping(), true);
@@ -68,8 +68,8 @@ impl MySqlBackend {
     }
 
     fn reconnect(&mut self) {
-        self.handle = Conn::new(
-            Opts::from_url(&format!(
+        self.handle = BBoxConn::new(
+            BBoxOpts::from_url(&format!(
                 "mysql://{}:{}@127.0.0.1/{}",
                 self.db_user, self.db_password, self.db_name
             ))
@@ -78,7 +78,7 @@ impl MySqlBackend {
         .unwrap();
     }
 
-    pub fn prep_exec(&mut self, sql: &str, params: Vec<Param>) -> Vec<Vec<Value>> {
+    pub fn prep_exec<P: Into<BBoxParams>>(&mut self, sql: &str, params: P) -> Vec<Vec<BBoxValue>> {
         if !self.prep_stmts.contains_key(sql) {
             let stmt = self
                 .handle
@@ -86,6 +86,8 @@ impl MySqlBackend {
                 .expect(&format!("failed to prepare statement \'{}\'", sql));
             self.prep_stmts.insert(sql.to_owned(), stmt);
         }
+        
+        let params: BBoxParams = params.into();
         loop {
             match self
                 .handle
@@ -110,13 +112,19 @@ impl MySqlBackend {
         }
     }
 
-    fn do_insert(&mut self, table: &str, vals: Vec<Param>, replace: bool) {
+    fn do_insert<P: Into<BBoxParams>>(&mut self, table: &str, vals: P, replace: bool) {
+        let vals: BBoxParams = vals.into();
+        let mut param_count = 0;
+        if let BBoxParams::Positional(vec) = &vals {
+          param_count = vec.len();
+        }
+    
         let op = if replace { "REPLACE" } else { "INSERT" };
         let q = format!(
             "{} INTO {} VALUES ({})",
             op,
             table,
-            vals.iter().map(|_| "?").collect::<Vec<&str>>().join(",")
+            (0..param_count).map(|_| "?").collect::<Vec<&str>>().join(",")
         );
         while let Err(e) = self.handle.exec_drop(q.clone(), vals.clone()) {
             warn!(
@@ -127,11 +135,11 @@ impl MySqlBackend {
         }
     }
 
-    pub fn insert(&mut self, table: &str, vals: Vec<Param>) {
+    pub fn insert<P: Into<BBoxParams>>(&mut self, table: &str, vals: P) {
         self.do_insert(table, vals, false);
     }
 
-    pub fn replace(&mut self, table: &str, vals: Vec<Param>) {
+    pub fn replace<P: Into<BBoxParams>>(&mut self, table: &str, vals: P) {
         self.do_insert(table, vals, true);
     }
 }

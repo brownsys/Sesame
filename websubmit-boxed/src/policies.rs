@@ -6,12 +6,9 @@ use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::State;
 
-use bbox::policy::{Policy, AnyPolicy, PolicyAnd, SchemaPolicy}; //Conjunction};
-use bbox::context::Context;
-
-use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
-use bbox_derive::schema_policy;
-
+use alohomora::context::Context;
+use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
+use alohomora::policy::{Policy, AnyPolicy, PolicyAnd, SchemaPolicy, schema_policy};
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
@@ -117,7 +114,7 @@ impl Policy for AnswerAccessPolicy {
                 let mut bg = db.lock().unwrap();
                 let vec = bg.prep_exec(
                     "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-                    vec![lec_id.into(), user.clone().discard_box().into()], 
+                    (lec_id, user.clone()), 
                 );
                 drop(bg);
                 vec.len() > 0
@@ -130,7 +127,7 @@ impl Policy for AnswerAccessPolicy {
     fn name(&self) -> String {
         format!("AnswerAccessPolicy(lec id{:?} for user {:?})", self.lec_id, self.owner) //TODO(corinn) naming conventions?
     }
-    fn join(&self, other: bbox::policy::AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         if other.is::<AnswerAccessPolicy>() { //Policies are combinable
             let other = other.specialize::<AnswerAccessPolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))

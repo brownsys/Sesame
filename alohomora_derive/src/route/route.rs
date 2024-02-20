@@ -171,11 +171,11 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
             ::std::option::Option::Some(_d) => match _d {
               ::std::result::Result::Ok(d) => d,
               ::std::result::Result::Err(_) => {
-                return ::bbox::rocket::BBoxResponseOutcome::Forward(_data);
+                return ::alohomora::rocket::BBoxResponseOutcome::Forward(_data);
               },
             },
             ::std::option::Option::None => {
-              return ::bbox::rocket::BBoxResponseOutcome::Forward(_data);
+              return ::alohomora::rocket::BBoxResponseOutcome::Forward(_data);
             },
           };
         }
@@ -187,13 +187,13 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
     let ty = args.types.get(param).unwrap();
 
     quote! {
-      let #ident = match <#ty as ::bbox::rocket::FromBBoxRequest>::from_bbox_request(&_request).await {
-        ::bbox::rocket::BBoxRequestOutcome::Success(_d) => _d,
-        ::bbox::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
-          return ::bbox::rocket::BBoxResponseOutcome::Failure(_s);
+      let #ident = match <#ty as ::alohomora::rocket::FromBBoxRequest>::from_bbox_request(&_request).await {
+        ::alohomora::rocket::BBoxRequestOutcome::Success(_d) => _d,
+        ::alohomora::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
+          return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
         },
-        ::bbox::rocket::BBoxRequestOutcome::Forward(_) => {
-          return ::bbox::rocket::BBoxResponseOutcome::Forward(_data);
+        ::alohomora::rocket::BBoxRequestOutcome::Forward(_) => {
+          return ::alohomora::rocket::BBoxResponseOutcome::Forward(_data);
         },
       };
     }
@@ -206,13 +206,13 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
             let ident = data.to_ident();
             let ty = args.types.get(data).unwrap();
             quote! {
-              let #ident = match <#ty as ::bbox::rocket::FromBBoxData>::from_data(&_request, _data).await {
-                ::bbox::rocket::BBoxDataOutcome::Success(_d) => _d,
-                ::bbox::rocket::BBoxDataOutcome::Failure((_s, _e)) => {
-                  return ::bbox::rocket::BBoxResponseOutcome::Failure(_s);
+              let #ident = match <#ty as ::alohomora::rocket::FromBBoxData>::from_data(&_request, _data).await {
+                ::alohomora::rocket::BBoxDataOutcome::Success(_d) => _d,
+                ::alohomora::rocket::BBoxDataOutcome::Failure((_s, _e)) => {
+                  return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
                 },
-                ::bbox::rocket::BBoxDataOutcome::Forward(_f) => {
-                  return ::bbox::rocket::BBoxResponseOutcome::Forward(_f);
+                ::alohomora::rocket::BBoxDataOutcome::Forward(_f) => {
+                  return ::alohomora::rocket::BBoxResponseOutcome::Forward(_f);
                 },
               };
             }
@@ -236,7 +236,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
         .map(|param| {
             let ty = args.types.get(param).unwrap();
             quote! {
-              <#ty as ::bbox::rocket::FromBBoxForm>
+              <#ty as ::alohomora::rocket::FromBBoxForm>
             }
         })
         .collect::<Vec<_>>();
@@ -267,7 +267,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
       // handle any errors.
       if !_errors.is_empty() {
-        return ::bbox::rocket::BBoxResponseOutcome::Forward(_data);
+        return ::alohomora::rocket::BBoxResponseOutcome::Forward(_data);
       }
       #(let #query_idents = #query_idents.unwrap();)*
     };
@@ -276,7 +276,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
       #[allow(non_camel_case_types)]
       pub struct #fn_name {}
       impl #fn_name {
-        pub async fn lambda<'r>(_request: ::bbox::rocket::BBoxRequest<'r, '_>, _data: ::bbox::rocket::BBoxData<'r>) -> ::bbox::rocket::BBoxResponseOutcome<'r> {
+        pub async fn lambda<'r>(_request: ::alohomora::rocket::BBoxRequest<'r, '_>, _data: ::alohomora::rocket::BBoxData<'r>) -> ::alohomora::rocket::BBoxResponseOutcome<'r> {
           // Path parameters.
           #(#path_params)*
 
@@ -293,11 +293,11 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
           let res = #fn_call;
 
           // done!
-          ::bbox::rocket::BBoxResponseOutcome::from(&_request, res)
+          ::alohomora::rocket::BBoxResponseOutcome::from(&_request, res)
         }
 
-        pub fn info() -> ::bbox::rocket::BBoxRouteInfo {
-          ::bbox::rocket::BBoxRouteInfo {
+        pub fn info() -> ::alohomora::rocket::BBoxRouteInfo {
+          ::alohomora::rocket::BBoxRouteInfo {
             method: ::rocket::http::Method::#method,
             uri: #uri,
             bbox_handler: |request, data| {

@@ -1,3 +1,4 @@
+extern crate alohomora;
 extern crate clap;
 extern crate lettre;
 extern crate lettre_email;
@@ -8,41 +9,37 @@ extern crate slog;
 extern crate serde_derive;
 extern crate slog_term;
 
+
+// mod admin;
+mod apikey;
+mod args;
+mod backend;
+mod config;
+mod email;
+// mod grades;
+mod helpers;
+// mod login;
+// mod manage;
+mod policies;
+// mod predict;
+// mod questions;
+
+use alohomora::bbox::BBox;
+use alohomora::context::Context;
+use alohomora::policy::NoPolicy;
+use alohomora::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute,
+                        BBoxTemplate, get, routes};
+
 use backend::MySqlBackend;
 use rocket::fs::FileServer;
 use rocket::State;
 use rocket_dyn_templates::Template;
 use std::{sync::{Arc, Mutex}, time::Instant};
 
-
-mod admin;
-mod apikey;
-mod args;
-mod backend;
-mod config;
-mod email;
-mod grades;
-mod helpers;
-mod login;
-mod manage;
-mod policies;
-mod predict;
-mod questions;
-
+use crate::policies::ContextData;
+// use crate::questions::{composed_answers, naive_answers};
 
 type User = apikey::ApiKey;
-
-extern crate bbox;
-use bbox::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute, BBoxTemplate};
-use bbox_derive::{get, routes};
-
-use bbox::bbox::BBox;
-use bbox::policy::NoPolicy;
-use bbox::context::Context;
-
-use crate::policies::ContextData;
-//use crate::policies::ApiKey;
-use crate::questions::{composed_answers, naive_answers};
 
 pub fn new_logger() -> slog::Logger {
     use slog::Drain;
@@ -51,9 +48,9 @@ pub fn new_logger() -> slog::Logger {
     Logger::root(Mutex::new(term_full()).fuse(), o!())
 }
 
-/*#[get("/")]
+#[get("/")]
 fn index(cookies: &BBoxCookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> BBoxRedirect {
-    if let Some(cookie) = cookies.get("apikey") {
+    if let Some(cookie) = cookies.get::<NoPolicy>("apikey") {
         let apikey = cookie.value().into_bbox();
         match apikey::check_api_key(&*backend, &apikey) {
             Ok(_user) => BBoxRedirect::to("/leclist", vec![]),
@@ -62,7 +59,7 @@ fn index(cookies: &BBoxCookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>)
     } else {
         BBoxRedirect::to("/login", vec![])
     }
-}*/
+}
 
 #[rocket::main]
 async fn main() {
@@ -106,10 +103,10 @@ async fn main() {
 
     let context: Context<User, ContextData> = Context::new(Some(apikey), String::from(""), context_data); 
 
-    let now = Instant::now();
-    let _comp_output: BBoxTemplate = composed_answers(num, backend, context); 
-    //let _naive_output: BBoxTemplate = naive_answers(num, backend, context); 
-    println!("Time elapsed: {}", now.elapsed().as_micros());
+    // let now = Instant::now();
+    // let _comp_output: BBoxTemplate = composed_answers(num, backend, context); 
+    // let _naive_output: BBoxTemplate = naive_answers(num, backend, context); 
+    // println!("Time elapsed: {}", now.elapsed().as_micros());
 
 
     /* 

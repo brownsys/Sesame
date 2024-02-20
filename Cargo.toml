@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "bbox",
-    "bbox_derive",
+    "alohomora",
+    "alohomora_derive",
     "websubmit",
     "websubmit-boxed",
 ]

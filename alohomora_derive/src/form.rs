@@ -33,7 +33,7 @@ pub fn cast_field_types(fields: &Punctuated<Field, Comma>) -> Vec<TokenStream> {
         .map(|field| {
             let field_type = &field.ty;
             quote! {
-              <#field_type as ::bbox::rocket::FromBBoxForm<'__f>>
+              <#field_type as ::alohomora::rocket::FromBBoxForm<'__f>>
             }
         })
         .collect()
@@ -187,7 +187,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
         #context
 
         #[::rocket::async_trait]
-        impl #impl_generics ::bbox::rocket::FromBBoxForm<'__f> for #input_name #ty_generics #where_clause {
+        impl #impl_generics ::alohomora::rocket::FromBBoxForm<'__f> for #input_name #ty_generics #where_clause {
           type BBoxContext = FromBBoxFormGeneratedContext #ctx_ty_generics;
 
           // Required methods
@@ -202,7 +202,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Push data for url_encoded bodies.
-          fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: ::bbox::rocket::BBoxValueField<'__f>) {
+          fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: ::alohomora::rocket::BBoxValueField<'__f>) {
             ctxt.__parent = field.name.parent();
             match field.name.key_lossy().as_str() {
               #(#push_value_cases)*
@@ -218,7 +218,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           // Push data for multipart bodies.
           async fn bbox_push_data(
             ctxt: &mut Self::BBoxContext,
-            field: ::bbox::rocket::BBoxDataField<'__f, '_>,
+            field: ::alohomora::rocket::BBoxDataField<'__f, '_>,
           ) {
             ctxt.__parent = field.name.parent();
             match field.name.key_lossy().as_str() {
@@ -233,7 +233,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Finalize.
-          fn bbox_finalize(ctxt: Self::BBoxContext) -> ::bbox::rocket::BBoxFormResult<'__f, Self> {
+          fn bbox_finalize(ctxt: Self::BBoxContext) -> ::alohomora::rocket::BBoxFormResult<'__f, Self> {
             let mut errors = ctxt.__errors;
             let parent = ctxt.__parent;
             let opts = ctxt.__opts;

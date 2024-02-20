@@ -16,6 +16,9 @@ pub use crate::rocket::rocket::*;
 pub use crate::rocket::route::*;
 pub use crate::rocket::template::*;
 
+#[cfg(feature = "alohomora_derive")]
+pub use alohomora_derive::{get, post, route, routes, FromBBoxForm};
+
 // TODO(babman): Later: Policy  ----> PolicyClause and PolicyType
 //                      PolicyClause: atomic unit, cannot be seperated out, can be re-used, potentially can derive from DSL.
 //                                    API: Check, Serialize + Deserialize, Equality testing.

@@ -38,6 +38,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "alohomora"
+version = "0.1.0"
+dependencies = [
+ "alohomora_derive",
+ "cookie",
+ "dynfmt",
+ "erased-serde",
+ "figment",
+ "futures",
+ "handlebars",
+ "indexmap",
+ "lazy_static",
+ "mysql",
+ "mysql_common 0.22.2",
+ "rocket",
+ "rocket_dyn_templates",
+ "serde",
+ "small_ctor",
+ "time 0.2.27",
+]
+
+[[package]]
+name = "alohomora_derive"
+version = "0.1.0"
+dependencies = [
+ "alohomora",
+ "attribute-derive",
+ "erased-serde",
+ "mysql",
+ "proc-macro2",
+ "quote",
+ "rocket",
+ "serde",
+ "serde_json",
+ "syn 2.0.16",
+]
+
+[[package]]
 name = "ansi_term"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -260,43 +298,6 @@ name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
-
-[[package]]
-name = "bbox"
-version = "0.1.0"
-dependencies = [
- "cookie",
- "dynfmt",
- "erased-serde",
- "figment",
- "futures",
- "handlebars",
- "indexmap",
- "lazy_static",
- "mysql",
- "mysql_common 0.22.2",
- "rocket",
- "rocket_dyn_templates",
- "serde",
- "small_ctor",
- "time 0.2.27",
-]
-
-[[package]]
-name = "bbox_derive"
-version = "0.1.0"
-dependencies = [
- "attribute-derive",
- "bbox",
- "erased-serde",
- "mysql",
- "proc-macro2",
- "quote",
- "rocket",
- "serde",
- "serde_json",
- "syn 2.0.16",
-]
 
 [[package]]
 name = "bigdecimal"
@@ -4115,8 +4116,7 @@ dependencies = [
 name = "websubmit-boxed"
 version = "0.1.0"
 dependencies = [
- "bbox",
- "bbox_derive",
+ "alohomora",
  "chrono",
  "clap",
  "handlebars",

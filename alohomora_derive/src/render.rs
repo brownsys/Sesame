@@ -36,11 +36,11 @@ pub fn derive_boxed_serialize_impl(input: DeriveInput) -> TokenStream {
     // Impl trait.
     quote! {
       #[automatically_derived]
-      impl #impl_generics ::bbox::bbox::BBoxRender for #input_name #ty_generics #where_clause {
-        fn render<'a>(&'a self) -> ::bbox::bbox::Renderable<'a> {
-          let mut map: ::std::collections::BTreeMap<::std::string::String, ::bbox::bbox::Renderable<'a>> = ::std::collections::BTreeMap::new();
+      impl #impl_generics ::alohomora::bbox::BBoxRender for #input_name #ty_generics #where_clause {
+        fn render<'a>(&'a self) -> ::alohomora::bbox::Renderable<'a> {
+          let mut map: ::std::collections::BTreeMap<::std::string::String, ::alohomora::bbox::Renderable<'a>> = ::std::collections::BTreeMap::new();
           #(#puts)*
-          ::bbox::bbox::Renderable::Dict(map)
+          ::alohomora::bbox::Renderable::Dict(map)
         }
       }
     }
