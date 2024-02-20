@@ -3,17 +3,27 @@ use crate::bbox::{BBox, EitherBBox};
 use crate::policy::{AnyPolicy, Policy};
 
 // Our params may be boxed or clear.
-#[derive(Clone)]
-pub struct BBoxParam(pub(super) EitherBBox<mysql::Value, AnyPolicy>);
+pub trait BBoxParam {
+    fn get(self) -> EitherBBox<mysql::Value, AnyPolicy>;
+}
 
-// Auto convert mysql::Value and bbox to Value.
-impl<T: Into<mysql::Value>> From<T> for BBoxParam {
-    fn from(x: T) -> BBoxParam {
-        BBoxParam(EitherBBox::Value(x.into()))
+impl<T: Into<mysql::Value>, P: Policy + Clone + 'static> BBoxParam for BBox<T, P> {
+    fn get(self) -> EitherBBox<mysql::Value, AnyPolicy> {
+        EitherBBox::BBox(self.into_any_policy().into_bbox())
     }
 }
-impl<T: Into<mysql::Value>, P: Policy + Clone + 'static> From<BBox<T, P>> for BBoxParam {
-    fn from(x: BBox<T, P>) -> BBoxParam {
-        BBoxParam(EitherBBox::BBox(x.into_bbox().any_policy()))
+
+impl<T: Into<mysql::Value>> BBoxParam for T {
+    fn get(self) -> EitherBBox<mysql::Value, AnyPolicy> {
+        EitherBBox::Value(self.into())
+    }
+}
+
+impl<T: Into<mysql::Value>, P: Policy + Clone + 'static> BBoxParam for EitherBBox<T, P> {
+    fn get(self) -> EitherBBox<mysql::Value, AnyPolicy> {
+        match self {
+            EitherBBox::Value(t) => EitherBBox::Value(t.into()),
+            EitherBBox::BBox(bbox) => EitherBBox::BBox(bbox.into_any_policy().into_bbox()),
+        }
     }
 }

@@ -6,7 +6,7 @@ use crate::policy::AnyPolicy;
 pub trait Policy {
     fn name(&self) -> String;
     fn check(&self, context: &dyn Any) -> bool;
-    // Stream line join, find way to make join combine inside AndPolicy instead of stacking!
+    // TODO(babman): Stream line join, find way to make join combine inside AndPolicy instead of stacking!
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()>;
     fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized;
 }

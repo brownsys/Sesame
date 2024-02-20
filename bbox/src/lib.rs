@@ -1,3 +1,4 @@
+// TODO(babman): rename this to Alohomora, rename derive crate as well, find ways to make derive crate a feature.
 #[macro_use]
 extern crate lazy_static;
 

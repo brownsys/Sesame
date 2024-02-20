@@ -1,7 +1,6 @@
 extern crate erased_serde;
 extern crate figment;
 
-use std::any::Any;
 use std::collections::{BTreeMap, HashMap};
 
 use erased_serde::Serialize;
@@ -10,55 +9,15 @@ use figment::value::Value as FValue;
 // Our BBox struct.
 use crate::bbox::{BBox, EitherBBox};
 use crate::context::Context;
-use crate::policy::{Policy, AnyPolicy};
+use crate::policy::{Policy, RefPolicy};
 
 // Types for cheap references of BBox with type erasure.
-pub mod refs {
-    use super::{Any, BBox, Policy, AnyPolicy, Serialize};
-    // AnyPolicy (by ref)
-    pub struct RefPolicy<'a> {
-        policy: &'a dyn Policy,
-    }
+type RefBBox<'a> = BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
-    impl<'a> RefPolicy<'a> {
-        fn new(policy: &'a dyn Policy) -> Self {
-            RefPolicy { policy }
-        }
-    }
-
-    impl<'a> Policy for RefPolicy<'a> {
-        fn name(&self) -> String {
-            format!("RefPolicy({})", self.policy.name())
-        }
-        fn check(&self, context: &dyn Any) -> bool {
-            self.policy.check(context)
-        }
-        fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
-            todo!()
-        }
-        fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-            todo!()
-        }
-    }
-
-    pub struct RefBBox<'a>(pub(super) BBox<&'a dyn Serialize, RefPolicy<'a>>);
-    impl<'a, T: Serialize, P: Policy> From<&'a BBox<T, P>> for RefBBox<'a> {
-        fn from(value: &'a BBox<T, P>) -> Self {
-            RefBBox(BBox::new(&value.t, RefPolicy::new(&value.p)))
-        }
-    }
-    impl<'a> RefBBox<'a> {
-        pub fn get(&self) -> &BBox<&'a dyn Serialize, RefPolicy<'a>> {
-            &self.0
-        }
-    }
-}
-
-// TODO(babman): re-use fold and AlohomoraType here?
 // A BBox with type T erased, a primitive value, or a collection of mixed-type
 // values.
 pub enum Renderable<'a> {
-    BBox(refs::RefBBox<'a>),
+    BBox(RefBBox<'a>),
     Serialize(&'a dyn Serialize),
     Dict(BTreeMap<String, Renderable<'a>>),
     Array(Vec<Renderable<'a>>),
@@ -71,7 +30,7 @@ impl<'a> Renderable<'a> {
     ) -> Result<FValue, figment::Error> {
         match self {
             Renderable::BBox(bbox) => {
-                let t = bbox.0.unbox(context);
+                let t = bbox.unbox(context);
                 FValue::serialize(t)
             }
             Renderable::Serialize(obj) => FValue::serialize(obj),
@@ -96,7 +55,7 @@ impl<'a> Renderable<'a> {
 
     pub(crate) fn try_unbox(&self) -> Result<&'a dyn Serialize, &'static str> {
         match self {
-            Renderable::BBox(bbox) => Ok(bbox.0.t),
+            Renderable::BBox(bbox) => Ok(bbox.t),
             Renderable::Serialize(obj) => Ok(*obj),
             Renderable::Dict(_) => Err("unsupported operation"),
             Renderable::Array(_) => Err("unsupported operation"),
@@ -131,7 +90,7 @@ render_serialize_impl!(bool);
 // Auto implement BBoxRender for BBox.
 impl<T: Serialize, P: Policy + Clone> BBoxRender for BBox<T, P> {
     fn render(&self) -> Renderable {
-        Renderable::BBox(refs::RefBBox::from(self))
+        Renderable::BBox(BBox::new(&self.t, RefPolicy::new(&self.p)))
     }
 }
 

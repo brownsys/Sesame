@@ -16,7 +16,6 @@ pub use crate::rocket::rocket::*;
 pub use crate::rocket::route::*;
 pub use crate::rocket::template::*;
 
-// TODO(babman): Put policy in BBox statically.
 // TODO(babman): Later: Policy  ----> PolicyClause and PolicyType
 //                      PolicyClause: atomic unit, cannot be seperated out, can be re-used, potentially can derive from DSL.
 //                                    API: Check, Serialize + Deserialize, Equality testing.

@@ -1,13 +1,23 @@
 use crate::context::Context;
-use std::{fmt::{Debug, Display, Formatter}, any::Any};
+use std::{fmt::{Debug, Formatter}, any::Any};
+use std::fmt::Write;
 
-use crate::policy::{AnyPolicy, NoPolicy, Policy};
+use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, TestPolicy};
 
-// TODO(babman): special case BBox<T, TestPolicy> so that PartialEq is implemented as well as direct unboxing.
-#[derive(PartialEq)]
+// Privacy Container type.
 pub struct BBox<T, P: Policy> {
     pub(crate) t: T,
     pub(crate) p: P,
+}
+
+// BBox is cloneable if what is inside is cloneable.
+impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
+    fn clone(&self) -> Self {
+        BBox {
+            t: self.t.clone(),
+            p: self.p.clone(),
+        }
+    }
 }
 
 // Basic API: does not assume anything about data or policy.
@@ -17,14 +27,20 @@ impl<T, P: Policy> BBox<T, P> {
         Self { t, p }
     }
 
+    // Into a reference.
+    pub fn as_ref(&self) -> BBox<&T, RefPolicy<P>> {
+        BBox { t: &self.t, p: RefPolicy::new(&self.p) }
+    }
+
     // Into and from but without the traits (to avoid specialization issues).
-    pub fn into_bbox<F>(self) -> BBox<F, P>
+    pub fn into_bbox<F, P2: Policy>(self) -> BBox<F, P2>
     where
         T: Into<F>,
+        P: Into<P2>,
     {
         BBox {
             t: self.t.into(),
-            p: self.p,
+            p: self.p.into(),
         }
     }
     pub fn from_bbox<F>(value: BBox<F, P>) -> BBox<T, P>
@@ -36,43 +52,31 @@ impl<T, P: Policy> BBox<T, P> {
             p: value.p,
         }
     }
-    //retrieve policy
+    // retrieve policy
     pub fn policy(&self) -> &P{
         &self.p
     }
 
     // Unbox with policy checks.
-    pub fn temporary_unbox(&self) -> &T {
-        &self.t
-    }
-    pub fn into_temporary_unbox(self) -> T {
-        self.t
-    }
     pub fn unbox<U, D>(&self, context: &Context<U, D>) -> &T {
-        if self.p.check(context){
+        if self.p.check(context) {
             &self.t
         } else {
-            panic!()
+            panic!("Did not pass policy check")
         }
     }
-    pub fn into_unbox<U, D>(self, _context: &Context<U, D>) -> T {
-        self.t
-    }
-
-    // Sandbox functions
-    pub fn into_sandbox_execute<R, F: FnOnce(T) -> R>(self, lambda: F) -> BBox<R, P> {
-        // Do we check policies?
-        // Do we check that function is pure?
-        // Do we execute in an actual sandbox?
-        BBox {
-            t: lambda(self.t),
-            p: self.p,
+    pub fn into_unbox<U, D>(self, context: &Context<U, D>) -> T {
+        if self.p.check(context) {
+            self.t
+        } else {
+            panic!("Did not pass policy check")
         }
     }
 }
 
-impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> { 
-    pub fn to_any_type_and_policy(self) -> BBox<Box<dyn Any>, AnyPolicy> {
+// Up casting to std::any::Any and AnyPolicy.
+impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
+    pub fn into_any(self) -> BBox<Box<dyn Any>, AnyPolicy> {
         BBox::new(Box::new(self.t),
                   AnyPolicy::new(self.p))
     }
@@ -80,7 +84,7 @@ impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
 
 // Up and downcasting policy with AnyPolicy.
 impl<T, P: Policy + Clone + 'static> BBox<T, P> {
-    pub fn any_policy(self) -> BBox<T, AnyPolicy> {
+    pub fn into_any_policy(self) -> BBox<T, AnyPolicy> {
         BBox {
             t: self.t,
             p: AnyPolicy::new(self.p),
@@ -99,60 +103,44 @@ impl<T> BBox<T, AnyPolicy> {
     }
 }
 
-// NoPolicy can be discarded.
+// NoPolicy can be discarded, logged, etc
 impl<T> BBox<T, NoPolicy> {
     pub fn discard_box(self) -> T {
         self.t
     }
 }
-
-// Debuggable but in boxed form.
-impl<T, P: Policy> Debug for BBox<T, P> {
+impl<T: Debug> Debug for BBox<T, NoPolicy> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("<<Boxed Data>>")
+        f.write_str("Box(")?;
+        self.t.fmt(f)?;
+        f.write_char(')')
+    }
+}
+impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
+    fn eq(&self, other: &Self) -> bool {
+        self.t.eq(&other.t)
     }
 }
 
-// BBox is cloneable if what is inside is cloneable.
-impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
-    fn clone(&self) -> Self {
-        BBox {
-            t: self.t.clone(),
-            p: self.p.clone(),
-        }
-    }
-}
-
-// Formatting to string.
-impl<T: Display, P: Policy + Clone> BBox<T, P> {
-    pub fn format(&self) -> BBox<String, P> {
-        BBox {
-            t: format!("{}", self.t),
-            p: self.p.clone(),
-        }
-    }
-}
-impl<T: Display, P: Policy> BBox<T, P> {
-    pub fn into_format(self) -> BBox<String, P> {
-        BBox {
-            t: format!("{}", self.t),
-            p: self.p,
-        }
-    }
-}
-
-// TODO(babman): does not work when tests are part of application crate,
-//               rely on TestPolicy instead.
-// Can unbox without context during tests.
-#[cfg(test)]
-impl<T, P: Policy> BBox<T, P> {
-    pub fn test_unbox(&self) -> &T {
-        &self.t
-    }
-    pub fn into_test_unbox(self) -> T {
+// Test policy can be discarded, logged, etc
+impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
+    pub fn discard_box(self) -> T {
         self.t
     }
 }
+impl<T: Debug, P: 'static + Policy + Clone> Debug for BBox<T, TestPolicy<P>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Box(")?;
+        self.t.fmt(f)?;
+        f.write_char(')')
+    }
+}
+impl<T: PartialEq, P: 'static + Policy + PartialEq + Clone> PartialEq for BBox<T, TestPolicy<P>> {
+    fn eq(&self, other: &Self) -> bool {
+        self.t.eq(&other.t)
+    }
+}
+impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}
 
 // Unit tests.
 #[cfg(test)]
@@ -162,13 +150,13 @@ mod tests {
 
     use super::*;
 
-    #[derive(Clone)]
-    struct TestPolicy {
+    #[derive(Clone, PartialEq, Eq)]
+    struct ExamplePolicy {
         pub attr: String,
     }
-    impl Policy for TestPolicy {
+    impl Policy for ExamplePolicy {
         fn name(&self) -> String {
-            String::from("TestPolicy")
+            String::from("ExamplePolicy")
         }
         fn check(&self, _context: &dyn Any) -> bool {
             true
@@ -177,7 +165,7 @@ mod tests {
             Ok(AnyPolicy::new(self.clone()))
         }
         fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-            Ok(TestPolicy { attr: String::from("") })
+            Ok(ExamplePolicy { attr: String::from("") })
         }
     }
 
@@ -185,57 +173,60 @@ mod tests {
     fn test_box() {
         let bbox = BBox::new(10u64, NoPolicy {});
         assert_eq!(bbox.t, 10u64);
+        assert_eq!(bbox.discard_box(), 10u64);
     }
 
     #[test]
     fn test_unbox() {
+        let context = Context::new(Option::None::<()>, String::from(""), ());
         let bbox = BBox::new(10u64, NoPolicy {});
-        assert_eq!(bbox.into_test_unbox(), 10u64);
+        assert_eq!(bbox.into_unbox(&context), 10u64);
     }
 
     #[test]
     fn test_policy_transformation() {
         let bbox = BBox::new(
             String::from("hello"),
-            TestPolicy {
+            TestPolicy::new(ExamplePolicy {
                 attr: String::from("Hello this is a test!"),
-            },
+            }),
         );
         // Turn it into a Box with a dyn policy.
-        let bbox = bbox.any_policy();
+        let bbox = bbox.into_any_policy();
 
         // Make sure we can specialize.
-        assert!(bbox.is_policy::<TestPolicy>());
-        let bbox = bbox.specialize_policy::<TestPolicy>().unwrap();
+        assert!(bbox.is_policy::<TestPolicy<ExamplePolicy>>());
+        let bbox = bbox.specialize_policy::<TestPolicy<ExamplePolicy>>().unwrap();
 
-        assert_eq!(bbox.p.attr, String::from("Hello this is a test!"));
-        assert_eq!(bbox.into_test_unbox(), String::from("hello"));
+        assert_eq!(bbox.policy().policy().attr, String::from("Hello this is a test!"));
+        assert_eq!(bbox.discard_box(), String::from("hello"));
     }
 
     #[test]
     fn test_into_bbox() {
         let bbox: BBox<u32, NoPolicy> = BBox::new(10u32, NoPolicy {});
-        let converted: BBox<u64, NoPolicy> = bbox.into_bbox::<u64>();
-        assert_eq!(converted.t, 10u64);
+        let converted: BBox<u64, NoPolicy> = bbox.into_bbox();
+        assert_eq!(converted.discard_box(), 10u64);
     }
 
     #[test]
     fn test_from_bbox() {
         let bbox: BBox<u32, NoPolicy> = BBox::new(10u32, NoPolicy {});
         let converted = BBox::<u64, NoPolicy>::from_bbox(bbox);
-        assert_eq!(converted.t, 10u64);
+        assert_eq!(converted.discard_box(), 10u64);
     }
 
     #[test]
     fn test_clone() {
         let bbox = BBox::new(
             String::from("some very long string! hello!!!!"),
-            TestPolicy {
+            TestPolicy::new(ExamplePolicy {
                 attr: String::from("My Policy"),
-            },
+            }),
         );
         let cloned = bbox.clone();
-        assert_eq!(bbox.t, cloned.t);
-        assert_eq!(bbox.p.attr, cloned.p.attr);
+        assert_eq!(bbox, cloned);
+        assert_eq!(bbox.policy().policy().attr, cloned.policy().policy().attr);
+        assert_eq!(bbox.discard_box(), cloned.discard_box());
     }
 }

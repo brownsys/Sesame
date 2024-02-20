@@ -1,5 +1,5 @@
 // BBox
-use crate::db::{BBoxParams, BBoxQueryResult, unbox_params};
+use crate::db::{BBoxParams, BBoxQueryResult};
 
 // mysql imports.
 use mysql::prelude::Queryable;
@@ -39,7 +39,7 @@ impl BBoxConn {
         stmt: S,
         params: P,
     ) -> BBoxResult<()> {
-        let params = unbox_params(params.into());
+        let params = params.into().transform();
         self.conn.exec_drop(stmt, params)
     }
 
@@ -49,7 +49,7 @@ impl BBoxConn {
         stmt: S,
         params: P,
     ) -> BBoxResult<BBoxQueryResult<'_, '_, '_>> {
-        let params = unbox_params(params.into());
+        let params = params.into().transform();
         let result = self.conn.exec_iter(stmt, params)?;
         Ok(BBoxQueryResult { result })
     }

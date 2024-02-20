@@ -1,6 +1,3 @@
-// TODO(babman): reorganize EitherBBox/Param into a trait
-// TODO(babman): Into<Params> ---> Vec<Into<Param>> ?
-// TODO(babman): Add code from Alex's slack as a test and make sure it is nice!
 extern crate mysql;
 
 mod value;

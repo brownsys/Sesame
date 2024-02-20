@@ -6,7 +6,6 @@ use crate::policy::{AnyPolicy, Policy};
 use crate::r#type::{AlohomoraTypePolicy, compose_policies};
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-#[derive(Debug)]
 pub enum AlohomoraTypeEnum {
     BBox(BBox<Box<dyn Any>, AnyPolicy>),
     Value(Box<dyn Any>),
@@ -107,7 +106,7 @@ alohomora_type_impl!(String);
 impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
     type Out = T;
     fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::BBox(self.to_any_type_and_policy())
+        AlohomoraTypeEnum::BBox(self.into_any())
     }
     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
         match e {

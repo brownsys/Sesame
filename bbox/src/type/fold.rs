@@ -40,7 +40,7 @@ impl<T, P: Policy + Clone + 'static> From<Vec<BBox<T, P>>> for BBox<Vec<T>, AnyP
 // Tests
 
 mod tests {
-    use crate::policy::{Policy, PolicyAnd, AnyPolicy};
+    use crate::policy::{Policy, PolicyAnd, AnyPolicy, TestPolicy};
     use crate::bbox::BBox;
 
     use std::any::Any;
@@ -70,10 +70,10 @@ mod tests {
             self.owners.contains(user)
         }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-            if other.is::<ACLPolicy>() { //Policies are combinable
+            if other.is::<ACLPolicy>() { // Policies are combinable
                 let other = other.specialize::<ACLPolicy>().unwrap();
                 Ok(AnyPolicy::new(self.join_logic(other)?))
-            } else {                    //Policies must be stacked
+            } else {                    // Policies must be stacked
                 Ok(AnyPolicy::new(
                     PolicyAnd::new(
                         AnyPolicy::new(self.clone()),
@@ -93,7 +93,7 @@ mod tests {
 
     #[derive(Clone, PartialEq, Debug)]
     pub struct BoxedStruct {
-        pub score: BBox<u64, ACLPolicy>,
+        pub score: BBox<u64, TestPolicy<ACLPolicy>>,
     }
 
     #[derive(PartialEq, Debug)]
@@ -249,9 +249,9 @@ mod tests {
         let bob_acl = HashSet::from([String::from("Bob"), admin.clone()]);
         let allen_acl = HashSet::from([String::from("Allen"), admin.clone()]);
 
-        let alice_struct = BoxedStruct { score: BBox::new(100, ACLPolicy { owners: alice_acl }) };
-        let bob_struct = BoxedStruct { score: BBox::new(95, ACLPolicy { owners: bob_acl }) };
-        let allen_struct = BoxedStruct { score: BBox::new(98, ACLPolicy { owners: allen_acl }) };
+        let alice_struct = BoxedStruct { score: BBox::new(100, ACLPolicy { owners: alice_acl }.into()) };
+        let bob_struct = BoxedStruct { score: BBox::new(95, ACLPolicy { owners: bob_acl }.into()) };
+        let allen_struct = BoxedStruct { score: BBox::new(98, ACLPolicy { owners: allen_acl }.into()) };
 
         let mut boxed_vec = Vec::new();
         boxed_vec.extend([alice_struct, bob_struct, allen_struct]);
