@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, Policy};
 use crate::r#type::{AlohomoraType, AlohomoraTypePolicy};
@@ -18,30 +19,53 @@ pub(crate) fn unsafe_fold<S: AlohomoraType>(s: S) -> Result<(S::Out, AnyPolicy),
     Ok((S::from_enum(e.remove_bboxes())?, composed_policy))
 }
 
-// Fold policy from outside vector to inside vector.
+// Fold bbox from outside vector to inside vector.
 impl<T, P: Policy + Clone> From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> {
     fn from(x: BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
         let p = x.p;
         x.t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
     }
 }
-impl<T, P: Policy + Clone + 'static> From<Vec<BBox<T, P>>> for BBox<Vec<T>, AnyPolicy> {
-    fn from(v: Vec<BBox<T, P>>) -> BBox<Vec<T>, AnyPolicy> {
-        v.into_iter().fold(
-            BBox::new(Vec::new(), AnyPolicy::new(NoPolicy {})),
-            |mut acc, e| {
-                acc.t.push(e.t);
-                acc.p = acc.p.join(AnyPolicy::new(e.p)).unwrap();
-                acc
-        })
+
+// Extract bbox from inside vector to outside, use regular fold() for a
+// non-failing conversion if vector is empty.
+#[derive(Debug)]
+pub enum FoldVecError {
+    JoinError,
+    EmptyVector,
+}
+
+impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
+    type Error = FoldVecError;
+    fn try_from(v: Vec<BBox<T, P>>) -> Result<BBox<Vec<T>, P>, Self::Error> {
+        let accum = Ok((Vec::new(), None));
+        let result = v.into_iter().fold(accum, |accum, e| {
+            let (mut v, p) = accum?;
+            v.push(e.t);
+            match p {
+                None => Ok((v, Some(e.p))),
+                Some(p) =>
+                    match p.join_logic(e.p) {
+                        Err(_) => Err(FoldVecError::JoinError),
+                        Ok(p) => Ok((v, Some(p))),
+                    }
+            }
+        });
+
+        let (v, p) = result?;
+        match p {
+            None => Err(FoldVecError::EmptyVector),
+            Some(p) => Ok(BBox::new(v, p)),
+        }
     }
 }
 
 // Tests
-
+// TODO(babman): simplify these tests
 mod tests {
-    use crate::policy::{Policy, PolicyAnd, AnyPolicy, TestPolicy};
     use crate::bbox::BBox;
+    use crate::policy::{Policy, PolicyAnd, AnyPolicy};
+    use crate::testing::TestPolicy;
 
     use std::any::Any;
     use std::collections::{HashSet, HashMap};
@@ -56,7 +80,7 @@ mod tests {
         }
     }
 
-    #[derive(Clone, PartialEq)]
+    #[derive(Clone, PartialEq, Debug)]
     pub struct ACLPolicy {
         pub owners: HashSet<String>,
     }
@@ -278,5 +302,60 @@ mod tests {
             .policy().check(&ContextData{user: String::from("Bob") }));
         assert!(!agg.as_ref().unwrap()
             .policy().check(&ContextData{user: String::from("Allen") }));
+    }
+
+    #[test]
+    fn special_case_fold_vector() {
+        use std::convert::TryInto;
+        use super::FoldVecError;
+
+        let vec = vec![String::from("A"), String::from("B"), String::from("C")];
+        let owners = HashSet::from([String::from("Alice"), String::from("Bob"), String::from("Carl")]);
+        let policy = TestPolicy::new(ACLPolicy { owners });
+        let bbox = BBox::new(vec, policy.clone());
+
+        // fold box into vector.
+        let vec: Vec<BBox<String, TestPolicy<ACLPolicy>>> = bbox.into();
+        assert_eq!(vec.len(), 3);
+        assert_eq!(vec[0].policy(), &policy);
+        assert_eq!(vec[1].policy(), &policy);
+        assert_eq!(vec[2].policy(), &policy);
+        assert_eq!(vec[0].clone().discard_box(), "A");
+        assert_eq!(vec[1].clone().discard_box(), "B");
+        assert_eq!(vec[2].clone().discard_box(), "C");
+
+        // fold box out of vector.
+        let mut vec = Vec::new();
+        vec.push(BBox::new(String::from("A"), TestPolicy::new(ACLPolicy { owners: HashSet::from([String::from("Alice"), String::from("Admin")]) })));
+        vec.push(BBox::new(String::from("B"), TestPolicy::new(ACLPolicy { owners: HashSet::from([String::from("Bob"), String::from("Admin")]) })));
+        vec.push(BBox::new(String::from("C"), TestPolicy::new(ACLPolicy { owners: HashSet::from([String::from("Carl"), String::from("Admin")]) })));
+
+        let bbox: Result<BBox<Vec<String>, TestPolicy<ACLPolicy>>, FoldVecError> = vec.try_into();
+        println!("{:?}", bbox);
+        assert!(bbox.is_ok());
+        if let Ok(bbox) = bbox {
+            assert_eq!(bbox.policy(), &TestPolicy::new(ACLPolicy { owners: HashSet::from([String::from("Admin")]) }));
+            assert_eq!(bbox.discard_box(), vec![String::from("A"), String::from("B"), String::from("C")]);
+        }
+
+        // fold box out of vector but with a join error due to non-overlapping ACLs.
+        let mut vec = Vec::new();
+        vec.push(BBox::new(String::from("A"), TestPolicy::new(ACLPolicy { owners: HashSet::from([String::from("Alice")]) })));
+        vec.push(BBox::new(String::from("B"), TestPolicy::new(ACLPolicy { owners: HashSet::from([String::from("Bob")]) })));
+        vec.push(BBox::new(String::from("C"), TestPolicy::new(ACLPolicy { owners: HashSet::from([String::from("Carl")]) })));
+
+        let bbox: Result<BBox<Vec<String>, TestPolicy<ACLPolicy>>, FoldVecError> = vec.try_into();
+        assert!(bbox.is_err());
+        if let Err(error) = bbox {
+            assert!(matches!(error, FoldVecError::JoinError));
+        }
+
+        // fold box out of empty vector.
+        let vec = Vec::new();
+        let bbox: Result<BBox<Vec<String>, TestPolicy<ACLPolicy>>, FoldVecError> = vec.try_into();
+        assert!(bbox.is_err());
+        if let Err(error) = bbox {
+            assert!(matches!(error, FoldVecError::EmptyVector));
+        }
     }
 }

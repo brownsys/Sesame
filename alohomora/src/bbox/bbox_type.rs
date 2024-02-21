@@ -2,7 +2,7 @@ use crate::context::Context;
 use std::{fmt::{Debug, Formatter}, any::Any};
 use std::fmt::Write;
 
-use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, TestPolicy};
+use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy};
 
 // Privacy Container type.
 pub struct BBox<T, P: Policy> {
@@ -29,7 +29,7 @@ impl<T, P: Policy> BBox<T, P> {
 
     // Into a reference.
     pub fn as_ref(&self) -> BBox<&T, RefPolicy<P>> {
-        BBox { t: &self.t, p: RefPolicy::new(&self.p) }
+        BBox::new(&self.t, RefPolicy::new(&self.p))
     }
 
     // Into and from but without the traits (to avoid specialization issues).
@@ -122,30 +122,11 @@ impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
     }
 }
 
-// Test policy can be discarded, logged, etc
-impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
-    pub fn discard_box(self) -> T {
-        self.t
-    }
-}
-impl<T: Debug, P: 'static + Policy + Clone> Debug for BBox<T, TestPolicy<P>> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Box(")?;
-        self.t.fmt(f)?;
-        f.write_char(')')
-    }
-}
-impl<T: PartialEq, P: 'static + Policy + PartialEq + Clone> PartialEq for BBox<T, TestPolicy<P>> {
-    fn eq(&self, other: &Self) -> bool {
-        self.t.eq(&other.t)
-    }
-}
-impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}
-
 // Unit tests.
 #[cfg(test)]
 mod tests {
     use crate::policy::NoPolicy;
+    use crate::testing::TestPolicy;
     use std::any::Any;
 
     use super::*;

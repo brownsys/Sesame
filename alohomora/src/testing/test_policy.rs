@@ -1,10 +1,12 @@
 use std::any::Any;
+use std::fmt::{Debug, Formatter, Write};
+use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
 use crate::rocket::BBoxRequest;
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TestPolicy<P: 'static + Policy + Clone> {
     p: P,
 }
@@ -54,3 +56,23 @@ impl<P: 'static + Policy + Clone> From<P> for TestPolicy<P> {
         TestPolicy::new(value)
     }
 }
+
+// Test policy can be discarded, logged, etc
+impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
+    pub fn discard_box(self) -> T {
+        self.t
+    }
+}
+impl<T: Debug, P: 'static + Policy + Clone> Debug for BBox<T, TestPolicy<P>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Box(")?;
+        self.t.fmt(f)?;
+        f.write_char(')')
+    }
+}
+impl<T: PartialEq, P: 'static + Policy + PartialEq + Clone> PartialEq for BBox<T, TestPolicy<P>> {
+    fn eq(&self, other: &Self) -> bool {
+        self.t.eq(&other.t)
+    }
+}
+impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}

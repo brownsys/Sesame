@@ -7,6 +7,12 @@ pub struct BBoxRocket<P: rocket::Phase> {
     frontend: rocket::Rocket<P>,
 }
 
+impl<P: rocket::Phase> BBoxRocket<P> {
+    pub(crate) fn get(self) -> rocket::Rocket<P> {
+        self.frontend
+    }
+}
+
 impl BBoxRocket<rocket::Build> {
     // Start by calling build.
     pub fn build() -> Self {
