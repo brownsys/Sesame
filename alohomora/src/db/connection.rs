@@ -53,4 +53,14 @@ impl BBoxConn {
         let result = self.conn.exec_iter(stmt, params)?;
         Ok(BBoxQueryResult { result })
     }
+
+    // Chained prep and exec function
+    pub fn prep_exec_iter<T: AsRef<str>, P: Into<BBoxParams>>(
+        &mut self,
+        query: T,
+        params: P
+    ) -> BBoxResult<BBoxQueryResult<'_, '_, '_>> {
+        let stmt = self.prep(query)?;
+        self.exec_iter(stmt, params)
+    }
 }
