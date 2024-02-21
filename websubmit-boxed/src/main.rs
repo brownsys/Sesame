@@ -53,11 +53,11 @@ fn index(cookies: &BBoxCookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>)
     if let Some(cookie) = cookies.get::<NoPolicy>("apikey") {
         let apikey = cookie.value().into_bbox();
         match apikey::check_api_key(&*backend, &apikey) {
-            Ok(_user) => BBoxRedirect::to("/leclist", vec![]),
-            Err(_) => BBoxRedirect::to("/login", vec![]),
+            Ok(_user) => BBoxRedirect::to("/leclist", ()),
+            Err(_) => BBoxRedirect::to("/login", ()),
         }
     } else {
-        BBoxRedirect::to("/login", vec![])
+        BBoxRedirect::to("/login", ())
     }
 }
 

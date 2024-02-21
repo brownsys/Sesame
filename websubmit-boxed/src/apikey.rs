@@ -14,10 +14,7 @@ use alohomora::db::from_value;
 use alohomora::policy::{NoPolicy, AnyPolicy};
 use alohomora::context::Context;
 
-use alohomora::rocket::{
-    BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome,
-    BBoxTemplate, FromBBoxRequest, post, FromBBoxForm
-};
+use alohomora::rocket::{BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, post, FromBBoxForm};
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
@@ -220,12 +217,12 @@ pub(crate) fn check(
     }
 
     if res.is_err() {
-        BBoxRedirect::to("/", vec![])
+        BBoxRedirect::to("/", ())
     } else {
         let cookie = BBoxCookie::build("apikey", data.key.clone(), &context)
             .path("/")
             .finish();
         cookies.add(cookie);
-        BBoxRedirect::to("/leclist", vec![])
+        BBoxRedirect::to("/leclist", ())
     }
 }

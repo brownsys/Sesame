@@ -21,8 +21,6 @@ mod tests {
     use alohomora::policy::NoPolicy;
     use alohomora::bbox::BBox;
     use alohomora::r#type::{AlohomoraType, AlohomoraTypeEnum};
-    use alohomora_derive::AlohomoraType;
-
     use std::collections::HashMap;
 
     #[derive(AlohomoraType, Clone, PartialEq, Debug)] // Keep same out type

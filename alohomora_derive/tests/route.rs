@@ -104,7 +104,7 @@ fn my_route(
     assert_eq!(*dog.age.unbox(&context), 10);
 
     // all good.
-    alohomora::rocket::BBoxRedirect::to("ok", vec![])
+    alohomora::rocket::BBoxRedirect::to("/page/{}/{}/{}/{}", (&a, &num, &"test", &10))
 }
 
 #[test]

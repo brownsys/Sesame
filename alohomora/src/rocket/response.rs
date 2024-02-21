@@ -1,7 +1,6 @@
-use dynfmt::{Format, SimpleCurlyFormat};
 use std::result::Result;
+use crate::rocket::{BBoxRedirect, BBoxTemplate};
 
-use crate::bbox::BBoxRender;
 use crate::rocket::data::BBoxData;
 use crate::rocket::request::BBoxRequest;
 
@@ -43,28 +42,27 @@ pub trait BBoxResponder<'r, 'o: 'r> {
     fn respond_to(self, request: &BBoxRequest<'r, '_>) -> BBoxResponseResult<'o>;
 }
 
-// A redirect response.
-pub struct BBoxRedirect {
-    redirect: rocket::response::Redirect,
+// Endpoint functions can return this type in case they want to dynamically decide whether
+// to render some page or redirect.
+pub enum BBoxResponseEnum {
+    Redirect(BBoxRedirect),
+    Template(BBoxTemplate),
 }
-impl BBoxRedirect {
-    pub fn to(name: &str, params: Vec<&dyn BBoxRender>) -> Self {
-        let params = params
-            .iter()
-            .map(|x| x.render().try_unbox().unwrap().clone())
-            .collect::<Vec<_>>();
-        let formatted_str = SimpleCurlyFormat.format(name, params).unwrap();
-        BBoxRedirect {
-            redirect: rocket::response::Redirect::to(Into::<String>::into(formatted_str)),
-        }
+impl From<BBoxRedirect> for BBoxResponseEnum {
+    fn from(value: BBoxRedirect) -> Self {
+        BBoxResponseEnum::Redirect(value)
     }
 }
-impl<'r, 'o: 'r> BBoxResponder<'r, 'o> for BBoxRedirect {
+impl From<BBoxTemplate> for BBoxResponseEnum {
+    fn from(value: BBoxTemplate) -> Self {
+        BBoxResponseEnum::Template(value)
+    }
+}
+impl<'r, 'o: 'r> BBoxResponder<'r, 'o> for BBoxResponseEnum {
     fn respond_to(self, request: &BBoxRequest<'r, '_>) -> BBoxResponseResult<'o> {
-        use rocket::response::Responder;
-        match self.redirect.respond_to(request.get_request()) {
-            Result::Ok(response) => Result::Ok(BBoxResponse::new(response)),
-            Result::Err(e) => Result::Err(e),
+        match self {
+            BBoxResponseEnum::Redirect(redirect) => redirect.respond_to(request),
+            BBoxResponseEnum::Template(template) => template.respond_to(request),
         }
     }
 }

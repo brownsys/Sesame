@@ -52,15 +52,6 @@ impl<'a> Renderable<'a> {
             }
         }
     }
-
-    pub(crate) fn try_unbox(&self) -> Result<&'a dyn Serialize, &'static str> {
-        match self {
-            Renderable::BBox(bbox) => Ok(bbox.t),
-            Renderable::Serialize(obj) => Ok(*obj),
-            Renderable::Dict(_) => Err("unsupported operation"),
-            Renderable::Array(_) => Err("unsupported operation"),
-        }
-    }
 }
 
 // Anything that implements this trait can be rendered by our render wrapper.
