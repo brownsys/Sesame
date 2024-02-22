@@ -13,8 +13,10 @@ use alohomora::db::from_value;
 
 use alohomora::policy::{NoPolicy, AnyPolicy};
 use alohomora::context::Context;
+use alohomora::pcr::PrivacyCriticalRegion;
 
 use alohomora::rocket::{BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, post, FromBBoxForm};
+use alohomora::unbox::unbox;
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
@@ -132,7 +134,7 @@ pub(crate) fn generate(
         .collect();
 
     // generate an API key from email address
-    let hash = alohomora::sandbox::sandbox(data.email.clone(), |email| {
+    let hash = alohomora::sandbox::execute_sandbox(data.email.clone(), |email| {
         let mut hasher = Sha256::new();
         hasher.input_str(&email);
         // add a secret to make API keys unforgeable without access to the server
@@ -142,8 +144,8 @@ pub(crate) fn generate(
 
     // Check if request corresponds to admin or manager.
     // TODO(babman): pure sandbox.
-    let is_admin = alohomora::sandbox::sandbox(data.email.clone(), |email| config.admins.contains(&email));
-    let is_manager = alohomora::sandbox::sandbox(data.email.clone(), |email| config.managers.contains(&email));
+    let is_admin = alohomora::sandbox::execute_sandbox(data.email.clone(), |email| config.admins.contains(&email));
+    let is_manager = alohomora::sandbox::execute_sandbox(data.email.clone(), |email| config.managers.contains(&email));
     let is_admin: BBox<i8, AnyPolicy> = is_admin.into_bbox();
     let is_manager: BBox<i8, AnyPolicy> = is_manager.into_bbox();
 
@@ -169,19 +171,23 @@ pub(crate) fn generate(
     );
 
     if config.send_emails {
-        // TODO(babman): some context that represents sending an email; unbox given that context
-        email::send(
-            bg.log.clone(),
-            "no-reply@csci2390-submit.cs.brown.edu".into(),
-            vec![data.email.unbox(&context).clone()],
-            format!("{} API key", config.class),
-            format!(
-                "Your {} API key is: {}\n",
-                config.class,
-                hash.unbox(&context)
-            ),
-        )
-        .expect("failed to send API key email");
+        unbox(
+            (data.email.clone(), hash),
+            &context,
+            PrivacyCriticalRegion::new(|(email, hash), _| {
+                email::send(
+                    bg.log.clone(),
+                    "no-reply@csci2390-submit.cs.brown.edu".into(),
+                    vec![email],
+                    format!("{} API key", config.class),
+                    format!(
+                        "Your {} API key is: {}\n",
+                        config.class,
+                        hash
+                    ),
+                ).expect("failed to send API key email");
+            }),
+            ()).unwrap();
     }
     drop(bg);
 
@@ -220,6 +226,7 @@ pub(crate) fn check(
         BBoxRedirect::to("/", ())
     } else {
         let cookie = BBoxCookie::build("apikey", data.key.clone(), &context)
+            .unwrap()
             .path("/")
             .finish();
         cookies.add(cookie);

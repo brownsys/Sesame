@@ -21,7 +21,7 @@ impl BBoxParams {
                     .into_iter()
                     .map(|v| match v {
                         EitherBBox::Value(v) => v,
-                        EitherBBox::BBox(bbox) => bbox.t,
+                        EitherBBox::BBox(bbox) => bbox.consume().0,
                     })
                     .collect();
                 mysql::params::Params::Positional(unboxed)
@@ -166,7 +166,7 @@ mod tests {
     use crate::policy::{AnyPolicy, NoPolicy};
 
     fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicy>, t: T) -> bool {
-        mysql::from_value::<T>(b.t.clone()) == t
+        mysql::from_value::<T>(b.data().clone()) == t
     }
     fn helper2<T: FromValue + Eq>(b: &mysql::Value, t: T) -> bool {
         mysql::from_value::<T>(b.clone()) == t

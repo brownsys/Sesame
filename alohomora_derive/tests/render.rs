@@ -2,6 +2,7 @@ use alohomora::context::Context;
 use alohomora::policy::{Policy, RefPolicy, NoPolicy};
 use alohomora_derive::BBoxRender;
 use erased_serde::Serialize;
+use alohomora::pcr::PrivacyCriticalRegion;
 
 type RefBBox<'a> = alohomora::bbox::BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
@@ -27,9 +28,13 @@ fn to_string(v: &Vec<u8>) -> String {
 }
 
 // Helper: serializes BBoxes.
-fn bbox_to_string(bbox: &RefBBox<'_>) -> Result<String, ()> {
+fn bbox_to_string<'a>(bbox: &'a RefBBox<'_>) -> Result<String, ()> {
     let context = Context::new(Option::None::<()>, String::from(""), ());
-    serialize_to_string(bbox.unbox(&context))
+    let result = bbox.unbox(
+        &context,
+        PrivacyCriticalRegion::new(|t: &&'a dyn Serialize, _| *t),
+        ());
+    serialize_to_string(result.unwrap())
 }
 
 fn serialize_to_string(data: &dyn erased_serde::Serialize) -> Result<String, ()> {

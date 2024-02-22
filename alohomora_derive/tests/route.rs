@@ -4,7 +4,10 @@ use alohomora::rocket::BBoxRequest;
 use alohomora_derive::{route, routes, FromBBoxForm};
 
 use std::any::Any;
+use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::unbox::unbox;
 
+#[derive(Clone)]
 pub struct TmpPolicy {}
 impl Policy for TmpPolicy {
     fn name(&self) -> String {
@@ -90,18 +93,25 @@ fn my_route(
     a: alohomora::bbox::BBox<String, TmpPolicy>,
     dog: Dog,
 ) -> alohomora::rocket::BBoxRedirect {
-    let context = Context::new(Option::None::<()>, String::from(""), ());
-
     assert_eq!(guard.value, "ok");
     assert_eq!(config.debug_mode, false);
     assert_eq!(config.admins.len(), 1);
     assert!(config.admins.contains("test@email.com"));
-    assert_eq!(data.f1.unbox(&context), "str1");
-    assert_eq!(*data.f3.unbox(&context), 10);
-    assert_eq!(*num.unbox(&context), 5);
-    assert_eq!(a.unbox(&context), "apple");
-    assert_eq!(dog.name.unbox(&context), "Max");
-    assert_eq!(*dog.age.unbox(&context), 10);
+
+    let context = Context::new(Option::None::<()>, String::from(""), ());
+    let result = unbox(
+        (num.clone(), a.clone(), data.f1.clone(), data.f3.clone(), dog.name, dog.age),
+        &context,
+        PrivacyCriticalRegion::new(|(num, a, f1, f3, name, age), _| {
+            assert_eq!(&f1, "str1");
+            assert_eq!(f3, 10);
+            assert_eq!(num, 5);
+            assert_eq!(&a, "apple");
+            assert_eq!(&name, "Max");
+            assert_eq!(age, 10);
+        }),
+        ());
+    result.unwrap();
 
     // all good.
     alohomora::rocket::BBoxRedirect::to("/page/{}/{}/{}/{}", (&a, &num, &"test", &10))

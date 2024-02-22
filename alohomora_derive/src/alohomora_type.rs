@@ -51,7 +51,7 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
     let field_ident = field.ident.clone().unwrap();
     let field_type = field.ty;
     quote! { 
-      #field_vis #field_ident: <#field_type as ::alohomora::r#type::AlohomoraType>::Out
+      #field_vis #field_ident: <#field_type as ::alohomora::AlohomoraType>::Out
     }
   }); 
 
@@ -90,12 +90,12 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
   // Build to_enum
   let to_enum_body = if new_out_type {
     quote!{
-      let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::r#type::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
+      let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
       #(#puts_to_enum)*
-      ::alohomora::r#type::AlohomoraTypeEnum::Struct(map)
+      ::alohomora::AlohomoraTypeEnum::Struct(map)
     }} else {
       quote!{
-        ::alohomora::r#type::AlohomoraTypeEnum::Value(Box::new(self))
+        ::alohomora::AlohomoraTypeEnum::Value(Box::new(self))
       }
     };
   
@@ -107,7 +107,7 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
       let field_name: String = field_ident.to_string();
       let field_type: Type = field.ty;
       quote! { 
-        #field_ident: <#field_type as ::alohomora::r#type::AlohomoraType>::from_enum(hashmap.remove(#field_name).unwrap())?,
+        #field_ident: <#field_type as ::alohomora::AlohomoraType>::from_enum(hashmap.remove(#field_name).unwrap())?,
       }
     }); 
   
@@ -115,7 +115,7 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
   let from_enum_body = if new_out_type {
       quote!{
         match e {
-          ::alohomora::r#type::AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
+          ::alohomora::AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
             #(#gets_from_enum)* 
           }),
           _ => Err(()),
@@ -123,7 +123,7 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
     } else {
         quote!{
           match e {
-            ::alohomora::r#type::AlohomoraTypeEnum::Value(v) => match v.downcast() {
+            ::alohomora::AlohomoraTypeEnum::Value(v) => match v.downcast() {
                 Ok(v) => Ok(*v),
                 Err(_) => Err(()),
             },
@@ -140,14 +140,14 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
     
     #new_struct_or_blank
 
-    impl #impl_generics ::alohomora::r#type::AlohomoraType for #input_ident #ty_generics #where_clause {
+    impl #impl_generics ::alohomora::AlohomoraType for #input_ident #ty_generics #where_clause {
       type Out = #out_ident; 
 
-      fn to_enum(self) -> ::alohomora::r#type::AlohomoraTypeEnum {
+      fn to_enum(self) -> ::alohomora::AlohomoraTypeEnum {
         #to_enum_body
       }
 
-      fn from_enum(e: ::alohomora::r#type::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+      fn from_enum(e: ::alohomora::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
         #from_enum_body
       }
     }

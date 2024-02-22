@@ -11,16 +11,18 @@ pub type BBoxValue = BBox<mysql::Value, AnyPolicy>;
 
 // Type modification.
 pub fn from_value<T: BBoxFromValue, P: Policy + 'static>(v: BBoxValue) -> Result<BBox<T, P>, String> {
-    Ok(BBox::new(mysql::from_value(v.t), v.p.specialize()?))
+    let (t, p) = v.consume();
+    Ok(BBox::new(mysql::from_value(t), p.specialize()?))
 }
 pub fn from_value_or_null<T: BBoxFromValue, P: Policy + 'static>(
     v: BBoxValue,
 ) -> Result<BBox<Option<T>, P>, String> {
+    let (t, p) = v.consume();
     Ok(BBox::new(
-        match v.t {
+        match t {
             mysql::Value::NULL => None,
             t => Some(mysql::from_value(t)),
         },
-        v.p.specialize()?,
+        p.specialize()?,
     ))
 }

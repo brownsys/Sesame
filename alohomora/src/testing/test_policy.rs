@@ -60,19 +60,19 @@ impl<P: 'static + Policy + Clone> From<P> for TestPolicy<P> {
 // Test policy can be discarded, logged, etc
 impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
     pub fn discard_box(self) -> T {
-        self.t
+        self.consume().0
     }
 }
 impl<T: Debug, P: 'static + Policy + Clone> Debug for BBox<T, TestPolicy<P>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("Box(")?;
-        self.t.fmt(f)?;
+        self.data().fmt(f)?;
         f.write_char(')')
     }
 }
 impl<T: PartialEq, P: 'static + Policy + PartialEq + Clone> PartialEq for BBox<T, TestPolicy<P>> {
     fn eq(&self, other: &Self) -> bool {
-        self.t.eq(&other.t)
+        self.data().eq(other.data())
     }
 }
 impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}

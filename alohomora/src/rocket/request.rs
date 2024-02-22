@@ -183,9 +183,10 @@ macro_rules! impl_param_via_fromstr {
         #[inline(always)]
         fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
           use std::str::FromStr;
-          match <$T as FromStr>::from_str(&param.t) {
+          let (t, p) = param.consume();
+          match <$T as FromStr>::from_str(&t) {
             Err(_) => Err(String::from("Cannot parse <boxed> param")),
-            Ok(parsed) => Ok(BBox::new(parsed, param.p)),
+            Ok(parsed) => Ok(BBox::new(parsed, p)),
           }
         }
       }
@@ -241,9 +242,10 @@ impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;
     #[inline(always)]
     fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
-        match <PathBuf as rocket::request::FromParam>::from_param(&param.t) {
+        let (t, p) = param.consume();
+        match <PathBuf as rocket::request::FromParam>::from_param(&t) {
             Err(_) => Err(String::from("Cannot parse <boxed> param")),
-            Ok(parsed) => Ok(BBox::new(parsed, param.p)),
+            Ok(parsed) => Ok(BBox::new(parsed, p)),
         }
     }
 }

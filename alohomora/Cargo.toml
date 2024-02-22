@@ -23,6 +23,7 @@ small_ctor = "0.1.0"
 cookie = { version = "0.15", features = ["percent-encode"] }
 time = { version = "0.2.11", default-features = false, features = ["std"] }
 indexmap = "1.7.0"
+itertools = "0.12.1"
 
 [dependencies.rocket_dyn_templates]
 version = "0.1.0-rc.1"

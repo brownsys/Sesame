@@ -1,9 +1,20 @@
 use std::collections::HashMap;
 use std::any::Any;
+use itertools::Itertools;
 
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, Policy};
-use crate::r#type::{AlohomoraTypePolicy, compose_policies};
+
+pub fn compose_policies(policy1: Result<Option<AnyPolicy>, ()>, policy2: Result<Option<AnyPolicy>, ()>) -> Result<Option<AnyPolicy>, ()> {
+    let policy1 = policy1?;
+    let policy2 = policy2?;
+    match (policy1, policy2) {
+        (None, policy2) => Ok(policy2),
+        (policy1, None) => Ok(policy1),
+        (Some(policy1), Some(policy2)) =>
+            Ok(Some(policy1.join(policy2)?)),
+    }
+}
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
 pub enum AlohomoraTypeEnum {
@@ -15,18 +26,18 @@ pub enum AlohomoraTypeEnum {
 
 impl AlohomoraTypeEnum {
     // Combines the policies of all the BBox inside this type.
-    pub fn policy(&self) -> AlohomoraTypePolicy {
+    pub fn policy(&self) -> Result<Option<AnyPolicy>, ()> {
         match self {
-            AlohomoraTypeEnum::Value(_) => AlohomoraTypePolicy::NoPolicy,
+            AlohomoraTypeEnum::Value(_) => Ok(None),
             AlohomoraTypeEnum::BBox(bbox) => {
-                AlohomoraTypePolicy::Policy(bbox.policy().clone())
+                Ok(Some(bbox.policy().clone()))
             },
             AlohomoraTypeEnum::Vec(vec)  => {
                 vec
                     .into_iter()
                     .map(|e| e.policy())
                     .reduce(compose_policies)
-                    .unwrap_or(AlohomoraTypePolicy::NoPolicy)
+                    .unwrap_or(Ok(None))
             }
             AlohomoraTypeEnum::Struct(hashmap) => {
                 // iterate over hashmap, collect policies
@@ -34,7 +45,7 @@ impl AlohomoraTypeEnum {
                     .into_iter()
                     .map(|(_, e)| e.policy())
                     .reduce(compose_policies)
-                    .unwrap_or(AlohomoraTypePolicy::NoPolicy)
+                    .unwrap_or(Ok(None))
             }
         }
     }
@@ -43,7 +54,7 @@ impl AlohomoraTypeEnum {
     pub(crate) fn remove_bboxes(self) -> AlohomoraTypeEnum {
         match self {
             AlohomoraTypeEnum::Value(val) => AlohomoraTypeEnum::Value(val),
-            AlohomoraTypeEnum::BBox(bbox) => AlohomoraTypeEnum::Value(bbox.t),
+            AlohomoraTypeEnum::BBox(bbox) => AlohomoraTypeEnum::Value(bbox.consume().0),
             AlohomoraTypeEnum::Vec(vec) => AlohomoraTypeEnum::Vec(
                 vec
                     .into_iter()
@@ -157,3 +168,95 @@ impl<S: AlohomoraType> AlohomoraType for HashMap<String, S> {
         }
     }
 }
+
+
+// Implement AlohomoraType for tuples made up of AlohomoraTypes.
+macro_rules! alohomora_type_tuple_impl {
+  ($([$A:tt,$i:tt]),*) => (
+    impl<$($A: AlohomoraType,)*> AlohomoraType for ($($A,)*) {
+        type Out = ($($A::Out,)*);
+        fn to_enum(self) -> AlohomoraTypeEnum {
+            #[allow(non_snake_case)]
+            let ($($A,)*) = ($(self.$i.to_enum(),)*);
+            AlohomoraTypeEnum::Vec(vec![$($A,)*])
+        }
+        fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+            match e {
+                AlohomoraTypeEnum::Vec(v) => {
+                    #[allow(non_snake_case)]
+                    let ($($A,)*) = v.into_iter().collect_tuple().unwrap();
+                    Ok(($($A::from_enum($A)?,)*))
+                },
+                _ => Err(()),
+            }
+        }
+    }
+  );
+}
+
+alohomora_type_tuple_impl!([A, 0]);
+alohomora_type_tuple_impl!([A, 0], [B, 1]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3], [E, 4]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3], [E, 4], [F, 5]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3], [E, 4], [F, 5], [G, 6]);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7]
+);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8]
+);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8],
+    [J, 9]
+);alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8],
+    [J, 9],
+    [K, 10]
+);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8],
+    [J, 9],
+    [K, 10],
+    [L, 11]
+);

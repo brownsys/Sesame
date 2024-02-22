@@ -1,7 +1,9 @@
 use std::convert::TryFrom;
+
+use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, Policy};
-use crate::r#type::{AlohomoraType, AlohomoraTypePolicy};
+
 
 // Safe to call from client code because it keeps everything inside a bbox.
 pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
@@ -12,9 +14,9 @@ pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
 // Does the folding transformation but without the surrounding bbox at the end.
 pub(crate) fn unsafe_fold<S: AlohomoraType>(s: S) -> Result<(S::Out, AnyPolicy), ()> {
     let e = s.to_enum();
-    let composed_policy = match e.policy() {
-        AlohomoraTypePolicy::NoPolicy => AnyPolicy::new(NoPolicy {}),
-        AlohomoraTypePolicy::Policy(policy) => policy,
+    let composed_policy = match e.policy()? {
+        None => AnyPolicy::new(NoPolicy {}),
+        Some(policy) => policy,
     };
     Ok((S::from_enum(e.remove_bboxes())?, composed_policy))
 }
@@ -22,8 +24,8 @@ pub(crate) fn unsafe_fold<S: AlohomoraType>(s: S) -> Result<(S::Out, AnyPolicy),
 // Fold bbox from outside vector to inside vector.
 impl<T, P: Policy + Clone> From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> {
     fn from(x: BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
-        let p = x.p;
-        x.t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
+        let (t, p) = x.consume();
+        t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
     }
 }
 
@@ -41,11 +43,12 @@ impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
         let accum = Ok((Vec::new(), None));
         let result = v.into_iter().fold(accum, |accum, e| {
             let (mut v, p) = accum?;
-            v.push(e.t);
+            let (t, ep) = e.consume();
+            v.push(t);
             match p {
-                None => Ok((v, Some(e.p))),
+                None => Ok((v, Some(ep))),
                 Some(p) =>
-                    match p.join_logic(e.p) {
+                    match p.join_logic(ep) {
                         Err(_) => Err(FoldVecError::JoinError),
                         Ok(p) => Ok((v, Some(p))),
                     }
@@ -153,9 +156,9 @@ mod tests {
         let num_res = super::fold(num.clone());
         let deci_res = super::fold(deci.clone());
         //The aggregated data is as expected
-        assert_eq!(alice_res.as_ref().unwrap().t, alice.clone());
-        assert_eq!(num_res.as_ref().unwrap().t, num.clone());
-        assert_eq!(deci_res.as_ref().unwrap().t, deci.clone());
+        assert_eq!(alice_res.as_ref().unwrap().data(), &alice);
+        assert_eq!(num_res.as_ref().unwrap().data(), &num);
+        assert_eq!(deci_res.as_ref().unwrap().data(), &deci);
 
         // Any user is allowed access to aggregated vector bc resultant BBox has NoPolicy
         let allowed = ContextData{ user: String::from("")};
@@ -185,7 +188,7 @@ mod tests {
         let agg = super::fold(orig_vec);
 
         //The aggregated data is as expected
-        assert_eq!(agg.as_ref().unwrap().t, res_vec);
+        assert_eq!(agg.as_ref().unwrap().data(), &res_vec);
 
         // Any user is allowed access to aggregated vector bc result is NoPolicy
         let allowed_admin1 = ContextData{ user: admin1.clone()};
@@ -243,7 +246,7 @@ mod tests {
         let agg = super::fold(boxed_vec);
 
         //The aggregated data is as expected
-        assert_eq!(agg.as_ref().unwrap().t, unboxed_vec);
+        assert_eq!(agg.as_ref().unwrap().data(), &unboxed_vec);
 
         // Users are allowed access to aggregated vector as expected
         let allowed_admin1 = ContextData{ user: admin1.clone()};
@@ -288,7 +291,7 @@ mod tests {
         let agg = super::fold(boxed_vec.clone());
 
         //The aggregated data is as expected
-        assert_eq!(agg.as_ref().unwrap().t, unboxed_vec);
+        assert_eq!(agg.as_ref().unwrap().data(), &unboxed_vec);
 
         println!("PolicyAnd on aggregated vector: \n{} \n", agg.as_ref().unwrap().policy().name());
 

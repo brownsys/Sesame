@@ -13,7 +13,7 @@ pub trait RedirectParam<'a> {
 
 impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a BBox<T, P> {
     fn get(self) -> RefEitherParam<'a> {
-        EitherBBox::BBox(BBox::new(&self.t, RefPolicy::new(&self.p)))
+        EitherBBox::BBox(BBox::new(self.data(), RefPolicy::new(self.policy())))
     }
 }
 
@@ -28,7 +28,7 @@ impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a EitherBBox<T, P>
         match self {
             EitherBBox::Value(t) => EitherBBox::Value(t),
             EitherBBox::BBox(bbox) =>
-                EitherBBox::BBox(BBox::new(&bbox.t, RefPolicy::new(&bbox.p))),
+                EitherBBox::BBox(BBox::new(bbox.data(), RefPolicy::new(bbox.policy()))),
         }
     }
 }
@@ -56,7 +56,7 @@ macro_rules! into_params_impl {
         // TODO(babman): policy check.
         $(let $a = match $a.get() {
             EitherBBox::Value(v) => v.to_string(),
-            EitherBBox::BBox(b) => b.t.to_string(),
+            EitherBBox::BBox(b) => b.data().to_string(),
         };)*
 
         RedirectParams {

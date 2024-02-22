@@ -1,13 +1,14 @@
 use crate::context::Context;
 use std::{fmt::{Debug, Formatter}, any::Any};
 use std::fmt::Write;
+use crate::pcr::PrivacyCriticalRegion;
 
 use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy};
 
 // Privacy Container type.
 pub struct BBox<T, P: Policy> {
-    pub(crate) t: T,
-    pub(crate) p: P,
+    t: T,
+    p: P,
 }
 
 // BBox is cloneable if what is inside is cloneable.
@@ -25,6 +26,14 @@ impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
 impl<T, P: Policy> BBox<T, P> {
     pub fn new(t: T, p: P) -> Self {
         Self { t, p }
+    }
+
+    // Consumes the bboxes extracting data and policy (private usable only in crate).
+    pub(crate) fn consume(self) -> (T, P) {
+        (self.t, self.p)
+    }
+    pub(crate) fn data(&self) -> &T {
+        &self.t
     }
 
     // Into a reference.
@@ -58,19 +67,39 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Unbox with policy checks.
-    pub fn unbox<U, D>(&self, context: &Context<U, D>) -> &T {
+    pub fn unbox<'a, U, D, C, O, F: FnOnce(&'a T, C) -> O>(
+            &'a self,
+            context: &Context<U, D>,
+            functor: PrivacyCriticalRegion<F>,
+            arg: C) -> Result<O, ()> {
         if self.p.check(context) {
-            &self.t
+            let functor = functor.get_functor();
+            Ok(functor(&self.t, arg))
         } else {
-            panic!("Did not pass policy check")
+            Err(())
         }
     }
-    pub fn into_unbox<U, D>(self, context: &Context<U, D>) -> T {
+    pub fn into_unbox<U, D, C, O, F: FnOnce(T, C) -> O>(
+        self,
+        context: &Context<U, D>,
+        functor: PrivacyCriticalRegion<F>,
+        arg: C) -> Result<O, ()> {
         if self.p.check(context) {
-            self.t
+            let functor = functor.get_functor();
+            Ok(functor(self.t, arg))
         } else {
-            panic!("Did not pass policy check")
+            Err(())
         }
+    }
+
+    // Privacy critical regions
+    pub fn pcr<'a, C, O, F: FnOnce(&'a T, &'a P, C) -> O>(&'a self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
+        let functor = functor.get_functor();
+        functor(&self.t, &self.p, arg)
+    }
+    pub fn into_pcr<C, O, F: FnOnce(T, P, C) -> O>(self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
+        let functor = functor.get_functor();
+        functor(self.t, self.p, arg)
     }
 }
 
@@ -159,9 +188,15 @@ mod tests {
 
     #[test]
     fn test_unbox() {
-        let context = Context::new(Option::None::<()>, String::from(""), ());
+        let context = Context::new(None::<()>, String::from(""), ());
         let bbox = BBox::new(10u64, NoPolicy {});
-        assert_eq!(bbox.into_unbox(&context), 10u64);
+        let result = bbox.into_unbox(
+            &context,
+            PrivacyCriticalRegion::new(|val, exp| {
+                assert_eq!(val, exp);
+            }),
+            10u64);
+        assert!(result.is_ok());
     }
 
     #[test]

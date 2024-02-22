@@ -11,8 +11,14 @@ pub mod context;
 pub mod db;
 pub mod policy;
 pub mod rocket;
-pub mod r#type;
 pub mod sandbox;
 pub mod testing;
+pub mod fold;
+pub mod pcr;
 
+pub mod pure;
+pub mod unbox;
 
+// Export this directly under alohomora::
+mod r#type;
+pub use r#type::*;

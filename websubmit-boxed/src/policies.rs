@@ -7,6 +7,7 @@ use rocket::outcome::Outcome::{Failure, Forward, Success};
 use rocket::State;
 
 use alohomora::context::Context;
+use alohomora::pcr::PrivacyCriticalRegion;
 use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use alohomora::policy::{Policy, AnyPolicy, PolicyAnd, SchemaPolicy, schema_policy};
 
@@ -97,14 +98,17 @@ impl Policy for AnswerAccessPolicy {
         // user_id == me
         // TODO(babman): context::user should probably not be BBoxed?
         match self.owner.clone() {
-            Some(owner) => 
-                if *user.unbox(context) == owner {
+            Some(owner) => {
+                let result = user.unbox(context, PrivacyCriticalRegion::new(|user, _| user == &owner), ());
+                if result.unwrap() {
                     return true;
                 }
+            },
             None => ()
         }
         // I am an admin.
-        if config.admins.contains(user.unbox(context)) {
+        let result = user.unbox(context, PrivacyCriticalRegion::new(|user, _| config.admins.contains(user)), ());
+        if result.unwrap() {
             return true;
         }
         // I am a discussion leader.

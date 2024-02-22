@@ -30,8 +30,11 @@ impl<'a> Renderable<'a> {
     ) -> Result<FValue, figment::Error> {
         match self {
             Renderable::BBox(bbox) => {
-                let t = bbox.unbox(context);
-                FValue::serialize(t)
+                if bbox.policy().check(context) {
+                    FValue::serialize(*bbox.data())
+                } else {
+                    Err(figment::Error::from(String::from("Policy check failed")))
+                }
             }
             Renderable::Serialize(obj) => FValue::serialize(obj),
             Renderable::Dict(map) => {
@@ -81,7 +84,7 @@ render_serialize_impl!(bool);
 // Auto implement BBoxRender for BBox.
 impl<T: Serialize, P: Policy + Clone> BBoxRender for BBox<T, P> {
     fn render(&self) -> Renderable {
-        Renderable::BBox(BBox::new(&self.t, RefPolicy::new(&self.p)))
+        Renderable::BBox(BBox::new(self.data(), RefPolicy::new(self.policy())))
     }
 }
 
@@ -138,7 +141,7 @@ mod tests {
         let renderable = bbox.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
         let result = renderable.transform(&make_test_context());
-        assert!(matches!(result, Result::Ok(FValue::String(_, result)) if result == bbox.t));
+        assert!(matches!(result, Result::Ok(FValue::String(_, result)) if &result == bbox.data()));
     }
 
     #[test]

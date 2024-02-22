@@ -82,22 +82,30 @@ impl<'c, P: FrontendPolicy> BBoxCookie<'c, P> {
         name: N,
         value: BBox<V, P>,
         ctx: &Context<U, D>,
-    ) -> BBoxCookie<'c, P> {
-        let value = value.into_unbox(ctx);
-        BBoxCookie {
-            cookie: rocket::http::Cookie::new(name, value),
-            _policy: PhantomData,
+    ) -> Result<BBoxCookie<'c, P>, ()> {
+        let (t, p) = value.consume();
+        if p.check(ctx) {
+            Ok(BBoxCookie {
+                cookie: rocket::http::Cookie::new(name, t),
+                _policy: PhantomData,
+            })
+        } else {
+            Err(())
         }
     }
-    pub fn build<N: Into<Cow<'c, str>>, V: Into<Cow<'c, str>>, U: 'static, D: 'static>(
+    pub fn build<N: Into<Cow<'c, str>>, V: Into<Cow<'c, str>> + Clone, U: 'static, D: 'static>(
         name: N,
         value: BBox<V, P>,
         ctx: &Context<U, D>,
-    ) -> BBoxCookieBuilder<'c, P> {
-        let value = value.into_unbox(ctx);
-        BBoxCookieBuilder {
-            builder: rocket::http::Cookie::build(name, value),
-            _policy: PhantomData,
+    ) -> Result<BBoxCookieBuilder<'c, P>, ()> {
+        let (t, p) = value.consume();
+        if p.check(ctx) {
+            Ok(BBoxCookieBuilder {
+                builder: rocket::http::Cookie::build(name, t),
+                _policy: PhantomData,
+            })
+        } else {
+            Err(())
         }
     }
 
