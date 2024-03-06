@@ -25,9 +25,7 @@ pub fn execute_pure<S: AlohomoraType, O, F: FnOnce(S::Out) -> O>(data: S,  funct
     Ok(BBox::new(functor(t), p))
 }
 
-// TODO(babman): implement the macro below
-// TODO(babman): test the below (manual implementation of macro) + test the macro
-
+/*
 // Example of how to use this with a lambda.
 #[allow(dead_code)]
 fn example_inline_lambda() {
@@ -61,3 +59,4 @@ fn example_function_defition() {
     let bbox = execute_pure(bbox, EXAMPLE_PPR);
     println!("{}", bbox.unwrap().data());
 }
+*/

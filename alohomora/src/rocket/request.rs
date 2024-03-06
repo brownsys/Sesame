@@ -9,22 +9,22 @@ use std::result::Result;
 use crate::bbox::BBox;
 use crate::policy::{FrontendPolicy, Policy};
 use crate::rocket::cookie::BBoxCookieJar;
-use crate::rocket::data::BBoxData;
-use crate::rocket::form::{BBoxDataField, BBoxFormResult, BBoxValueField, FromBBoxForm};
+use crate::rocket::form::{BBoxFormResult, BBoxValueField, FromBBoxForm};
 
 pub type BBoxRequestOutcome<T, E> = rocket::outcome::Outcome<T, (rocket::http::Status, E), ()>;
 
 // Request
+#[derive(Clone)]
 pub struct BBoxRequest<'a, 'r> {
     request: &'a rocket::Request<'r>,
-    jar: BBoxCookieJar<'a>,
+    jar: BBoxCookieJar<'a, 'r>,
 }
 
 impl<'a, 'r> BBoxRequest<'a, 'r> {
     pub fn new(request: &'a rocket::Request<'r>) -> Self {
         BBoxRequest {
             request,
-            jar: BBoxCookieJar::new(request.cookies()),
+            jar: BBoxCookieJar::new(request.cookies(), request),
         }
     }
 
@@ -35,60 +35,63 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
     pub fn client_ip<P: FrontendPolicy>(&self) -> Option<BBox<IpAddr, P>> {
         match self.request.client_ip() {
             None => None,
-            Some(ip) => Some(BBox::new(ip, P::from_request(self))),
+            Some(ip) => Some(BBox::new(ip, P::from_request(self.request))),
         }
     }
     pub fn remote<P: FrontendPolicy>(&self) -> Option<BBox<SocketAddr, P>> {
         match self.request.remote() {
             None => None,
-            Some(sock) => Some(BBox::new(sock, P::from_request(self))),
+            Some(sock) => Some(BBox::new(sock, P::from_request(self.request))),
         }
     }
 
-    pub fn cookies(&self) -> &BBoxCookieJar {
+    pub fn cookies(&self) -> &BBoxCookieJar<'a, 'r> {
         &self.jar
     }
 
-    #[inline]
-    pub fn query_fields(&self) -> impl Iterator<Item = BBoxValueField<'_>> {
-        self.request.query_fields().map(|field| BBoxValueField {
-            name: field.name,
-            value: field.value,
-        })
-    }
-
     // Use this to retrieve (boxed) guards, e.g. ApiKey struct with BBoxes inside.
-    pub fn guard<'z, 'x, T>(&'x self) -> BoxFuture<'z, BBoxRequestOutcome<T, T::BBoxError>>
+    pub fn guard<T>(&'a self) -> BoxFuture<'a, BBoxRequestOutcome<T, T::BBoxError>>
     where
-        T: FromBBoxRequest<'x> + 'z,
-        'x: 'z,
-        'r: 'z,
+        T: FromBBoxRequest<'a, 'r> + 'a,
     {
         T::from_bbox_request(self)
     }
 
     // Use this to retrieve (boxed) parameters in the url (e.g. /endpoint/<id>).
-    pub fn param<'x, T, P: FrontendPolicy>(&'x self, n: usize) -> Option<Result<T, T::BBoxError>>
+    pub fn param<T, P: FrontendPolicy>(&self, n: usize) -> Option<Result<T, T::BBoxError>>
     where
         T: FromBBoxParam<P>,
     {
         let res = self.request.param::<String>(n)?;
         let res = res.unwrap();
-        Some(T::from_bbox_param(BBox::new(res, P::from_request(self))))
+        Some(T::from_bbox_param(BBox::new(res, P::from_request(self.request))))
     }
 
     // Retrieve (boxed) get parameter(s) that has given name (e.g. /endpoint/<id>?a=<THIS>)
-    pub fn query_value<'x, T>(&'x self, name: &str) -> Option<BBoxFormResult<'x, T>>
+    pub fn query_value<T>(&self, name: &str) -> Option<BBoxFormResult<'a, T>>
     where
-        T: FromBBoxForm<'x>,
+        T: FromBBoxForm<'a, 'r>,
     {
-        match self.request.query_value::<FromFormWrapper<T>>(name) {
-            None => None,
-            Some(result) => Some(match result {
-                Ok(converter) => Ok(converter.0),
-                Err(e) => Err(e),
-            }),
+        if self.query_fields().find(|f| f.name == name).is_none() {
+            return None;
         }
+
+        let mut ctxt = T::bbox_init(rocket::form::Options::Lenient, self);
+
+        self.query_fields()
+            .filter(|f| f.name == name)
+            .for_each(|f| T::bbox_push_value(&mut ctxt, f.shift()));
+
+        Some(T::bbox_finalize(ctxt))
+    }
+
+    // Iterate over all query values.
+    #[inline]
+    pub fn query_fields(&self) -> impl Iterator<Item = BBoxValueField<'a>> {
+        self.request.query_fields().map(|field| BBoxValueField {
+            name: field.name,
+            value: field.value,
+        })
     }
 
     // Returns information about the route.
@@ -97,72 +100,20 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
     }
 }
 
+// Our own FromRequest trait, receives an instance of our Request struct.
+// This is used for guards.
+#[rocket::async_trait]
+pub trait FromBBoxRequest<'a, 'r>: Sized {
+    type BBoxError: Debug;
+    async fn from_bbox_request(
+        request: &'a BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError>;
+}
+
 // Our own FromParam trait, applications likely never need to use this themselves.
 pub trait FromBBoxParam<P: Policy>: Sized {
     type BBoxError: Debug;
     fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError>;
-}
-
-// Our own FromRequest trait, receives an instance of our Request struct.
-// This is used for guards.
-#[rocket::async_trait]
-pub trait FromBBoxRequest<'r>: Sized {
-    type BBoxError: Debug;
-    async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError>;
-}
-
-// Private struct used in our code to make FromBBoxForm compatible with
-// rocket's FromForm.
-pub(super) struct FromFormWrapper<T>(pub(super) T);
-
-#[rocket::async_trait]
-impl<'r, T: FromBBoxForm<'r> + Send> rocket::form::FromForm<'r> for FromFormWrapper<T> {
-    type Context = T::BBoxContext;
-
-    fn init(opts: rocket::form::Options) -> Self::Context {
-        T::bbox_init(opts)
-    }
-
-    fn push_value(ctxt: &mut Self::Context, field: rocket::form::ValueField<'r>) {
-        let bbox_field = BBoxValueField {
-            name: field.name,
-            value: field.value,
-        };
-        T::bbox_push_value(ctxt, bbox_field);
-    }
-
-    async fn push_data<'life0, 'life1>(
-        ctxt: &'life0 mut Self::Context,
-        field: rocket::form::DataField<'r, 'life1>,
-    ) {
-        let bbox_field = BBoxDataField {
-            name: field.name,
-            content_type: field.content_type,
-            request: BBoxRequest::new(field.request),
-            data: BBoxData::new(field.data),
-        };
-        T::bbox_push_data(ctxt, bbox_field).await
-    }
-
-    fn push_error(ctxt: &mut Self::Context, error: rocket::form::Error<'r>) {
-        T::bbox_push_error(ctxt, error);
-    }
-
-    fn finalize(ctxt: Self::Context) -> rocket::form::Result<'r, Self> {
-        match T::bbox_finalize(ctxt) {
-            Err(e) => Err(e),
-            Ok(data) => Ok(FromFormWrapper(data)),
-        }
-    }
-
-    fn default(opts: rocket::form::Options) -> Option<Self> {
-        match T::bbox_default(opts) {
-            None => None,
-            Some(data) => Some(FromFormWrapper(data)),
-        }
-    }
 }
 
 impl<P: Policy> FromBBoxParam<P> for BBox<String, P> {
@@ -262,10 +213,10 @@ impl<P: Policy, T: FromBBoxParam<P>> FromBBoxParam<P> for Option<T> {
 
 // Implement FromBBoxRequest for some standard types.
 #[rocket::async_trait]
-impl<'r, P: FrontendPolicy> FromBBoxRequest<'r> for BBox<IpAddr, P> {
+impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<IpAddr, P> {
     type BBoxError = std::convert::Infallible;
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: &'a BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         match request.client_ip() {
             Some(addr) => BBoxRequestOutcome::Success(addr),
@@ -275,10 +226,10 @@ impl<'r, P: FrontendPolicy> FromBBoxRequest<'r> for BBox<IpAddr, P> {
 }
 
 #[rocket::async_trait]
-impl<'r, P: FrontendPolicy> FromBBoxRequest<'r> for BBox<SocketAddr, P> {
+impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<SocketAddr, P> {
     type BBoxError = std::convert::Infallible;
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: &'a BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         match request.remote() {
             Some(addr) => BBoxRequestOutcome::Success(addr),
@@ -288,30 +239,30 @@ impl<'r, P: FrontendPolicy> FromBBoxRequest<'r> for BBox<SocketAddr, P> {
 }
 
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for &BBoxCookieJar<'r> {
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for &'a BBoxCookieJar<'a, 'r> {
     type BBoxError = std::convert::Infallible;
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: &'a BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         BBoxRequestOutcome::Success(request.cookies())
     }
 }
 
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for rocket::http::Method {
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for rocket::http::Method {
     type BBoxError = std::convert::Infallible;
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: &'a BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         BBoxRequestOutcome::Success(request.get_request().method())
     }
 }
 
 #[rocket::async_trait]
-impl<'r, T: Send + Sync + 'static> FromBBoxRequest<'r> for &'r rocket::State<T> {
+impl<'a, 'r, T: Send + Sync + 'static> FromBBoxRequest<'a, 'r> for &'a rocket::State<T> {
     type BBoxError = ();
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: &'a BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         <&rocket::State<T> as rocket::request::FromRequest>::from_request(request.get_request())
             .await

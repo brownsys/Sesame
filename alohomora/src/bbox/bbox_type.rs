@@ -103,6 +103,13 @@ impl<T, P: Policy> BBox<T, P> {
     }
 }
 
+// Can clone a ref to own it.
+impl<'r, T: Clone, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
+    pub fn to_owned(&self) -> BBox<T, P> {
+        BBox::new(self.t.clone(), self.p.policy().clone())
+    }
+}
+
 // Up casting to std::any::Any and AnyPolicy.
 impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
     pub fn into_any(self) -> BBox<Box<dyn Any>, AnyPolicy> {

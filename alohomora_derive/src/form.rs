@@ -6,19 +6,31 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{
-    Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Generics, Lifetime, LifetimeParam,
-    Type,
-};
+use syn::{Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Generics, Lifetime, LifetimeParam, Token, Type};
 
 pub fn context_generics(mut generics: Generics) -> Generics {
+    let mut r_bound = Punctuated::new();
+    r_bound.push(Lifetime::new("'__a", Span::call_site()));
+
     generics.params.insert(
         0,
         GenericParam::Lifetime(LifetimeParam {
             attrs: Vec::new(),
             lifetime: Lifetime {
                 apostrophe: Span::call_site(),
-                ident: Ident::new("__f", Span::call_site()),
+                ident: Ident::new("__r", Span::call_site()),
+            },
+            colon_token: Some(Token![:](Span::call_site())),
+            bounds: r_bound,
+        }),
+    );
+    generics.params.insert(
+        0,
+        GenericParam::Lifetime(LifetimeParam {
+            attrs: Vec::new(),
+            lifetime: Lifetime {
+                apostrophe: Span::call_site(),
+                ident: Ident::new("__a", Span::call_site()),
             },
             colon_token: None,
             bounds: Punctuated::new(),
@@ -33,7 +45,7 @@ pub fn cast_field_types(fields: &Punctuated<Field, Comma>) -> Vec<TokenStream> {
         .map(|field| {
             let field_type = &field.ty;
             quote! {
-              <#field_type as ::alohomora::rocket::FromBBoxForm<'__f>>
+              <#field_type as ::alohomora::rocket::FromBBoxForm<'__a, '__r>>
             }
         })
         .collect()
@@ -59,24 +71,25 @@ pub fn generate_context(
     let ident = field.ident.as_ref().unwrap();
     let function_name = Ident::new(&format!("get_{}_ctx", ident), ident.span());
     quote! {
-      fn #function_name (&mut self, opts: ::rocket::form::prelude::Options) -> &mut #ty::BBoxContext {
+      fn #function_name (&mut self) -> &mut #ty::BBoxContext {
         if let ::std::option::Option::None = self.#ident {
-          self.#ident = ::std::option::Option::Some(#ty::bbox_init(opts));
+          self.#ident = ::std::option::Option::Some(#ty::bbox_init(self.__opts, &self.__request));
         }
         self.#ident.as_mut().unwrap()
       }
     }
   });
 
-    // Generated context struct must declare the same genercis.
+    // Generated context struct must declare the same generics.
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // Generate the struct.
     quote! {
       pub struct FromBBoxFormGeneratedContext #generics {
         __opts: ::rocket::form::prelude::Options,
-        __errors: ::rocket::form::prelude::Errors<'__f>,
-        __parent: ::std::option::Option<&'__f ::rocket::form::prelude::Name>,
+        __errors: ::rocket::form::prelude::Errors<'__a>,
+        __parent: ::std::option::Option<&'__a ::rocket::form::prelude::Name>,
+        __request: ::alohomora::rocket::BBoxRequest<'__a, '__r>,
         #(#context_fields)*
       }
       impl #impl_generics FromBBoxFormGeneratedContext #ty_generics #where_clause {
@@ -99,8 +112,7 @@ pub fn generate_push_value_cases(
             let name = field.to_string();
             quote! {
               #name => {
-                let _ctx = ctxt.#getter(ctxt.__opts);
-                #ty::bbox_push_value(_ctx, field.shift());
+                #ty::bbox_push_value(ctxt.#getter(), field.shift());
               },
             }
         })
@@ -115,9 +127,7 @@ pub fn generate_push_data_cases(fields: &Vec<Ident>, types: &Vec<TokenStream>) -
             let name = field.to_string();
             quote! {
               #name => {
-                let _ctx = ctxt.#getter(ctxt.__opts);
-                let future = #ty::bbox_push_data(_ctx, field.shift());
-                future.await;
+                #ty::bbox_push_data(ctxt.#getter(), field.shift()).await;
               },
             }
         })
@@ -131,7 +141,7 @@ pub fn generate_finalize_cases(fields: &Vec<Ident>, types: &Vec<TokenStream>) ->
     quote! {
       let #field = ctxt.#field.map_or_else(
         || {
-          #ty::bbox_default(opts).ok_or_else(|| ::rocket::form::prelude::ErrorKind::Missing.into())
+          #ty::bbox_default(opts, request).ok_or_else(|| ::rocket::form::prelude::ErrorKind::Missing.into())
         },
         |_ctx| {
           #ty::bbox_finalize(_ctx)
@@ -187,22 +197,23 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
         #context
 
         #[::rocket::async_trait]
-        impl #impl_generics ::alohomora::rocket::FromBBoxForm<'__f> for #input_name #ty_generics #where_clause {
+        impl #impl_generics ::alohomora::rocket::FromBBoxForm<'__a, '__r> for #input_name #ty_generics #where_clause {
           type BBoxContext = FromBBoxFormGeneratedContext #ctx_ty_generics;
 
           // Required methods
-          fn bbox_init(opts: ::rocket::form::Options) -> Self::BBoxContext {
+          fn bbox_init(opts: ::rocket::form::Options, request: &::alohomora::rocket::BBoxRequest<'__a, '__r>) -> Self::BBoxContext {
             Self::BBoxContext {
               __opts: opts,
               __errors: ::rocket::form::prelude::Errors::new(),
               __parent: ::std::option::Option::None,
+              __request: request.clone(),
               // TODO(babman): default values?
               #( #fields_idents: ::std::option::Option::None, )*
             }
           }
 
           // Push data for url_encoded bodies.
-          fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: ::alohomora::rocket::BBoxValueField<'__f>) {
+          fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: ::alohomora::rocket::BBoxValueField<'__a>) {
             ctxt.__parent = field.name.parent();
             match field.name.key_lossy().as_str() {
               #(#push_value_cases)*
@@ -218,7 +229,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           // Push data for multipart bodies.
           async fn bbox_push_data(
             ctxt: &mut Self::BBoxContext,
-            field: ::alohomora::rocket::BBoxDataField<'__f, '_>,
+            field: ::alohomora::rocket::BBoxDataField<'__a, '__r>,
           ) {
             ctxt.__parent = field.name.parent();
             match field.name.key_lossy().as_str() {
@@ -233,12 +244,13 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Finalize.
-          fn bbox_finalize(ctxt: Self::BBoxContext) -> ::alohomora::rocket::BBoxFormResult<'__f, Self> {
+          fn bbox_finalize(ctxt: Self::BBoxContext) -> ::alohomora::rocket::BBoxFormResult<'__a, Self> {
             let mut errors = ctxt.__errors;
             let parent = ctxt.__parent;
             let opts = ctxt.__opts;
+            let request = &ctxt.__request;
 
-            // Will populate errors with any existing erorrs and create a variable
+            // Will populate errors with any existing errors and create a variable
             // containing the result of every field with the same name.
             #(#finalize_cases)*
 
@@ -253,11 +265,11 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Provided methods
-          fn bbox_push_error(ctxt: &mut Self::BBoxContext, error: ::rocket::form::Error<'__f>) {
+          fn bbox_push_error(ctxt: &mut Self::BBoxContext, error: ::rocket::form::Error<'__a>) {
             ctxt.__errors.push(error);
           }
-          fn bbox_default(opts: ::rocket::form::Options) -> Option<Self> {
-            Self::bbox_finalize(Self::bbox_init(opts)).ok()
+          fn bbox_default(opts: ::rocket::form::Options, req: &::alohomora::rocket::BBoxRequest<'__a, '__r>) -> Option<Self> {
+            Self::bbox_finalize(Self::bbox_init(opts, req)).ok()
           }
         }
       };

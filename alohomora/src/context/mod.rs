@@ -46,13 +46,13 @@ pub enum ContextError {
 }
 
 #[rocket::async_trait]
-impl<'r, U: FromBBoxRequest<'r>, D: FromBBoxRequest<'r> + Send> FromBBoxRequest<'r>
+impl<'a, 'r, U: FromBBoxRequest<'a, 'r>, D: FromBBoxRequest<'a, 'r> + Send> FromBBoxRequest<'a, 'r>
     for Context<U, D>
 {
     type BBoxError = ContextError;
 
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: &'a BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let data: Option<D> = match request.guard::<D>().await {
             Success(data) => Some(data),

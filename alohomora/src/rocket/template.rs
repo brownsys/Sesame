@@ -32,7 +32,7 @@ impl BBoxTemplate {
 
 impl<'r, 'o: 'r> BBoxResponder<'r, 'o> for BBoxTemplate {
     fn respond_to(self, request: &BBoxRequest<'r, '_>) -> BBoxResponseResult<'o> {
-        use rocket::response::Responder;
+        use rocket::response::responder::Responder;
         match self.template.respond_to(request.get_request()) {
             Result::Ok(response) => Result::Ok(BBoxResponse::new(response)),
             Result::Err(e) => Result::Err(e),

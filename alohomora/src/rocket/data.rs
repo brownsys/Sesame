@@ -2,8 +2,9 @@ use std::fmt::Debug;
 
 use crate::bbox::BBox;
 use crate::policy::FrontendPolicy;
+use crate::rocket::{BBoxDataField, BBoxValueField};
 use crate::rocket::form::{BBoxForm, FromBBoxForm};
-use crate::rocket::request::{BBoxRequest, FromFormWrapper};
+use crate::rocket::request::BBoxRequest;
 
 // For multipart encoded bodies.
 pub struct BBoxData<'r> {
@@ -19,7 +20,7 @@ impl<'r> BBoxData<'r> {
         limit: rocket::data::ByteUnit,
         request: &BBoxRequest<'r, '_>,
     ) -> BBox<rocket::data::DataStream<'r>, P> {
-        BBox::new(self.data.open(limit), P::from_request(request))
+        BBox::new(self.data.open(limit), P::from_request(request.get_request()))
     }
     pub async fn peek<P: FrontendPolicy>(
         &mut self,
@@ -27,7 +28,7 @@ impl<'r> BBoxData<'r> {
         request: &BBoxRequest<'r, '_>,
     ) -> BBox<&[u8], P> {
         let result = self.data.peek(num).await;
-        BBox::new(result, P::from_request(request))
+        BBox::new(result, P::from_request(request.get_request()))
     }
     pub fn peek_complete(&self) -> bool {
         self.data.peek_complete()
@@ -38,40 +39,64 @@ impl<'r> BBoxData<'r> {
 }
 
 // Trait to construct stuff from data.
-pub type BBoxDataOutcome<'r, T, E = <T as FromBBoxData<'r>>::BBoxError> =
+pub type BBoxDataOutcome<'a, 'r, T, E = <T as FromBBoxData<'a, 'r>>::BBoxError> =
     rocket::outcome::Outcome<T, (rocket::http::Status, E), BBoxData<'r>>;
 
 #[rocket::async_trait]
-pub trait FromBBoxData<'r>: Sized {
+pub trait FromBBoxData<'a, 'r: 'a>: Sized {
     type BBoxError: Send + Debug;
-    async fn from_data<'a>(
+    async fn from_data(
         req: &BBoxRequest<'r, 'a>,
         data: BBoxData<'r>,
-    ) -> BBoxDataOutcome<'r, Self>;
+    ) -> BBoxDataOutcome<'a, 'r, Self>;
 }
 
 // If T implements FromBBoxForm, then BBoxForm<T> implements FromBBoxData.
 #[rocket::async_trait]
-impl<'r, T: FromBBoxForm<'r>> FromBBoxData<'r> for BBoxForm<T> {
+impl<'a, 'r: 'a, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T> {
     type BBoxError = rocket::form::Errors<'r>;
-    async fn from_data<'a>(
+    async fn from_data(
         req: &BBoxRequest<'r, 'a>,
         data: BBoxData<'r>,
-    ) -> BBoxDataOutcome<'r, Self> {
-        use rocket::data::FromData;
-        match rocket::form::Form::<FromFormWrapper<T>>::from_data(
-            req.get_request(),
-            data.get_data(),
-        )
-        .await
-        {
-            rocket::outcome::Outcome::Success(form) => {
-                BBoxDataOutcome::Success(BBoxForm(form.into_inner().0))
+    ) -> BBoxDataOutcome<'a, 'r, Self> {
+        use rocket::Either;
+        use rocket::outcome::Outcome;
+        use rocket::form::parser::Parser;
+
+        let mut parser = match Parser::new(req.get_request(), data.get_data()).await {
+            Outcome::Success(parser) => parser,
+            Outcome::Failure(error) => {
+                return BBoxDataOutcome::Failure(error);
+            },
+            Outcome::Forward(data) => {
+                return BBoxDataOutcome::Forward(BBoxData::new(data));
+            },
+        };
+
+        let mut context = T::bbox_init(rocket::form::Options::Lenient, req);
+        while let Some(field) = parser.next().await {
+            match field {
+                Ok(Either::Left(value)) => {
+                    let value = BBoxValueField { name: value.name, value: value.value};
+                    T::bbox_push_value(&mut context, value)
+                },
+                Ok(Either::Right(data)) => {
+                    let data = BBoxDataField {
+                        name: data.name,
+                        file_name: data.file_name,
+                        content_type: data.content_type,
+                        request: BBoxRequest::new(data.request),
+                        data: BBoxData::new(data.data)
+                    };
+                    T::bbox_push_data(&mut context, data).await
+                },
+                Err(e) => T::bbox_push_error(&mut context, e),
             }
-            rocket::outcome::Outcome::Failure(error) => BBoxDataOutcome::Failure(error),
-            rocket::outcome::Outcome::Forward(data) => {
-                BBoxDataOutcome::Forward(BBoxData::new(data))
-            }
+        }
+
+        match T::bbox_finalize(context) {
+            Ok(value) => BBoxDataOutcome::Success(BBoxForm(value)),
+            Err(e) => BBoxDataOutcome::Failure((e.status(), e)),
         }
     }
 }

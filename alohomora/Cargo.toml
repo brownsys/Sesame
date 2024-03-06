@@ -12,7 +12,7 @@ path = "src/lib.rs"
 alohomora_derive = { version = "0.1.0", path = "../alohomora_derive", optional = true }
 futures = "0.3.17"
 serde = "1.0"
-rocket = "0.5.0-rc.1"
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 figment = "0.10.6"
 lazy_static = "1.4.0"
 erased-serde = "0.3.25"
@@ -26,7 +26,9 @@ indexmap = "1.7.0"
 itertools = "0.12.1"
 
 [dependencies.rocket_dyn_templates]
-version = "0.1.0-rc.1"
+git = "https://github.com/KinanBab/Rocket.git"
+branch = "main"
+#version = "0.1.0-rc.1"
 features = ["handlebars", "tera"]
 
 [dependencies.handlebars]

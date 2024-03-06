@@ -1,6 +1,5 @@
 use std::any::Any;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
-use crate::rocket::BBoxRequest;
 
 // NoPolicy can be directly discarded.
 #[derive(Clone, PartialEq, Eq)]
@@ -31,10 +30,12 @@ impl SchemaPolicy for NoPolicy {
     }
 }
 impl FrontendPolicy for NoPolicy {
-    fn from_request<'a, 'r>(_request: &'a BBoxRequest<'a, 'r>) -> Self {
+    fn from_request(_request: &rocket::Request<'_>) -> Self {
         Self {}
     }
-    fn from_cookie() -> Self {
-        Self {}
-    }
+
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a rocket::http::Cookie<'static>,
+        _request: &'a rocket::Request<'r>) -> Self { Self {}}
 }

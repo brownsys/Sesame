@@ -2,7 +2,6 @@ use std::any::Any;
 use std::fmt::{Debug, Formatter, Write};
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
-use crate::rocket::BBoxRequest;
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
@@ -43,11 +42,14 @@ impl<P: 'static + Policy + SchemaPolicy + Clone> SchemaPolicy for TestPolicy<P> 
     }
 }
 impl<P: 'static + Policy + FrontendPolicy + Clone> FrontendPolicy for TestPolicy<P> {
-    fn from_request<'a, 'r>(request: &'a BBoxRequest<'a, 'r>) -> Self {
+    fn from_request(request: &rocket::Request<'_>) -> Self {
         TestPolicy { p: P::from_request(request) }
     }
-    fn from_cookie() -> Self {
-        TestPolicy { p: P::from_cookie() }
+    fn from_cookie<'a, 'r>(
+        name: &str,
+        cookie: &'a rocket::http::Cookie<'static>,
+        request: &'a rocket::Request<'r>) -> Self {
+        Self { p: P::from_cookie(name, cookie, request) }
     }
 }
 

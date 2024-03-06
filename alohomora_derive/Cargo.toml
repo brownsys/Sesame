@@ -10,10 +10,9 @@ proc-macro = true
 
 [dependencies]
 attribute-derive = "0.8.1"
-# bbox = { version = "0.1.0", path = "../bbox" }
 proc-macro2 = "1.0.58"
 quote = "1.0.27"
-rocket = "0.5.0-rc.1"
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 serde = "1.0"
 syn = { version = "2.0.16", features = [ "full" ] }
 

@@ -53,7 +53,6 @@ macro_rules! into_params_impl {
       fn from(x: ($($A,)*)) -> RedirectParams {
         let ($($a,)*) = x;
 
-        // TODO(babman): policy check.
         $(let $a = match $a.get() {
             EitherBBox::Value(v) => v.to_string(),
             EitherBBox::BBox(b) => b.data().to_string(),

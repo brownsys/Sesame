@@ -1,4 +1,3 @@
-use crate::rocket::BBoxRequest;
 use std::any::Any;
 use crate::policy::AnyPolicy;
 
@@ -20,13 +19,14 @@ pub trait SchemaPolicy: Policy {
 
 // Front end policy can be constructed from HTTP requests and from cookies.
 pub trait FrontendPolicy: Policy + Send {
-    fn from_request(request: &BBoxRequest<'_, '_>) -> Self
+    fn from_request<'a, 'r>(request: &'a rocket::Request<'r>) -> Self
         where
             Self: Sized;
-    // TODO(babman): from_cookie should become from_request.
-    fn from_cookie() -> Self
-        where
-            Self: Sized;
+
+    fn from_cookie<'a, 'r>(
+        name: &str,
+        cookie: &'a rocket::http::Cookie<'static>,
+        request: &'a rocket::Request<'r>) -> Self where Self: Sized;
 }
 
 mod tests {

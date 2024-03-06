@@ -1,6 +1,6 @@
 use crate::AlohomoraType;
 use crate::fold::fold;
-use crate::policy::{AnyPolicy, NoPolicy};
+use crate::policy::AnyPolicy;
 
 // Creation of this must be signed.
 #[derive(Clone, Copy)]
@@ -27,9 +27,7 @@ pub fn execute_pcr<S: AlohomoraType, C, O, F: FnOnce(S::Out, AnyPolicy, C) -> O>
     Ok(functor(t, p, arg))
 }
 
-// TODO(babman): implement the macro below
-// TODO(babman): test the below (manual implementation of macro) + test the macro
-
+/*
 // Example of how to use this with a function definition.
 //#[PrivacyCriticalRegion("signature")]
 fn example(a: u32, _policy: NoPolicy, b: u64) -> String {
@@ -49,3 +47,4 @@ fn example_inline_lambda() {
     let result = bbox.into_pcr(EXAMPLE_INSTANCE, 100);
     println!("{}", result);
 }
+*/
