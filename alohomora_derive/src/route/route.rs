@@ -246,7 +246,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
       // initialize.
       let opts = ::rocket::form::prelude::Options::Lenient;
-      #(let mut #query_idents = #query_casted_types::bbox_init(opts);)*
+      #(let mut #query_idents = #query_casted_types::bbox_init(opts, &_request);)*
 
       // push.
       for field in _request.query_fields() {
@@ -276,7 +276,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
       #[allow(non_camel_case_types)]
       pub struct #fn_name {}
       impl #fn_name {
-        pub async fn lambda<'r>(_request: ::alohomora::rocket::BBoxRequest<'r, '_>, _data: ::alohomora::rocket::BBoxData<'r>) -> ::alohomora::rocket::BBoxResponseOutcome<'r> {
+        pub async fn lambda<'a, 'r>(_request: ::alohomora::rocket::BBoxRequest<'a, 'r>, _data: ::alohomora::rocket::BBoxData<'a>) -> ::alohomora::rocket::BBoxResponseOutcome<'a> {
           // Path parameters.
           #(#path_params)*
 

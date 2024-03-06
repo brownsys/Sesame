@@ -126,15 +126,13 @@ pub fn generate_push_data_cases(fields: &Vec<Ident>, types: &Vec<TokenStream>) -
             let getter = Ident::new(&format!("get_{}_ctx", field), Span::call_site());
             let name = field.to_string();
             quote! {
-              #name => {
-                #ty::bbox_push_data(ctxt.#getter(), field.shift()).await;
-              },
+              #name => #ty::bbox_push_data(ctxt.#getter(), field.shift()),
             }
         })
         .collect()
 }
 
-// Generate code to finialize the context of every field and aggregate any errors.
+// Generate code to finalize the context of every field and aggregate any errors.
 pub fn generate_finalize_cases(fields: &Vec<Ident>, types: &Vec<TokenStream>) -> Vec<TokenStream> {
     fields.iter().zip(types.iter()).map(|(field, ty)| {
     let name = field.to_string();
@@ -192,11 +190,10 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
 
     // Impl trait.
     quote! {
-      #[automatically_derived]
       const _: () = {
         #context
 
-        #[::rocket::async_trait]
+        #[automatically_derived]
         impl #impl_generics ::alohomora::rocket::FromBBoxForm<'__a, '__r> for #input_name #ty_generics #where_clause {
           type BBoxContext = FromBBoxFormGeneratedContext #ctx_ty_generics;
 
@@ -227,10 +224,16 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Push data for multipart bodies.
-          async fn bbox_push_data(
-            ctxt: &mut Self::BBoxContext,
+          fn bbox_push_data<'life0, 'async_trait>(
+            ctxt: &'life0 mut Self::BBoxContext,
             field: ::alohomora::rocket::BBoxDataField<'__a, '__r>,
-          ) {
+          ) -> ::core::pin::Pin<Box<dyn ::core::future::Future<Output = ()> + ::core::marker::Send + 'async_trait>>
+          where
+            '__a: 'async_trait,
+            '__r: 'async_trait,
+            'life0: 'async_trait,
+            Self: 'async_trait,
+          {
             ctxt.__parent = field.name.parent();
             match field.name.key_lossy().as_str() {
               #(#push_data_cases)*
@@ -239,6 +242,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
                 if key != "_method" && ctxt.__opts.strict {
                   ctxt.__errors.push(field.unexpected())
                 }
+                Box::pin(::std::future::ready(()))
               },
             }
           }
