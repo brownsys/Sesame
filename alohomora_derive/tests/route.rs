@@ -1,9 +1,10 @@
 use alohomora::context::Context;
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
-use alohomora::rocket::BBoxRequest;
 use alohomora_derive::{route, routes, FromBBoxForm};
 
 use std::any::Any;
+use rocket::http::Cookie;
+use rocket::Request;
 use alohomora::pcr::PrivacyCriticalRegion;
 use alohomora::unbox::unbox;
 
@@ -24,10 +25,10 @@ impl Policy for TmpPolicy {
     }
 }
 impl FrontendPolicy for TmpPolicy {
-    fn from_request<'a, 'r>(_: &'a BBoxRequest<'a, 'r>) -> Self {
+    fn from_request(_: &'_ Request<'_>) -> Self {
         TmpPolicy {}
     }
-    fn from_cookie() -> Self {
+    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self {
         TmpPolicy {}
     }
 }
@@ -60,10 +61,10 @@ struct MyGuard {
     pub value: String,
 }
 #[rocket::async_trait]
-impl<'r> alohomora::rocket::FromBBoxRequest<'r> for MyGuard {
+impl<'a, 'r> alohomora::rocket::FromBBoxRequest<'a, 'r> for MyGuard {
     type BBoxError = &'static str;
     async fn from_bbox_request(
-        _request: &'r alohomora::rocket::BBoxRequest<'r, '_>,
+        _request: &'a alohomora::rocket::BBoxRequest<'a, 'r>,
     ) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
         let guard = MyGuard {
             value: String::from("ok"),

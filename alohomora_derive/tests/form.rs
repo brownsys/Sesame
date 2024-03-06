@@ -1,8 +1,10 @@
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
-use alohomora::rocket::BBoxRequest;
 use alohomora_derive::FromBBoxForm;
 
 use std::any::Any;
+use rocket::http::Cookie;
+use rocket::Request;
+
 pub struct TmpPolicy {}
 impl Policy for TmpPolicy {
     fn name(&self) -> String {
@@ -19,10 +21,10 @@ impl Policy for TmpPolicy {
     }
 }
 impl FrontendPolicy for TmpPolicy {
-    fn from_request<'a, 'r>(_: &'a BBoxRequest<'a, 'r>) -> Self {
+    fn from_request(_: &'_ Request<'_>) -> Self {
         TmpPolicy {}
     }
-    fn from_cookie() -> Self {
+    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self {
         TmpPolicy {}
     }
 }
