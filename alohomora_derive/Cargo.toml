@@ -8,10 +8,6 @@ edition = "2018"
 name = "alohomora_derive"
 proc-macro = true
 
-[[example]]
-name = "bin"
-path = "src/bin.rs"
-
 [dependencies]
 attribute-derive = "0.8.1"
 proc-macro2 = "1.0.58"
