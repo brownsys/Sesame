@@ -17,8 +17,8 @@ impl BBoxRedirect {
         }
     }
 }
-impl<'r, 'o: 'r> BBoxResponder<'r, 'o> for BBoxRedirect {
-    fn respond_to(self, request: &BBoxRequest<'r, '_>) -> BBoxResponseResult<'o> {
+impl<'a, 'r> BBoxResponder<'a, 'r> for BBoxRedirect {
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'a> {
         use rocket::response::Responder;
         match self.redirect.respond_to(request.get_request()) {
             Ok(response) => Ok(BBoxResponse::new(response)),

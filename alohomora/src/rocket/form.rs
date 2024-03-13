@@ -3,6 +3,7 @@ extern crate indexmap;
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::option::Option;
 use std::result::Result;
@@ -77,7 +78,7 @@ impl<'a> BBoxValueField<'a> {
 
 pub struct BBoxDataField<'a, 'r> {
     pub name: rocket::form::name::NameView<'a>,
-    pub file_name: Option<&'r rocket::fs::FileName>,
+    pub file_name: Option<&'a rocket::fs::FileName>,
     pub content_type: rocket::http::ContentType,
     pub request: BBoxRequest<'a, 'r>,
     pub data: BBoxData<'a>,
@@ -97,10 +98,10 @@ impl<'a, 'r> BBoxDataField<'a, 'r> {
 // Our version of FromFormField, this implies FromBBoxForm.
 #[rocket::async_trait]
 pub trait FromBBoxFormField<'a, 'r>: Send + Sized {
-    fn from_bbox_value(field: BBoxValueField<'a>, _req: &BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
+    fn from_bbox_value(field: BBoxValueField<'a>, _req: BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
         Err(field.unexpected())?
     }
-    async fn from_bbox_data(field: BBoxDataField<'a, 'r>, _req: &BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
+    async fn from_bbox_data(field: BBoxDataField<'a, 'r>, _req: BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
         Err(field.unexpected())?
     }
     fn default() -> Option<Self> {
@@ -110,24 +111,28 @@ pub trait FromBBoxFormField<'a, 'r>: Send + Sized {
 
 // Our own FromBBoxForm trait, mirror's rockets' FromForm trait.
 // Do not use directly, derive instead.
-// TODO(babman): make this take a BBoxRequest on initialization...
 #[rocket::async_trait]
 pub trait FromBBoxForm<'a, 'r>: Send + Sized {
     type BBoxContext: Send;
 
     // Required methods
-    fn bbox_init(opts: rocket::form::Options, req: &BBoxRequest<'a, 'r>) -> Self::BBoxContext;
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>);
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext;
+    fn bbox_push_value(
+        ctxt: &mut Self::BBoxContext,
+        field: BBoxValueField<'a>,
+        request: BBoxRequest<'a, 'r>,
+    );
     async fn bbox_push_data(
         ctxt: &mut Self::BBoxContext,
         field: BBoxDataField<'a, 'r>,
+        request: BBoxRequest<'a, 'r>,
     );
     fn bbox_finalize(ctxt: Self::BBoxContext) -> BBoxFormResult<'a, Self>;
 
     // Provided methods
     fn bbox_push_error(_ctxt: &mut Self::BBoxContext, _error: rocket::form::Error<'a>) {}
-    fn bbox_default(opts: rocket::form::Options, req: &BBoxRequest<'a, 'r>) -> Option<Self> {
-        Self::bbox_finalize(Self::bbox_init(opts, req)).ok()
+    fn bbox_default(opts: rocket::form::Options) -> Option<Self> {
+        Self::bbox_finalize(Self::bbox_init(opts)).ok()
     }
 }
 
@@ -137,7 +142,7 @@ pub struct FromBBoxFieldContext<'a, 'r, T: FromBBoxFormField<'a, 'r>> {
     opts: rocket::form::Options,
     value: Option<BBoxFormResult<'a, T>>,
     pushes: usize,
-    request: BBoxRequest<'a, 'r>,
+    _phantom: PhantomData<&'r ()>,
 }
 impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxFieldContext<'a, 'r, T> {
     fn should_push(&mut self) -> bool {
@@ -162,28 +167,28 @@ impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxFieldContext<'a, 'r, T> {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r: 'a, T: FromBBoxFormField<'a, 'r>> FromBBoxForm<'a, 'r> for T {
+impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxForm<'a, 'r> for T {
     type BBoxContext = FromBBoxFieldContext<'a, 'r, T>;
 
-    fn bbox_init(opts: rocket::form::Options, req: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
         FromBBoxFieldContext {
             opts,
             field_name: None,
             value: None,
             pushes: 0,
-            request: req.clone(),
+            _phantom: PhantomData,
         }
     }
 
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
+    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>,) {
         if ctxt.should_push() {
-            ctxt.push(field.name, Self::from_bbox_value(field, &ctxt.request))
+            ctxt.push(field.name, Self::from_bbox_value(field, request))
         }
     }
 
-    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
+    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>,) {
         if ctxt.should_push() {
-            ctxt.push(field.name, Self::from_bbox_data(field, &ctxt.request).await);
+            ctxt.push(field.name, Self::from_bbox_data(field, request).await);
         }
     }
 
@@ -213,7 +218,7 @@ macro_rules! impl_form_via_rocket {
         #[rocket::async_trait]
         impl<'a, 'r, P: FrontendPolicy> FromBBoxFormField<'a, 'r> for BBox<$T, P> {
             #[inline(always)]
-            fn from_bbox_value(field: BBoxValueField<'a>, req: &BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
+            fn from_bbox_value(field: BBoxValueField<'a>, req: BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
                 use rocket::form::FromFormField;
                 let pfield = rocket::form::ValueField{ name: field.name, value: field.value};
                 let pvalue = $T::from_value(pfield)?;
@@ -221,7 +226,7 @@ macro_rules! impl_form_via_rocket {
             }
 
             #[inline(always)]
-            async fn from_bbox_data(field: BBoxDataField<'a, 'r>, req: &BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
+            async fn from_bbox_data(field: BBoxDataField<'a, 'r>, req: BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
                 use rocket::form::FromFormField;
                 let pfield = rocket::form::DataField {
                     name: field.name,
@@ -290,17 +295,17 @@ pub struct VecContext<'a, 'r, T: FromBBoxForm<'a, 'r>> {
     current: Option<T::BBoxContext>,
     errors: rocket::form::Errors<'a>,
     items: Vec<T>,
-    request: BBoxRequest<'a, 'r>,
+    _phantom: PhantomData<&'r ()>,
 }
 impl<'a, 'r, T: FromBBoxForm<'a, 'r>> VecContext<'a, 'r, T> {
-    fn new(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self {
+    fn new(opts: rocket::form::Options) -> Self {
         VecContext {
             opts,
             last_key: None,
             current: None,
             items: vec![],
             errors: rocket::form::Errors::new(),
-            request: request.clone(),
+            _phantom: PhantomData,
         }
     }
     fn shift(&mut self) {
@@ -320,7 +325,7 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> VecContext<'a, 'r, T> {
 
         if !keys_match {
             self.shift();
-            self.current = Some(T::bbox_init(self.opts, &self.request));
+            self.current = Some(T::bbox_init(self.opts));
         }
 
         self.last_key = name.key();
@@ -334,16 +339,16 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> VecContext<'a, 'r, T> {
 impl<'a, 'r: 'a, T: FromBBoxForm<'a, 'r> + 'r> FromBBoxForm<'a, 'r> for Vec<T> {
     type BBoxContext = VecContext<'a, 'r, T>;
 
-    fn bbox_init(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
-        VecContext::new(opts, request)
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+        VecContext::new(opts)
     }
 
-    fn bbox_push_value(this: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
-        T::bbox_push_value(this.context(&field.name), field.shift());
+    fn bbox_push_value(this: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_value(this.context(&field.name), field.shift(), request);
     }
 
-    async fn bbox_push_data(this: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
-        T::bbox_push_data(this.context(&field.name), field.shift()).await
+    async fn bbox_push_data(this: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_data(this.context(&field.name), field.shift(), request).await
     }
 
     fn bbox_finalize(mut this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
@@ -372,21 +377,21 @@ where
     entries: Vec<(K::BBoxContext, V::BBoxContext)>,
     metadata: Vec<rocket::form::name::NameView<'a>>,
     errors: rocket::form::Errors<'a>,
-    request: BBoxRequest<'a, 'r>,
+    _phantom: PhantomData<&'r ()>,
 }
 impl<'a, 'r, K, V> MapContext<'a, 'r, K, V>
 where
     K: FromBBoxForm<'a, 'r>,
     V: FromBBoxForm<'a, 'r>,
 {
-    fn new(opts: rocket::form::Options, request: BBoxRequest<'a, 'r>) -> Self {
+    fn new(opts: rocket::form::Options) -> Self {
         MapContext {
             opts,
             table: IndexMap::new(),
             entries: vec![],
             metadata: vec![],
             errors: rocket::form::Errors::new(),
-            request,
+            _phantom: PhantomData,
         }
     }
     fn ctxt(
@@ -399,7 +404,7 @@ where
             None => {
                 let i = self.entries.len();
                 self.table.insert(key, i);
-                self.entries.push((K::bbox_init(self.opts, &self.request), V::bbox_init(self.opts, &self.request)));
+                self.entries.push((K::bbox_init(self.opts), V::bbox_init(self.opts)));
                 self.metadata.push(name);
                 &mut self.entries[i]
             }
@@ -408,6 +413,7 @@ where
     fn push(
         &mut self,
         name: rocket::form::name::NameView<'a>,
+        request: BBoxRequest<'a, 'r>,
     ) -> Option<Either<&mut K::BBoxContext, &mut V::BBoxContext>> {
         let index_pair = name
             .key()
@@ -420,7 +426,7 @@ where
                 let is_new_key = !self.table.contains_key(key);
                 let (key_ctxt, val_ctxt) = self.ctxt(key, name);
                 if is_new_key {
-                    K::bbox_push_value(key_ctxt, BBoxValueField::from_value(key));
+                    K::bbox_push_value(key_ctxt, BBoxValueField::from_value(key), request);
                 }
 
                 return Some(Either::Right(val_ctxt));
@@ -449,17 +455,17 @@ where
 
         None
     }
-    fn push_value(&mut self, field: BBoxValueField<'a>) {
-        match self.push(field.name) {
-            Some(Either::Left(ctxt)) => K::bbox_push_value(ctxt, field.shift()),
-            Some(Either::Right(ctxt)) => V::bbox_push_value(ctxt, field.shift()),
+    fn push_value(&mut self, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+        match self.push(field.name, request) {
+            Some(Either::Left(ctxt)) => K::bbox_push_value(ctxt, field.shift(), request),
+            Some(Either::Right(ctxt)) => V::bbox_push_value(ctxt, field.shift(), request),
             _ => {}
         }
     }
-    async fn push_data(&mut self, field: BBoxDataField<'a, 'r>) {
-        match self.push(field.name) {
-            Some(Either::Left(ctxt)) => K::bbox_push_data(ctxt, field.shift()).await,
-            Some(Either::Right(ctxt)) => V::bbox_push_data(ctxt, field.shift()).await,
+    async fn push_data(&mut self, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+        match self.push(field.name, request) {
+            Some(Either::Left(ctxt)) => K::bbox_push_data(ctxt, field.shift(), request).await,
+            Some(Either::Right(ctxt)) => V::bbox_push_data(ctxt, field.shift(), request).await,
             _ => {}
         }
     }
@@ -498,14 +504,14 @@ where
     V: FromBBoxForm<'a, 'r>,
 {
     type BBoxContext = MapContext<'a, 'r, K, V>;
-    fn bbox_init(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
-        MapContext::new(opts, request.clone())
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+        MapContext::new(opts)
     }
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
-        ctxt.push_value(field);
+    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+        ctxt.push_value(field, request);
     }
-    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
-        ctxt.push_data(field).await;
+    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+        ctxt.push_data(field, request).await;
     }
     fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
         this.finalize()
@@ -518,14 +524,14 @@ where
     V: FromBBoxForm<'a, 'r>,
 {
     type BBoxContext = MapContext<'a, 'r, K, V>;
-    fn bbox_init(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
-        MapContext::new(opts, request.clone())
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+        MapContext::new(opts)
     }
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
-        ctxt.push_value(field);
+    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+        ctxt.push_value(field, request);
     }
-    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
-        ctxt.push_data(field).await;
+    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+        ctxt.push_data(field, request).await;
     }
     fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
         this.finalize()
@@ -536,17 +542,17 @@ where
 #[rocket::async_trait]
 impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxForm<'a, 'r> for Option<T> {
     type BBoxContext = <T as FromBBoxForm<'a, 'r>>::BBoxContext;
-    fn bbox_init(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
         T::bbox_init(rocket::form::Options {
             strict: true,
             ..opts
-        }, request)
+        })
     }
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
-        T::bbox_push_value(ctxt, field)
+    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_value(ctxt, field, request)
     }
-    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
-        T::bbox_push_data(ctxt, field).await
+    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_data(ctxt, field, request).await
     }
     fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
         Ok(T::bbox_finalize(this).ok())
@@ -556,14 +562,14 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxForm<'a, 'r> for Option<T> {
 #[rocket::async_trait]
 impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxForm<'a, 'r> for BBoxFormResult<'a, T> {
     type BBoxContext = <T as FromBBoxForm<'a, 'r>>::BBoxContext;
-    fn bbox_init(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
-        T::bbox_init(opts, request)
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+        T::bbox_init(opts)
     }
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
-        T::bbox_push_value(ctxt, field)
+    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_value(ctxt, field, request)
     }
-    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
-        T::bbox_push_data(ctxt, field).await
+    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_data(ctxt, field, request).await
     }
     fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
         Ok(T::bbox_finalize(this))
@@ -598,24 +604,24 @@ impl<'a, 'r, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> PairContext<'a, '
 #[rocket::async_trait]
 impl<'a, 'r: 'a, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> FromBBoxForm<'a, 'r> for (A, B) {
     type BBoxContext = PairContext<'a, 'r, A, B>;
-    fn bbox_init(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
         PairContext {
-            left: A::bbox_init(opts, request),
-            right: B::bbox_init(opts, request),
+            left: A::bbox_init(opts),
+            right: B::bbox_init(opts),
             errors: rocket::form::Errors::new(),
         }
     }
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
+    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
         match ctxt.context(field.name) {
-            Ok(Either::Left(ctxt)) => A::bbox_push_value(ctxt, field.shift()),
-            Ok(Either::Right(ctxt)) => B::bbox_push_value(ctxt, field.shift()),
+            Ok(Either::Left(ctxt)) => A::bbox_push_value(ctxt, field.shift(), request),
+            Ok(Either::Right(ctxt)) => B::bbox_push_value(ctxt, field.shift(), request),
             Err(e) => ctxt.errors.push(e),
         }
     }
-    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
+    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
         match ctxt.context(field.name) {
-            Ok(Either::Left(ctxt)) => A::bbox_push_data(ctxt, field.shift()).await,
-            Ok(Either::Right(ctxt)) => B::bbox_push_data(ctxt, field.shift()).await,
+            Ok(Either::Left(ctxt)) => A::bbox_push_data(ctxt, field.shift(), request).await,
+            Ok(Either::Right(ctxt)) => B::bbox_push_data(ctxt, field.shift(), request).await,
             Err(e) => ctxt.errors.push(e),
         }
     }
@@ -639,14 +645,14 @@ impl<'a, 'r: 'a, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> FromBBoxForm<
 #[rocket::async_trait]
 impl<'a, 'r: 'a, T: FromBBoxForm<'a, 'r> + Sync> FromBBoxForm<'a, 'r> for Arc<T> {
     type BBoxContext = <T as FromBBoxForm<'a, 'r>>::BBoxContext;
-    fn bbox_init(opts: rocket::form::Options, request: &BBoxRequest<'a, 'r>) -> Self::BBoxContext {
-        T::bbox_init(opts, request)
+    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+        T::bbox_init(opts)
     }
-    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>) {
-        T::bbox_push_value(ctxt, field)
+    fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_value(ctxt, field, request)
     }
-    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>) {
-        T::bbox_push_data(ctxt, field).await
+    async fn bbox_push_data(ctxt: &mut Self::BBoxContext, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+        T::bbox_push_data(ctxt, field, request).await
     }
     fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
         T::bbox_finalize(this).map(Arc::new)

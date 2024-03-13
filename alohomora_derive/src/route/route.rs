@@ -187,7 +187,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
     let ty = args.types.get(param).unwrap();
 
     quote! {
-      let #ident = match <#ty as ::alohomora::rocket::FromBBoxRequest>::from_bbox_request(&_request).await {
+      let #ident = match <#ty as ::alohomora::rocket::FromBBoxRequest>::from_bbox_request(_request).await {
         ::alohomora::rocket::BBoxRequestOutcome::Success(_d) => _d,
         ::alohomora::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
           return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
@@ -206,7 +206,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
             let ident = data.to_ident();
             let ty = args.types.get(data).unwrap();
             quote! {
-              let #ident = match <#ty as ::alohomora::rocket::FromBBoxData>::from_data(&_request, _data).await {
+              let #ident = match <#ty as ::alohomora::rocket::FromBBoxData>::from_data(_request, _data).await {
                 ::alohomora::rocket::BBoxDataOutcome::Success(_d) => _d,
                 ::alohomora::rocket::BBoxDataOutcome::Failure((_s, _e)) => {
                   return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
@@ -246,12 +246,12 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
       // initialize.
       let opts = ::rocket::form::prelude::Options::Lenient;
-      #(let mut #query_idents = #query_casted_types::bbox_init(opts, &_request);)*
+      #(let mut #query_idents = #query_casted_types::bbox_init(opts);)*
 
       // push.
       for field in _request.query_fields() {
         match field.name.key_lossy().as_str() {
-          #(#query_strings => #query_casted_types::bbox_push_value(&mut #query_idents, field.shift()),)*
+          #(#query_strings => #query_casted_types::bbox_push_value(&mut #query_idents, field.shift(), _request),)*
           _ => {},
         }
       }
@@ -293,7 +293,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
           let res = #fn_call;
 
           // done!
-          ::alohomora::rocket::BBoxResponseOutcome::from(&_request, res)
+          ::alohomora::rocket::BBoxResponseOutcome::from(_request, res)
         }
 
         pub fn info() -> ::alohomora::rocket::BBoxRouteInfo {

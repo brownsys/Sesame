@@ -64,7 +64,7 @@ struct MyGuard {
 impl<'a, 'r> alohomora::rocket::FromBBoxRequest<'a, 'r> for MyGuard {
     type BBoxError = &'static str;
     async fn from_bbox_request(
-        _request: &'a alohomora::rocket::BBoxRequest<'a, 'r>,
+        _request: alohomora::rocket::BBoxRequest<'a, 'r>,
     ) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
         let guard = MyGuard {
             value: String::from("ok"),

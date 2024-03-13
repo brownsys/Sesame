@@ -30,8 +30,8 @@ impl BBoxTemplate {
     }
 }
 
-impl<'r, 'o: 'r> BBoxResponder<'r, 'o> for BBoxTemplate {
-    fn respond_to(self, request: &BBoxRequest<'r, '_>) -> BBoxResponseResult<'o> {
+impl<'a, 'r> BBoxResponder<'a, 'r> for BBoxTemplate {
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'a> {
         use rocket::response::responder::Responder;
         match self.template.respond_to(request.get_request()) {
             Result::Ok(response) => Result::Ok(BBoxResponse::new(response)),

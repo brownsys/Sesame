@@ -52,7 +52,7 @@ impl<'a, 'r, U: FromBBoxRequest<'a, 'r>, D: FromBBoxRequest<'a, 'r> + Send> From
     type BBoxError = ContextError;
 
     async fn from_bbox_request(
-        request: &'a BBoxRequest<'a, 'r>,
+        request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let data: Option<D> = match request.guard::<D>().await {
             Success(data) => Some(data),

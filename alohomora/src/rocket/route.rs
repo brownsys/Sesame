@@ -3,11 +3,11 @@ use crate::rocket::request::BBoxRequest;
 use crate::rocket::response::BBoxResponseOutcome;
 
 // The return type of a request's inner lambda handler.
-type BBoxFuture<'r> = futures::future::BoxFuture<'r, BBoxResponseOutcome<'r>>;
+type BBoxFuture<'a> = futures::future::BoxFuture<'a, BBoxResponseOutcome<'a>>;
 
 // Box::new(<BBoxHandlerLambda>) -> BBoxHandler.
 pub type BBoxRouteHandlerLambda =
-    for<'r> fn(request: BBoxRequest<'r, '_>, data: BBoxData<'r>) -> BBoxFuture<'r>;
+    for<'a, 'r> fn(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>) -> BBoxFuture<'a>;
 
 // Our #[bbox_get(...)] #[bbox_post(...)], etc macros generate a struct with an ::info() function
 // that returns an instance of this.
@@ -68,13 +68,13 @@ impl BBoxRouteHandlerWrapper {
 }
 #[rocket::async_trait]
 impl rocket::route::Handler for BBoxRouteHandlerWrapper {
-    async fn handle<'r>(
+    async fn handle<'a>(
         &self,
-        request: &'r rocket::request::Request<'_>,
-        data: rocket::data::Data<'r>,
-    ) -> rocket::route::Outcome<'r> {
-        let result_future = (self.bbox_handler)(BBoxRequest::new(request), BBoxData::new(data));
-        match result_future.await {
+        request: &'a rocket::request::Request<'_>,
+        data: rocket::data::Data<'a>,
+    ) -> rocket::route::Outcome<'a> {
+        let result_future: BBoxResponseOutcome<'a> = (self.bbox_handler)(BBoxRequest::new(request), BBoxData::new(data)).await;
+        match result_future {
             BBoxResponseOutcome::Success(response) => {
                 rocket::outcome::Outcome::Success(response.get_response())
             }

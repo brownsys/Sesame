@@ -108,11 +108,11 @@ impl<'c, P: FrontendPolicy> BBoxCookie<'c, P> {
 // Cookie jar gives and takes cookies that are bboxed.
 #[derive(Clone)]
 pub struct BBoxCookieJar<'a, 'r> {
-    jar: &'a rocket::http::CookieJar<'a>,
+    jar: &'a rocket::http::CookieJar<'r>,
     request: &'a rocket::Request<'r>,
 }
 impl<'a, 'r> BBoxCookieJar<'a, 'r> {
-    pub fn new(jar: &'a rocket::http::CookieJar<'a>, request: &'a rocket::Request<'r>) -> Self {
+    pub fn new(jar: &'a rocket::http::CookieJar<'r>, request: &'a rocket::Request<'r>) -> Self {
         BBoxCookieJar { jar, request }
     }
 

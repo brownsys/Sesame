@@ -6,29 +6,29 @@ use crate::rocket::request::BBoxRequest;
 
 // Our wrapper around response, disallows applications from looking at response
 // in plain text.
-pub struct BBoxResponse<'r> {
-    response: rocket::response::Response<'r>,
+pub struct BBoxResponse<'a> {
+    response: rocket::response::Response<'a>,
 }
-impl<'r> BBoxResponse<'r> {
-    pub fn new(response: rocket::response::Response<'r>) -> Self {
+impl<'a> BBoxResponse<'a> {
+    pub fn new(response: rocket::response::Response<'a>) -> Self {
         BBoxResponse { response }
     }
-    pub(crate) fn get_response(self) -> rocket::response::Response<'r> {
+    pub(crate) fn get_response(self) -> rocket::response::Response<'a> {
         self.response
     }
 }
 
 // The outcome of executing a handler / the outcome of an endpoint.
-pub enum BBoxResponseOutcome<'r> {
-    Success(BBoxResponse<'r>),
+pub enum BBoxResponseOutcome<'a> {
+    Success(BBoxResponse<'a>),
     Failure(rocket::http::Status),
-    Forward(BBoxData<'r>),
+    Forward(BBoxData<'a>),
 }
-impl<'r, 'o: 'r> BBoxResponseOutcome<'o> {
-    pub fn from<R: BBoxResponder<'r, 'o>>(
-        request: &BBoxRequest<'r, '_>,
+impl<'a, 'r> BBoxResponseOutcome<'a> {
+    pub fn from<R: BBoxResponder<'a, 'r>>(
+        request: BBoxRequest<'a, 'r>,
         responder: R,
-    ) -> BBoxResponseOutcome<'r> {
+    ) -> BBoxResponseOutcome<'a> {
         match responder.respond_to(request) {
             Result::Ok(response) => BBoxResponseOutcome::Success(response),
             Result::Err(status) => BBoxResponseOutcome::Failure(status),
@@ -37,9 +37,9 @@ impl<'r, 'o: 'r> BBoxResponseOutcome<'o> {
 }
 
 // A trait that signifies that implementors can be turned into a response.
-pub type BBoxResponseResult<'r> = Result<BBoxResponse<'r>, rocket::http::Status>;
-pub trait BBoxResponder<'r, 'o: 'r> {
-    fn respond_to(self, request: &BBoxRequest<'r, '_>) -> BBoxResponseResult<'o>;
+pub type BBoxResponseResult<'a> = Result<BBoxResponse<'a>, rocket::http::Status>;
+pub trait BBoxResponder<'a, 'r> {
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'a>;
 }
 
 // Endpoint functions can return this type in case they want to dynamically decide whether
@@ -58,8 +58,8 @@ impl From<BBoxTemplate> for BBoxResponseEnum {
         BBoxResponseEnum::Template(value)
     }
 }
-impl<'r, 'o: 'r> BBoxResponder<'r, 'o> for BBoxResponseEnum {
-    fn respond_to(self, request: &BBoxRequest<'r, '_>) -> BBoxResponseResult<'o> {
+impl<'a, 'r> BBoxResponder<'a, 'r> for BBoxResponseEnum {
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'a> {
         match self {
             BBoxResponseEnum::Redirect(redirect) => redirect.respond_to(request),
             BBoxResponseEnum::Template(template) => template.respond_to(request),
