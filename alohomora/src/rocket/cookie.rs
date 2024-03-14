@@ -89,7 +89,7 @@ impl<'c, P: FrontendPolicy> BBoxCookie<'c, P> {
         }
     }
 
-    pub fn build<N: Into<Cow<'c, str>>, V: Into<Cow<'c, str>> + Clone, U: 'static, D: 'static>(
+    pub fn build<N: Into<Cow<'c, str>>, V: Into<Cow<'c, str>> + Clone>(
         name: N,
         value: BBox<V, P>,
     ) -> BBoxCookieBuilder<'c, P> {
@@ -102,6 +102,12 @@ impl<'c, P: FrontendPolicy> BBoxCookie<'c, P> {
 
     pub fn value(&self) -> BBox<&str, RefPolicy<P>> {
         BBox::new(self.cookie.value(), RefPolicy::new(&self.policy))
+    }
+}
+
+impl<'c, P: FrontendPolicy> From<BBoxCookie<'c, P>> for BBox<String, P> {
+    fn from(cookie: BBoxCookie<'c, P>) -> BBox<String, P> {
+        BBox::new(String::from(cookie.cookie.value()), cookie.policy)
     }
 }
 

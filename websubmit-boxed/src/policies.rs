@@ -28,11 +28,11 @@ pub enum ContextDataError {
 
 // Build the custom payload for the context given HTTP request.
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for ContextData {
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
     type BBoxError = ContextDataError;
 
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let db = match request.guard::<&State<Arc<Mutex<MySqlBackend>>>>().await {
             Success(db) => Some(db.inner().clone()),
@@ -167,9 +167,9 @@ impl SchemaPolicy for AnswerAccessPolicy {
     where
         Self: Sized,
     {
-        AnswerAccessPolicy {
-            owner: mysql::from_value(row[0].clone()),
-            lec_id: mysql::from_value(row[1].clone()),
-        }
+        AnswerAccessPolicy::new(
+            mysql::from_value(row[0].clone()),
+            mysql::from_value(row[1].clone())
+        )
     }
 }

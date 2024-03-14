@@ -27,7 +27,6 @@ impl MySqlBackend {
         };
 
         let schema = std::fs::read_to_string("websubmit-boxed/src/schema.sql")?;
-        //let schema = std::fs::read_to_string("data/prime.sql")?;
 
         debug!(
             log,
@@ -39,7 +38,7 @@ impl MySqlBackend {
         .unwrap();
         assert_eq!(db.ping(), true);
 
-        /*if prime {
+        if prime {
             db.query_drop(format!("DROP DATABASE IF EXISTS {};", dbname))
                 .unwrap();
             db.query_drop(format!("CREATE DATABASE {};", dbname))
@@ -52,9 +51,8 @@ impl MySqlBackend {
                 db.query_drop(line).unwrap();
             }
         } else {
-            //db.query_drop(format!("USE {};", dbname)).unwrap();
-        }*/
-        db.query_drop(format!("USE alohomora;")).unwrap();
+            db.query_drop(format!("USE {};", dbname)).unwrap();
+        }
 
         Ok(MySqlBackend {
             handle: db,

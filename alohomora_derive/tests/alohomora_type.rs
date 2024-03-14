@@ -22,7 +22,6 @@ mod tests {
     use alohomora::bbox::BBox;
     use alohomora::{AlohomoraType, AlohomoraTypeEnum};
     use std::collections::HashMap;
-    use alohomora_derive::AlohomoraType;
 
     #[derive(AlohomoraType, Clone, PartialEq, Debug)] // Keep same out type
     pub struct NoBoxes {

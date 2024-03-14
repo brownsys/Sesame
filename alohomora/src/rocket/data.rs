@@ -77,18 +77,10 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T>{
         while let Some(field) = parser.next().await {
             match field {
                 Ok(Either::Left(value)) => {
-                    let value = BBoxValueField { name: value.name, value: value.value};
-                    T::bbox_push_value(&mut context, value, req)
+                    T::bbox_push_value(&mut context, BBoxValueField::from_rocket(value), req)
                 },
                 Ok(Either::Right(data)) => {
-                    let data = BBoxDataField {
-                        name: data.name,
-                        file_name: data.file_name,
-                        content_type: data.content_type,
-                        request: BBoxRequest::new(data.request),
-                        data: BBoxData::new(data.data)
-                    };
-                    T::bbox_push_data(&mut context, data, req).await
+                    T::bbox_push_data(&mut context, BBoxDataField::from_rocket(data), req).await
                 },
                 Err(e) => T::bbox_push_error(&mut context, e),
             }

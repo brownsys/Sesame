@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use rocket::State;
 
-use bbox::context::Context;
-use bbox::rocket::BBoxTemplate;
-use bbox_derive::get;
+use alohomora::context::Context;
+use alohomora::rocket::{BBoxTemplate, get};
 
 use crate::apikey::ApiKey;
 use crate::config::Config;

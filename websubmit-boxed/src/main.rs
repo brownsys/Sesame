@@ -10,34 +10,29 @@ extern crate serde_derive;
 extern crate slog_term;
 
 
-// mod admin;
+mod admin;
 mod apikey;
 mod args;
 mod backend;
 mod config;
 mod email;
-// mod grades;
+mod grades;
 mod helpers;
-// mod login;
-// mod manage;
+mod login;
+mod manage;
 mod policies;
-// mod predict;
-// mod questions;
+mod predict;
+mod questions;
 
-use alohomora::bbox::BBox;
-use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
 use alohomora::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute,
-                        BBoxTemplate, get, routes};
+                        get, routes};
 
 use backend::MySqlBackend;
 use rocket::fs::FileServer;
 use rocket::State;
 use rocket_dyn_templates::Template;
-use std::{sync::{Arc, Mutex}, time::Instant};
-
-use crate::policies::ContextData;
-// use crate::questions::{composed_answers, naive_answers};
+use std::sync::{Arc, Mutex};
 
 type User = apikey::ApiKey;
 
@@ -49,9 +44,9 @@ pub fn new_logger() -> slog::Logger {
 }
 
 #[get("/")]
-fn index(cookies: &BBoxCookieJar<'_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> BBoxRedirect {
+fn index(cookies: BBoxCookieJar<'_, '_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> BBoxRedirect {
     if let Some(cookie) = cookies.get::<NoPolicy>("apikey") {
-        let apikey = cookie.value().into_bbox();
+        let apikey = cookie.into();
         match apikey::check_api_key(&*backend, &apikey) {
             Ok(_user) => BBoxRedirect::to("/leclist", ()),
             Err(_) => BBoxRedirect::to("/login", ()),
@@ -89,27 +84,6 @@ async fn main() {
         }
     });
 
-    let num: BBox<u8, NoPolicy> = BBox::new(1, NoPolicy::new());
-
-    let apikey = User {
-        user: BBox::new(String::from("corinn@brown.edu"), NoPolicy::new()),
-        key: BBox::new(String::from(""), NoPolicy::new()),
-    };
-
-    let context_data = ContextData {
-        db: backend.clone(),
-        config: config.clone(),
-    };
-
-    let context: Context<User, ContextData> = Context::new(Some(apikey), String::from(""), context_data); 
-
-    // let now = Instant::now();
-    // let _comp_output: BBoxTemplate = composed_answers(num, backend, context); 
-    // let _naive_output: BBoxTemplate = naive_answers(num, backend, context); 
-    // println!("Time elapsed: {}", now.elapsed().as_micros());
-
-
-    /* 
     if let Err(e) = BBoxRocket::build()
         .attach(template)
         .manage(backend)
@@ -122,9 +96,7 @@ async fn main() {
             "/js",
             BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
         )
-        
         .mount("/", routes![index])
-        
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
@@ -136,7 +108,7 @@ async fn main() {
             "/grades",
             routes![grades::grades, grades::editg, grades::editg_submit],
         )
-        .mount("/answers", routes![questions::answers])
+        .mount("/answers", routes![questions::composed_answers])
         .mount("/leclist", routes![questions::leclist])
         .mount(
             "/predict",
@@ -161,5 +133,4 @@ async fn main() {
         println!("Whoops, didn't launch!");
         drop(e);
     };
-    */
 }

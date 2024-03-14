@@ -5,12 +5,13 @@ use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::State;
 
-use bbox::context::Context;
-use bbox::db::from_value;
-use bbox::bbox::{BBox, EitherBBox};
-use bbox::rocket::{BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
-use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
-use bbox::policy::{NoPolicy, AnyPolicy}; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use alohomora::context::Context;
+use alohomora::db::from_value;
+use alohomora::bbox::{BBox, EitherBBox, BBoxRender};
+use alohomora::pcr::{execute_pcr, PrivacyCriticalRegion};
+use alohomora::rocket::{BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, FromBBoxForm, get, post};
+use alohomora::policy::{NoPolicy, AnyPolicy};
+use alohomora::pure::PrivacyPureRegion;
 
 
 use crate::apikey::ApiKey;
@@ -27,28 +28,24 @@ pub(crate) enum AdminError {
 }
 
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for Admin {
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for Admin {
     type BBoxError = AdminError;
 
-    async fn from_bbox_request(request: &'r BBoxRequest<'r, '_>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    async fn from_bbox_request(request: BBoxRequest<'a, 'r>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
-        let context = request
-            .guard::<Context<ApiKey, ContextData>>()
-            .await
-            .unwrap();
 
-        // TODO(babman): find a better way here.
-        let admin = apikey
-            .user
-            .sandbox_execute(|user| cfg.admins.contains(user));
-        let res = if *admin.unbox(&context) {
-            Some(Admin)
-        } else {
-            None
-        };
+        let admin = apikey.user.ppr(PrivacyPureRegion::new(|user: &String|
+            if cfg.admins.contains(&user) {
+                Some(Admin)
+            } else {
+                None
+            }
+        ));
 
-        res.into_outcome((Status::Unauthorized, AdminError::Unauthorized))
+        admin
+            .into_pcr(PrivacyCriticalRegion::new(|admin, _, _| admin), ())
+            .into_outcome((Status::Unauthorized, AdminError::Unauthorized))
     }
 }
 
@@ -78,17 +75,17 @@ pub(crate) fn lec_add_submit(
 ) -> BBoxRedirect {
     let data = data.into_inner();
 
-    let lec_id = data.lec_id.into_bbox::<u64>();
+    let lec_id = data.lec_id.into_bbox::<u64, NoPolicy>();
 
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "lectures",
-        vec![lec_id.into(), data.lec_label.into()],
+        (lec_id, data.lec_label),
     );
     drop(bg);
 
-    BBoxRedirect::to("/leclist", vec![])
+    BBoxRedirect::to("/leclist", ())
 }
 
 #[get("/<num>")]
@@ -97,12 +94,12 @@ pub(crate) fn lec(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
-    let key = num.clone().into_bbox::<u64>();
+    let key = num.clone().into_bbox::<u64, NoPolicy>();
 
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ? ORDER BY q",
-        vec![key.into()],
+        (key,),
     );
     drop(bg);
 
@@ -147,15 +144,15 @@ pub(crate) fn addq(
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "questions",
-        vec![
-            num.clone().into_bbox::<u64>().into(),
-            data.q_id.into_bbox::<u64>().into(),
-            data.q_prompt.into(),
-        ],
+        (
+            num.clone().into_bbox::<u64, NoPolicy>(),
+            data.q_id.into_bbox::<u64, NoPolicy>(),
+            data.q_prompt,
+        ),
     );
     drop(bg);
 
-    BBoxRedirect::to("/admin/lec/{}", vec![&num])
+    BBoxRedirect::to("/admin/lec/{}", (&num,))
 }
 
 #[get("/<num>/<qnum>")]
@@ -169,20 +166,26 @@ pub(crate) fn editq(
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ?",
-        vec![num.clone().into_bbox::<u64>().into()],
+        (num.clone().into_bbox::<u64, NoPolicy>(),),
     );
     drop(bg);
 
     let mut ctx: HashMap<&str, EitherBBox<String, NoPolicy>> = HashMap::new();
     for r in res {
-        // TODO(babman): how to handle this?
-        let q = from_value::<u64, AnyPolicy>(r[1].clone().any_policy()).unwrap();
-        if q.unbox(&context) == qnum.clone().into_bbox::<u64>().unbox(&context) {
+        let q = from_value::<u8, AnyPolicy>(r[1].clone()).unwrap();
+
+        let q_matches = execute_pcr(
+            (q, qnum.clone()),
+            PrivacyCriticalRegion::new(|(q, qnum), _, ()| q == qnum),
+            (),
+        ).unwrap();
+
+        if q_matches {
             ctx.insert("lec_qprompt", from_value(r[2].clone()).unwrap().into());
         }
     }
-    ctx.insert("lec_id", num.format().into());
-    ctx.insert("lec_qnum", qnum.format().into());
+    ctx.insert("lec_id", num.into_ppr(PrivacyPureRegion::new(|num| format!("{}", num))).into());
+    ctx.insert("lec_qnum", qnum.into_ppr(PrivacyPureRegion::new(|qnum| format!("{}", qnum))).into());
     ctx.insert("parent", String::from("layout").into());
     BBoxTemplate::render("admin/lecedit", &ctx, &context)
 }
@@ -198,15 +201,15 @@ pub(crate) fn editq_submit(
     let mut bg = backend.lock().unwrap();
     bg.prep_exec(
         "UPDATE questions SET question = ? WHERE lec = ? AND q = ?",
-        vec![
-            data.q_prompt.clone().into(),
-            num.clone().into_bbox::<u64>().into(),
-            data.q_id.into_bbox::<u64>().into(),
-        ],
+        (
+            data.q_prompt,
+            num.clone().into_bbox::<u64, NoPolicy>(),
+            data.q_id,
+        ),
     );
     drop(bg);
 
-    BBoxRedirect::to("/admin/lec/{}", vec![&num])
+    BBoxRedirect::to("/admin/lec/{}", (&num,))
 }
 
 #[derive(BBoxRender, Clone)]
@@ -230,19 +233,17 @@ pub(crate) fn get_registered_users(
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", vec![]);
+    let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", ());
     drop(bg);
 
-    let users: Vec<_> = res
+    let users = res
         .into_iter()
-        .map(|r| {
-            let id = from_value::<String, AnyPolicy>(r[0].clone().any_policy()).unwrap()
-                                                        .specialize_policy::<NoPolicy>().unwrap();  
-            User {
-                email: from_value(r[0].clone().any_policy()).unwrap(),
-                apikey: from_value(r[2].clone().any_policy()).unwrap(),
-                is_admin: id.sandbox_execute(|v| config.admins.contains(v)),
-            }
+        .map(|r| User {
+            email: from_value(r[0].clone()).unwrap(),
+            apikey: from_value(r[2].clone()).unwrap(),
+            is_admin: from_value(r[0].clone()).unwrap().into_ppr(
+                PrivacyPureRegion::new(|id| config.admins.contains(&id))
+            ),
         })
         .collect();
 

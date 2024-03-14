@@ -3,12 +3,12 @@ use std::sync::{Arc, Mutex};
 use chrono::naive::NaiveDateTime;
 use rocket::State;
 
-use bbox::context::Context;
-use bbox::db::from_value;
-use bbox::bbox::{BBox};
-use bbox::rocket::{BBoxTemplate, BBoxRedirect, BBoxForm};
-use bbox_derive::{BBoxRender, FromBBoxForm, get, post};
-use bbox::policy::NoPolicy; //{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use alohomora::context::Context;
+use alohomora::db::from_value;
+use alohomora::bbox::{BBox, BBoxRender};
+use alohomora::rocket::{BBoxTemplate, BBoxRedirect, BBoxForm, FromBBoxForm, get, post};
+use alohomora::policy::NoPolicy;
+use alohomora::pure::PrivacyPureRegion;
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -23,10 +23,10 @@ pub(crate) fn grades(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
-    let key = num.clone().into_bbox::<u64>();
+    let key = num.clone().into_bbox::<u64, NoPolicy>();
 
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key.into()]);
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,));
     drop(bg);
 
     let answers: Vec<LectureAnswer> = res
@@ -35,8 +35,8 @@ pub(crate) fn grades(
             id: from_value(r[2].clone()).unwrap(),
             user: from_value(r[0].clone()).unwrap(),
             answer: from_value(r[3].clone()).unwrap(),
-            //time: from_value::<NaiveDateTime, NoPolicy>(r[4].clone()).unwrap()
-            //    .sandbox_execute(|v| v.format("%Y-%m-%d %H:%M:%S").to_string()),
+            time: from_value(r[4].clone()).unwrap()
+                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string())),
             grade: from_value(r[5].clone()).unwrap(),
         })
         .collect();
@@ -71,11 +71,11 @@ pub(crate) fn editg(
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT answer, grade FROM answers WHERE email = ? AND lec = ? AND q = ?",
-        vec![
-            user.clone().into(),
-            num.clone().into_bbox::<u64>().into(),
-            qnum.clone().into_bbox::<u64>().into(),
-        ],
+        (
+            user.clone(),
+            num.clone().into_bbox::<u64, NoPolicy>(),
+            qnum.clone().into_bbox::<u64, NoPolicy>(),
+        ),
     );
     drop(bg);
 
@@ -109,17 +109,17 @@ pub(crate) fn editg_submit(
 
     bg.prep_exec(
         "UPDATE answers SET grade = ? WHERE email = ? AND lec = ? AND q = ?",
-        vec![
-            data.into_inner().grade.into_bbox::<u64>().into(),
-            user.into(),
-            num.clone().into_bbox::<u64>().into(),
-            qnum.into_bbox::<u64>().into(),
-        ],
+        (
+            data.grade.clone(),
+            user,
+            num.clone(),
+            qnum,
+        ),
     );
     drop(bg);
 
     // Re-train prediction model given new grade submission.
     train_and_store(backend);
 
-    BBoxRedirect::to("/grades/{}", vec![&num])
+    BBoxRedirect::to("/grades/{}", (&num,))
 }

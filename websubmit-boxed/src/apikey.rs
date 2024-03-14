@@ -94,11 +94,11 @@ pub(crate) fn check_api_key(
 }
 // Auto construct ApiKey from every request using cookies.
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for ApiKey {
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for ApiKey {
     type BBoxError = ApiKeyError;
 
     async fn from_bbox_request(
-        request: &'r BBoxRequest<'r, '_>,
+        request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let be = request
             .guard::<&State<Arc<Mutex<MySqlBackend>>>>()
@@ -107,7 +107,7 @@ impl<'r> FromBBoxRequest<'r> for ApiKey {
         request
             .cookies()
             .get("apikey")
-            .and_then(|cookie: BBoxCookie<'_, NoPolicy>| Some(cookie.value().into_bbox()))
+            .and_then(|cookie: BBoxCookie<'_, NoPolicy>| Some(cookie.into()))
             .and_then(|key: BBox<String, NoPolicy>| match check_api_key(&be, &key) {
                 Ok(user) => Some(ApiKey {
                     user: user,
@@ -203,7 +203,7 @@ pub(crate) fn generate(
 #[post("/", data = "<data>")]
 pub(crate) fn check(
     data: BBoxForm<ApiKeySubmit>,
-    cookies: &BBoxCookieJar<'_>,
+    cookies: BBoxCookieJar<'_, '_>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ApiKey, ContextData>,
 ) -> BBoxRedirect {
@@ -225,11 +225,10 @@ pub(crate) fn check(
     if res.is_err() {
         BBoxRedirect::to("/", ())
     } else {
-        let cookie = BBoxCookie::build("apikey", data.key.clone(), &context)
-            .unwrap()
+        let cookie = BBoxCookie::build("apikey", data.key.clone())
             .path("/")
             .finish();
-        cookies.add(cookie);
+        cookies.add(cookie, &context).unwrap();
         BBoxRedirect::to("/leclist", ())
     }
 }

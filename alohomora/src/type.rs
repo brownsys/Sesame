@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::any::Any;
+use std::hash::Hash;
+use std::str::FromStr;
 use itertools::Itertools;
 
 use crate::bbox::BBox;
@@ -150,17 +152,24 @@ impl<S: AlohomoraType> AlohomoraType for Vec<S> {
     }
 }
 
-impl<S: AlohomoraType> AlohomoraType for HashMap<String, S> {
-    type Out = HashMap<String, S::Out>;
+impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for HashMap<K, S> {
+    type Out = HashMap<K, S::Out>;
     fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::Struct(self.into_iter().map(|(k, v)| (k, v.to_enum())).collect())
+        AlohomoraTypeEnum::Struct(self.into_iter().map(|(k, v)| (k.to_string(), v.to_enum())).collect())
     }
     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
         match e {
             AlohomoraTypeEnum::Struct(m) => {
                 let mut result = HashMap::new();
                 for (k, v) in m.into_iter() {
-                    result.insert(k, S::from_enum(v)?);
+                    match K::from_str(&k) {
+                        Ok(k) => {
+                            result.insert(k, S::from_enum(v)?);
+                        },
+                        Err(_) => {
+                            return Err(())
+                        }
+                    }
                 }
                 Ok(result)
             }
@@ -168,7 +177,6 @@ impl<S: AlohomoraType> AlohomoraType for HashMap<String, S> {
         }
     }
 }
-
 
 // Implement AlohomoraType for tuples made up of AlohomoraTypes.
 macro_rules! alohomora_type_tuple_impl {

@@ -4,6 +4,7 @@ use std::fmt::Write;
 use crate::pcr::PrivacyCriticalRegion;
 
 use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy};
+use crate::pure::PrivacyPureRegion;
 
 // Privacy Container type.
 pub struct BBox<T, P: Policy> {
@@ -100,6 +101,16 @@ impl<T, P: Policy> BBox<T, P> {
     pub fn into_pcr<C, O, F: FnOnce(T, P, C) -> O>(self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
         let functor = functor.get_functor();
         functor(self.t, self.p, arg)
+    }
+
+    // Privacy pure regions.
+    pub fn ppr<'a, O, F: FnOnce(&'a T) -> O>(&'a self, functor: PrivacyPureRegion<F>) -> BBox<O, RefPolicy<'a, P>> {
+        let functor = functor.get_functor();
+        BBox::new(functor(&self.t), RefPolicy::new(&self.p))
+    }
+    pub fn into_ppr<O, F: FnOnce(T) -> O>(self, functor: PrivacyPureRegion<F>) -> BBox<O, P> {
+        let functor = functor.get_functor();
+        BBox::new(functor(self.t), self.p)
     }
 }
 

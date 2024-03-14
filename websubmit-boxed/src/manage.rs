@@ -12,14 +12,15 @@ use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::helpers::average;
-
 use crate::policies::ContextData;
-use bbox::context::Context;
-use bbox::db::{Value, from_value};
-use bbox::bbox::{BBox, sandbox_execute};
-use bbox::policy::NoPolicy; // NoPolicy, PolicyAnd, SchemaPolicy};
-use bbox::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
-use bbox_derive::{BBoxRender, get};
+
+use alohomora::context::Context;
+use alohomora::db::from_value;
+use alohomora::bbox::{BBox, BBoxRender};
+use alohomora::policy::{AnyPolicy, NoPolicy};
+use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, get};
+use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::pure::{execute_pure, PrivacyPureRegion};
 
 pub(crate) struct Manager;
 
@@ -29,28 +30,24 @@ pub(crate) enum ManagerError {
 }
 
 #[rocket::async_trait]
-impl<'r> FromBBoxRequest<'r> for Manager {
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for Manager {
     type BBoxError = ManagerError;
 
-    async fn from_bbox_request(request: &'r BBoxRequest<'r, '_>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    async fn from_bbox_request(request: BBoxRequest<'a, 'r>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
-        let context = request
-            .guard::<Context<ApiKey, ContextData>>()
-            .await
-            .unwrap();
-        let manager = apikey
-            .user
-            .sandbox_execute(|user| cfg.managers.contains(user));
 
-        // TODO(babman): find a better way here.
-        let res = if *manager.unbox(&context) {
-            Some(Manager)
-        } else {
-            None
-        };
+        let manager = apikey.user.ppr(PrivacyPureRegion::new(|user: &String|
+            if cfg.managers.contains(&user) {
+                Some(Manager)
+            } else {
+                None
+            }
+        ));
 
-        res.into_outcome((Status::Unauthorized, ManagerError::Unauthorized))
+        manager
+            .into_pcr(PrivacyCriticalRegion::new(|manager, _, _| manager), ())
+            .into_outcome((Status::Unauthorized, ManagerError::Unauthorized))
     }
 }
 
@@ -68,14 +65,14 @@ struct AggregateContext {
     parent: String,
 }
 
-fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>, NoPolicy>) -> Vec<Aggregate<T>> {
-    let agg: Vec<BBox<Vec<mysql::Value>, NoPolicy>> = agg.into();
+fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>, AnyPolicy>) -> Vec<Aggregate<T>> {
+    let agg: Vec<BBox<Vec<mysql::Value>, AnyPolicy>> = agg.into();
     agg.into_iter()
         .map(|r| {
-            let r: Vec<BBox<mysql::Value, NoPolicy>> = r.into();
+            let r: Vec<BBox<mysql::Value, AnyPolicy>> = r.into();
             Aggregate {
-                property: from_value(r[0].clone().any_policy()).unwrap(), 
-                average: from_value(r[1].clone().any_policy()).unwrap(), 
+                property: from_value(r[0].clone()).unwrap(),
+                average: from_value(r[1].clone()).unwrap(),
             }
         })
         .collect()
@@ -88,14 +85,14 @@ pub(crate) fn get_aggregate_grades(
     context: Context<ApiKey, ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let grades: Vec<Vec<Value>> = bg.prep_exec(
+    let grades = bg.prep_exec(
         "SELECT pseudonym, gender, is_remote, grade FROM users JOIN answers ON users.email = answers.email;",
-        vec![]);
+        ());
     drop(bg);
-    
-    let user_agg = sandbox_execute(grades.clone(), |grades| average::<String>(3, 0, grades));
-    let gender_agg = sandbox_execute(grades.clone(), |grades| average::<String>(3, 1, grades));
-    let remote_agg = sandbox_execute(grades.clone(), |grades| average::<bool>(3, 2, grades));
+
+    let user_agg = execute_pure(grades.clone(), PrivacyPureRegion::new(|grades| average::<String>(3, 0, grades))).unwrap();
+    let gender_agg = execute_pure(grades.clone(), PrivacyPureRegion::new(|grades| average::<String>(3, 1, grades))).unwrap();
+    let remote_agg = execute_pure(grades.clone(), PrivacyPureRegion::new(|grades| average::<bool>(3, 2, grades))).unwrap();
 
     let ctx = AggregateContext {
         aggregates_per_user: transform(user_agg),
