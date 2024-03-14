@@ -218,7 +218,7 @@ mod tests {
         let mut unboxed_vec = Vec::new();
         unboxed_vec.extend([100, 99, 95]);
 
-        //Call to magic_box_fold -> will panic bc Policy join() was unsuccessful
+        // Call to magic_box_fold -> will panic bc Policy join() was unsuccessful
         let _agg = super::fold(boxed_vec).unwrap();
     }
 
