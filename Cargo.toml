@@ -5,3 +5,8 @@ members = [
     "websubmit",
     "websubmit-boxed",
 ]
+
+[workspace.metadata.dylint]
+libraries = [  
+      { path = "./alohomora_lint/alohomora_type_derived" },
+]

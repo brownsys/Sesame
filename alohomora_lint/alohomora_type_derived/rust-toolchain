@@ -1,0 +1,6 @@
+[toolchain]
+channel = "nightly-2023-10-06"
+components = ["llvm-tools-preview", "rustc-dev"]
+
+# channel = "1.74.0"
+# channel used to install dylint 2.5.0 `cargo install cargo-dylint@=2.5.0 dylint-link@=2.5.0`, but doesn't compile lint

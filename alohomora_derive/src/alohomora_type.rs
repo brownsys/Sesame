@@ -26,9 +26,9 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
   // Get traits to derive for new struct (if it exists)
   let trait_vec: Vec<Ident> = out_attrs.to_derive.clone().unwrap_or(vec![]); 
   let iter_traits = trait_vec.clone()
-                                                                .into_iter()
-                                                                .map(|trait_ident| {
-                                                                quote!{ #trait_ident }});
+                              .into_iter()
+                              .map(|trait_ident| {
+                              quote!{ #trait_ident }});
   let derive_traits = { 
     if trait_vec.len() > 0 {
       quote!{ #[derive(#(#iter_traits),*)] } 
@@ -99,16 +99,16 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
       }
     };
   
-
   //Pop the fields into the new struct 
-  let gets_from_enum = fields.clone().into_iter()
-                                                                .map(|field| {
-      let field_ident: Ident = field.ident.unwrap();
-      let field_name: String = field_ident.to_string();
-      let field_type: Type = field.ty;
-      quote! { 
-        #field_ident: <#field_type as ::alohomora::AlohomoraType>::from_enum(hashmap.remove(#field_name).unwrap())?,
-      }
+  let gets_from_enum = fields.clone()
+                              .into_iter()
+                              .map(|field| {  
+        let field_ident: Ident = field.ident.unwrap();
+        let field_name: String = field_ident.to_string();
+        let field_type: Type = field.ty;
+        quote! { 
+          #field_ident: <#field_type as ::alohomora::AlohomoraType>::from_enum(hashmap.remove(#field_name).unwrap())?,
+        }
     }); 
   
   // Build from_enum
@@ -140,6 +140,7 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
     
     #new_struct_or_blank
 
+    #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl #impl_generics ::alohomora::AlohomoraType for #input_ident #ty_generics #where_clause {
       type Out = #out_ident; 
 
