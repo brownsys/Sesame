@@ -38,7 +38,6 @@ dylint_linting::declare_late_lint! {
 impl<'tcx> LateLintPass<'tcx> for AlohomoraTyDerived {
 
     fn check_crate(&mut self, cx: &LateContext<'tcx>) {
-        //panic!("THIS IS RUNNING CORINN"); 
         let path: &[&str] = &vec!["alohomora", "AlohomoraType"];
         let aloh_ty_did: Option<DefId> = get_trait_def_id(cx, path); 
         if aloh_ty_did.is_none() {
