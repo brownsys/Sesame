@@ -12,6 +12,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "alohomora_build"
+version = "0.1.0"
+
+[[package]]
 name = "alohomora_type_derived"
 version = "0.1.0"
 dependencies = [

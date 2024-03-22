@@ -8,6 +8,7 @@ publish = false
 
 [lib]
 crate-type = ["cdylib"]
+path = "src/libalohomora_type_derived@nightly-2023-10-06-aarch64-apple-darwin.dylib"
 
 [dependencies]
 clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "b105fb4c39bc1a010807a6c076193cef8d93c109" }

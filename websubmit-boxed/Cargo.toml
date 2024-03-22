@@ -33,3 +33,7 @@ features = ["handlebars", "tera"]
 
 [dependencies.handlebars]
 features = ["dir_source"]
+
+[build-dependencies]
+alohomora_build = { path = "../alohomora_lint/alohomora_build" } 
+

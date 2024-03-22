@@ -1,2 +1,3 @@
 [workspace]
-members = ["alohomora_type_derived"]
+members = [ "alohomora_type_derived", 
+            "alohomora_build" ]

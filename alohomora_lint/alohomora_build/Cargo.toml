@@ -1,0 +1,9 @@
+[package]
+name = "alohomora_build"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# [dependencies]
+# alohomora_type_derived = { path = "../alohomora_type_derived" }
