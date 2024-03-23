@@ -1,22 +1,31 @@
 [package]
-name = "alohomora_type_derived"
+name = "alohomora_lints"
 version = "0.1.0"
 authors = ["corinn_tiffany@brown.edu"]
-description = "denies manual implementations of AlohomoraType"
+description = "Lints for ensuring Alohomora applications respect Alohomora static requirements"
 edition = "2021"
 publish = false
 
 [lib]
 crate-type = ["cdylib"]
-path = "src/libalohomora_type_derived@nightly-2023-10-06-aarch64-apple-darwin.dylib"
+
+[[example]]
+name = "alohomora_type_illegal"
+path = "examples/alohomora_type_illegal.rs"
+
+[[example]]
+name = "alohomora_type_legal"
+path = "examples/alohomora_type_legal.rs"
 
 [dependencies]
+paste = "1.0"
 clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "b105fb4c39bc1a010807a6c076193cef8d93c109" }
 dylint_linting = "2.5.0"
 if_chain = "1.0.2"
 
 [dev-dependencies]
 dylint_testing = "2.5.0"
+alohomora = { version = "0.1.0", path = "../alohomora" }
 
 [package.metadata.rust-analyzer]
 rustc_private = true

@@ -6,15 +6,15 @@ macro_rules! p {
     }
 }
 
-pub fn privacy_check_build(){
+pub fn privacy_check_build() {
     let profile = std::env::var("PROFILE").unwrap();
     if profile.clone().as_str() == "release" {
         p!("\x1b[97m    Running Alohomora lints...\x1b[0m");
         let lint_res = Command::new("cargo")
             .arg("dylint")
-            //.arg("--all")
+            // TODO(babman): Update dylint to a more recent version to be able to use `--git <repo> --pattern alohomora_lints/`
             .arg("--lib")
-            .arg("alohomora_type_derived")
+            .arg("alohomora_lints")
             .status()
             .expect("cargo dylint failed"); 
         
@@ -23,7 +23,7 @@ pub fn privacy_check_build(){
         } else {
             p!("\x1b[92m    Alohomora lints passed!\x1b[0m");
         }
-    } /*else {
-        //p!("\x1b[96mnote: \x1b[97min {} mode without Alohomora lints\x1b[0m", profile);
-    } */
+    } else {
+        p!("\x1b[96mnote: \x1b[97min {} mode without Alohomora lints\x1b[0m", profile);
+    }
 }

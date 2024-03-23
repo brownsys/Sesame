@@ -3,6 +3,7 @@ name = "websubmit-boxed"
 version = "0.1.0"
 authors = ["Malte Schwarzkopf <malte@cs.brown.edu>"]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 alohomora = { path = "../alohomora" }
@@ -35,5 +36,4 @@ features = ["handlebars", "tera"]
 features = ["dir_source"]
 
 [build-dependencies]
-alohomora_build = { path = "../alohomora_lint/alohomora_build" } 
-
+alohomora_build = { path = "../alohomora_build" }

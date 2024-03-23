@@ -128,9 +128,7 @@ mod tests {
     pub struct BoxedStructLite {
         pub score: u64,
     }
-    /* 
-    //TODO(corinn): TODO use derive for tests? or keep discrete?
-    // TODO(corinn): this doc to pass lint doesn't register, and DefId shows up as a non-local crate
+
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl AlohomoraType for BoxedStruct { 
         type Out = BoxedStructLite;
@@ -149,7 +147,6 @@ mod tests {
             }
         }
     }
-    
 
     #[test]
     fn fold_raw_data() {
@@ -366,6 +363,5 @@ mod tests {
         if let Err(error) = bbox {
             assert!(matches!(error, FoldVecError::EmptyVector));
         }
-         
-    }*/
+    }
 }

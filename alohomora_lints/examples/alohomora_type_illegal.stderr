@@ -1,0 +1,11 @@
+error: [93mmanual implementation of AlohomoraType trait[0m
+  --> $DIR/alohomora_type_illegal.rs:16:1
+   |
+LL | impl AlohomoraType for MyStruct {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: use `#[derive(AlohomoraType)]` instead
+   = note: `#[deny(alohomora_type)]` on by default
+
+error: aborting due to previous error
+

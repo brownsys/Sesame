@@ -57,7 +57,7 @@ pub struct LectureAnswer {
     pub grade: BBox<u64, AnswerAccessPolicy>,
 }
 
-/*//test to trigger lint: 
+/*//test to trigger lint:
 #[derive(BBoxRender, Clone, Serialize)]
 pub struct LectureAnswerLite {
     pub id: u64,
