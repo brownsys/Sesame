@@ -51,6 +51,7 @@ name = "alohomora"
 version = "0.1.0"
 dependencies = [
  "alohomora_derive",
+ "alohomora_sandbox",
  "cookie",
  "dynfmt",
  "erased-serde",
@@ -65,6 +66,7 @@ dependencies = [
  "rocket",
  "rocket_dyn_templates",
  "serde",
+ "serde_json",
  "small_ctor",
  "time 0.2.27",
 ]
@@ -72,6 +74,12 @@ dependencies = [
 [[package]]
 name = "alohomora_build"
 version = "0.1.0"
+dependencies = [
+ "cargo_toml",
+ "serde",
+ "serde_json",
+ "tinytemplate",
+]
 
 [[package]]
 name = "alohomora_derive"
@@ -94,11 +102,22 @@ name = "alohomora_lints"
 version = "0.1.0"
 dependencies = [
  "alohomora",
+ "alohomora_sandbox",
  "clippy_utils",
  "dylint_linting",
  "dylint_testing",
  "if_chain",
  "paste",
+]
+
+[[package]]
+name = "alohomora_sandbox"
+version = "0.1.0"
+dependencies = [
+ "cargo_toml",
+ "serde",
+ "serde_json",
+ "tinytemplate",
 ]
 
 [[package]]
@@ -377,7 +396,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f8523b410d7187a43085e7e064416ea32ded16bd0a4e6fc025e21616d01258f"
 dependencies = [
  "bitflags 1.3.2",
- "cexpr",
+ "cexpr 0.4.0",
  "clang-sys",
  "clap",
  "env_logger 0.8.4",
@@ -390,7 +409,30 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "which",
+ "which 3.1.1",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.69.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a00dc851838a2120612785d195287475a3ac45514741da670b735818822129a0"
+dependencies = [
+ "bitflags 2.5.0",
+ "cexpr 0.6.0",
+ "clang-sys",
+ "itertools 0.12.1",
+ "lazy_static",
+ "lazycell",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn 2.0.53",
+ "which 4.4.2",
 ]
 
 [[package]]
@@ -534,6 +576,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo_toml"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a98356df42a2eb1bd8f1793ae4ee4de48e384dd974ce5eac8eee802edb7492be"
+dependencies = [
+ "serde",
+ "toml 0.8.12",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -549,6 +601,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4aedb84272dbe89af497cf81375129abda4fc0a9e7c5d317498c15cc30c0d27"
 dependencies = [
  "nom 5.1.2",
+]
+
+[[package]]
+name = "cexpr"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
+dependencies = [
+ "nom 7.1.3",
 ]
 
 [[package]]
@@ -2205,6 +2266,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 
 [[package]]
+name = "minimal-lexical"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
 name = "miniz_oxide"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2300,6 +2367,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "myapp_lib"
+version = "0.1.0"
+dependencies = [
+ "alohomora_build",
+ "alohomora_derive",
+ "alohomora_sandbox",
+ "bindgen 0.69.4",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mysql"
 version = "21.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2362,7 +2441,7 @@ checksum = "02fa08ec695a40ed899b1239e81d0d74de5b40802d4fc8b513e2c541717c434e"
 dependencies = [
  "base64 0.13.0",
  "bigdecimal 0.2.2",
- "bindgen",
+ "bindgen 0.58.1",
  "bitflags 1.3.2",
  "bitvec",
  "byteorder",
@@ -2487,6 +2566,16 @@ checksum = "ffb4262d26ed83a1c0a33a38fe2bb15797329c85770da05e6b828ddb782627af"
 dependencies = [
  "memchr",
  "version_check 0.9.3",
+]
+
+[[package]]
+name = "nom"
+version = "7.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
+dependencies = [
+ "memchr",
+ "minimal-lexical",
 ]
 
 [[package]]
@@ -2902,6 +2991,16 @@ name = "ppv-lite86"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed0cfbc8191465bed66e1718596ee0b0b35d5ee1f41c5df2189d0fe8bde535ba"
+
+[[package]]
+name = "prettyplease"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a41cf62165e97c7f814d2221421dbb9afcbcdb0a88068e5ea206e19951c2cbb5"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.53",
+]
 
 [[package]]
 name = "proc-macro-hack"
@@ -3561,6 +3660,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sandbox-example-bin"
+version = "0.1.0"
+dependencies = [
+ "alohomora",
+ "myapp_lib",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "saturating"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4183,6 +4292,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinytemplate"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be4d6b5f19ff7664e8c98d03e2139cb510db9b0a60b55f8e8709b689d939b6bc"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "tinyvec"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4731,6 +4850,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d011071ae14a2f6671d0b74080ae0cd8ebf3a6f8c9589a2cd45f23126fe29724"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "which"
+version = "4.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87ba24419a2078cd2b0f2ede2691b6c66d8e47836da3b6db8265ebad47afbfc7"
+dependencies = [
+ "either",
+ "home",
+ "once_cell",
+ "rustix",
 ]
 
 [[package]]

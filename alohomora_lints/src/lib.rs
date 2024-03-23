@@ -34,6 +34,7 @@ macro_rules! declare_alohomora_lint {
 dylint_linting::dylint_library!();
 
 // List all lints, make each lint its own mod.
+mod alohomora_sandbox;
 mod alohomora_type;
 
 // Register all lints.
@@ -41,5 +42,6 @@ mod alohomora_type;
 #[no_mangle]
 pub fn register_lints(sess: &rustc_session::Session, lint_store: &mut rustc_lint::LintStore) {
     dylint_linting::init_config(sess);
+    alohomora_sandbox::AlohomoraSandbox::register(lint_store);
     alohomora_type::AlohomoraType::register(lint_store);
 }

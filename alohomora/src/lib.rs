@@ -4,6 +4,7 @@ extern crate lazy_static;
 // Re-export our derive macros
 #[cfg(feature = "alohomora_derive")]
 extern crate alohomora_derive;
+extern crate alohomora_sandbox;
 
 // Export these
 pub mod bbox;

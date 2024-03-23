@@ -10,8 +10,10 @@ path = "src/lib.rs"
 
 [dependencies]
 alohomora_derive = { version = "0.1.0", path = "../alohomora_derive", optional = true }
+alohomora_sandbox = { path = "../alohomora_sandbox" }
 futures = "0.3.17"
-serde = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 figment = "0.10.6"
 lazy_static = "1.4.0"

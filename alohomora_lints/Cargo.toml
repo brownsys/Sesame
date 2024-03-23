@@ -17,6 +17,14 @@ path = "examples/alohomora_type_illegal.rs"
 name = "alohomora_type_legal"
 path = "examples/alohomora_type_legal.rs"
 
+[[example]]
+name = "alohomora_sandbox_illegal"
+path = "examples/alohomora_sandbox_illegal.rs"
+
+[[example]]
+name = "alohomora_sandbox_legal"
+path = "examples/alohomora_sandbox_legal.rs"
+
 [dependencies]
 paste = "1.0"
 clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "b105fb4c39bc1a010807a6c076193cef8d93c109" }
@@ -25,7 +33,8 @@ if_chain = "1.0.2"
 
 [dev-dependencies]
 dylint_testing = "2.5.0"
-alohomora = { version = "0.1.0", path = "../alohomora" }
+alohomora = { path = "../alohomora" }
+alohomora_sandbox = { path = "../alohomora_sandbox" }
 
 [package.metadata.rust-analyzer]
 rustc_private = true

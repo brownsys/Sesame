@@ -4,6 +4,9 @@ members = [
     "alohomora_derive",
     "alohomora_build",
     "alohomora_lints",
+    "alohomora_sandbox",
+    "sandbox_example/myapp",
+    "sandbox_example/myapp_lib",
     "websubmit",
     "websubmit-boxed",
 ]

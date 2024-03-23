@@ -1,0 +1,11 @@
+error: [93mmanual implementation of AlohomoraSandbox trait[0m
+  --> $DIR/alohomora_sandbox_illegal.rs:10:1
+   |
+LL | impl<'a, 'b> AlohomoraSandbox<'a, 'b, u32, u32> for Example {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: use `#[AlohomoraSandbox()]` instead
+   = note: `#[deny(alohomora_sandbox)]` on by default
+
+error: aborting due to previous error
+

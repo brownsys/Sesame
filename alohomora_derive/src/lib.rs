@@ -12,6 +12,8 @@ mod render;
 mod route;
 mod alohomora_type;
 
+mod sandbox;
+
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -80,4 +82,14 @@ pub fn routes(input: TokenStream) -> TokenStream {
 pub fn derive_alohomora_type(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     alohomora_type::derive_alohomora_type_impl(input).into()
+}
+
+#[allow(non_snake_case)]
+#[proc_macro_attribute]
+pub fn AlohomoraSandbox(_args: TokenStream, input: TokenStream) -> TokenStream {
+    let mut result = input.clone();
+    let parsed = parse_macro_input!(input as ItemFn);
+    let additional: TokenStream = sandbox::sandbox_impl(parsed).into();
+    result.extend(additional.into_iter());
+    result
 }

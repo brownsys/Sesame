@@ -1,0 +1,15 @@
+[package]
+name = "sandbox-example-bin"
+version = "0.1.0"
+authors = ["Kinan Dak Albab <kinan.bab.14@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "bin"
+path = "src/bin.rs"
+
+[dependencies]
+alohomora = { path = "../../alohomora" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+myapp_lib = { path = "../myapp_lib" }

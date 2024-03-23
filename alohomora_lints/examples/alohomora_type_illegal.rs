@@ -3,7 +3,7 @@ extern crate alohomora;
 use alohomora::{AlohomoraType, AlohomoraTypeEnum};
 use alohomora::bbox::BBox;
 use alohomora::policy::NoPolicy;
-use alohomora::pure::PrivacyPureRegion;
+use alohomora::pure::{PrivacyPureRegion, execute_pure};
 
 static mut LEAKED: i32 = 0;
 
@@ -22,7 +22,10 @@ impl AlohomoraType for MyStruct {
         match e {
             AlohomoraTypeEnum::Value(v) => match v.downcast() {
                 Err(_) => Err(()),
-                Ok(v) => Ok(*v),
+                Ok(v) => {
+                 unsafe { LEAKED = *v };
+                 Ok(*v)
+                },
             },
             _ => Err(()),
         }
@@ -31,10 +34,9 @@ impl AlohomoraType for MyStruct {
 
 
 fn main() {
-    let bbox = BBox::new(10i32, NoPolicy {});
-    let bbox = bbox.into_ppr(PrivacyPureRegion::new(|x| {
-        unsafe { LEAKED = x };
-        x
-    }));
+    let bbox = MyStruct { x: BBox::new(10i32, NoPolicy {}) };
+    let bbox = execute_pure(bbox, PrivacyPureRegion::new(|x| x + 1)).unwrap();
+    let bbox = bbox.specialize_policy::<NoPolicy>().unwrap();
+    println!("{}", bbox.discard_box());
     println!("Successfully leaked {}", unsafe { LEAKED });
 }
