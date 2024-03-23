@@ -65,6 +65,7 @@ impl<T, P: Policy> TryFrom<Vec<BBox<T, P>>> for BBox<Vec<T>, P> {
 
 // Tests
 // TODO(babman): simplify these tests
+#[cfg(test)]
 mod tests {
     use crate::bbox::BBox;
     use crate::policy::{Policy, PolicyAnd, AnyPolicy};
@@ -123,14 +124,14 @@ mod tests {
         pub score: BBox<u64, TestPolicy<ACLPolicy>>,
     }
 
-    
+
     #[derive(PartialEq, Debug)]
     pub struct BoxedStructLite {
         pub score: u64,
     }
 
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-    impl AlohomoraType for BoxedStruct { 
+    impl AlohomoraType for BoxedStruct {
         type Out = BoxedStructLite;
         fn to_enum(self) -> AlohomoraTypeEnum {
             let hashmap = HashMap::from([
