@@ -45,8 +45,10 @@ pub(crate) struct LectureQuestionsContext {
     pub parent: String,
 }
 
+
 #[derive(BBoxRender, Clone, AlohomoraType)]
 #[alohomora_out_type(name = "LectureAnswerLite", to_derive = [BBoxRender, Clone, Serialize])]
+//#[derive(BBoxRender, Clone)]
 pub struct LectureAnswer {                            
     pub id: BBox<u64, AnswerAccessPolicy>,
     pub user: BBox<String, AnswerAccessPolicy>,
@@ -54,6 +56,43 @@ pub struct LectureAnswer {
     pub time: BBox<String, AnswerAccessPolicy>,
     pub grade: BBox<u64, AnswerAccessPolicy>,
 }
+
+/*//test to trigger lint:
+#[derive(BBoxRender, Clone, Serialize)]
+pub struct LectureAnswerLite {
+    pub id: u64,
+    pub user: String,
+    pub answer: String,
+    pub time: String,
+    pub grade: u64,
+}
+
+impl AlohomoraType for LectureAnswer {
+    type Out = LectureAnswerLite; 
+    fn to_enum(self) -> alohomora::AlohomoraTypeEnum {
+        let hashmap = HashMap::from([
+            (String::from("id"), self.id.to_enum()),
+            (String::from("user"), self.user.to_enum()),
+            (String::from("answer"), self.answer.to_enum()),
+            (String::from("time"), self.time.to_enum()),
+            (String::from("grade"), self.grade.to_enum()),
+        ]);
+        alohomora::AlohomoraTypeEnum::Struct(hashmap)  
+    }
+    fn from_enum(e: alohomora::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        match e {
+            alohomora::AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
+                id: <u64 as AlohomoraType>::from_enum(hashmap.remove("id").unwrap())?,
+                user: <String as AlohomoraType>::from_enum(hashmap.remove("user").unwrap())?,
+                answer: <String as AlohomoraType>::from_enum(hashmap.remove("answer").unwrap())?,
+                time: <String as AlohomoraType>::from_enum(hashmap.remove("time").unwrap())?,
+                grade: <u64 as AlohomoraType>::from_enum(hashmap.remove("grade").unwrap())?,
+            }),
+            _ => Err(()),
+        }
+    }
+}
+*/
 
 #[derive(BBoxRender)]
 pub struct LectureAnswersContext {

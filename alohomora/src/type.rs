@@ -84,6 +84,7 @@ pub trait AlohomoraType<P: Policy = AnyPolicy> {
 // Implement AlohomoraType for various primitives.
 macro_rules! alohomora_type_impl {
     ($T: ty) => {
+        #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
         impl AlohomoraType for $T {
             type Out = $T;
             fn to_enum(self) -> AlohomoraTypeEnum {
@@ -116,6 +117,7 @@ alohomora_type_impl!(f64);
 alohomora_type_impl!(String);
 
 // Implement AlohomoraType for BBox<T, P>
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
     type Out = T;
     fn to_enum(self) -> AlohomoraTypeEnum {
@@ -133,6 +135,7 @@ impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
 }
 
 // Implement AlohomoraType for containers of AlohomoraTypes
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<S: AlohomoraType> AlohomoraType for Vec<S> {
     type Out = Vec<S::Out>;
     fn to_enum(self) -> AlohomoraTypeEnum {
@@ -152,6 +155,7 @@ impl<S: AlohomoraType> AlohomoraType for Vec<S> {
     }
 }
 
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for HashMap<K, S> {
     type Out = HashMap<K, S::Out>;
     fn to_enum(self) -> AlohomoraTypeEnum {
@@ -181,6 +185,7 @@ impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for Hash
 // Implement AlohomoraType for tuples made up of AlohomoraTypes.
 macro_rules! alohomora_type_tuple_impl {
   ($([$A:tt,$i:tt]),*) => (
+    #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl<$($A: AlohomoraType,)*> AlohomoraType for ($($A,)*) {
         type Out = ($($A::Out,)*);
         fn to_enum(self) -> AlohomoraTypeEnum {

@@ -2,6 +2,13 @@
 members = [
     "alohomora",
     "alohomora_derive",
+    "alohomora_build",
+    "alohomora_lints",
     "websubmit",
     "websubmit-boxed",
+]
+
+[workspace.metadata.dylint]
+libraries = [
+    { path = "./alohomora_lints" },
 ]

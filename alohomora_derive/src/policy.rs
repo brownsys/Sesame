@@ -34,7 +34,7 @@ pub struct SchemaPolicyArgs {
 }
 impl Parse for SchemaPolicyArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let named = NamedArgs::parse_terminated(input.clone());
+        let named = NamedArgs::parse_terminated(input);
         match named {
             Result::Ok(named) => {
                 if named.len() != 2 {
