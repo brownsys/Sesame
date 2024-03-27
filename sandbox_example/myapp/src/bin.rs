@@ -3,7 +3,7 @@ extern crate myapp_lib;
 
 use alohomora::bbox::BBox;
 use alohomora::policy::NoPolicy;
-use alohomora::sandbox::{AlohomoraSandbox, execute_sandbox};
+use alohomora::sandbox::execute_sandbox;
 use myapp_lib::{add_numbers, Numbers};
 
 fn main() {

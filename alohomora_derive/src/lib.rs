@@ -2,7 +2,7 @@ extern crate proc_macro;
 extern crate syn;
 
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parse_macro_input, DeriveInput, Expr, ItemFn, ItemStruct};
@@ -81,7 +81,10 @@ pub fn routes(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(AlohomoraType, attributes(alohomora_out_type))]
 pub fn derive_alohomora_type(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    alohomora_type::derive_alohomora_type_impl(input).into()
+    match alohomora_type::derive_alohomora_type_impl(input) {
+        Ok(tokens) => tokens.into(),
+        Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
+    }
 }
 
 #[allow(non_snake_case)]

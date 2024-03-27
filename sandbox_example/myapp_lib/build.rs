@@ -1,5 +1,5 @@
-use alohomora_build::alohomora_sandbox;
+use alohomora_build::alohomora_build;
 
 fn main() {
-    alohomora_sandbox();
+    alohomora_build();
 }

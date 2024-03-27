@@ -2,155 +2,152 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-use proc_macro2::{Ident, TokenStream};
+use std::iter::FromIterator;
+
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::{Data, DataStruct, DeriveInput, Field, Fields, Visibility, Type};
+use syn::token::{Brace, Bracket, Paren, Pound};
+use syn::{Data, DeriveInput, Fields, Type, ItemStruct, Attribute, AttrStyle, Meta, MetaList, PathSegment, Path, MacroDelimiter, PathArguments, FieldsNamed};
 use attribute_derive::FromAttr;
 
+pub type Error = (Span, &'static str);
+
+// Attributes that developers can provide to customize our derive macro.
 #[derive(FromAttr)]
 #[attribute(ident = alohomora_out_type)]
 struct AlohomoraTypeArgs {
-  //#[attribute(optional = false)]
-  name: Option<String>,
+  name: Option<Ident>,
   to_derive: Option<Vec<Ident>>, 
 }
 
-pub fn derive_alohomora_type_impl(input: DeriveInput) -> TokenStream {
-  // Struct name we are deriving for.
-  let input_ident: Ident = input.ident;
-  let input_vis: Visibility = input.vis;
-  let out_attrs = AlohomoraTypeArgs::from_attributes(&input.attrs).unwrap();
-
-  // Get traits to derive for new struct (if it exists)
-  let trait_vec: Vec<Ident> = out_attrs.to_derive.clone().unwrap_or(vec![]); 
-  let iter_traits = trait_vec.clone()
-                              .into_iter()
-                              .map(|trait_ident| {
-                              quote!{ #trait_ident }});
-  let derive_traits = { 
-    if trait_vec.len() > 0 {
-      quote!{ #[derive(#(#iter_traits),*)] } 
-    } else {
-      quote!{}
+// Generate #[derive(...)] for all the required traits for the output type.
+fn derive_traits_for_output_type(attrs: &AlohomoraTypeArgs) -> Option<Attribute> {
+    let trait_vec: Vec<Ident> = attrs.to_derive.clone().unwrap_or(vec![]);
+    if trait_vec.len() == 0 {
+        return None;
     }
-  };  
 
-  // get fields inside struct.
-  let fields: Punctuated<Field, Comma> = match input.data {
-      Data::Struct(DataStruct {
-          fields: Fields::Named(fields),
-          ..
-      }) => fields.named,
-      _ => panic!("this derive macro only works on structs with named fields"),
-  };
-  // Copy over struct fields but with types as AlohomoraType
-  let build_struct_fields = fields.clone().into_iter().map(|field| {
-    let field_vis = field.vis; 
-    let field_ident = field.ident.clone().unwrap();
-    let field_type = field.ty;
-    quote! { 
-      #field_vis #field_ident: <#field_type as ::alohomora::AlohomoraType>::Out
-    }
-  }); 
-
-  // Determine if we're generating a new Out type
-  let new_out_type = match out_attrs.name.clone() {
-    Some(_) => true, 
-    None => false
-  }; 
-  
-  let out_ident = match out_attrs.name {
-    Some(name) => syn::Ident::new(name.as_str(), input_ident.span()), 
-    None => input_ident.clone(),
-  }; 
-
-  // Build new struct or do nothing
-  let new_struct_or_blank = if new_out_type {
-      quote!{
-        #derive_traits
-        #input_vis struct #out_ident { 
-          #(#build_struct_fields,)*
-        }
-      }
-    } else { 
-      quote!() 
-    };
-
-  // Create map of struct fields to AlohomoraTypeEnums
-  let puts_to_enum = fields.clone().into_iter().map(|field| {
-      let field_ident = field.ident.unwrap();
-      let field_name: String = field_ident.to_string();
-      quote! { //map is HashMap defined in to_enum
-        map.insert(::std::string::String::from(#field_name), self.#field_ident.to_enum());
-      }
-    });
-
-  // Build to_enum
-  let to_enum_body = if new_out_type {
-    quote!{
-      let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
-      #(#puts_to_enum)*
-      ::alohomora::AlohomoraTypeEnum::Struct(map)
-    }} else {
-      quote!{
-        ::alohomora::AlohomoraTypeEnum::Value(Box::new(self))
-      }
-    };
-  
-  //Pop the fields into the new struct 
-  let gets_from_enum = fields.clone()
-                              .into_iter()
-                              .map(|field| {  
-        let field_ident: Ident = field.ident.unwrap();
-        let field_name: String = field_ident.to_string();
-        let field_type: Type = field.ty;
-        quote! { 
-          #field_ident: <#field_type as ::alohomora::AlohomoraType>::from_enum(hashmap.remove(#field_name).unwrap())?,
-        }
-    }); 
-  
-  // Build from_enum
-  let from_enum_body = if new_out_type {
-      quote!{
-        match e {
-          ::alohomora::AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
-            #(#gets_from_enum)* 
-          }),
-          _ => Err(()),
-      }}
-    } else {
-        quote!{
-          match e {
-            ::alohomora::AlohomoraTypeEnum::Value(v) => match v.downcast() {
-                Ok(v) => Ok(*v),
-                Err(_) => Err(()),
+    Some(Attribute {
+        pound_token: Pound::default(),
+        style: AttrStyle::Outer,
+        bracket_token: Bracket::default(),
+        meta: Meta::List(MetaList {
+            path: Path {
+                leading_colon: None,
+                segments: Punctuated::from_iter(
+                    [
+                        PathSegment {
+                            ident: Ident::new("derive", Span::call_site()),
+                            arguments: PathArguments::None,
+                        }
+                    ]
+                ),
             },
-            _ => Err(()),
-        }}
-    }; 
-    
-  // Generics if any.
-  let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-   
-  // Impl trait.
-  quote! {
-    #[automatically_derived]
-    
-    #new_struct_or_blank
+            delimiter: MacroDelimiter::Paren(Paren::default()),
+            tokens: quote!{ #(#trait_vec),* },
+        }),
+    })
+}
 
-    #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-    impl #impl_generics ::alohomora::AlohomoraType for #input_ident #ty_generics #where_clause {
-      type Out = #out_ident; 
-
-      fn to_enum(self) -> ::alohomora::AlohomoraTypeEnum {
-        #to_enum_body
-      }
-
-      fn from_enum(e: ::alohomora::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        #from_enum_body
-      }
+// Parse DeriveInput to a struct.
+pub fn parse_derive_input_struct(input: DeriveInput) -> Result<ItemStruct, Error> {
+    match input.data {
+        Data::Enum(_) => Err((input.ident.span(), "derive(AlohomoraType) only works on structs")),
+        Data::Union(_) => Err((input.ident.span(), "derive(AlohomoraType) only works on structs")),
+        Data::Struct(data_struct) => Ok(
+            ItemStruct {
+                attrs: input.attrs,
+                vis: input.vis,
+                struct_token: data_struct.struct_token,
+                ident: input.ident,
+                generics: input.generics,
+                fields: data_struct.fields,
+                semi_token: data_struct.semi_token,
+            }
+        ),
     }
-  }
+}
+
+// Construct the fields of the out type.
+fn construct_out_fields(input: &ItemStruct) -> Result<Fields, Error> {
+    match &input.fields {
+        Fields::Named(fields) => Ok(
+            Fields::Named(FieldsNamed {
+                brace_token: Brace::default(),
+                named: fields.named.iter()
+                    .map( | field| {
+                        let mut field = field.clone();
+                        let ty = field.ty;
+                        field.ty = Type::Verbatim(quote! {
+                            <#ty as ::alohomora::AlohomoraType>::Out
+                        });
+                        field
+                    })
+                    .collect(),
+            })
+        ),
+        _ => Err((input.ident.span(), "derive(AlohomoraType) only works on structs with named fields"))
+    }
+}
+
+// Construct the entirety of the output type.
+fn construct_out_type(input: &ItemStruct, attrs: &AlohomoraTypeArgs) -> Result<ItemStruct, Error> {
+    let mut result = input.clone();
+    result.attrs = Vec::new();
+    if let Some(attr) = derive_traits_for_output_type(attrs) {
+        result.attrs.push(attr);
+    }
+    result.ident = match &attrs.name {
+        None => Ident::new(&format!("{}Out", input.ident), Span::call_site()),
+        Some(name) => name.clone(),
+    };
+    result.fields = construct_out_fields(input)?;
+    Ok(result)
+}
+
+
+pub fn derive_alohomora_type_impl(input: DeriveInput) -> Result<TokenStream, Error> {
+    // Parse the provided input attributes.
+    let attrs = AlohomoraTypeArgs::from_attributes(&input.attrs).unwrap();
+
+    // Parse the input struct.
+    let input = parse_derive_input_struct(input)?;
+
+    // Construct the output struct.
+    let out = construct_out_type(&input, &attrs)?;
+
+    // The generics of the input type.
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    // Expand needed variables.
+    let input_ident = &input.ident;
+    let out_ident = &out.ident;
+
+    let fields_idents: Vec<_> = input.fields.iter().map(|field| field.ident.as_ref().unwrap()).collect();
+    let fields_strings: Vec<_> = input.fields.iter().map(|field| field.ident.as_ref().unwrap().to_string()).collect();
+    let fields_types: Vec<_> = input.fields.iter().map(|field| &field.ty).collect();
+
+    Ok(quote! {
+        #out
+
+        #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+        impl #impl_generics ::alohomora::AlohomoraType for #input_ident #ty_generics #where_clause {
+            type Out = #out_ident;
+            fn to_enum(self) -> ::alohomora::AlohomoraTypeEnum {
+                let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
+                ::alohomora::AlohomoraTypeEnum::Struct(::std::collections::HashMap::from([
+                    #((String::from(#fields_strings), self.#fields_idents.to_enum()),)*
+                ]))
+            }
+            fn from_enum(e: ::alohomora::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+                match e {
+                  ::alohomora::AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
+                    #(#fields_idents: <#fields_types as ::alohomora::AlohomoraType>::from_enum(hashmap.remove(#fields_strings).unwrap())?),*
+                  }),
+                  _ => Err(()),
+                }
+            }
+        }
+    })
 }

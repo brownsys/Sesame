@@ -15,4 +15,4 @@ To build a release version of an Alohomora-protected application:
        { path = "./alohomora_lints" },
     ]
 
-TODO: The relative paths should be swapped for packages or git repos
+TODO(babman): The relative paths should be swapped for packages or git repos

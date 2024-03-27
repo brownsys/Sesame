@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, Policy, OptionPolicy};
