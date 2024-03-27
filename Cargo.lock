@@ -54,6 +54,7 @@ dependencies = [
  "alohomora_sandbox",
  "cookie",
  "dynfmt",
+ "either",
  "erased-serde",
  "figment",
  "futures",
@@ -1061,9 +1062,9 @@ dependencies = [
 
 [[package]]
 name = "either"
-version = "1.6.1"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
 
 [[package]]
 name = "email"

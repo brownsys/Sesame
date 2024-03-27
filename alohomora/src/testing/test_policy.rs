@@ -26,13 +26,13 @@ impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         if other.is::<TestPolicy<P>>() {
             let other = other.specialize::<TestPolicy<P>>().unwrap();
-            Ok(AnyPolicy::new(self.p.join_logic(other.p)?))
+            Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
-            Ok(AnyPolicy::new(TestPolicy { p: self.p.join(other)? }))
+            Ok(AnyPolicy::new(TestPolicy::new(self.p.join(other)?)))
         }
     }
     fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        Ok(TestPolicy { p: self.p.join_logic(other.p)? })
+        Ok(TestPolicy::new(self.p.join_logic(other.p)?))
     }
 }
 

@@ -1,9 +1,11 @@
-use crate::context::Context;
 use std::{fmt::{Debug, Formatter}, any::Any};
 use std::fmt::Write;
-use crate::pcr::PrivacyCriticalRegion;
 
-use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy};
+use either::Either;
+
+use crate::context::Context;
+use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy};
+use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
 
 // Privacy Container type.
@@ -126,6 +128,17 @@ impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
     pub fn into_any(self) -> BBox<Box<dyn Any>, AnyPolicy> {
         BBox::new(Box::new(self.t),
                   AnyPolicy::new(self.p))
+    }
+}
+
+// Specializing OptionPolicy.
+impl<T, P: Policy + Clone + 'static> BBox<T, OptionPolicy<P>> {
+    pub fn specialize(self) -> Either<BBox<T, NoPolicy>, BBox<T, P>> {
+        let (t, p) = self.consume();
+        match p {
+            OptionPolicy::NoPolicy => Either::Left(BBox::new(t, NoPolicy {})),
+            OptionPolicy::Policy(p) => Either::Right(BBox::new(t, p)),
+        }
     }
 }
 
