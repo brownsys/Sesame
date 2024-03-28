@@ -100,7 +100,6 @@ macro_rules! alohomora_type_impl {
                 }
             }
         }
-
     };
 }
 
@@ -115,6 +114,27 @@ alohomora_type_impl!(u64);
 alohomora_type_impl!(bool);
 alohomora_type_impl!(f64);
 alohomora_type_impl!(String);
+
+// Implement AlohomoraType for Option
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl<T: AlohomoraType> AlohomoraType for Option<T> {
+    type Out = Option<T::Out>;
+    fn to_enum(self) -> AlohomoraTypeEnum {
+        match self {
+            None => AlohomoraTypeEnum::Vec(Vec::new()),
+            Some(t) => AlohomoraTypeEnum::Vec(vec![t.to_enum()]),
+        }
+    }
+    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        match e {
+            AlohomoraTypeEnum::Vec(mut vec) => match vec.pop() {
+                None => Ok(None),
+                Some(v) => Ok(Some(T::from_enum(v)?)),
+            },
+            _ => Err(()),
+        }
+    }
+}
 
 // Implement AlohomoraType for BBox<T, P>
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]

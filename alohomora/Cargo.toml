@@ -8,6 +8,10 @@ edition = "2018"
 name = "alohomora"
 path = "src/lib.rs"
 
+[[example]]
+name = "example"
+path = "example/example.rs"
+
 [dependencies]
 alohomora_derive = { version = "0.1.0", path = "../alohomora_derive", optional = true }
 alohomora_sandbox = { path = "../alohomora_sandbox" }
@@ -32,7 +36,7 @@ itertools = "0.12.1"
 git = "https://github.com/KinanBab/Rocket.git"
 branch = "main"
 #version = "0.1.0-rc.1"
-features = ["handlebars", "tera"]
+features = ["handlebars"]#, "tera"]
 
 [dependencies.handlebars]
 features = ["dir_source"]

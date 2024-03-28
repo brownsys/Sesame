@@ -52,7 +52,7 @@ pub async fn route<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>) -> 
 }
 
 #[test]
-fn test_simple_form() {
+fn test_post() {
     // Create a rocket instance and mount route.
     let rocket = BBoxRocket::build()
         .mount(
@@ -73,7 +73,7 @@ fn test_simple_form() {
 }
 
 #[test]
-fn test_simple_form_failed_check() {
+fn test_post_failed_policy() {
     // Create a rocket instance and mount route.
     let rocket = BBoxRocket::build()
         .mount(

@@ -6,6 +6,7 @@ use mysql::prelude::Queryable;
 pub use mysql::prelude::AsStatement as BBoxAsStatement;
 pub use mysql::{Opts as BBoxOpts, Statement as BBoxStatement};
 pub use mysql::Result as BBoxResult;
+use crate::context::{Context, ContextData};
 
 // BBox DB connection
 pub struct BBoxConn {
@@ -34,33 +35,36 @@ impl BBoxConn {
     }
 
     // Parameterized query and drop result.
-    pub fn exec_drop<S: BBoxAsStatement, P: Into<BBoxParams>>(
+    pub fn exec_drop<S: BBoxAsStatement, P: Into<BBoxParams>, D: ContextData>(
         &mut self,
         stmt: S,
         params: P,
+        context: Context<D>,
     ) -> BBoxResult<()> {
-        let params = params.into().transform();
+        let params = params.into().transform(context)?;
         self.conn.exec_drop(stmt, params)
     }
 
     // Parameterized query and return iterator to result.
-    pub fn exec_iter<S: BBoxAsStatement, P: Into<BBoxParams>>(
+    pub fn exec_iter<S: BBoxAsStatement, P: Into<BBoxParams>, D: ContextData>(
         &mut self,
         stmt: S,
         params: P,
+        context: Context<D>,
     ) -> BBoxResult<BBoxQueryResult<'_, '_, '_>> {
-        let params = params.into().transform();
+        let params = params.into().transform(context)?;
         let result = self.conn.exec_iter(stmt, params)?;
         Ok(BBoxQueryResult { result })
     }
 
     // Chained prep and exec function
-    pub fn prep_exec_iter<T: AsRef<str>, P: Into<BBoxParams>>(
+    pub fn prep_exec_iter<T: AsRef<str>, P: Into<BBoxParams>, D: ContextData>(
         &mut self,
         query: T,
-        params: P
+        params: P,
+        context: Context<D>,
     ) -> BBoxResult<BBoxQueryResult<'_, '_, '_>> {
         let stmt = self.prep(query)?;
-        self.exec_iter(stmt, params)
+        self.exec_iter(stmt, params, context)
     }
 }

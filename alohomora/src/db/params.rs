@@ -1,7 +1,9 @@
+use mysql::MySqlError;
 // BBox
 use crate::bbox::EitherBBox;
+use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::db::BBoxParam;
-use crate::policy::AnyPolicy;
+use crate::policy::{AnyPolicy, Policy};
 
 // Our params could be mixed boxed and clear.
 #[derive(Clone)]
@@ -13,18 +15,30 @@ pub enum BBoxParams {
 
 // private helper function.
 impl BBoxParams {
-    pub(super) fn transform(self) -> mysql::params::Params {
+    pub(super) fn transform<D: ContextData>(self, context: Context<D>) -> Result<mysql::params::Params, mysql::Error> {
+        let context = UnprotectedContext::from(context);
         match self {
-            BBoxParams::Empty => mysql::params::Params::Empty,
+            BBoxParams::Empty => Ok(mysql::params::Params::Empty),
             BBoxParams::Positional(vec) => {
-                let unboxed = vec
-                    .into_iter()
-                    .map(|v| match v {
-                        EitherBBox::Value(v) => v,
-                        EitherBBox::BBox(bbox) => bbox.consume().0,
-                    })
-                    .collect();
-                mysql::params::Params::Positional(unboxed)
+                let mut unboxed = Vec::new();
+                for v in vec.into_iter() {
+                    match v {
+                        EitherBBox::Value(v) => unboxed.push(v),
+                        EitherBBox::BBox(bbox) => {
+                            if !bbox.policy().check(&context) {
+                                return Err(mysql::Error::from(
+                                    MySqlError {
+                                        state: String::from(""),
+                                        message: String::from("Failed policy check"),
+                                        code: 0,
+                                    }
+                                ));
+                            }
+                            unboxed.push(bbox.consume().0)
+                        },
+                    }
+                }
+                Ok(mysql::params::Params::Positional(unboxed))
             }
         }
     }
