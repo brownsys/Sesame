@@ -6,7 +6,7 @@ use std::option::Option;
 use time::{Duration, OffsetDateTime};
 
 use crate::bbox::BBox;
-use crate::context::Context;
+use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::policy::{FrontendPolicy, RefPolicy};
 
 // Cookies are build from BBoxes, should they also be built from non bboxes?
@@ -122,8 +122,9 @@ impl<'a, 'r> BBoxCookieJar<'a, 'r> {
         BBoxCookieJar { jar, request }
     }
 
-    pub fn add<P: FrontendPolicy, U: 'static, D: 'static>(&self, cookie: BBoxCookie<'static, P>, ctx: &Context<U, D>) -> Result<(), ()> {
-        if cookie.policy.check(ctx) {
+    pub fn add<P: FrontendPolicy, D: ContextData>(&self, cookie: BBoxCookie<'static, P>, ctx: Context<D>) -> Result<(), ()> {
+        let ctx = UnprotectedContext::from(ctx);
+        if cookie.policy.check(&ctx) {
             self.jar.add(cookie.cookie);
             return Ok(());
         }

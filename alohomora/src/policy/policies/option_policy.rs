@@ -1,5 +1,4 @@
-use std::any::Any;
-
+use crate::context::UnprotectedContext;
 use crate::policy::{Policy, AnyPolicy, PolicyAnd};
 
 #[derive(Clone)]
@@ -14,7 +13,7 @@ impl<P: Policy + Clone + 'static> Policy for OptionPolicy<P> {
             Self::Policy(p) => format!("OptionPolicy({})", p.name()),
         }
     }
-    fn check(&self, context: &dyn Any) -> bool {
+    fn check(&self, context: &UnprotectedContext) -> bool {
         match self {
             Self::NoPolicy => true,
             Self::Policy(p) => p.check(context),

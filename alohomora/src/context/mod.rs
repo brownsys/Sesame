@@ -1,80 +1,68 @@
+use std::any::Any;
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use rocket::http::Status;
-use rocket::outcome::IntoOutcome;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
+use crate::AlohomoraType;
+use crate::fold::fold;
 
-#[derive(Debug)]
-pub struct Context<U: 'static, D:'static> {
-    user: Option<U>,
+// Context Data must satisfy these requirements.
+pub trait ContextData : AlohomoraType + for<'a, 'r> FromBBoxRequest<'a, 'r> + Send + 'static {}
+impl<D: AlohomoraType + for<'a, 'r> FromBBoxRequest<'a, 'r> + Send + 'static> ContextData for D {}
+
+// Context is generic over some developer defined data.
+#[derive(Debug, Clone)]
+pub struct Context<D: ContextData> {
     route: String,
     data: D,
 }
-impl<U, D> Context<U, D> {
-    pub fn get_user(&self) -> &Option<U> {
-        &self.user
-    }
-
-    pub fn get_route(&self) -> &str {
-        &self.route
-    }
-
-    pub fn get_data(&self) -> &D {
-        &self.data
-    }
-
-    pub fn new(user: Option<U>, route: String, data: D) -> Self {
+impl<D: ContextData> Context<D> {
+    // Context cannot be manufactured.
+    pub(crate) fn new(route: String, data: D) -> Self {
         Self {
-            user,
-            route: route,
+            route,
             data,
         }
-    } 
-
-    /*#[cfg(test)]
-    pub(crate) fn new(user: Option<U>, data: D) -> Self {
-        Context {
-            user,
-            route: String::from("test"),
-            data,
-        }
-    }*/
+    }
 }
 
+// The only way to construct a Context is to get via from a BBoxRequest using below trait.
+// This also implies that D has to be constructed that way as well, meaning that any sensitive
+// information stored in D (e.g. something from a cookie, like a UserID), will have to originate
+// from the BBoxRequest (and thus be in BBox form, at least initially).
 #[derive(Debug)]
 pub enum ContextError {
     Unconstructible,
 }
 
 #[rocket::async_trait]
-impl<'a, 'r, U: FromBBoxRequest<'a, 'r>, D: FromBBoxRequest<'a, 'r> + Send> FromBBoxRequest<'a, 'r>
-    for Context<U, D>
-{
+impl<'a, 'r, D: ContextData> FromBBoxRequest<'a, 'r> for Context<D> {
     type BBoxError = ContextError;
 
     async fn from_bbox_request(
         request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        let data: Option<D> = match request.guard::<D>().await {
-            Success(data) => Some(data),
-            Failure(_) => None,
-            Forward(_) => None,
-        };
+        match (request.route(), request.guard::<D>().await) {
+            (None, _) => Failure((Status::InternalServerError, ContextError::Unconstructible)),
+            (Some(route), Success(data)) => Success(Context::new(route.uri.to_string(), data)),
+            (_, Failure((status, _))) => Failure((status, ContextError::Unconstructible)),
+            (_, Forward(f)) => Forward(f),
+        }
+    }
+}
 
-        let user: Option<U> = match request.guard::<U>().await {
-            Success(user) => Some(user),
-            Failure(_) => None,
-            Forward(_) => None,
-        };
-
-        request
-            .route()
-            .and_then(|route| {
-                Some(Context {
-                    user: user,
-                    route: route.uri.to_string(),
-                    data: data.unwrap(),
-                })
-            })
-            .into_outcome((Status::InternalServerError, ContextError::Unconstructible))
+// Alohomora turns Context into UnprotectedContext before invoking Policy Check.
+pub struct UnprotectedContext {
+    pub route: String,
+    pub data: Box<dyn Any>,
+}
+impl UnprotectedContext {
+    pub(crate) fn from<D: ContextData>(context: Context<D>) -> Self {
+        Self {
+            route: context.route,
+            data: Box::new(fold(context.data).unwrap().consume().0),
+        }
+    }
+    pub fn downcast_ref<D: 'static>(&self) -> Option<&D> {
+        self.data.downcast_ref()
     }
 }

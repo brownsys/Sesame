@@ -29,9 +29,9 @@ fn to_string(v: &Vec<u8>) -> String {
 
 // Helper: serializes BBoxes.
 fn bbox_to_string<'a>(bbox: &'a RefBBox<'_>) -> Result<String, ()> {
-    let context = Context::new(Option::None::<()>, String::from(""), ());
+    let context = Context::test(());
     let result = bbox.unbox(
-        &context,
+        context,
         PrivacyCriticalRegion::new(|t: &&'a dyn Serialize, _| *t),
         ());
     serialize_to_string(result.unwrap())

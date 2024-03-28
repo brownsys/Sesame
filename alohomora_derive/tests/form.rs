@@ -1,16 +1,16 @@
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
-use alohomora_derive::FromBBoxForm;
 
-use std::any::Any;
 use rocket::http::Cookie;
 use rocket::Request;
+use alohomora::context::UnprotectedContext;
+use alohomora_derive::FromBBoxForm;
 
 pub struct TmpPolicy {}
 impl Policy for TmpPolicy {
     fn name(&self) -> String {
         String::from("SamplePolicy")
     }
-    fn check(&self, _: &dyn Any) -> bool {
+    fn check(&self, _: &UnprotectedContext) -> bool {
         true
     }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {

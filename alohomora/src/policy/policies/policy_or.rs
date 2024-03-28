@@ -1,4 +1,4 @@
-use std::any::Any;
+use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
 
 #[derive(Clone)]
@@ -15,7 +15,7 @@ impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     fn name(&self) -> String {
         format!("({} OR {})", self.p1.name(), self.p2.name())
     }
-    fn check(&self, context: &dyn Any) -> bool {
+    fn check(&self, context: &UnprotectedContext) -> bool {
         self.p1.check(context) || self.p2.check(context)
     }
     // TODO(babman): find ways to make join work under PolicyOr

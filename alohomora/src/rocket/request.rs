@@ -181,7 +181,7 @@ impl_param_via_fromstr!(
     SocketAddr,
 );
 
-// Implement FromBBoxParam for a few other types that rocket controls safetly
+// Implement FromBBoxParam for a few other types that rocket controls safely
 // outside application reach.
 use std::path::PathBuf;
 
@@ -208,6 +208,16 @@ impl<P: Policy, T: FromBBoxParam<P>> FromBBoxParam<P> for Option<T> {
 }
 
 // Implement FromBBoxRequest for some standard types.
+#[rocket::async_trait]
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for () {
+    type BBoxError = std::convert::Infallible;
+    async fn from_bbox_request(
+        _request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+        BBoxRequestOutcome::Success(())
+    }
+}
+
 #[rocket::async_trait]
 impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<IpAddr, P> {
     type BBoxError = std::convert::Infallible;

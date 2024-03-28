@@ -33,7 +33,7 @@ impl<'a> BBoxData<'a> {
     pub fn peek_complete(&self) -> bool {
         self.data.peek_complete()
     }
-    pub(crate) fn get_data(self) -> rocket::data::Data<'a> {
+    pub fn get_data(self) -> rocket::data::Data<'a> {
         self.data
     }
 }
@@ -62,7 +62,6 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T>{
         use rocket::Either;
         use rocket::outcome::Outcome;
         use rocket::form::parser::Parser;
-
         let mut parser = match Parser::new(req.get_request(), data.get_data()).await {
             Outcome::Success(parser) => parser,
             Outcome::Failure(error) => {

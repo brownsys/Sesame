@@ -8,7 +8,7 @@ use figment::value::Value as FValue;
 
 // Our BBox struct.
 use crate::bbox::{BBox, EitherBBox};
-use crate::context::Context;
+use crate::context::UnprotectedContext;
 use crate::policy::{Policy, RefPolicy};
 
 // Types for cheap references of BBox with type erasure.
@@ -24,9 +24,9 @@ pub enum Renderable<'a> {
 }
 
 impl<'a> Renderable<'a> {
-    pub(crate) fn transform<U: 'static, D: 'static>(
+    pub(crate) fn transform(
         &self,
-        context: &Context<U, D>,
+        context: &UnprotectedContext,
     ) -> Result<FValue, figment::Error> {
         match self {
             Renderable::BBox(bbox) => {
@@ -122,16 +122,12 @@ mod tests {
     use crate::policy::NoPolicy;
     use super::*;
 
-    fn make_test_context() -> Context<String, ()> {
-        Context::new(None, String::from(""), ())
-    }
-
     #[test]
     fn test_renderable_serialize() {
         let string = String::from("my test!");
         let renderable = string.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
-        let result = renderable.transform(&make_test_context());
+        let result = renderable.transform(&UnprotectedContext::test(()));
         assert!(matches!(result, Result::Ok(FValue::String(_, result)) if result == string));
     }
 
@@ -140,7 +136,7 @@ mod tests {
         let bbox = BBox::new(String::from("my bbox!"), NoPolicy {});
         let renderable = bbox.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
-        let result = renderable.transform(&make_test_context());
+        let result = renderable.transform(&UnprotectedContext::test(()));
         assert!(matches!(result, Result::Ok(FValue::String(_, result)) if &result == bbox.data()));
     }
 
@@ -149,7 +145,7 @@ mod tests {
         let either: EitherBBox<String, NoPolicy> = EitherBBox::Value(String::from("my_test!"));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
-        let result = renderable.transform(&make_test_context());
+        let result = renderable.transform(&UnprotectedContext::test(()));
         assert!(
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_test!"))
         );
@@ -157,7 +153,7 @@ mod tests {
         let either = EitherBBox::BBox(BBox::new(String::from("my_bbox!"), NoPolicy {}));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
-        let result = renderable.transform(&make_test_context());
+        let result = renderable.transform(&UnprotectedContext::test(()));
         assert!(
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_bbox!"))
         );
@@ -170,7 +166,7 @@ mod tests {
         vec.push(BBox::new(String::from("bye"), NoPolicy {}));
         let renderable = vec.render();
         assert!(matches!(renderable, Renderable::Array(_)));
-        let result = renderable.transform(&make_test_context());
+        let result = renderable.transform(&UnprotectedContext::test(()));
         assert!(matches!(result, Result::Ok(FValue::Array(_, _))));
         if let Result::Ok(FValue::Array(_, arr)) = result {
             assert!(matches!(&arr[0], FValue::String(_, e) if e == "hello"));
@@ -185,7 +181,7 @@ mod tests {
         map.insert("key2", BBox::new(String::from("val2"), NoPolicy {}));
         let renderable = map.render();
         assert!(matches!(renderable, Renderable::Dict(_)));
-        let result = renderable.transform(&make_test_context());
+        let result = renderable.transform(&UnprotectedContext::test(()));
         assert!(matches!(result, Result::Ok(FValue::Dict(_, _))));
         if let Result::Ok(FValue::Dict(_, dict)) = result {
             assert!(matches!(dict.get("key1"), Option::Some(FValue::String(_, e)) if e == "val1"));

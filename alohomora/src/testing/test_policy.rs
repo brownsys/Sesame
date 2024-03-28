@@ -1,7 +1,7 @@
-use std::any::Any;
 use std::fmt::{Debug, Formatter, Write};
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
+use crate::context::UnprotectedContext;
+use crate::policy::{AnyPolicy, FrontendPolicy, Policy, RefPolicy, SchemaPolicy};
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
@@ -20,7 +20,7 @@ impl<P: 'static + Policy + Clone> TestPolicy<P> {
 }
 impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
     fn name(&self) -> String { format!("TestPolicy<{}>", self.p.name()) }
-    fn check(&self, context: &dyn Any) -> bool {
+    fn check(&self, context: &UnprotectedContext) -> bool {
         self.p.check(context)
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
@@ -78,3 +78,23 @@ impl<T: PartialEq, P: 'static + Policy + PartialEq + Clone> PartialEq for BBox<T
     }
 }
 impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}
+
+// Same but for RefPolicy<TestPolicy>
+impl<'a, T, P: 'static + Policy + Clone> BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+    pub fn discard_box(self) -> &'a T {
+        self.consume().0
+    }
+}
+impl<'a, T: Debug, P: 'static + Policy + Clone> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Box(")?;
+        self.clone().consume().0.fmt(f)?;
+        f.write_char(')')
+    }
+}
+impl<'a, T: PartialEq, P: 'static + Policy + Clone> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+    fn eq(&self, other: &Self) -> bool {
+        self.clone().consume().0 == other.clone().consume().0
+    }
+}
+impl<'a, T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {}

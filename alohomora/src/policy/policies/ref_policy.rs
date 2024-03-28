@@ -1,4 +1,4 @@
-use std::any::Any;
+use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, Policy};
 
 #[derive(Clone)]
@@ -19,7 +19,7 @@ impl<'a, P: Policy + ?Sized> Policy for RefPolicy<'a, P> {
     fn name(&self) -> String {
         format!("RefPolicy({})", self.policy.name())
     }
-    fn check(&self, context: &dyn Any) -> bool {
+    fn check(&self, context: &UnprotectedContext) -> bool {
         self.policy.check(context)
     }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {

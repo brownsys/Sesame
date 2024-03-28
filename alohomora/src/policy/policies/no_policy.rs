@@ -1,4 +1,4 @@
-use std::any::Any;
+use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
 
 // NoPolicy can be directly discarded.
@@ -13,7 +13,7 @@ impl Policy for NoPolicy {
     fn name(&self) -> String {
         String::from("NoPolicy")
     }
-    fn check(&self, _context: &dyn Any) -> bool {
+    fn check(&self, _context: &UnprotectedContext) -> bool {
         true
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {

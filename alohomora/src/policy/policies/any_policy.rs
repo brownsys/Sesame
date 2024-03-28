@@ -1,4 +1,5 @@
 use std::any::{Any, TypeId};
+use crate::context::UnprotectedContext;
 use crate::policy::Policy;
 
 // Any (owned) Policy.
@@ -41,7 +42,7 @@ impl Policy for AnyPolicy {
     fn name(&self) -> String {
         format!("AnyPolicy({})", self.policy.name())
     }
-    fn check(&self, context: &dyn Any) -> bool {
+    fn check(&self, context: &UnprotectedContext) -> bool {
         self.policy.check(context)
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {

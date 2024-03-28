@@ -58,9 +58,9 @@ mod tests {
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy};
     use crate::testing::TestPolicy;
 
-    use std::any::Any;
     use std::collections::{HashSet, HashMap};
     use std::iter::FromIterator;
+    use crate::context::UnprotectedContext;
 
     #[derive(Clone, PartialEq, Debug)]
     pub struct ACLPolicy {
@@ -75,7 +75,7 @@ mod tests {
         fn name(&self) -> String {
             format!("ACLPolicy(owners: {:?})", self.owners)
         }
-        fn check(&self, context: &dyn Any) -> bool { true }
+        fn check(&self, _context: &UnprotectedContext) -> bool { true }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
             if other.is::<ACLPolicy>() {
                 let other = other.specialize::<ACLPolicy>().unwrap();

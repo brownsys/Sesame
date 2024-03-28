@@ -3,7 +3,7 @@ use std::fmt::Write;
 
 use either::Either;
 
-use crate::context::Context;
+use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
@@ -70,24 +70,28 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Unbox with policy checks.
-    pub fn unbox<'a, U, D, C, O, F: FnOnce(&'a T, C) -> O>(
-            &'a self,
-            context: &Context<U, D>,
-            functor: PrivacyCriticalRegion<F>,
-            arg: C) -> Result<O, ()> {
-        if self.p.check(context) {
+    pub fn unbox<'a, D: ContextData, C, O, F: FnOnce(&'a T, C) -> O>(
+        &'a self,
+        context: Context<D>,
+        functor: PrivacyCriticalRegion<F>,
+        arg: C
+    ) -> Result<O, ()> {
+        let context = UnprotectedContext::from(context);
+        if self.p.check(&context) {
             let functor = functor.get_functor();
             Ok(functor(&self.t, arg))
         } else {
             Err(())
         }
     }
-    pub fn into_unbox<U, D, C, O, F: FnOnce(T, C) -> O>(
+    pub fn into_unbox<D: ContextData, C, O, F: FnOnce(T, C) -> O>(
         self,
-        context: &Context<U, D>,
+        context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
-        arg: C) -> Result<O, ()> {
-        if self.p.check(context) {
+        arg: C
+    ) -> Result<O, ()> {
+        let context = UnprotectedContext::from(context);
+        if self.p.check(&context) {
             let functor = functor.get_functor();
             Ok(functor(self.t, arg))
         } else {
@@ -113,6 +117,13 @@ impl<T, P: Policy> BBox<T, P> {
     pub fn into_ppr<O, F: FnOnce(T) -> O>(self, functor: PrivacyPureRegion<F>) -> BBox<O, P> {
         let functor = functor.get_functor();
         BBox::new(functor(self.t), self.p)
+    }
+}
+
+// Can clone a ref policy to own it.
+impl<'a, T, P: Policy + Clone> BBox<&'a T, RefPolicy<'a, P>> {
+    pub fn to_owned_policy(&self) -> BBox<&'a T, P> {
+        BBox::new(self.t, self.p.policy().clone())
     }
 }
 
@@ -182,12 +193,30 @@ impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
     }
 }
 
+// Same but for RefPolicy<NoPolicy>
+impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
+    pub fn discard_box(self) -> &'a T {
+        self.t
+    }
+}
+impl<'a, T: Debug> Debug for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Box(")?;
+        self.t.fmt(f)?;
+        f.write_char(')')
+    }
+}
+impl<'a, T: PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
+    fn eq(&self, other: &Self) -> bool {
+        self.t.eq(&other.t)
+    }
+}
+
 // Unit tests.
 #[cfg(test)]
 mod tests {
     use crate::policy::NoPolicy;
-    use crate::testing::TestPolicy;
-    use std::any::Any;
+    use crate::testing::{TestContextData, TestPolicy};
 
     use super::*;
 
@@ -199,7 +228,7 @@ mod tests {
         fn name(&self) -> String {
             String::from("ExamplePolicy")
         }
-        fn check(&self, _context: &dyn Any) -> bool {
+        fn check(&self, _context: &UnprotectedContext) -> bool {
             true
         }
         fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
@@ -219,10 +248,14 @@ mod tests {
 
     #[test]
     fn test_unbox() {
-        let context = Context::new(None::<()>, String::from(""), ());
+        let context = Context::new(
+            String::from(""),
+            TestContextData::new(()),
+        );
+
         let bbox = BBox::new(10u64, NoPolicy {});
         let result = bbox.into_unbox(
-            &context,
+            context,
             PrivacyCriticalRegion::new(|val, exp| {
                 assert_eq!(val, exp);
             }),

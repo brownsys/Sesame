@@ -1,10 +1,10 @@
-use std::any::Any;
+use crate::context::UnprotectedContext;
 use crate::policy::AnyPolicy;
 
 // Public facing Policy traits.
 pub trait Policy {
     fn name(&self) -> String;
-    fn check(&self, context: &dyn Any) -> bool;
+    fn check(&self, context: &UnprotectedContext) -> bool;
     // TODO(babman): Stream line join, find way to make join combine inside AndPolicy instead of stacking!
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()>;
     fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized;
@@ -29,19 +29,11 @@ pub trait FrontendPolicy: Policy + Send {
         request: &'a rocket::Request<'r>) -> Self where Self: Sized;
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::policy::{Policy, PolicyAnd, AnyPolicy}; 
-    use std::any::Any;
     use std::collections::{HashSet};
-
-    pub struct ContextData {
-        pub user: String,
-    }
-    impl ContextData {
-        pub fn get_user(&self) -> &String {
-            &self.user
-        }
-    }
+    use crate::context::UnprotectedContext;
+    use crate::policy::{Policy, PolicyAnd, AnyPolicy};
 
     #[derive(Clone)]
     pub struct BasicPolicy {
@@ -56,10 +48,8 @@ mod tests {
         fn name(&self) -> String {
             format!("BasicPolicy(owner: {:?})", self.owner)
         }
-        fn check(&self, context: &dyn Any) -> bool {
-            let context: &ContextData = context.downcast_ref().unwrap();
-            let user: &String = context.get_user();
-            self.owner == user.clone()
+        fn check(&self, context: &UnprotectedContext) -> bool {
+            &self.owner == context.downcast_ref::<String>().unwrap()
         }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
             if other.is::<BasicPolicy>() { //Policies are combinable
@@ -89,10 +79,8 @@ mod tests {
         fn name(&self) -> String {
             format!("ACLPolicy(owners: {:?})", self.owners)
         }
-        fn check(&self, context: &dyn Any) -> bool {
-            let context: &ContextData = context.downcast_ref().unwrap();
-            let user: &String = context.get_user();
-            self.owners.contains(user)
+        fn check(&self, context: &UnprotectedContext) -> bool {
+            self.owners.contains(context.downcast_ref::<String>().unwrap())
         }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
             if other.is::<ACLPolicy>() { //Policies are combinable
@@ -116,7 +104,7 @@ mod tests {
         }
     }
 
-    # [test]
+    #[test]
     fn join_homog_policies(){ //join policies of the same type
         let admin1 = String::from("Admin1");
         let admin2 = String::from("Admin2");
@@ -134,13 +122,14 @@ mod tests {
 
         let specialized = combined_pol.clone().specialize::<ACLPolicy>().unwrap(); 
             
-        // Users are allowed access to aggregated vector as expected  
-        assert!(combined_pol.check(&ContextData{user: String::from("Alice")}));
-        assert!(specialized.check(&ContextData{user: String::from("Alice")}));
+        // Users are allowed access to aggregated vector as expected
+        let alice = UnprotectedContext::test(String::from("Alice"));
+        assert!(combined_pol.check(&alice));
+        assert!(specialized.check(&alice));
 
-        //and correct users are disallowed access
-        let admin1 = ContextData{ user: admin1.clone()}; 
-        let admin2 = ContextData{ user: admin2.clone()}; 
+        // and correct users are disallowed access
+        let admin1 = UnprotectedContext::test(String::from(&admin1));
+        let admin2 = UnprotectedContext::test(String::from(&admin2));
         assert!(!combined_pol.check(&admin1));
         assert!(!combined_pol.check(&admin2));
         
@@ -177,13 +166,14 @@ mod tests {
         let combined_pol1: AnyPolicy = acl_pol.join(AnyPolicy::new(basic_pol.clone())).unwrap();
         let combined_pol2: AnyPolicy = basic_pol.join(AnyPolicy::new(acl_pol)).unwrap();
             
-        // Users are allowed access to aggregated vector as expected  
-        assert!(combined_pol1.check(&ContextData{user: String::from("Alice")}));
-        assert!(combined_pol2.check(&ContextData{user: String::from("Alice")}));
+        // Users are allowed access to aggregated vector as expected
+        let alice = UnprotectedContext::test(String::from("Alice"));
+        assert!(combined_pol1.check(&alice));
+        assert!(combined_pol2.check(&alice));
 
-        //and correct users are disallowed access
-        let admin1 = ContextData{ user: admin1.clone()}; 
-        let admin2 = ContextData{ user: admin2.clone()}; 
+        // and correct users are disallowed access
+        let admin1 = UnprotectedContext::test(String::from(&admin1));
+        let admin2 = UnprotectedContext::test(String::from(&admin2));
 
         assert!(!combined_pol1.check(&admin1));
         assert!(!combined_pol2.check(&admin1));

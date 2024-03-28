@@ -1,5 +1,5 @@
 use crate::AlohomoraType;
-use crate::context::Context;
+use crate::context::{Context, ContextData};
 use crate::fold::fold;
 use crate::pcr::PrivacyCriticalRegion;
 use crate::unbox::UnboxError::{FoldError, PolicyViolation};
@@ -10,11 +10,12 @@ pub enum UnboxError {
     PolicyViolation,
 }
 
-pub fn unbox<S: AlohomoraType, U, D, C, O, F: FnOnce(S::Out, C) -> O>(
-        data: S,
-        context: &Context<U, D>,
-        functor: PrivacyCriticalRegion<F>,
-        arg: C) -> Result<O, UnboxError> {
+pub fn unbox<S: AlohomoraType, D: ContextData, C, O, F: FnOnce(S::Out, C) -> O>(
+    data: S,
+    context: Context<D>,
+    functor: PrivacyCriticalRegion<F>,
+    arg: C
+) -> Result<O, UnboxError> {
     match fold(data) {
         Err(_) => Err(FoldError),
         Ok(data) => {

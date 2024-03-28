@@ -1,11 +1,11 @@
-use alohomora::context::Context;
+use alohomora::context::{Context, UnprotectedContext};
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
 use alohomora_derive::{route, routes, FromBBoxForm};
 
-use std::any::Any;
 use rocket::http::Cookie;
 use rocket::Request;
 use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::testing::TestContextData;
 use alohomora::unbox::unbox;
 
 #[derive(Clone)]
@@ -14,7 +14,7 @@ impl Policy for TmpPolicy {
     fn name(&self) -> String {
         String::from("SamplePolicy")
     }
-    fn check(&self, _: &dyn Any) -> bool {
+    fn check(&self, _: &UnprotectedContext) -> bool {
         true
     }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
@@ -93,16 +93,16 @@ fn my_route(
     config: &rocket::State<Config>,
     a: alohomora::bbox::BBox<String, TmpPolicy>,
     dog: Dog,
+    context: Context<TestContextData<()>>,
 ) -> alohomora::rocket::BBoxRedirect {
     assert_eq!(guard.value, "ok");
     assert_eq!(config.debug_mode, false);
     assert_eq!(config.admins.len(), 1);
     assert!(config.admins.contains("test@email.com"));
 
-    let context = Context::new(Option::None::<()>, String::from(""), ());
     let result = unbox(
         (num.clone(), a.clone(), data.f1.clone(), data.f3.clone(), dog.name, dog.age),
-        &context,
+        context,
         PrivacyCriticalRegion::new(|(num, a, f1, f3, name, age), _| {
             assert_eq!(&f1, "str1");
             assert_eq!(f3, 10);
