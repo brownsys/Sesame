@@ -8,10 +8,6 @@ edition = "2018"
 name = "alohomora"
 path = "src/lib.rs"
 
-[[example]]
-name = "example"
-path = "example/example.rs"
-
 [dependencies]
 alohomora_derive = { version = "0.1.0", path = "../alohomora_derive", optional = true }
 alohomora_sandbox = { path = "../alohomora_sandbox" }

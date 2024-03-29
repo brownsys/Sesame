@@ -6,7 +6,7 @@ use alohomora::policy::NoPolicy;
 use alohomora::rocket::{BBoxCookie, BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxTemplate, FromBBoxData};
 use crate::application::context::AppContext;
 use crate::application::db::DB;
-use crate::application::policy::{InternalPolicy, WritePolicy};
+use crate::application::policy::WritePolicy;
 
 // Logins in as a user.
 pub async fn login<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {

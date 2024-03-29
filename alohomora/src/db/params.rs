@@ -176,6 +176,7 @@ mod tests {
     use mysql::Params;
     use mysql::prelude::FromValue;
     use crate::bbox::{BBox, EitherBBox};
+    use crate::context::Context;
     use crate::db::{BBoxParam, BBoxParams};
     use crate::policy::{AnyPolicy, NoPolicy};
 
@@ -204,7 +205,7 @@ mod tests {
         }
 
         // Test unboxing.
-        let params = params.transform();
+        let params = params.transform(Context::test(())).unwrap();
         assert!(matches!(&params, Params::Positional(v) if v.len() == 4));
         if let Params::Positional(vec) = &params {
             assert_eq!(mysql::from_value::<String>(vec[0].clone()), "kinan");

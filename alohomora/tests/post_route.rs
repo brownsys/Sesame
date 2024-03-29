@@ -1,6 +1,6 @@
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
 
-use rocket::http::{ContentType, Cookie, Method, Status};
+use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
 use alohomora::bbox::BBox;
 use alohomora::context::{Context, UnprotectedContext};
