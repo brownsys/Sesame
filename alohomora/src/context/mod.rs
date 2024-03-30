@@ -16,6 +16,10 @@ pub struct Context<D: ContextData> {
     data: D,
 }
 impl<D: ContextData> Context<D> {
+    pub fn route(&self) -> &str {
+        &self.route
+    }
+
     // Context cannot be manufactured.
     pub(crate) fn new(route: String, data: D) -> Self {
         Self {

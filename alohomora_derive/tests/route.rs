@@ -1,126 +1,102 @@
-use alohomora::context::{Context, UnprotectedContext};
-use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
+use std::collections::HashMap;
+
+use alohomora::AlohomoraType;
+use alohomora::context::Context;
+use alohomora::policy::NoPolicy;
 use alohomora_derive::{route, routes, FromBBoxForm};
 
-use rocket::http::Cookie;
-use rocket::Request;
-use alohomora::pcr::PrivacyCriticalRegion;
-use alohomora::testing::TestContextData;
-use alohomora::unbox::unbox;
-
-#[derive(Clone)]
-pub struct TmpPolicy {}
-impl Policy for TmpPolicy {
-    fn name(&self) -> String {
-        String::from("SamplePolicy")
-    }
-    fn check(&self, _: &UnprotectedContext) -> bool {
-        true
-    }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
-        todo!()
-    }
-}
-impl FrontendPolicy for TmpPolicy {
-    fn from_request(_: &'_ Request<'_>) -> Self {
-        TmpPolicy {}
-    }
-    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self {
-        TmpPolicy {}
-    }
-}
-
 // POST request data.
-#[derive(FromBBoxForm)]
-struct Simple {
-    f1: alohomora::bbox::BBox<String, TmpPolicy>,
-    f3: alohomora::bbox::BBox<u8, TmpPolicy>,
+#[derive(FromBBoxForm, PartialEq, Debug)]
+pub struct Nested {
+    pub inner: alohomora::bbox::BBox<String, NoPolicy>,
+    pub vec: Vec<alohomora::bbox::BBox<usize, NoPolicy>>,
 }
 
-// This struct serves as a request guard.
-struct Config {
-    pub debug_mode: bool,
-    pub admins: std::collections::HashSet<String>,
-}
-impl Config {
-    pub fn new(admin: &str) -> Self {
-        let mut c = Config {
-            debug_mode: false,
-            admins: std::collections::HashSet::new(),
-        };
-        c.admins.insert(String::from(admin));
-        c
-    }
+#[derive(FromBBoxForm, PartialEq, Debug)]
+pub struct Simple {
+    pub f1: alohomora::bbox::BBox<String, NoPolicy>,
+    pub f2: Nested,
+    pub f3: alohomora::bbox::BBox<u8, NoPolicy>,
+    pub f4: HashMap<String, alohomora::bbox::BBox<u8, NoPolicy>>,
 }
 
-// Another request guard.
-struct MyGuard {
-    pub value: String,
-}
-#[rocket::async_trait]
-impl<'a, 'r> alohomora::rocket::FromBBoxRequest<'a, 'r> for MyGuard {
-    type BBoxError = &'static str;
-    async fn from_bbox_request(
-        _request: alohomora::rocket::BBoxRequest<'a, 'r>,
-    ) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
-        let guard = MyGuard {
-            value: String::from("ok"),
-        };
-        alohomora::rocket::BBoxRequestOutcome::Success(guard)
-    }
-}
+struct Config(pub String);
+
 
 // Get request param.
 #[derive(FromBBoxForm)]
 struct Dog {
-    name: alohomora::bbox::BBox<String, TmpPolicy>,
-    age: alohomora::bbox::BBox<usize, TmpPolicy>,
+    pub name: alohomora::bbox::BBox<String, NoPolicy>,
+    pub age: alohomora::bbox::BBox<usize, NoPolicy>,
 }
 
-// TODO(babman): get endpoint
-// TODO(babman): actually invoke endpoint
+
+#[derive(AlohomoraType)]
+struct ContextData {}
+
+#[rocket::async_trait]
+impl<'a, 'r> alohomora::rocket::FromBBoxRequest<'a, 'r> for ContextData {
+    type BBoxError = ();
+    async fn from_bbox_request(_request: alohomora::rocket::BBoxRequest<'a, 'r>) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
+        alohomora::rocket::BBoxRequestOutcome::Success(ContextData {})
+    }
+}
+
 // HTTP request.
 // POST /route/<num>?<dog>&<a>
 // Example: /route/5?a=apple&dog.name=Max&dog.age=10
 #[route(POST, "/route/<num>?<dog>&<a>", data = "<data>")]
 fn my_route(
-    guard: MyGuard,
-    num: alohomora::bbox::BBox<u8, TmpPolicy>,
-    data: alohomora::rocket::BBoxForm<Simple>,
     config: &rocket::State<Config>,
-    a: alohomora::bbox::BBox<String, TmpPolicy>,
+    context: Context<ContextData>,
+    num: alohomora::bbox::BBox<u8, NoPolicy>,
+    a: alohomora::bbox::BBox<String, NoPolicy>,
     dog: Dog,
-    context: Context<TestContextData<()>>,
-) -> alohomora::rocket::BBoxRedirect {
-    assert_eq!(guard.value, "ok");
-    assert_eq!(config.debug_mode, false);
-    assert_eq!(config.admins.len(), 1);
-    assert!(config.admins.contains("test@email.com"));
+    data: alohomora::rocket::BBoxForm<Simple>,
+) -> alohomora::rocket::ContextResponse<String, NoPolicy, ContextData> {
+    // Ensure things got parsed/created correctly.
+    assert_eq!(config.0, "myconfig");
+    assert_eq!(context.route(), "/route/<num>?<dog>&<a>");
+    assert_eq!(*num.as_ref().discard_box(), 5);
+    assert_eq!(a.as_ref().discard_box(), "apple");
+    assert_eq!(dog.name.as_ref().discard_box(), "Max");
+    assert_eq!(*dog.age.as_ref().discard_box(), 10);
 
-    let result = unbox(
-        (num.clone(), a.clone(), data.f1.clone(), data.f3.clone(), dog.name, dog.age),
-        context,
-        PrivacyCriticalRegion::new(|(num, a, f1, f3, name, age), _| {
-            assert_eq!(&f1, "str1");
-            assert_eq!(f3, 10);
-            assert_eq!(num, 5);
-            assert_eq!(&a, "apple");
-            assert_eq!(&name, "Max");
-            assert_eq!(age, 10);
-        }),
-        ());
-    result.unwrap();
+    let simple = Simple {
+        f1: alohomora::bbox::BBox::new(String::from("hello"), NoPolicy {}),
+        f2: Nested {
+            inner: alohomora::bbox::BBox::new(String::from("bye"), NoPolicy {}),
+            vec: vec![
+                alohomora::bbox::BBox::new(100, NoPolicy {}),
+                alohomora::bbox::BBox::new(200, NoPolicy {})
+            ],
+        },
+        f3: alohomora::bbox::BBox::new(55, NoPolicy {}),
+        f4: HashMap::from([
+            (String::from("k1"), alohomora::bbox::BBox::new(11, NoPolicy {})),
+            (String::from("k2"), alohomora::bbox::BBox::new(12, NoPolicy {})),
+        ]),
+    };
+
+    assert_eq!(data.into_inner(), simple);
 
     // all good.
-    alohomora::rocket::BBoxRedirect::to("/page/{}/{}/{}/{}", (&a, &num, &"test", &10))
+    alohomora::rocket::ContextResponse::from((a, context))
 }
 
 #[test]
 fn simple_from_bbox_form_test() {
-    let _rocket = alohomora::rocket::BBoxRocket::<::rocket::Build>::build()
-        .manage(Config::new("test@email.com"))
-        .mount("/test", routes![my_route]);
+    let rocket = alohomora::rocket::BBoxRocket::<::rocket::Build>::build()
+        .manage(Config(String::from("myconfig")))
+        .mount("/", routes![my_route]);
+
+    // Create a client.
+    let client = alohomora::testing::BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let response = client.post("/route/5?a=apple&dog.name=Max&dog.age=10")
+        .header(rocket::http::ContentType::Form)
+        .body("f1=hello&f2.inner=bye&f2.vec.0=100&f2.vec.1=200&f3=55&f4.k1=11&f4.k2=12")
+        .dispatch();
+
+    assert_eq!(response.status(), rocket::http::Status::new(200));
+    assert_eq!(response.into_string().unwrap(), String::from("apple"));
 }
