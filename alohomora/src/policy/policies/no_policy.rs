@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
+use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
 
 // NoPolicy can be directly discarded.
 #[derive(Clone, PartialEq, Eq)]
@@ -13,7 +13,7 @@ impl Policy for NoPolicy {
     fn name(&self) -> String {
         String::from("NoPolicy")
     }
-    fn check(&self, _context: &UnprotectedContext) -> bool {
+    fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
         true
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {

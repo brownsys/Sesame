@@ -20,8 +20,8 @@ pub struct Simple {
     pub f4: HashMap<String, alohomora::bbox::BBox<u8, NoPolicy>>,
 }
 
+// Guard managed by rocket.
 struct Config(pub String);
-
 
 // Get request param.
 #[derive(FromBBoxForm)]

@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{Policy, AnyPolicy, PolicyAnd};
+use crate::policy::{Policy, AnyPolicy, PolicyAnd, Reason};
 
 #[derive(Clone)]
 pub enum OptionPolicy<P: Policy + Clone + 'static> {
@@ -13,10 +13,10 @@ impl<P: Policy + Clone + 'static> Policy for OptionPolicy<P> {
             Self::Policy(p) => format!("OptionPolicy({})", p.name()),
         }
     }
-    fn check(&self, context: &UnprotectedContext) -> bool {
+    fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         match self {
             Self::NoPolicy => true,
-            Self::Policy(p) => p.check(context),
+            Self::Policy(p) => p.check(context, reason),
         }
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {

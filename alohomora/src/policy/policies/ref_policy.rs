@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, Policy};
+use crate::policy::{AnyPolicy, Policy, Reason};
 
 #[derive(Clone)]
 pub struct RefPolicy<'a, P: Policy + ?Sized> {
@@ -19,8 +19,8 @@ impl<'a, P: Policy + ?Sized> Policy for RefPolicy<'a, P> {
     fn name(&self) -> String {
         format!("RefPolicy({})", self.policy.name())
     }
-    fn check(&self, context: &UnprotectedContext) -> bool {
-        self.policy.check(context)
+    fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
+        self.policy.check(context, reason)
     }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()

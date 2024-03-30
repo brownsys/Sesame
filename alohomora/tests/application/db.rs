@@ -1,5 +1,5 @@
 use alohomora::bbox::BBox;
-use alohomora::db::{BBoxConn, BBoxOpts, from_value};
+use alohomora::db::{BBoxConn, BBoxOpts, BBoxResult, from_value};
 use alohomora::policy::Policy;
 use crate::application::context::AppContext;
 use crate::application::models::Grade;
@@ -64,11 +64,11 @@ impl DB {
         &mut self, user: BBox<String, P1>,
         grade: BBox<u64, P2>,
         context: AppContext
-    ) {
-        self.conn.prep_exec_iter(
+    ) -> BBoxResult<()> {
+        self.conn.prep_exec_drop(
             "INSERT INTO grades(name, grade) VALUES (?, ?)",
             (user, grade),
             context
-        ).unwrap();
+        )
     }
 }

@@ -5,7 +5,7 @@ use rocket::Request;
 use alohomora::AlohomoraType;
 
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, SchemaPolicy};
+use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
 use alohomora_derive::schema_policy;
 
 use crate::application::context::ContextData;
@@ -19,7 +19,7 @@ impl Policy for ACLPolicy {
     fn name(&self) -> String {
         String::from("ACLPolicy")
     }
-    fn check(&self, context: &UnprotectedContext) -> bool {
+    fn check(&self, context: &UnprotectedContext, _: Reason) -> bool {
         type ContextDataOut = <ContextData as AlohomoraType>::Out;
         let r: &ContextDataOut = context.downcast_ref().unwrap();
         match r {
@@ -46,12 +46,18 @@ impl SchemaPolicy for ACLPolicy {
 }
 
 #[derive(Clone)]
-pub struct InternalPolicy {}
-impl Policy for InternalPolicy {
+pub struct AuthenticationCookiePolicy {}
+impl Policy for AuthenticationCookiePolicy {
     fn name(&self) -> String {
         String::from("InternalPolicy")
     }
-    fn check(&self, _: &UnprotectedContext) -> bool { false }
+    fn check(&self, _: &UnprotectedContext, reason: Reason) -> bool {
+        match reason {
+            Reason::Cookie(name) => name == "user",
+            Reason::DB(query) => query.starts_with("SELECT"),
+            _ => false,
+        }
+    }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
@@ -59,12 +65,12 @@ impl Policy for InternalPolicy {
         todo!()
     }
 }
-impl FrontendPolicy for InternalPolicy {
+impl FrontendPolicy for AuthenticationCookiePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {
-        InternalPolicy {}
+        AuthenticationCookiePolicy {}
     }
     fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self {
-        InternalPolicy {}
+        AuthenticationCookiePolicy {}
     }
 }
 
@@ -74,12 +80,21 @@ impl Policy for WritePolicy {
     fn name(&self) -> String {
         String::from("WritePolicy")
     }
-    fn check(&self, context: &UnprotectedContext) -> bool {
-        type ContextDataOut = <ContextData as AlohomoraType>::Out;
-        let r: &ContextDataOut = context.downcast_ref().unwrap();
-        match r {
-            None => false,
-            Some(user) => user == "admin",
+    fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
+        match reason {
+            Reason::DB(stmt) => {
+                if stmt.starts_with("INSERT") {
+                    type ContextDataOut = <ContextData as AlohomoraType>::Out;
+                    let r: &ContextDataOut = context.downcast_ref().unwrap();
+                    match r {
+                        None => false,
+                        Some(user) => user == "admin",
+                    }
+                } else {
+                    true
+                }
+            },
+            _ => false,
         }
     }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {

@@ -1,7 +1,7 @@
 use std::result::Result;
 use crate::bbox::BBox;
 use crate::context::{Context, ContextData, UnprotectedContext};
-use crate::policy::Policy;
+use crate::policy::{Policy, Reason};
 use crate::rocket::{BBoxRedirect, BBoxTemplate};
 
 use crate::rocket::data::BBoxData;
@@ -67,7 +67,7 @@ impl<'a, 'r, 'o: 'a, T: rocket::response::Responder<'a, 'o>, P: Policy, D: Conte
         let (bbox, context) = (self.0, self.1);
         let (t, p) = bbox.consume();
         let context = UnprotectedContext::from(context);
-        if p.check(&context) {
+        if p.check(&context, Reason::Response) {
             Ok(BBoxResponse::new(t.respond_to(request.get_request())?))
         } else {
             Err(rocket::http::Status {

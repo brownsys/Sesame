@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter, Write};
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, RefPolicy, SchemaPolicy};
+use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
@@ -20,8 +20,8 @@ impl<P: 'static + Policy + Clone> TestPolicy<P> {
 }
 impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
     fn name(&self) -> String { format!("TestPolicy<{}>", self.p.name()) }
-    fn check(&self, context: &UnprotectedContext) -> bool {
-        self.p.check(context)
+    fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
+        self.p.check(context, reason)
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         if other.is::<TestPolicy<P>>() {

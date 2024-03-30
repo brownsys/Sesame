@@ -4,7 +4,7 @@ use std::fmt::Write;
 use either::Either;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
-use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy};
+use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
 
@@ -77,7 +77,7 @@ impl<T, P: Policy> BBox<T, P> {
         arg: C
     ) -> Result<O, ()> {
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context) {
+        if self.p.check(&context, Reason::Custom) {
             let functor = functor.get_functor();
             Ok(functor(&self.t, arg))
         } else {
@@ -91,7 +91,7 @@ impl<T, P: Policy> BBox<T, P> {
         arg: C
     ) -> Result<O, ()> {
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context) {
+        if self.p.check(&context, Reason::Custom) {
             let functor = functor.get_functor();
             Ok(functor(self.t, arg))
         } else {
@@ -228,7 +228,7 @@ mod tests {
         fn name(&self) -> String {
             String::from("ExamplePolicy")
         }
-        fn check(&self, _context: &UnprotectedContext) -> bool {
+        fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
         fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {

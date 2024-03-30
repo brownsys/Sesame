@@ -55,7 +55,7 @@ impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P
 mod tests {
     use crate::r#type::{AlohomoraType, AlohomoraTypeEnum};
     use crate::bbox::BBox;
-    use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy};
+    use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy, Reason};
     use crate::testing::TestPolicy;
 
     use std::collections::{HashSet, HashMap};
@@ -75,7 +75,7 @@ mod tests {
         fn name(&self) -> String {
             format!("ACLPolicy(owners: {:?})", self.owners)
         }
-        fn check(&self, _context: &UnprotectedContext) -> bool { true }
+        fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool { true }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
             if other.is::<ACLPolicy>() {
                 let other = other.specialize::<ACLPolicy>().unwrap();

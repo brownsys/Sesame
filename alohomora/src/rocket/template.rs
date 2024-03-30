@@ -2,6 +2,7 @@ extern crate erased_serde;
 extern crate figment;
 
 use std::borrow::Cow;
+use std::ops::Deref;
 use std::result::Result;
 
 // Our BBox struct.
@@ -22,9 +23,10 @@ impl BBoxTemplate {
         params: &T,
         context: Context<D>,
     ) -> Self {
+        let name = name.into();
         // First turn context into a figment::value::Value.
         let context = UnprotectedContext::from(context);
-        let transformed = params.render().transform(&context).unwrap();
+        let transformed = params.render().transform(name.deref(), &context).unwrap();
         // Now render.
         let template = rocket_dyn_templates::Template::render(name, transformed);
         BBoxTemplate { template }

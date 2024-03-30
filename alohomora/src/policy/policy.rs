@@ -1,10 +1,21 @@
 use crate::context::UnprotectedContext;
 use crate::policy::AnyPolicy;
 
+// Enum describing why/where the policy check is invoked.
+#[derive(Clone, Debug)]
+pub enum Reason<'i> {
+    DB(&'i str /*, &'i BBoxParams */),  // The statement (with ?)
+    TemplateRender(&'i str),            // Template name/path.
+    Cookie(&'i str),                    // Cookie name.
+    Redirect(&'i str),                  // Redirect path (before substitution).
+    Response,                           // Returning a response.
+    Custom,                             // Custom operation (via unbox(..)).
+}
+
 // Public facing Policy traits.
 pub trait Policy {
     fn name(&self) -> String;
-    fn check(&self, context: &UnprotectedContext) -> bool;
+    fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
     // TODO(babman): Stream line join, find way to make join combine inside AndPolicy instead of stacking!
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()>;
     fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized;
@@ -33,7 +44,7 @@ pub trait FrontendPolicy: Policy + Send {
 mod tests {
     use std::collections::{HashSet};
     use crate::context::UnprotectedContext;
-    use crate::policy::{Policy, PolicyAnd, AnyPolicy};
+    use crate::policy::{Policy, PolicyAnd, AnyPolicy, Reason};
 
     #[derive(Clone)]
     pub struct BasicPolicy {
@@ -48,7 +59,7 @@ mod tests {
         fn name(&self) -> String {
             format!("BasicPolicy(owner: {:?})", self.owner)
         }
-        fn check(&self, context: &UnprotectedContext) -> bool {
+        fn check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             &self.owner == context.downcast_ref::<String>().unwrap()
         }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
@@ -79,7 +90,7 @@ mod tests {
         fn name(&self) -> String {
             format!("ACLPolicy(owners: {:?})", self.owners)
         }
-        fn check(&self, context: &UnprotectedContext) -> bool {
+        fn check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             self.owners.contains(context.downcast_ref::<String>().unwrap())
         }
         fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> { 
@@ -124,14 +135,14 @@ mod tests {
             
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));
-        assert!(combined_pol.check(&alice));
-        assert!(specialized.check(&alice));
+        assert!(combined_pol.check(&alice, Reason::Custom));
+        assert!(specialized.check(&alice, Reason::Custom));
 
         // and correct users are disallowed access
         let admin1 = UnprotectedContext::test(String::from(&admin1));
         let admin2 = UnprotectedContext::test(String::from(&admin2));
-        assert!(!combined_pol.check(&admin1));
-        assert!(!combined_pol.check(&admin2));
+        assert!(!combined_pol.check(&admin1, Reason::Custom));
+        assert!(!combined_pol.check(&admin2, Reason::Custom));
         
         println!("Final policy on aggregate of mixed policies: {}", combined_pol.name());
     }
@@ -168,18 +179,18 @@ mod tests {
             
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));
-        assert!(combined_pol1.check(&alice));
-        assert!(combined_pol2.check(&alice));
+        assert!(combined_pol1.check(&alice, Reason::Custom));
+        assert!(combined_pol2.check(&alice, Reason::Custom));
 
         // and correct users are disallowed access
         let admin1 = UnprotectedContext::test(String::from(&admin1));
         let admin2 = UnprotectedContext::test(String::from(&admin2));
 
-        assert!(!combined_pol1.check(&admin1));
-        assert!(!combined_pol2.check(&admin1));
+        assert!(!combined_pol1.check(&admin1, Reason::Custom));
+        assert!(!combined_pol2.check(&admin1, Reason::Custom));
 
-        assert!(!combined_pol1.check(&admin2));
-        assert!(!combined_pol2.check(&admin2));
+        assert!(!combined_pol1.check(&admin2, Reason::Custom));
+        assert!(!combined_pol2.check(&admin2, Reason::Custom));
         
         println!("Final policy from mixed policies: {}", combined_pol1.name());
         println!("Final policy from mixed policies: {}", combined_pol2.name());

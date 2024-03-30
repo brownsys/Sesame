@@ -1,4 +1,4 @@
-use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy};
+use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, Reason};
 
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -17,7 +17,7 @@ impl Policy for ExamplePolicy {
     fn name(&self) -> String {
         String::from("ExamplePolicy")
     }
-    fn check(&self, _: &UnprotectedContext) -> bool {
+    fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         true
     }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {

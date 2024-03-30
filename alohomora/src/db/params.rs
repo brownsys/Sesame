@@ -3,7 +3,7 @@ use mysql::MySqlError;
 use crate::bbox::EitherBBox;
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::db::BBoxParam;
-use crate::policy::{AnyPolicy, Policy};
+use crate::policy::{AnyPolicy, Policy, Reason};
 
 // Our params could be mixed boxed and clear.
 #[derive(Clone)]
@@ -15,7 +15,11 @@ pub enum BBoxParams {
 
 // private helper function.
 impl BBoxParams {
-    pub(super) fn transform<D: ContextData>(self, context: Context<D>) -> Result<mysql::params::Params, mysql::Error> {
+    pub(super) fn transform<D: ContextData>(
+        self,
+        context: Context<D>,
+        reason: Reason,
+    ) -> Result<mysql::params::Params, mysql::Error> {
         let context = UnprotectedContext::from(context);
         match self {
             BBoxParams::Empty => Ok(mysql::params::Params::Empty),
@@ -25,7 +29,7 @@ impl BBoxParams {
                     match v {
                         EitherBBox::Value(v) => unboxed.push(v),
                         EitherBBox::BBox(bbox) => {
-                            if !bbox.policy().check(&context) {
+                            if !bbox.policy().check(&context, reason.clone()) {
                                 return Err(mysql::Error::from(
                                     MySqlError {
                                         state: String::from(""),
@@ -178,7 +182,7 @@ mod tests {
     use crate::bbox::{BBox, EitherBBox};
     use crate::context::Context;
     use crate::db::{BBoxParam, BBoxParams};
-    use crate::policy::{AnyPolicy, NoPolicy};
+    use crate::policy::{AnyPolicy, NoPolicy, Reason};
 
     fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicy>, t: T) -> bool {
         mysql::from_value::<T>(b.data().clone()) == t
@@ -205,7 +209,7 @@ mod tests {
         }
 
         // Test unboxing.
-        let params = params.transform(Context::test(())).unwrap();
+        let params = params.transform(Context::test(()), Reason::Custom).unwrap();
         assert!(matches!(&params, Params::Positional(v) if v.len() == 4));
         if let Params::Positional(vec) = &params {
             assert_eq!(mysql::from_value::<String>(vec[0].clone()), "kinan");

@@ -2,17 +2,16 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use rocket::State;
 use alohomora::bbox::BBox;
-use alohomora::policy::NoPolicy;
 use alohomora::rocket::{BBoxCookie, BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxTemplate, FromBBoxData};
 use crate::application::context::AppContext;
 use crate::application::db::DB;
-use crate::application::policy::WritePolicy;
+use crate::application::policy::{AuthenticationCookiePolicy, WritePolicy};
 
 // Logins in as a user.
 pub async fn login<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {
     let context: AppContext = request.guard().await.unwrap();
 
-    let username: BBox<String, NoPolicy> = request.param(1).unwrap().unwrap();
+    let username: BBox<String, AuthenticationCookiePolicy> = request.param(1).unwrap().unwrap();
     request.cookies().add(BBoxCookie::new("user", username), context).unwrap();
 
     BBoxResponseOutcome::from(request, "success")
@@ -31,8 +30,10 @@ pub async fn post_grade<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>
     // Post them!
     let db: &State<Arc<Mutex<DB>>> = request.guard().await.unwrap();
     let mut db = db.lock().unwrap();
-    db.insert(user, grade, context);
+    let result = db.insert(user, grade, context);
+    drop(db);
 
+    result.unwrap();
     BBoxResponseOutcome::from(request, "success")
 }
 
@@ -45,12 +46,13 @@ pub async fn read_grades<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'
     let mut db = db.lock().unwrap();
 
     // Get user from cookie.
-    let user: BBoxCookie<NoPolicy> = request.cookies().get("user").unwrap();
-    let user: BBox<String, NoPolicy> = user.value().to_owned_policy().into_bbox();
+    let user: BBoxCookie<AuthenticationCookiePolicy> = request.cookies().get("user").unwrap();
+    let user: BBox<String, AuthenticationCookiePolicy> = user.value().to_owned_policy().into_bbox();
 
     // Get grade from post parameter.
     let grades = db.read_by_user(user, context.clone());
     let grades = HashMap::from([("grades", grades)]);
+    drop(db);
 
     BBoxResponseOutcome::from(request, BBoxTemplate::render("grades", &grades, context))
 }
@@ -65,6 +67,7 @@ pub async fn read_all_grades<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxDa
     // Get grade from post parameter.
     let grades = db.read_all(context.clone());
     let grades = HashMap::from([("grades", grades)]);
+    drop(db);
 
     BBoxResponseOutcome::from(request, BBoxTemplate::render("grades", &grades, context))
 }

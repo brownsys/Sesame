@@ -1,7 +1,8 @@
 use crate::bbox::{BBox, EitherBBox};
-use crate::policy::{Policy, RefPolicy};
+use crate::policy::{Policy, Reason, RefPolicy};
 
 use std::string::ToString;
+use crate::context::{Context, ContextData, UnprotectedContext};
 
 // Lightweight: reference to both data and policy.
 type RefEitherParam<'a> = EitherBBox<&'a dyn ToString, RefPolicy<'a, dyn Policy + 'a>>;
@@ -39,9 +40,13 @@ pub struct RedirectParams {
     pub(super) parameters: Vec<String>,
 }
 
+pub trait IntoRedirectParams {
+    fn into<D: ContextData>(self, url: &str, context: Context<D>) -> RedirectParams;
+}
+
 // Can make Params from empty tuple.
-impl From<()> for RedirectParams {
-    fn from(_: ()) -> RedirectParams {
+impl IntoRedirectParams for () {
+    fn into<D: ContextData>(self, _url: &str, _context: Context<D>) -> RedirectParams {
         RedirectParams { parameters: Vec::new() }
     }
 }
@@ -49,13 +54,20 @@ impl From<()> for RedirectParams {
 // Can make params from inlined tuples.
 macro_rules! into_params_impl {
   ($([$A:ident,$a:ident,$l:lifetime]),*) => (
-    impl<$($l,)* $($A: RedirectParam<$l>,)*> From<($($A,)*)> for RedirectParams {
-      fn from(x: ($($A,)*)) -> RedirectParams {
-        let ($($a,)*) = x;
+    impl<$($l,)* $($A: RedirectParam<$l>,)*> IntoRedirectParams for ($($A,)*) {
+      fn into<DD : ContextData>(self, url: &str, context: Context<DD>) -> RedirectParams {
+        let ($($a,)*) = self;
+        let context = UnprotectedContext::from(context);
 
         $(let $a = match $a.get() {
             EitherBBox::Value(v) => v.to_string(),
-            EitherBBox::BBox(b) => b.data().to_string(),
+            EitherBBox::BBox(b) => {
+                if b.policy().check(&context, Reason::Redirect(url)) {
+                    b.data().to_string()
+                } else {
+                    panic!("failed policy check");
+                }
+            },
         };)*
 
         RedirectParams {
