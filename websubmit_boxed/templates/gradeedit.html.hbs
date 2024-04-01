@@ -1,0 +1,15 @@
+{{#*inline "page"}}
+<h1>Lecture {{{ lec_id }}} Grades</h1>
+
+<h2>Edit grade for answer to Question {{{ lec_qnum }}}</h2>
+<h3>Answer: {{{ answer }}}</h3>
+<form action="/grades/editg/{{{ user }}}/{{{ lec_id }}}/{{{ lec_qnum }}}" method="post" accept-charset="utf-8">
+    <p>
+        <label>Grade: <input name="grade" value="{{{ grade }}}" />
+        </label>
+    </p>
+
+    <input type="submit" value="Update grade">
+</form>
+{{/inline}}
+{{~> (parent)~}}

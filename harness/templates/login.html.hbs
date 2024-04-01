@@ -1,0 +1,54 @@
+{{#*inline "page"}}
+    <h1>Welcome to the {{{ CLASS_ID }}} submission system!</h1>
+
+    <h5>Generate API key:</h5>
+    <form action="/apikey/generate" method="post" accept-charset="utf-8">
+        <p>
+            <label>Your email address:
+                <input name="email"/>
+            </label>
+        </p>
+        <p>
+            <label>Your age:
+                <input name="age" type="number"/>
+            </label>
+        </p>
+        <p>
+            <label>Your gender:
+                <input name="gender"/>
+            </label>
+        </p>
+        <p>
+            <label>Your ethnicity:
+                <input name="ethnicity"/>
+            </label>
+        </p>
+        <p>
+            <label>Your education:
+                <input name="education"/>
+            </label>
+        </p>
+        <p>
+            <label>Are you a remote student:
+                <input name="is_remote" type="checkbox"/>
+            </label>
+        </p>
+        <p>
+            <label>Do you consent to your email and grades being shared with employers:
+                <input name="consent" type="checkbox"/>
+            </label>
+        </p>
+        <input type="submit" value="Submit">
+    </form>
+
+    <h5>Log in with API key</h5>
+    <form action="/apikey/check" method="post" accept-charset="utf-8">
+        <label>Your API key:
+            <p>
+                <input name="key"/>
+            </p>
+        </label>
+        <input type="submit" value="Submit">
+    </form>
+{{/inline}}
+{{~> (parent)~}}
