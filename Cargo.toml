@@ -8,7 +8,8 @@ members = [
     "sandbox_example/myapp",
     "sandbox_example/myapp_lib",
     "websubmit",
-    "websubmit-boxed",
+    "websubmit_boxed",
+    "websubmit_boxed_sandboxes",
 ]
 
 [workspace.metadata.dylint]

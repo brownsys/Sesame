@@ -21,7 +21,7 @@ pub fn build_sandbox(env: &Env) {
 
       // Link with produced so.
       println!("cargo:rustc-link-search=native={}", env.out_directory);
-      println!("cargo:rustc-link-lib=dylib=myapp_lib_sandbox");
+      println!("cargo:rustc-link-lib=dylib={}_sandbox", env.lib_name());
       println!("cargo:rustc-link-arg=-Wl,-rpath={}", env.out_directory);
     }
 }

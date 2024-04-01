@@ -70,6 +70,17 @@ impl AlohomoraTypeEnum {
             ),
         }
     }
+
+    // Coerces self into the given type provided it is a Value(...) of that type.
+    pub fn coerce<T: 'static>(self) -> Result<T, ()> {
+        match self {
+            AlohomoraTypeEnum::Value(v) => match v.downcast() {
+                Ok(t) => Ok(*t),
+                Err(_) => Err(()),
+            },
+            _ => Err(()),
+        }
+    }
 }
 
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to

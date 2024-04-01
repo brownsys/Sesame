@@ -10,7 +10,7 @@ pub enum UnboxError {
     PolicyViolation,
 }
 
-pub fn unbox_<S: AlohomoraType, D: ContextData, C, O, F: FnOnce(S::Out, C) -> O>(
+pub fn unbox<S: AlohomoraType, D: ContextData, C, O, F: FnOnce(S::Out, C) -> O>(
     data: S,
     context: Context<D>,
     functor: PrivacyCriticalRegion<F>,

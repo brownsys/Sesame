@@ -1,5 +1,5 @@
 [package]
-name = "websubmit-boxed"
+name = "websubmit_boxed"
 version = "0.1.0"
 authors = ["Malte Schwarzkopf <malte@cs.brown.edu>"]
 edition = "2018"
@@ -19,13 +19,13 @@ mysql_common = "0.22"
 ndarray = "0.15.6"
 rand = "0.8.4"
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
-rust-crypto = "0.2.36"
 slog = { version = "2.4.0", features = ["max_level_trace", "release_max_level_trace"] }
 slog-term = "2.4.0"
 toml = "0.2.1"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
+websubmit_boxed_sandboxes = { path = "../websubmit_boxed_sandboxes" }
 
 [dependencies.rocket_dyn_templates]
 git = "https://github.com/KinanBab/Rocket.git"

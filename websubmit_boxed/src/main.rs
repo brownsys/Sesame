@@ -9,21 +9,6 @@ extern crate slog;
 extern crate serde_derive;
 extern crate slog_term;
 
-
-mod admin;
-mod apikey;
-mod args;
-mod backend;
-mod config;
-mod email;
-mod grades;
-mod helpers;
-mod login;
-mod manage;
-mod policies;
-mod predict;
-mod questions;
-
 use alohomora::policy::NoPolicy;
 use alohomora::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute,
                         get, routes};
@@ -34,7 +19,25 @@ use rocket::State;
 use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
 
-type User = apikey::ApiKey;
+/*
+mod admin;
+ */
+mod apikey;
+mod args;
+mod backend;
+mod config;
+mod email;
+/*
+mod grades;
+mod helpers;
+mod login;
+mod manage;
+*/
+mod policies;
+/*
+mod predict;
+mod questions;
+*/
 
 pub fn new_logger() -> slog::Logger {
     use slog::Drain;
@@ -43,6 +46,7 @@ pub fn new_logger() -> slog::Logger {
     Logger::root(Mutex::new(term_full()).fuse(), o!())
 }
 
+/*
 #[get("/")]
 fn index(cookies: BBoxCookieJar<'_, '_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> BBoxRedirect {
     if let Some(cookie) = cookies.get::<NoPolicy>("apikey") {
@@ -55,6 +59,7 @@ fn index(cookies: BBoxCookieJar<'_, '_>, backend: &State<Arc<Mutex<MySqlBackend>
         BBoxRedirect::to("/login", ())
     }
 }
+*/
 
 #[rocket::main]
 async fn main() {
@@ -84,6 +89,7 @@ async fn main() {
         }
     });
 
+    /*
     if let Err(e) = BBoxRocket::build()
         .attach(template)
         .manage(backend)
@@ -133,4 +139,5 @@ async fn main() {
         println!("Whoops, didn't launch!");
         drop(e);
     };
+    */
 }

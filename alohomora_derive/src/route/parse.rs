@@ -1,5 +1,4 @@
 extern crate proc_macro2;
-extern crate rocket;
 extern crate syn;
 
 use std::marker::PhantomData;
@@ -10,7 +9,7 @@ use proc_macro2::{Ident, Span};
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_str, Lit, Token};
 
-use rocket::http::uri::Origin;
+use rocket_http::uri::Origin;
 
 // A parameter of the form <IDENTIFIER>.
 fn is_dynamic_parameter(s: &str) -> bool {
