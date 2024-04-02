@@ -11,6 +11,7 @@ path = "src/lib.rs"
 [dependencies]
 alohomora_derive = { version = "0.1.0", path = "../alohomora_derive", optional = true }
 alohomora_sandbox = { path = "../alohomora_sandbox" }
+sea-orm = { git = "https://github.com/KinanBab/sea-orm.git", branch = "main", features = [ "sqlx-mysql", "runtime-tokio-native-tls" ] }
 either = "1.10.0"
 futures = "0.3.17"
 serde = { version = "1.0", features = ["derive"] }
@@ -33,6 +34,10 @@ git = "https://github.com/KinanBab/Rocket.git"
 branch = "main"
 #version = "0.1.0-rc.1"
 features = ["handlebars", "tera"]
+
+[dependencies.sea-orm-rocket]
+git = "https://github.com/KinanBab/sea-orm.git"
+branch = "main"
 
 [dependencies.handlebars]
 version = "3.5.5"
