@@ -1,4 +1,5 @@
 mod rocket;
+mod database;
 
 pub use rocket::*;
 
