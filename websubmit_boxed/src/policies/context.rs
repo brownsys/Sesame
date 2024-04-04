@@ -51,7 +51,12 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
                     Context::empty(),
                 );
                 drop(bg);
-                Some(from_value(res[0][0].clone()).unwrap())
+                if res.len() > 0 {
+                    Some(from_value(res[0][0].clone()).unwrap())
+                }
+                else {
+                    None
+                }
             }
         };
 

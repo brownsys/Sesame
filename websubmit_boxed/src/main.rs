@@ -12,7 +12,7 @@ extern crate slog_term;
 use alohomora::policy::NoPolicy;
 use alohomora::rocket::{BBoxCookieJar, BBoxRedirect, BBoxRocket, BBoxRoute,
                         get, routes};
-
+use alohomora::context::Context;
 use backend::MySqlBackend;
 use rocket::fs::FileServer;
 use rocket::State;
@@ -29,8 +29,8 @@ mod config;
 mod email;
 /*
 mod grades;
-mod helpers;
-mod login;
+mod helpers;*/
+mod login;/*
 mod manage;
 */
 mod policies;
@@ -46,20 +46,20 @@ pub fn new_logger() -> slog::Logger {
     Logger::root(Mutex::new(term_full()).fuse(), o!())
 }
 
-/*
+
 #[get("/")]
-fn index(cookies: BBoxCookieJar<'_, '_>, backend: &State<Arc<Mutex<MySqlBackend>>>) -> BBoxRedirect {
+fn index(cookies: BBoxCookieJar<'_, '_>, backend: &State<Arc<Mutex<MySqlBackend>>>, context: Context<policies::ContextData>) -> BBoxRedirect {
     if let Some(cookie) = cookies.get::<NoPolicy>("apikey") {
         let apikey = cookie.into();
-        match apikey::check_api_key(&*backend, &apikey) {
-            Ok(_user) => BBoxRedirect::to("/leclist", ()),
-            Err(_) => BBoxRedirect::to("/login", ()),
+        match apikey::check_api_key(&*backend, &apikey, context) {
+            Ok(_user) => BBoxRedirect::to2("/leclist"),
+            Err(_) => BBoxRedirect::to2("/login"),
         }
     } else {
-        BBoxRedirect::to("/login", ())
+        BBoxRedirect::to2("/login")
     }
 }
-*/
+
 
 #[rocket::main]
 async fn main() {
@@ -89,7 +89,7 @@ async fn main() {
         }
     });
 
-    /*
+    
     if let Err(e) = BBoxRocket::build()
         .attach(template)
         .manage(backend)
@@ -102,14 +102,14 @@ async fn main() {
             "/js",
             BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
         )
-        .mount("/", routes![index])
+        .mount("/", routes![index])/*
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
-        )
+        )*/
         .mount("/apikey/check", routes![apikey::check])
         
-        .mount("/apikey/generate", routes![apikey::generate])
+        .mount("/apikey/generate", routes![apikey::generate])/* 
         .mount(
             "/grades",
             routes![grades::grades, grades::editg, grades::editg_submit],
@@ -120,8 +120,8 @@ async fn main() {
             "/predict",
             routes![predict::predict, predict::predict_grade],
         )
-        
-        .mount("/login", routes![login::login])
+        */
+        .mount("/login", routes![login::login])/*
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
@@ -132,12 +132,12 @@ async fn main() {
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
         .mount("/manage/users", routes![manage::get_aggregate_grades])
-        
+        */
         .launch()
         .await
     {
         println!("Whoops, didn't launch!");
         drop(e);
     };
-    */
+    
 }

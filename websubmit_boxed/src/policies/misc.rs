@@ -5,7 +5,7 @@ use alohomora::context::UnprotectedContext;
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
 
 #[derive(Clone)]
-#[schema_policy(table = "email", column = 0)]
+#[schema_policy(table = "users", column = 0)]
 pub struct QueryableOnly {}
 
 // Content of answer column can only be accessed by:

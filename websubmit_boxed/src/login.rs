@@ -9,9 +9,9 @@ use crate::config::Config;
 use crate::policies::ContextData;
 
 #[get("/")]
-pub(crate) fn login(config: &State<Config>, context: Context<ApiKey, ContextData>,) -> BBoxTemplate {
+pub(crate) fn login(config: &State<Config>, context: Context<ContextData>,) -> BBoxTemplate {
     let mut ctx = HashMap::new();
     ctx.insert("CLASS_ID", config.class.clone());
     ctx.insert("parent", String::from("layout"));
-    BBoxTemplate::render("login", &ctx, &context)
+    BBoxTemplate::render("login", &ctx, context)
 }
