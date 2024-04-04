@@ -57,11 +57,11 @@ char* invoke_sandbox_{sandbox}_c(const char* arg) \{
 
   // Copy param into sandbox.
   size_t size = strlen(arg) + 1;
-  tainted_myapp_lib<char*> tainted_arg = sandbox.malloc_in_sandbox<char>(size);
+  tainted_{name}<char*> tainted_arg = sandbox.malloc_in_sandbox<char>(size);
   strncpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
 
   // Invoke sandbox.
-  tainted_myapp_lib<char*> tainted_result = sandbox.invoke_sandbox_function({sandbox}_sandbox, tainted_arg);
+  tainted_{name}<char*> tainted_result = sandbox.invoke_sandbox_function({sandbox}_sandbox, tainted_arg);
   char* buffer = tainted_result.INTERNAL_unverified_safe();
 
   // Copy output to our memory.

@@ -40,6 +40,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
     match metadata(rlbox_wasm2c_sandbox_path.clone()) {
         Ok(metadata) => {
             if metadata.is_dir() {
+                warn!("\x1b[96mnote: \x1b[97mPulling rlbox....\x1b[0m");
                 // Already cloned, pull.
                 let status = Command::new("git")
                     .current_dir(&rlbox_wasm2c_sandbox_path)
@@ -54,6 +55,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
             }
         },
         Err(_) => {
+            warn!("\x1b[96mnote: \x1b[97mCloning rlbox....\x1b[0m");
             // Clone.
             let status = Command::new("git")
                 .arg("clone")
@@ -79,6 +81,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
 
     // Repo is cloned, and cmake is configured.
     // Build with cmake.
+    warn!("\x1b[96mnote: \x1b[97mBuilding rlbox....\x1b[0m");
     let status = Command::new("cmake")
         .current_dir(&rlbox_wasm2c_sandbox_path)
         .args(["--build", "./build", "--target", "all"])
