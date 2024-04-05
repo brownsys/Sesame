@@ -32,14 +32,15 @@ declare_alohomora_lint!(
     pub <LINT_NAME>,
     Deny, // does not allow ignoring lint via command line
     "BRIEF DESCRIPTION OF LINT",
-    <function_name>
+    <function_name(function_args)>
 );
 ```
 
-For each declared lint, the mod must contain a function with the same name provided while declaring the lint.
-The function must have this signature:
+For each declared lint, the mod must contain a `check_*` method from the [LateLintPass](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint/trait.LateLintPass.html) trait, excluding the `*mut self` argument. 
+To implement the trait, which has this signature: `check_expr(&mut self, _: &LateContext<'tcx>, _: &'tcx Expr<'tcx>)`, 
+the mod would contain the following:
 ```rust
-fn function_name(cx: &LateContext<'_>) {
+fn check_expr(cx: &LateContext<'_>, expr: &'_ rustc_hir::Expr<'_>) {
     // ...
 }
 ```
@@ -98,3 +99,18 @@ pub struct GoodStruct {
     // ...
 }
 ```
+
+## AlohomoraPCR
+### What it does
+Warns if PrivacyCriticalRegions have invalid signatures. 
+
+### Why is this bad?
+Closures in PrivacyCriticalRegions must be signed to indicate they have been 
+reviewed and do not pose privacy risks. 
+
+An invalidated signature indicates that the PCR closure or a function
+the closure calls has changed since the last signature. 
+
+### Known problems
+Functions from external crates called within the PCR are not included in the hash of the closure, 
+so changes in an external crate will not invalidate the signature. 
