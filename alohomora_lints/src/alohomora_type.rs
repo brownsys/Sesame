@@ -25,7 +25,7 @@ declare_alohomora_lint!(
     pub ALOHOMORA_TYPE,
     Deny, // does not allow override
     "AlohomoraType must always be derived, not user-implemented",
-    check_alohomora_type_derived
+    check_crate(cx: &LateContext<'_>)
 );
 
 // Check if def_id has the doc attribute we use to detect derived implementations.
@@ -59,7 +59,7 @@ fn error_message(cx: &LateContext<'_>, &def_id: &DefId) {
 }
 
 // Lint implementation
-fn check_alohomora_type_derived(cx: &LateContext<'_>) {
+fn check_crate(cx: &LateContext<'_>) {
     let path: &[&str] = &vec!["alohomora", "AlohomoraType"];
     let aloh_ty_def_id = get_trait_def_id(cx, path);
     if aloh_ty_def_id.is_none() {
@@ -90,4 +90,3 @@ fn alohomora_type_illegal() {
         "alohomora_type_illegal"
     );
 }
-

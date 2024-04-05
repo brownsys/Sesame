@@ -28,12 +28,12 @@ path = "examples/alohomora_sandbox_legal.rs"
 [dependencies]
 base64 = "0.22.0"
 paste = "1.0"
-# clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "b105fb4c39bc1a010807a6c076193cef8d93c109" }
 clippy_utils = { git = "https://github.com/artemagvanian/rust-clippy-nightly-2023-04-12", rev = "88cd75c5ecb95c4dfbe8ebc4dd5732edd8652ed8" }
 dylint_linting = "2.5.0"
 if_chain = "1.0.2"
 reqwest = { version = "0.12.2", features = ["blocking"] }
 scrutils = { path = "../../alohomora-sign/scrutinizer/scrutils" }
+# TODO change scrutils dep to git = "https://github.com/artemagvanian/scrutinizer.git"
 
 [dev-dependencies]
 dylint_testing = "2.5.0"
