@@ -114,3 +114,30 @@ the closure calls has changed since the last signature.
 ### Known problems
 Functions from external crates called within the PCR are not included in the hash of the closure, 
 so changes in an external crate will not invalidate the signature. 
+
+## Creating a PrivacyCriticalRegion signature
+Each PCR signature is unique to the closure it signs. We use ssh-keygen to sign and verify the signed file. 
+
+To create an author or reviewer Signature, run the `alohomora_pcr` lint with an empty string in the signature field.
+The lint will fail and output a file containing the hash of the MIR of the closure. 
+
+The hash of a PrivacyCriticalRegion found on line 6 of bar/src/main.rs will appear in a file of the form 
+`pcr/bar_src_main.rs:6:51:-6:78_hash_1712321871914.rs`. 
+
+Now, run the `sign.sh` script.
+The arguments are the path to a private key linked with your Github and a text file containing the hash of the closure to sign. 
+<!--- Make code --->
+    ./sign.sh /Users/name/.ssh/id_ed25519 src/pcr/hash_file.rs
+
+The `alohomora::pcr::Signature` struct takes as arguments a github username and the PCR-specific signature. 
+Copy-paste the encrypted signature from the generated file into the Signature struct. 
+
+```rust
+Signature {
+    username: "gituser", 
+    signature: "LS0tLS1CRUdJTiBTU0ggU0lHTkFUVVJFLS0tLS0KVTFOSVUwbEhBQUFBQVFBQUFETUFBQUFMYzNOb0xXVmtNalUxTVRrQUFBQWd6dGJjeE9zVzlOL09Fd2c3Y3BKZ3dUQnFMNgpGazI2ZVB2Rm1ZaXpRRjM1VUFBQUFFWm1sc1pRQUFBQUFBQUFBR2MyaGhOVEV5QUFBQVV3QUFBQXR6YzJndFpXUXlOVFV4Ck9RQUFBRUNqRStac3YzcUhROG8zL1ZOVmxacVB5MzV4REI3Ti9FVkljaFB4bllXZWFqQjQ4WC9Dc1VpcG1RN0N2RHNucXkKV1REandZVHlVUThxUWJMR0VCelJzRwotLS0tLUVORCBTU0ggU0lHTkFUVVJFLS0tLS0K"}
+```
+
+Changing the source code of the PCR will invalidate the previous signature. 
+
+Currently, Signatures must be declared inline with the PrivacyCriticalRegion declaration.
