@@ -61,7 +61,6 @@ declare_alohomora_lint! {
     check_expr(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Expr<'_>)
 }
 
-//impl<'tcx> LateLintPass<'tcx> for SignatureLint {
 fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Expr<'_>) {
     let fn_path: Vec<Symbol> = vec![
         sym!(alohomora),
@@ -195,8 +194,6 @@ fn extract_from_signature_struct(maybe_struct: &ExprKind) -> (String, String) {
     }
 }
 
-
-// TODO(corinn) alternate Cargo.lock formats?
 //Recursively finds the path to the innermost Cargo.lock file
 fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> { 
     let cargo_lock_path = directory.join("Cargo.lock");
@@ -213,8 +210,9 @@ fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> {
     }
 }
 
-// Given the lint pass's TyCtxt, 
-// returns the StableHash of the contents of the Cargo.lock of the cwd
+/* Given the lint pass's TyCtxt, 
+    returns the StableHash of the contents of the Cargo.lock of the cwd 
+*/
 fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
     let cwd = std::env::current_dir().unwrap(); 
     let toml_path = get_cargo_lock(cwd).unwrap(); 
@@ -246,7 +244,6 @@ fn get_mir_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let storage = collector.get_function_info_storage();
     let functions = storage.all();
 
-    // StableHasher is always instantiated with the same State -> deterministic hash
     let mut hcx = StableHashingContext::new(tcx.sess, tcx.untracked());
     let mut hasher = StableHasher::new();
 
