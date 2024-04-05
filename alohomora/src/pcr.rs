@@ -8,7 +8,10 @@ pub struct PrivacyCriticalRegion<F> {
     f: F,
 }
 impl<F> PrivacyCriticalRegion<F> {
-    pub const fn new(f: F) -> Self {
+    pub const fn new(f: F,
+                    _author: Signature, 
+                    _fn_reviewer: Signature, 
+                    _cargo_lock_reviewer: Signature) -> Self {
         PrivacyCriticalRegion { f }
     }
     pub fn get_functor(self) -> F {
@@ -26,6 +29,13 @@ pub fn execute_pcr<S: AlohomoraType, C, O, F: FnOnce(S::Out, AnyPolicy, C) -> O>
     let functor = functor.get_functor();
     Ok(functor(t, p, arg))
 }
+
+pub struct Signature {
+    pub username: &'static str,
+    pub signature: &'static str,
+}
+
+//TODO updated macro instructions w/ both author and reviewer & username and signature
 
 /*
 // Example of how to use this with a function definition.

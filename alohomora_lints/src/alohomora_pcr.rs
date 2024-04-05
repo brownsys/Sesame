@@ -1,4 +1,3 @@
-#![feature(rustc_private)]
 #![warn(unused_extern_crates)]
 
 extern crate rustc_ast;
@@ -12,7 +11,6 @@ use clippy_utils::diagnostics::span_lint_and_help;
 use clippy_utils::sym;
 
 use rustc_ast::ast::LitKind;
-use rustc_lint::LateLintPass;
 use rustc_span::symbol::Symbol;
 
 use rustc_hir::def::Res;
@@ -28,7 +26,7 @@ use base64::{engine::general_purpose, Engine as _};
 use if_chain::if_chain;
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -74,7 +72,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
 
     if let ExprKind::Call(maybe_path, args) = &expr.kind {
         if is_fn_call(cx, maybe_path, fn_path) {
-            assert!(args.len() == 3); // 3 args to constructor of PrivacyCriticalRegion
+            assert!(args.len() == 4); // 4 args to constructor of PrivacyCriticalRegion
             if let ExprKind::Closure(closure) = args[0].kind {
                 let closure_body = cx.tcx.hir().body(closure.body);
                 let pcr_src = cx
@@ -83,52 +81,59 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     .source_map()
                     .span_to_snippet(closure_body.value.span)
                     .unwrap();
+                let cargo_lock_hash = get_cargo_lock_hash(cx.tcx); 
                 let pcr_hash = get_mir_hash(cx.tcx, closure);
 
                 //These args to PrivacyCriticalRegion::new will be of type Signature
                 let author = extract_from_signature_struct(&args[1].kind);
-                let reviewer = extract_from_signature_struct(&args[2].kind);
+                let fn_reviewer = extract_from_signature_struct(&args[2].kind);
+                let cargo_lock_reviewer = extract_from_signature_struct(&args[3].kind);
 
-                let author_identity_checked = check_identity(&pcr_hash, &author);
-                let reviewer_identity_checked = check_identity(&pcr_hash, &reviewer);
+                let author_id_check = check_identity(&pcr_hash, &author);
+                let fn_reviewer_id_check = check_identity(&pcr_hash, &fn_reviewer);
+                let cargo_lock_reviewer_id_check = check_identity(&cargo_lock_hash, &cargo_lock_reviewer);
 
-                if author_identity_checked.is_err() || reviewer_identity_checked.is_err() {
+                if author_id_check.is_err() 
+                    || fn_reviewer_id_check.is_err()
+                    || cargo_lock_reviewer_id_check.is_err() {
+
                     let mut help_msg = String::new();
-                    push_id_error(&mut help_msg, "author", author_identity_checked);
-                    push_id_error(&mut help_msg, "reviewer", reviewer_identity_checked);
+                    push_id_error(&mut help_msg, "Cargo.lock reviewer", &cargo_lock_reviewer_id_check);
+                    push_id_error(&mut help_msg, "author", &author_id_check);
+                    push_id_error(&mut help_msg, "closure reviewer", &fn_reviewer_id_check);
 
-                    let file_loc = cx
-                        .tcx
-                        .sess
-                        .source_map()
-                        .span_to_diagnostic_string(closure_body.value.span)
-                        .replace("/", "_")
-                        .replace(" ", "-");
-
-                    // add timestamp to avoid overwriting between runs or matching filepaths after substitutions
-                    let timestamp = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis();
-
-                    let pcr_file_name = format!("./pcr/{}_{}.rs", file_loc, timestamp);
-                    let hash_file_name = format!("./pcr/{}_hash_{}.rs", file_loc, timestamp);
-
-                    help_msg.push_str(
-                        format!(
-                            "written the hash of privacy-critical region into the file for signing: {}",
-                            hash_file_name
-                        )
-                        .as_str(),
-                    );
+                    let fn_loc = cx
+                            .tcx
+                            .hir()
+                            .def_path(closure.def_id) 
+                            .to_filename_friendly_no_crate(); 
 
                     if !Path::exists("./pcr/".as_ref()) {
                         fs::create_dir("./pcr/").unwrap();
                     }
-
-                    fs::write(pcr_file_name, pcr_src).unwrap();
-                    fs::write(hash_file_name, pcr_hash).unwrap();
-
+                    if cargo_lock_reviewer_id_check.is_err(){
+                        let timestamp = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis();
+                        let cargo_lock_file_name = format!("./pcr/Cargo.lock_hash_{}", timestamp);
+                        help_msg.push_str(
+                            format!("written the hash of Cargo.lock into the file for signing: {}",
+                                    cargo_lock_file_name
+                            ).as_str());
+                        fs::write(cargo_lock_file_name, cargo_lock_hash).unwrap();
+                    } 
+                    if author_id_check.is_err() || fn_reviewer_id_check.is_err() {
+                        let pcr_file_name = format!("./pcr/{}.rs", fn_loc);
+                        let hash_file_name = format!("./pcr/{}_hash.rs", fn_loc);
+                        help_msg.push_str(
+                            format!(
+                                "written the hash of privacy-critical region into the file for signing: {}",
+                                hash_file_name
+                            ).as_str());
+                        fs::write(pcr_file_name, pcr_src).unwrap();
+                        fs::write(hash_file_name, pcr_hash).unwrap();
+                    }
                     span_lint_and_help(
                         cx,
                         ALOHOMORA_PCR,
@@ -144,7 +149,6 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
         }
     }
 }
-//}
 
 // Returns true if the given Expression is of ExprKind::Path & path resolves to given fn_pat
 fn is_fn_call(cx: &rustc_lint::LateContext, maybe_path: &Expr, fn_path: Vec<Symbol>) -> bool {
@@ -191,6 +195,40 @@ fn extract_from_signature_struct(maybe_struct: &ExprKind) -> (String, String) {
     }
 }
 
+
+// TODO(corinn) alternate Cargo.lock formats?
+//Recursively finds the path to the innermost Cargo.lock file
+fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> { 
+    let cargo_lock_path = directory.join("Cargo.lock");
+    if cargo_lock_path.is_file() {
+        Ok(cargo_lock_path) 
+    } else {
+        match directory.parent() {
+            Some(parent_dir) => {
+                assert!(parent_dir != directory); 
+                get_cargo_lock(parent_dir.to_path_buf())
+            }, 
+            None => Err(format!("No Cargo.lock found in {}", directory.display()))
+        }
+    }
+}
+
+// Given the lint pass's TyCtxt, 
+// returns the StableHash of the contents of the Cargo.lock of the cwd
+fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
+    let cwd = std::env::current_dir().unwrap(); 
+    let toml_path = get_cargo_lock(cwd).unwrap(); 
+    let toml_contents = fs::read_to_string(toml_path).unwrap(); 
+    
+    let mut hcx = StableHashingContext::new(tcx.sess, tcx.untracked());
+    let mut hasher = StableHasher::new();
+    toml_contents.hash_stable(&mut hcx, &mut hasher);
+
+    let hash_tuple: (u64, u64) = hasher.finalize();
+    let toml_hash = format!("{:x} {:x}", hash_tuple.0, hash_tuple.1);
+    toml_hash
+}  
+
 // Given a Closure, returns the (String) StableHash of its MIR Body
 fn get_mir_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let def_id: rustc_hir::def_id::DefId = closure.def_id.to_def_id();
@@ -223,8 +261,6 @@ fn get_mir_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
             );
         body.hash_stable(&mut hcx, &mut hasher);
     }
-
-    //TODO hash contents of Cargo.lock in order to catch dependency changes outside of crate
 
     let hash_tuple: (u64, u64) = hasher.finalize();
     let mir_hash = format!("{:x} {:x}", hash_tuple.0, hash_tuple.1);
@@ -280,25 +316,39 @@ fn get_github_keys(username: &String) -> String {
         .unwrap()
 }
 
-fn push_id_error(msg: &mut String, id: &str, res: Result<(), String>) {
+fn push_id_error(msg: &mut String, id: &str, res: &Result<(), String>) {
     if res.is_err() {
         msg.push_str(
             format!(
                 "could not verify {}'s signature: {}\n",
                 id,
-                res.unwrap_err().trim()
+                res.as_ref().unwrap_err().trim()
             )
-            .as_str(),
-        );
+            .as_str());
     }
 }
 
-/* //TODO(corinn) tests
+//TODO(corinn) tests
 #[test]
-fn ui() {
-    dylint_testing::ui_test(
+fn alohomora_sandbox_legal() {
+    dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("ui"),
+        "basic_call_legal"
     );
 }
-*/
+
+#[test]
+fn alohomora_sandbox_legal() {
+    dylint_testing::ui_test_example(
+        env!("CARGO_PKG_NAME"),
+        "basic_call_legal"
+    );
+}
+
+#[test]
+fn alohomora_sandbox_legal() {
+    dylint_testing::ui_test_example(
+        env!("CARGO_PKG_NAME"),
+        "basic_call_legal"
+    );
+}
