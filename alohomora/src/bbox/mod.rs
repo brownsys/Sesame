@@ -4,7 +4,7 @@ mod either;
 
 pub use bbox_render::*;
 pub use bbox_type::*;
-pub use either::*;
+pub use self::either::*;
 
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::{BBoxRender};
