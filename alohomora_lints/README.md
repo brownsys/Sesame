@@ -111,7 +111,7 @@ reviewed and do not pose privacy risks.
 An invalidated signature indicates that the PCR closure or a function
 the closure calls has changed since the last signature. 
 
-### Known problems
+### Known problems 
 Functions from external crates called within the PCR are not included in the hash of the closure, 
 so changes in an external crate will not invalidate the signature. 
 
@@ -140,4 +140,4 @@ Signature {
 
 Changing the source code of the PCR will invalidate the previous signature. 
 
-Currently, Signatures must be declared inline with the PrivacyCriticalRegion declaration.
+Both the closure and Signatures must be instantiated inline in the PrivacyCriticalRegion declaration.
