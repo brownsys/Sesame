@@ -325,12 +325,11 @@ fn push_id_error(msg: &mut String, id: &str, res: &Result<(), String>) {
     }
 }
 
-//TODO(corinn) tests
 #[test]
 fn alohomora_pcr_basic_call_legal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "basic_call_legal"
+        "alohomora_pcr_basic_call_legal"
     );
 }
 
@@ -338,14 +337,22 @@ fn alohomora_pcr_basic_call_legal() {
 fn alohomora_pcr_blank_signature_illegal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "blank_signature_illegal"
+        "alohomora_pcr_blank_signature_illegal"
     );
 }
 
 #[test]
-fn alohomora_pcr_copied_signature_legal() {
+fn alohomora_pcr_copied_signature_illegal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "copied_signature_illegal"
+        "alohomora_pcr_copy_signature_illegal"
+    );
+}
+
+#[test]
+fn alohomora_pcr_fn_changes_illegal() {
+    dylint_testing::ui_test_example(
+        env!("CARGO_PKG_NAME"),
+        "alohomora_pcr_fn_changes_illegal"
     );
 }
