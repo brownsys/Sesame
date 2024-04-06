@@ -117,7 +117,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                             .as_millis();
                         let cargo_lock_file_name = format!("./pcr/Cargo.lock_hash_{}", timestamp);
                         help_msg.push_str(
-                            format!("written the hash of Cargo.lock into the file for signing: {}",
+                            format!("written the hash of Cargo.lock into the file for signing: {}\n",
                                     cargo_lock_file_name
                             ).as_str());
                         fs::write(cargo_lock_file_name, cargo_lock_hash).unwrap();
@@ -127,7 +127,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                         let hash_file_name = format!("./pcr/{}_hash.rs", fn_loc);
                         help_msg.push_str(
                             format!(
-                                "written the hash of privacy-critical region into the file for signing: {}",
+                                "written the hash of privacy-critical region into the file for signing: {}\n",
                                 hash_file_name
                             ).as_str());
                         fs::write(pcr_file_name, pcr_src).unwrap();
@@ -137,7 +137,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                         cx,
                         ALOHOMORA_PCR,
                         expr.span,
-                        "badly-signed privacy-critical region, might be a source of privacy-related bugs",
+                        "\x1b[93mbadly-signed privacy-critical region, might be a source of privacy-related bugs\x1b[0m",
                         None,
                         help_msg.as_str()
                     );
