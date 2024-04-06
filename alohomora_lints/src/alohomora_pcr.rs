@@ -86,18 +86,18 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                 //These args to PrivacyCriticalRegion::new will be of type Signature
                 let author = extract_from_signature_struct(&args[1].kind);
                 let fn_reviewer = extract_from_signature_struct(&args[2].kind);
-                let cargo_lock_reviewer = extract_from_signature_struct(&args[3].kind);
+                let dependency_reviewer = extract_from_signature_struct(&args[3].kind);
 
                 let author_id_check = check_identity(&pcr_hash, &author);
                 let fn_reviewer_id_check = check_identity(&pcr_hash, &fn_reviewer);
-                let cargo_lock_reviewer_id_check = check_identity(&cargo_lock_hash, &cargo_lock_reviewer);
+                let dependency_reviewer_id_check = check_identity(&cargo_lock_hash, &dependency_reviewer);
 
                 if author_id_check.is_err() 
                     || fn_reviewer_id_check.is_err()
-                    || cargo_lock_reviewer_id_check.is_err() {
+                    || dependency_reviewer_id_check.is_err() {
 
                     let mut help_msg = String::new();
-                    push_id_error(&mut help_msg, "Cargo.lock reviewer", &cargo_lock_reviewer_id_check);
+                    push_id_error(&mut help_msg, "Cargo.lock reviewer", &dependency_reviewer_id_check);
                     push_id_error(&mut help_msg, "author", &author_id_check);
                     push_id_error(&mut help_msg, "closure reviewer", &fn_reviewer_id_check);
 
@@ -110,7 +110,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     if !Path::exists("./pcr/".as_ref()) {
                         fs::create_dir("./pcr/").unwrap();
                     }
-                    if cargo_lock_reviewer_id_check.is_err(){
+                    if dependency_reviewer_id_check.is_err(){
                         let timestamp = SystemTime::now()
                             .duration_since(UNIX_EPOCH)
                             .unwrap()
@@ -194,7 +194,7 @@ fn extract_from_signature_struct(maybe_struct: &ExprKind) -> (String, String) {
     }
 }
 
-//Recursively finds the path to the innermost Cargo.lock file
+// Recursively finds the path to the innermost Cargo.lock file
 fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> { 
     let cargo_lock_path = directory.join("Cargo.lock");
     if cargo_lock_path.is_file() {
@@ -327,7 +327,7 @@ fn push_id_error(msg: &mut String, id: &str, res: &Result<(), String>) {
 
 //TODO(corinn) tests
 #[test]
-fn alohomora_sandbox_legal() {
+fn alohomora_pcr_basic_call_legal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
         "basic_call_legal"
@@ -335,17 +335,17 @@ fn alohomora_sandbox_legal() {
 }
 
 #[test]
-fn alohomora_sandbox_legal() {
+fn alohomora_pcr_blank_signature_illegal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "basic_call_legal"
+        "blank_signature_illegal"
     );
 }
 
 #[test]
-fn alohomora_sandbox_legal() {
+fn alohomora_pcr_copied_signature_legal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "basic_call_legal"
+        "copied_signature_illegal"
     );
 }
