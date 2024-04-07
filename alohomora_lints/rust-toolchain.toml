@@ -1,5 +1,10 @@
-# Tool chain for WASM sandboxing
+# Toolchain for scrutils + dylint 2.5.0
 [toolchain]
-channel = "nightly-2023-10-06"
+channel = "nightly-2023-04-12"
 components = ["rust-src", "llvm-tools-preview", "rustc-dev"]
+
+# Tool chain for WASM sandboxing
+# [toolchain]
+# channel = "nightly-2023-10-06"
+# components = ["rust-src", "llvm-tools-preview", "rustc-dev"]
 
