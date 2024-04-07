@@ -1,8 +1,8 @@
 mod cookie;
 mod data;
 mod form;
+mod json;
 mod redirect;
-
 mod redirect_parameters;
 mod request;
 mod response;
@@ -13,6 +13,7 @@ mod template;
 pub use crate::rocket::cookie::*;
 pub use crate::rocket::data::*;
 pub use crate::rocket::form::*;
+pub use crate::rocket::json::*;
 pub use crate::rocket::redirect::*;
 pub use crate::rocket::redirect_parameters::*;
 pub use crate::rocket::request::*;
