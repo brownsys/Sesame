@@ -5,7 +5,7 @@ use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
 use alohomora::bbox::BBox;
 use alohomora::context::{Context, UnprotectedContext};
-use alohomora::rocket::{BBoxData, BBoxJson, BBoxRequest, BBoxResponseOutcome, BBoxRocket, FromBBoxData, FromBBoxJson, InputBBoxValue, JsonResponse, OutputBBoxValue};
+use alohomora::rocket::{BBoxData, BBoxJson, BBoxRequest, BBoxResponseOutcome, BBoxRocket, FromBBoxData, InputBBoxValue, JsonResponse, OutputBBoxValue, RequestBBoxJson, ResponseBBoxJson};
 use alohomora::test_route;
 use alohomora::testing::{BBoxClient, TestPolicy};
 
@@ -43,21 +43,20 @@ struct MyJsonData {
     pub id: BBox<u64, TestPolicy<UserPolicy>>,
     pub email: BBox<String, TestPolicy<NoPolicy>>,
 }
-impl FromBBoxJson for MyJsonData {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> {
-        let mut obj = value.into_object()?;
-        let id = obj.remove("id").ok_or("Bad JSON")?;
-        let email = obj.remove("email").ok_or("Bad JSON")?;
+impl RequestBBoxJson for MyJsonData {
+    fn from_json(mut value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> {
         Ok(MyJsonData {
-            id: id.into_u64(request)?,
-            email: email.into_string(request)?,
+            id: value.get("id")?.into_json(request)?,
+            email: value.get("email")?.into_json(request)?,
         })
     }
-    fn to_json(self) -> Result<OutputBBoxValue, &'static str> {
-        Ok(OutputBBoxValue::Object(HashMap::from([
-            (String::from("id"), OutputBBoxValue::BBox(self.id.into_any_policy().into_bbox())),
-            (String::from("email"), OutputBBoxValue::BBox(self.email.into_any_policy().into_bbox())),
-        ])))
+}
+impl ResponseBBoxJson for MyJsonData {
+    fn to_json(self) -> OutputBBoxValue {
+        OutputBBoxValue::Object(HashMap::from([
+            (String::from("id"), self.id.to_json()),
+            (String::from("email"), self.email.to_json()),
+        ]))
     }
 }
 

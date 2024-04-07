@@ -6,13 +6,14 @@ use quote::{quote, quote_spanned};
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parse_macro_input, DeriveInput, Expr, ItemFn, ItemStruct};
+
 mod form;
 mod policy;
 mod render;
 mod route;
 mod alohomora_type;
-
 mod sandbox;
+mod json;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
@@ -95,4 +96,22 @@ pub fn AlohomoraSandbox(_args: TokenStream, input: TokenStream) -> TokenStream {
     let additional: TokenStream = sandbox::sandbox_impl(parsed).into();
     result.extend(additional.into_iter());
     result
+}
+
+#[proc_macro_derive(RequestBBoxJson)]
+pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    match json::request_impl(input) {
+        Ok(tokens) => tokens.into(),
+        Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
+    }
+}
+
+#[proc_macro_derive(ResponseBBoxJson, attributes(response_bbox_json))]
+pub fn dervie_response_bbox_json(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    match json::response_impl(input) {
+        Ok(tokens) => tokens.into(),
+        Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
+    }
 }
