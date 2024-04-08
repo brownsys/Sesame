@@ -106,14 +106,16 @@ Warns if PrivacyCriticalRegions have invalid signatures.
 
 ### Why is this bad?
 Closures in PrivacyCriticalRegions must be signed to indicate they have been 
-reviewed and do not pose privacy risks. 
+reviewed and are believed to not pose privacy risks. 
 
 An invalidated signature indicates that the PCR closure or a function
 the closure calls has changed since the last signature. 
 
 ### Known problems 
+Changing the values of statics and constants that are used within a PCR will not invalidate the signature.
+
 Functions from external crates called within the PCR are not included in the hash of the closure, 
-so changes in an external crate will not invalidate the signature. 
+so changes in an external crate will not invalidate the signature. The signature on the hash of the Cargo.lock indicates that the use external dependencies within the PCR are trusted. 
 
 ## Creating a PrivacyCriticalRegion signature
 Each PCR signature is unique to the closure it signs. We use ssh-keygen to sign and verify the signed file. 
@@ -121,16 +123,24 @@ Each PCR signature is unique to the closure it signs. We use ssh-keygen to sign 
 To create an author or reviewer Signature, run the `alohomora_pcr` lint with an empty string in the signature field.
 The lint will fail and output a file containing the hash of the MIR of the closure. 
 
-The hash of a PrivacyCriticalRegion found on line 6 of bar/src/main.rs will appear in a file of the form 
-`pcr/bar_src_main.rs:6:51:-6:78_hash_1712321871914.rs`. 
+The hash of a PrivacyCriticalRegion in a function named `data_processing` will appear in a file of the form `pcr/data_processing-{closure#0}_hash.rs`
 
-Now, run the `sign.sh` script.
+The code snippet of the closure will appear in another file for reference. 
+
+Now, run the sign.sh script:
+<!--- Make code --->
+    #!/bin/bash
+
+    ssh-keygen -Y sign -f $1 -n file $2
+    base64 -i "$2.sig" -o "$2.sig.base"
+
 The arguments are the path to a private key linked with your Github and a text file containing the hash of the closure to sign. 
 <!--- Make code --->
     ./sign.sh /Users/name/.ssh/id_ed25519 src/pcr/hash_file.rs
 
-The `alohomora::pcr::Signature` struct takes as arguments a github username and the PCR-specific signature. 
-Copy-paste the encrypted signature from the generated file into the Signature struct. 
+The `alohomora::pcr::Signature` struct takes as arguments a github username, the PCR-specific signature, and a signature on the hash of the Cargo.lock. 
+
+Copy-paste the appropriate encrypted signature from the generated file into each Signature struct. 
 
 ```rust
 Signature {
