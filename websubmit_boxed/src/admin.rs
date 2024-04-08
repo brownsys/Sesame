@@ -55,11 +55,11 @@ struct LecAddContext {
 }
 
 #[get("/")]
-pub(crate) fn lec_add(context: Context<ApiKey, ContextData>) -> BBoxTemplate {
+pub(crate) fn lec_add(context: Context<ContextData>) -> BBoxTemplate {
     let ctx = LecAddContext {
         parent: "layout".into(),
     };
-    BBoxTemplate::render("admin/lecadd", &ctx, &context)
+    BBoxTemplate::render("admin/lecadd", &ctx, context)
 }
 
 #[derive(Debug, FromBBoxForm)]
@@ -72,6 +72,7 @@ pub(crate) struct AdminLecAdd {
 pub(crate) fn lec_add_submit(
     data: BBoxForm<AdminLecAdd>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
 ) -> BBoxRedirect {
     let data = data.into_inner();
 
@@ -82,17 +83,18 @@ pub(crate) fn lec_add_submit(
     bg.insert(
         "lectures",
         (lec_id, data.lec_label),
+        context
     );
     drop(bg);
 
-    BBoxRedirect::to("/leclist", ())
+    BBoxRedirect::to2("/leclist")
 }
 
 #[get("/<num>")]
 pub(crate) fn lec(
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     let key = num.clone().into_bbox::<u64, NoPolicy>();
 
@@ -100,6 +102,7 @@ pub(crate) fn lec(
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ? ORDER BY q",
         (key,),
+        context.clone()
     );
     drop(bg);
 
@@ -123,7 +126,7 @@ pub(crate) fn lec(
         parent: "layout".into(),
     };
 
-    BBoxTemplate::render("admin/lec", &ctx, &context)
+    BBoxTemplate::render("admin/lec", &ctx, context)
 }
 
 #[derive(Debug, FromBBoxForm)]
@@ -138,6 +141,7 @@ pub(crate) fn addq(
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<AddLectureQuestionForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
 ) -> BBoxRedirect {
     let data = data.into_inner();
 
@@ -149,10 +153,11 @@ pub(crate) fn addq(
             data.q_id.into_bbox::<u64, NoPolicy>(),
             data.q_prompt,
         ),
+        context.clone()
     );
     drop(bg);
 
-    BBoxRedirect::to("/admin/lec/{}", (&num,))
+    BBoxRedirect::to("/admin/lec/{}", (&num,), context)
 }
 
 #[get("/<num>/<qnum>")]
@@ -161,12 +166,13 @@ pub(crate) fn editq(
     num: BBox<u8, NoPolicy>,
     qnum: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ?",
         (num.clone().into_bbox::<u64, NoPolicy>(),),
+        context.clone()
     );
     drop(bg);
 
@@ -187,7 +193,7 @@ pub(crate) fn editq(
     ctx.insert("lec_id", num.into_ppr(PrivacyPureRegion::new(|num| format!("{}", num))).into());
     ctx.insert("lec_qnum", qnum.into_ppr(PrivacyPureRegion::new(|qnum| format!("{}", qnum))).into());
     ctx.insert("parent", String::from("layout").into());
-    BBoxTemplate::render("admin/lecedit", &ctx, &context)
+    BBoxTemplate::render("admin/lecedit", &ctx, context)
 }
 
 #[post("/editq/<num>", data = "<data>")]
@@ -196,6 +202,7 @@ pub(crate) fn editq_submit(
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<AddLectureQuestionForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
 ) -> BBoxRedirect {
     let data = data.into_inner();
     let mut bg = backend.lock().unwrap();
@@ -206,10 +213,11 @@ pub(crate) fn editq_submit(
             num.clone().into_bbox::<u64, NoPolicy>(),
             data.q_id,
         ),
+        context.clone()
     );
     drop(bg);
 
-    BBoxRedirect::to("/admin/lec/{}", (&num,))
+    BBoxRedirect::to("/admin/lec/{}", (&num,), context)
 }
 
 #[derive(BBoxRender, Clone)]
@@ -230,10 +238,10 @@ pub(crate) fn get_registered_users(
     _adm: Admin,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", ());
+    let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", (), context.clone());
     drop(bg);
 
     let users = res
@@ -251,5 +259,5 @@ pub(crate) fn get_registered_users(
         users: users,
         parent: "layout".into(),
     };
-    BBoxTemplate::render("admin/users", &ctx, &context)
+    BBoxTemplate::render("admin/users", &ctx, context)
 }

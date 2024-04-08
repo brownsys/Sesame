@@ -11,6 +11,7 @@ use crate::policies::ContextData;
 #[schema_policy(table = "answers", column = 1)]
 #[schema_policy(table = "answers", column = 2)]
 #[schema_policy(table = "answers", column = 3)]
+#[schema_policy(table = "answers", column = 4)]
 #[schema_policy(table = "answers", column = 5)]
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy across tables/columns.

@@ -36,7 +36,7 @@ pub(crate) enum ApiKeyError {
 /// (username, apikey)
 #[derive(AlohomoraType, Clone)]
 pub(crate) struct ApiKey {
-    pub user: BBox<String, QueryableOnly>,
+    pub user: BBox<String, NoPolicy>,
     pub key: BBox<String, QueryableOnly>,
 }
 
@@ -46,7 +46,7 @@ pub(crate) fn check_api_key<P: Policy + Clone + 'static>(
     backend: &Arc<Mutex<MySqlBackend>>,
     key: &BBox<String, P>,
     context: Context<ContextData>,
-) -> Result<BBox<String, QueryableOnly>, ApiKeyError> {
+) -> Result<BBox<String, NoPolicy>, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
     let rs = bg.prep_exec(
         "SELECT * FROM users WHERE apikey = ?",
@@ -95,6 +95,7 @@ pub(crate) struct ApiKeyRequest {
     ethnicity: BBox<String, NoPolicy>,
     is_remote: Option<BBox<bool, NoPolicy>>,
     education: BBox<String, NoPolicy>,
+    consent: Option<BBox<bool, NoPolicy>>,
 }
 
 #[derive(BBoxRender)]
@@ -150,6 +151,10 @@ pub(crate) fn generate(
                 None => BBox::new(false, NoPolicy {}),
             },
             data.education.clone(),
+            match &data.consent {
+                Some(consent) => consent.clone(),
+                None => BBox::new(false, NoPolicy {}),
+            },
         ),
         context.clone(),
     );

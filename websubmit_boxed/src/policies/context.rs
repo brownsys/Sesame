@@ -20,7 +20,7 @@ use crate::policies::QueryableOnly;
 #[derive(AlohomoraType, Clone)]
 #[alohomora_out_type(verbatim = [db, config])]
 pub struct ContextData {
-    pub user: Option<BBox<String, QueryableOnly>>,
+    pub user: Option<BBox<String, NoPolicy>>,
     pub db: Arc<Mutex<MySqlBackend>>,
     pub config: Config,
 }
