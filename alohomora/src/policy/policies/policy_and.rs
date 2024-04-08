@@ -29,10 +29,10 @@ impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
 }
 
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyAnd<P1, P2> {
-    fn from_row(row: &Vec<mysql::Value>) -> Self {
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
         Self {
-            p1: P1::from_row(row),
-            p2: P2::from_row(row),
+            p1: P1::from_row(table_name, row),
+            p2: P2::from_row(table_name, row),
         }
     }
 }

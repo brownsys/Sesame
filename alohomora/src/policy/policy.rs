@@ -23,7 +23,7 @@ pub trait Policy {
 
 // Schema policies can be constructed from DB rows.
 pub trait SchemaPolicy: Policy {
-    fn from_row(row: &Vec<mysql::Value>) -> Self
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized;
 }
