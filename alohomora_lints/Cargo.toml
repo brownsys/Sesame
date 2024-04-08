@@ -25,35 +25,18 @@ path = "examples/alohomora_sandbox_illegal.rs"
 name = "alohomora_sandbox_legal"
 path = "examples/alohomora_sandbox_legal.rs"
 
-
-[[example]]
-name = "alohomora_pcr_basic_call_legal"
-path = "examples/alohomora_pcr_legal_basic_call.rs"
-
-[[example]]
-name = "alohomora_pcr_copy_sign_illegal"
-path = "examples/alohomora_pcr_illegal_copy_signature.rs"
-
-[[example]]
-name = "alohomora_pcr_blank_sign_illegal"
-path = "examples/alohomora_pcr_illegal_blank_signature.rs"
-
-[[example]]
-name = "alohomora_pcr_fn_changes_illegal"
-path = "examples/alohomora_pcr_illegal_fn_changes.rs"
-
 [dependencies]
 base64 = "0.22.0"
 paste = "1.0"
 clippy_utils = { git = "https://github.com/artemagvanian/rust-clippy-nightly-2023-04-12", rev = "88cd75c5ecb95c4dfbe8ebc4dd5732edd8652ed8" }
-dylint_linting = "2.5.0"
+dylint_linting = "=2.5.0"
 if_chain = "1.0.2"
 reqwest = { version = "0.12.2", features = ["blocking"] }
 scrutils = { path = "../../alohomora-sign/scrutinizer/scrutils" }
 # TODO change scrutils dep to git = "https://github.com/artemagvanian/scrutinizer.git"
 
 [dev-dependencies]
-dylint_testing = "2.5.0"
+dylint_testing = "=2.5.0"
 alohomora = { path = "../alohomora" }
 alohomora_sandbox = { path = "../alohomora_sandbox" }
 
