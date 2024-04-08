@@ -28,7 +28,7 @@ use if_chain::if_chain;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+//use std::time::{SystemTime, UNIX_EPOCH};
 
 use scrutils::Collector;
 
@@ -46,14 +46,16 @@ declare_alohomora_lint! {
     /// ### Known problems
     /// Functions from external crates called within the PCR are not included in the hash of the closure, 
     /// so changes in an external crate will not invalidate the signature. 
-    ///
+    /// 
     /// ### Example
     /// ```rust
-    /// // example code where a warning is issued
-    /// ```
-    /// Use instead:
-    /// ```rust
-    /// // example code that does not raise a warning
+    /// //  let pcr = PrivacyCriticalRegion::new(|x: u8| { <privacy-critical closure> },
+    /// //          Signature {username: "corinnt", 
+    /// //              signature: "LS0tLS....."},     // author signature on closure
+    /// //          Signature {username: "corinnt", 
+    /// //              signature: "LS0tLS....."},     // review signature on closure
+    /// //          Signature {username: "corinnt", 
+    /// //              signature: "LK0tLM..."})       // signature on Cargo.lock
     /// ```
     pub ALOHOMORA_PCR,
     Warn,
@@ -111,11 +113,11 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                         fs::create_dir("./pcr/").unwrap();
                     }
                     if dependency_reviewer_id_check.is_err(){
-                        let timestamp = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis();
-                        let cargo_lock_file_name = format!("./pcr/Cargo.lock_hash_{}", timestamp);
+                        //let _timestamp = SystemTime::now()
+                        //    .duration_since(UNIX_EPOCH)
+                        //    .unwrap()
+                        //    .as_millis();
+                        let cargo_lock_file_name = format!("./pcr/Cargo.lock_hash"); // _{}", timestamp);
                         help_msg.push_str(
                             format!("written the hash of Cargo.lock into the file for signing: {}\n",
                                     cargo_lock_file_name
@@ -151,15 +153,14 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
 
 // Returns true if the given Expression is of ExprKind::Path & path resolves to given fn_pat
 fn is_fn_call(cx: &rustc_lint::LateContext, maybe_path: &Expr, fn_path: Vec<Symbol>) -> bool {
-    if_chain! {
+    if_chain!{
         if let ExprKind::Path(ref qpath) = maybe_path.kind;
         if let Res::Def(_kind, def_id) = cx.typeck_results().qpath_res(qpath, maybe_path.hir_id);
-        if cx.match_def_path(def_id, &fn_path);
         then {
-            true
+            cx.match_def_path(def_id, &fn_path)
         } else {
             false
-        }
+        }    
     }
 }
 
@@ -216,6 +217,7 @@ fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> {
 fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
     let cwd = std::env::current_dir().unwrap(); 
     let toml_path = get_cargo_lock(cwd).unwrap(); 
+    //println!("TOML PATH {}", toml_path.display()); 
     let toml_contents = fs::read_to_string(toml_path).unwrap(); 
     
     let mut hcx = StableHashingContext::new(tcx.sess, tcx.untracked());
@@ -227,7 +229,7 @@ fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
     toml_hash
 }  
 
-// Given a Closure, returns the (String) StableHash of its MIR Body
+// Given a Closure, returns the StableHash of its MIR Body as a String
 fn get_mir_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let def_id: rustc_hir::def_id::DefId = closure.def_id.to_def_id();
 
@@ -333,26 +335,4 @@ fn alohomora_pcr_basic_call_legal() {
     );
 }
 
-#[test]
-fn alohomora_pcr_blank_signature_illegal() {
-    dylint_testing::ui_test_example(
-        env!("CARGO_PKG_NAME"),
-        "alohomora_pcr_blank_signature_illegal"
-    );
-}
-
-#[test]
-fn alohomora_pcr_copied_signature_illegal() {
-    dylint_testing::ui_test_example(
-        env!("CARGO_PKG_NAME"),
-        "alohomora_pcr_copy_signature_illegal"
-    );
-}
-
-#[test]
-fn alohomora_pcr_fn_changes_illegal() {
-    dylint_testing::ui_test_example(
-        env!("CARGO_PKG_NAME"),
-        "alohomora_pcr_fn_changes_illegal"
-    );
-}
+// Manual tests / examples in separate crate
