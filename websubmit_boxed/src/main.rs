@@ -99,11 +99,11 @@ async fn main() {
             "/js",
             BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
         )
-        .mount("/", routes![index])
+        .mount("/", routes![index])/*
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
-        )
+        )*/
         .mount("/apikey/check", routes![apikey::check])
         
         .mount("/apikey/generate", routes![apikey::generate])

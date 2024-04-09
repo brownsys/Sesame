@@ -101,7 +101,7 @@ impl AlohomoraType for LectureAnswer {
 #[derive(BBoxRender)]
 pub struct LectureAnswersContext {
     pub lec_id: BBox<u8, NoPolicy>,
-    pub answers: Vec<LectureAnswer>,
+    pub answers: BBox<Vec<LectureAnswerOut>, AnswerAccessPolicy>,
     pub parent: String,
 }
 
@@ -154,7 +154,7 @@ pub(crate) fn leclist(
 
     let lecs: Vec<LectureListEntry> = res
         .into_iter()
-        .map(|r| LectureListEntry {
+        .map(|r: Vec<BBox<Value, AnyPolicy>>| LectureListEntry {
             id: from_value(r[0].clone()).unwrap(),
             label: from_value(r[1].clone()).unwrap(),
             num_qs: r[2].clone().specialize_policy().unwrap().into_ppr(
@@ -191,44 +191,6 @@ pub(crate) fn composed_answers(
     drop(bg);
 
     // Wraps incoming column data in LectureAnswer format
-    let answers = res
-        .into_iter()
-        .map(|r| LectureAnswer {
-            id: from_value(r[2].clone()).unwrap(),
-            user: from_value(r[0].clone()).unwrap(),
-            answer: from_value(r[3].clone()).unwrap(),
-            time: from_value(r[4].clone()).unwrap()
-                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string())),
-            grade: from_value(r[5].clone()).unwrap(),
-        })
-        .collect();
-
-    // let outer_box_answers: BBox<Vec<LectureAnswerOut>, AnswerAccessPolicy> = fold(answers)
-    //     .unwrap()
-    //     .specialize_policy::<AnswerAccessPolicy>()
-    //     .unwrap();: Vec<LectureAnswer> 
-
-    let ctx = LectureAnswersContext {
-        lec_id: num,
-        answers: answers,
-        parent: "layout".into(),
-    };
-    BBoxTemplate::render("answers", &ctx, context)
-}
-
-#[allow(dead_code)]
-pub(crate) fn naive_answers(
-    _admin: Admin,
-    num: BBox<u8, NoPolicy>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
-) -> BBoxTemplate {
-    let mut bg = backend.lock().unwrap();
-    let key = num.clone().into_bbox::<u64, NoPolicy>();
-    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,), context.clone());
-    drop(bg);
-
-    // Wraps incoming column data in LectureAnswer format
     let answers: Vec<LectureAnswer> = res
         .into_iter()
         .map(|r| LectureAnswer {
@@ -241,14 +203,52 @@ pub(crate) fn naive_answers(
         })
         .collect();
 
-        let ctx = LectureAnswersContext {
+    let outer_box_answers = fold(answers)
+        .unwrap()
+        .specialize_policy::<AnswerAccessPolicy>()
+        .unwrap();
+
+    let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: answers,
+        answers: outer_box_answers,
         parent: "layout".into(),
     };
-
     BBoxTemplate::render("answers", &ctx, context)
 }
+
+// #[allow(dead_code)] // TODO (allenaby) why do we have this dead unused code? should it actually be folded?
+// pub(crate) fn naive_answers(
+//     _admin: Admin,
+//     num: BBox<u8, NoPolicy>,
+//     backend: &State<Arc<Mutex<MySqlBackend>>>,
+//     context: Context<ContextData>,
+// ) -> BBoxTemplate {
+//     let mut bg = backend.lock().unwrap();
+//     let key = num.clone().into_bbox::<u64, NoPolicy>();
+//     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,), context.clone());
+//     drop(bg);
+
+//     // Wraps incoming column data in LectureAnswer format
+//     let answers: Vec<LectureAnswer> = res
+//         .into_iter()
+//         .map(|r| LectureAnswer {
+//             id: from_value(r[2].clone()).unwrap(),
+//             user: from_value(r[0].clone()).unwrap(),
+//             answer: from_value(r[3].clone()).unwrap(),
+//             time: from_value(r[4].clone()).unwrap()
+//                 .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string())),
+//             grade: from_value(r[5].clone()).unwrap(),
+//         })
+//         .collect();
+
+//         let ctx = LectureAnswersContext {
+//         lec_id: num,
+//         answers: answers,
+//         parent: "layout".into(),
+//     };
+
+//     BBoxTemplate::render("answers", &ctx, context)
+// }
 
 #[get("/<num>")]
 pub(crate) fn questions(

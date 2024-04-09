@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use alohomora::fold::fold;
 use chrono::naive::NaiveDateTime;
 use rocket::State;
 
@@ -12,7 +13,7 @@ use alohomora::pure::PrivacyPureRegion;
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
-use crate::policies::ContextData;
+use crate::policies::{AnswerAccessPolicy, ContextData};
 // use crate::predict::train_and_store;
 use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
@@ -41,9 +42,14 @@ pub(crate) fn grades(
         })
         .collect();
 
+    let outer_box_answers = fold(answers)
+        .unwrap()
+        .specialize_policy::<AnswerAccessPolicy>()
+        .unwrap();
+
     let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: answers,
+        answers: outer_box_answers,
         parent: "layout".into(),
     };
 
@@ -122,7 +128,7 @@ pub(crate) fn editg_submit(
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    // train_and_store(backend); // TODO (allenaby) BRING BACK
+    // train_and_store(backend, context.clone()); // TODO (allenaby) BRING BACK
 
     BBoxRedirect::to("/grades/{}", (&num,), context)
 }

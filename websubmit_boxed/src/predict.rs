@@ -18,6 +18,9 @@ use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::policies::ContextData;
 
+use websubmit_boxed_sandboxes::train;
+use websubmit_boxed_sandboxes::evaluate_model;
+
 lazy_static! {
     static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, NoPolicy>>>> =
         Arc::new(Mutex::new(None));
@@ -31,43 +34,18 @@ pub(crate) fn model_exists() -> bool {
     }
 }
 
-pub(crate) fn train_and_store(backend: &State<Arc<Mutex<MySqlBackend>>>) {
+pub(crate) fn train_and_store(
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
+) {
     println!("Re-training the model and saving it globally...");
 
     // Get data from database.
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT submitted_at, grade FROM answers", ());
+    let res = bg.prep_exec("SELECT submitted_at, grade FROM answers", (), context);
     drop(bg);
 
-    let new_model = execute_sandbox(
-        res,
-        |res: Vec<Vec<mysql::Value>>| {
-            // Create the dataset.
-            let grades: Vec<[f64; 2]> = res
-                .into_iter()
-                .map(|r| {
-                    [
-                        mysql::from_value::<NaiveDateTime>(r[0].clone()).timestamp() as f64,
-                        mysql::from_value::<u64>(r[1].clone()) as f64,
-                    ]
-                })
-                .collect();
-
-            let array: Array2<f64> = Array2::from(grades);
-            let (x, y) = (
-                array.slice(s![.., 0..1]).to_owned(),
-                array.column(1).to_owned(),
-            );
-
-            let dataset: Dataset<f64, f64, Dim<[usize; 1]>> =
-                Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
-
-            // Train the model.
-            let lin_reg = LinearRegression::new();
-            let model = lin_reg.fit(&dataset).unwrap();
-            model
-        }
-    );
+    let new_model = execute_sandbox::<train, _, _>(res);
 
     let mut model_ref = MODEL.lock().unwrap();
     *model_ref = Some(new_model.specialize_policy().unwrap());
@@ -115,16 +93,13 @@ pub(crate) fn predict_grade(
 ) -> BBoxTemplate {
     // Train model if it doesn't exist.
     if !model_exists() {
-        train_and_store(backend);
+        train_and_store(backend, context.clone());
     }
 
     // Evaluate model.
     let time = data.time.clone();
     let model = MODEL.lock().unwrap().as_ref().unwrap().clone();
-    let grade = execute_sandbox((time, model), |(time, model)| {
-        let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
-        model.params()[0] * (time.unwrap().timestamp() as f64) + model.intercept()
-    });
+    let grade = execute_sandbox::<evaluate_model, _, _>((time, model));
 
     let ctx = PredictGradeContext {
         lec_id: num,
