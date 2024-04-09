@@ -82,12 +82,14 @@ fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>, AnyPoli
 pub(crate) fn get_aggregate_grades(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec(
         "SELECT pseudonym, gender, is_remote, grade FROM users JOIN answers ON users.email = answers.email;",
-        ());
+        (),
+        context.clone()
+    );
     drop(bg);
 
     let user_agg = execute_pure(grades.clone(), PrivacyPureRegion::new(|grades| average::<String>(3, 0, grades))).unwrap();
@@ -101,5 +103,5 @@ pub(crate) fn get_aggregate_grades(
         parent: String::from("layout"),
     };
 
-    BBoxTemplate::render("manage/users", &ctx, &context)
+    BBoxTemplate::render("manage/users", &ctx, context)
 }

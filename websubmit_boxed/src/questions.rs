@@ -272,7 +272,7 @@ pub(crate) fn questions(
     );
     drop(bg);
 
-    let questions = execute_pure(
+    let questions: BBox<Vec<Vec<Value>>, AnyPolicy> = execute_pure(
         (questions_result, answers_result),
         PrivacyPureRegion::new(|(questions, answers)| {
             let mut questions = left_join(
@@ -290,7 +290,7 @@ pub(crate) fn questions(
     let questions: Vec<BBox<Vec<Value>, AnyPolicy>> = questions.into();
     let questions = questions
         .into_iter()
-        .map(|r| {
+        .map(|r: BBox<Vec<Value>, AnyPolicy>| {
             let r: Vec<BBox<Value, AnyPolicy>> = r.into();
             LectureQuestion {
                 id: from_value(r[0].clone()).unwrap(),

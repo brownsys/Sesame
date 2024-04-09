@@ -83,14 +83,14 @@ struct PredictContext {
 pub(crate) fn predict(
     num: BBox<u8, NoPolicy>,
     _backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     let ctx = PredictContext {
         lec_id: num,
         parent: "layout".into(),
     };
 
-    BBoxTemplate::render("predict", &ctx, &context)
+    BBoxTemplate::render("predict", &ctx, context)
 }
 
 #[derive(Debug, FromBBoxForm)]
@@ -111,7 +111,7 @@ pub(crate) fn predict_grade(
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     // Train model if it doesn't exist.
     if !model_exists() {
@@ -132,5 +132,5 @@ pub(crate) fn predict_grade(
         grade: grade.specialize_policy().unwrap(),
         parent: "layout".into(),
     };
-    BBoxTemplate::render("predictgrade", &ctx, &context)
+    BBoxTemplate::render("predictgrade", &ctx, context)
 }

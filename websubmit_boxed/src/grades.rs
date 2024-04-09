@@ -13,7 +13,7 @@ use alohomora::pure::PrivacyPureRegion;
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::policies::ContextData;
-use crate::predict::train_and_store;
+// use crate::predict::train_and_store;
 use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
 
@@ -21,12 +21,12 @@ use crate::questions::LectureAnswersContext;
 pub(crate) fn grades(
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     let key = num.clone().into_bbox::<u64, NoPolicy>();
 
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,));
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,), context.clone());
     drop(bg);
 
     let answers: Vec<LectureAnswer> = res
@@ -47,7 +47,7 @@ pub(crate) fn grades(
         parent: "layout".into(),
     };
 
-    BBoxTemplate::render("grades", &ctx, &context)
+    BBoxTemplate::render("grades", &ctx, context)
 }
 
 #[derive(BBoxRender)]
@@ -66,7 +66,7 @@ pub(crate) fn editg(
     num: BBox<u8, NoPolicy>,
     qnum: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ApiKey, ContextData>,
+    context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -76,6 +76,7 @@ pub(crate) fn editg(
             num.clone().into_bbox::<u64, NoPolicy>(),
             qnum.clone().into_bbox::<u64, NoPolicy>(),
         ),
+        context.clone()
     );
     drop(bg);
 
@@ -89,7 +90,7 @@ pub(crate) fn editg(
         parent: "layout".into(),
     };
 
-    BBoxTemplate::render("gradeedit", &ctx, &context)
+    BBoxTemplate::render("gradeedit", &ctx, context)
 }
 
 #[derive(Debug, FromBBoxForm)]
@@ -104,6 +105,7 @@ pub(crate) fn editg_submit(
     qnum: BBox<u8, NoPolicy>,
     data: BBoxForm<EditGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
 ) -> BBoxRedirect {
     let mut bg = backend.lock().unwrap();
 
@@ -115,11 +117,12 @@ pub(crate) fn editg_submit(
             num.clone(),
             qnum,
         ),
+        context.clone()
     );
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    train_and_store(backend);
+    // train_and_store(backend); // TODO (allenaby) BRING BACK
 
-    BBoxRedirect::to("/grades/{}", (&num,))
+    BBoxRedirect::to("/grades/{}", (&num,), context)
 }

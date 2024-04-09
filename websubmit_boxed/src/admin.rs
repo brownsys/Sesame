@@ -109,7 +109,7 @@ pub(crate) fn lec(
     let questions: Vec<LectureQuestion> = res
         .into_iter()
         .map(|r| {
-            let id: BBox<u64, NoPolicy> = from_value(r[1].clone()).unwrap();
+            let id = from_value(r[1].clone()).unwrap();
             LectureQuestion {
                 id: id,
                 prompt: from_value(r[2].clone()).unwrap(),
