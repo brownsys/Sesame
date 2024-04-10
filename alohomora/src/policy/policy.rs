@@ -19,6 +19,10 @@ pub trait Policy {
     // TODO(babman): Stream line join, find way to make join combine inside AndPolicy instead of stacking!
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()>;
     fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized;
+    // for casting to any policy.
+    fn into_any(self) -> AnyPolicy where Self: Sized {
+        panic!("unreachable code");
+    }
 }
 
 // Schema policies can be constructed from DB rows.
