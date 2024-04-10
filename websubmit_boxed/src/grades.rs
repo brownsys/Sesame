@@ -11,10 +11,9 @@ use alohomora::rocket::{BBoxTemplate, BBoxRedirect, BBoxForm, FromBBoxForm, get,
 use alohomora::policy::NoPolicy;
 use alohomora::pure::PrivacyPureRegion;
 
-use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::policies::{AnswerAccessPolicy, ContextData};
-// use crate::predict::train_and_store;
+use crate::predict::train_and_store;
 use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
 
@@ -58,8 +57,8 @@ pub(crate) fn grades(
 
 #[derive(BBoxRender)]
 struct GradeEditContext {
-    answer: BBox<String, NoPolicy>,
-    grade: BBox<u64, NoPolicy>,
+    answer: BBox<String, AnswerAccessPolicy>,
+    grade: BBox<u64, AnswerAccessPolicy>,
     lec_id: BBox<u8, NoPolicy>,
     lec_qnum: BBox<u8, NoPolicy>,
     parent: String,
@@ -128,7 +127,7 @@ pub(crate) fn editg_submit(
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    // train_and_store(backend, context.clone()); // TODO (allenaby) BRING BACK
+    train_and_store(backend, context.clone()); // TODO (allenaby) BRING BACK
 
     BBoxRedirect::to("/grades/{}", (&num,), context)
 }

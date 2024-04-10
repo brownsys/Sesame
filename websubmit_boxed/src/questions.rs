@@ -24,7 +24,7 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
 use crate::helpers::{left_join, JoinIdx};
-use crate::policies::{AnswerAccessPolicy, ContextData, QueryableOnly};
+use crate::policies::{AnswerAccessPolicy, ContextData};
 
 // TODO (allen): is this NoPolicy because it came from the user and we're going to write it (not for reading yet?)
 #[derive(Debug, FromBBoxForm)]
@@ -60,43 +60,6 @@ pub struct LectureAnswer {
     pub grade: BBox<u64, AnswerAccessPolicy>,
 }
 
-/*//test to trigger lint:
-#[derive(BBoxRender, Clone, Serialize)]
-pub struct LectureAnswerLite {
-    pub id: u64,
-    pub user: String,
-    pub answer: String,
-    pub time: String,
-    pub grade: u64,
-}
-
-impl AlohomoraType for LectureAnswer {
-    type Out = LectureAnswerLite; 
-    fn to_enum(self) -> alohomora::AlohomoraTypeEnum {
-        let hashmap = HashMap::from([
-            (String::from("id"), self.id.to_enum()),
-            (String::from("user"), self.user.to_enum()),
-            (String::from("answer"), self.answer.to_enum()),
-            (String::from("time"), self.time.to_enum()),
-            (String::from("grade"), self.grade.to_enum()),
-        ]);
-        alohomora::AlohomoraTypeEnum::Struct(hashmap)  
-    }
-    fn from_enum(e: alohomora::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            alohomora::AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
-                id: <u64 as AlohomoraType>::from_enum(hashmap.remove("id").unwrap())?,
-                user: <String as AlohomoraType>::from_enum(hashmap.remove("user").unwrap())?,
-                answer: <String as AlohomoraType>::from_enum(hashmap.remove("answer").unwrap())?,
-                time: <String as AlohomoraType>::from_enum(hashmap.remove("time").unwrap())?,
-                grade: <u64 as AlohomoraType>::from_enum(hashmap.remove("grade").unwrap())?,
-            }),
-            _ => Err(()),
-        }
-    }
-}
-*/
-
 // TODO (allen): do we need BBox's for context to our pages? and what kind of policy should they have?
 #[derive(BBoxRender)]
 pub struct LectureAnswersContext {
@@ -122,14 +85,6 @@ struct LectureListContext {
     lectures: Vec<LectureListEntry>,
     parent: String,
 }
-
-// This cannot be derived at the moment because we want to keep some BBoxes
-// #[derive(BBoxRender)]
-// pub struct LectureAnswersContextLite {
-//     pub lec_id: BBox<u8, NoPolicy>,
-//     pub answers: BBox<Vec<LectureAnswerLite>, AnswerAccessPolicy>,
-//     pub parent: String,
-// }
 
 #[get("/")]
 pub(crate) fn leclist(
@@ -215,40 +170,6 @@ pub(crate) fn composed_answers(
     };
     BBoxTemplate::render("answers", &ctx, context)
 }
-
-// #[allow(dead_code)] // TODO (allenaby) why do we have this dead unused code? should it actually be folded?
-// pub(crate) fn naive_answers(
-//     _admin: Admin,
-//     num: BBox<u8, NoPolicy>,
-//     backend: &State<Arc<Mutex<MySqlBackend>>>,
-//     context: Context<ContextData>,
-// ) -> BBoxTemplate {
-//     let mut bg = backend.lock().unwrap();
-//     let key = num.clone().into_bbox::<u64, NoPolicy>();
-//     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,), context.clone());
-//     drop(bg);
-
-//     // Wraps incoming column data in LectureAnswer format
-//     let answers: Vec<LectureAnswer> = res
-//         .into_iter()
-//         .map(|r| LectureAnswer {
-//             id: from_value(r[2].clone()).unwrap(),
-//             user: from_value(r[0].clone()).unwrap(),
-//             answer: from_value(r[3].clone()).unwrap(),
-//             time: from_value(r[4].clone()).unwrap()
-//                 .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string())),
-//             grade: from_value(r[5].clone()).unwrap(),
-//         })
-//         .collect();
-
-//         let ctx = LectureAnswersContext {
-//         lec_id: num,
-//         answers: answers,
-//         parent: "layout".into(),
-//     };
-
-//     BBoxTemplate::render("answers", &ctx, context)
-// }
 
 #[get("/<num>")]
 pub(crate) fn questions(
