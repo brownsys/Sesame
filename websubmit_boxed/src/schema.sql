@@ -8,3 +8,5 @@ CREATE TABLE discussion_leaders (id int PRIMARY KEY, email varchar(255), lec int
 
 
 CREATE VIEW lec_qcount as SELECT questions.lec, COUNT(questions.q) AS qcount FROM questions GROUP BY questions.lec;
+CREATE VIEW agg_remote as SELECT users.is_remote, AVG(answers.grade), COUNT(DISTINCT users.email) FROM users JOIN answers on users.email = answers.email GROUP BY users.is_remote;
+CREATE VIEW agg_gender as SELECT users.gender, AVG(answers.grade), COUNT(DISTINCT users.email) FROM users JOIN answers on users.email = answers.email GROUP BY users.gender;

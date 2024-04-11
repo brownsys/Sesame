@@ -127,7 +127,7 @@ pub(crate) fn editg_submit(
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    train_and_store(backend, context.clone()); // TODO (allenaby) BRING BACK
+    train_and_store(backend, context.clone());
 
     BBoxRedirect::to("/grades/{}", (&num,), context)
 }
