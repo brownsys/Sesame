@@ -70,6 +70,7 @@ pub(crate) struct AdminLecAdd {
 
 #[post("/", data = "<data>")]
 pub(crate) fn lec_add_submit(
+    _adm: Admin,
     data: BBoxForm<AdminLecAdd>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ContextData>,
