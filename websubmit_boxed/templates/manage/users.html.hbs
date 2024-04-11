@@ -3,36 +3,10 @@
 
     <table>
         <tr>
-            <th>Pseudonym</th>
+            <th>Category</th>
             <th>Average grade</th>
         </tr>
-        {{#each aggregates_per_user}}
-            <tr>
-                <td>{{{ this.property }}}</td>
-                <td>{{{ this.average }}}</td>
-            </tr>
-        {{/each}}
-    </table>
-
-    <table>
-        <tr>
-            <th>Gender</th>
-            <th>Average grade</th>
-        </tr>
-        {{#each aggregates_per_gender}}
-            <tr>
-                <td>{{{ this.property }}}</td>
-                <td>{{{ this.average }}}</td>
-            </tr>
-        {{/each}}
-    </table>
-
-    <table>
-        <tr>
-            <th>Is Remote?</th>
-            <th>Average grade</th>
-        </tr>
-        {{#each aggregates_per_remote}}
+        {{#each aggregate}}
             <tr>
                 <td>{{{ this.property }}}</td>
                 <td>{{{ this.average }}}</td>

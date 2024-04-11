@@ -22,7 +22,7 @@ impl Policy for SamplePolicy {
     }
 }
 impl SchemaPolicy for SamplePolicy {
-    fn from_row(_row: &Vec<Value>) -> Self {
+    fn from_row(_table: &str, _row: &Vec<Value>) -> Self {
         SamplePolicy {}
     }
 }

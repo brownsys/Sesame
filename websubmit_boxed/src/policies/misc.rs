@@ -53,7 +53,7 @@ impl FrontendPolicy for QueryableOnly {
 }
 
 impl SchemaPolicy for QueryableOnly {
-    fn from_row(_row: &Vec<Value>) -> Self where Self: Sized {
+    fn from_row(_table: &str, _row: &Vec<Value>) -> Self where Self: Sized {
         QueryableOnly {}
     }
 }

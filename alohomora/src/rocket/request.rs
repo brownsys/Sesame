@@ -218,6 +218,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for () {
     }
 }
 
+/*
 #[rocket::async_trait]
 impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<IpAddr, P> {
     type BBoxError = std::convert::Infallible;
@@ -241,6 +242,20 @@ impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<SocketAddr, P> 
             Some(addr) => BBoxRequestOutcome::Success(addr),
             None => BBoxRequestOutcome::Forward(()),
         }
+    }
+}
+*/
+
+// TODO(babman): look at technical debt issue on github.
+#[rocket::async_trait]
+impl<'a, 'r, T: rocket::request::FromRequest<'a>, P: Policy + FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<T, P> {
+    type BBoxError = ();
+    async fn from_bbox_request(
+        request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+        let t = <T as rocket::request::FromRequest>::from_request(request.get_request())
+            .await;
+        BBoxRequestOutcome::Success(BBox::new(t.unwrap(), P::from_request(request.get_request())))
     }
 }
 

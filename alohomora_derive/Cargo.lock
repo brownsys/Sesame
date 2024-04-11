@@ -73,6 +73,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rocket",
+ "rocket_http",
  "serde",
  "serde_json",
  "syn 2.0.58",
