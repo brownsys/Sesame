@@ -1,11 +1,9 @@
 use std::sync::{Arc, Mutex};
 
+use alohomora::db::from_value;
 use chrono::naive::NaiveDateTime;
 use lazy_static::lazy_static;
-use linfa::dataset::Dataset;
-use linfa::prelude::*;
-use linfa_linear::{FittedLinearRegression, LinearRegression};
-use ndarray::prelude::*;
+use linfa_linear::FittedLinearRegression;
 use rocket::State;
 
 use alohomora::context::Context;
@@ -14,15 +12,14 @@ use alohomora::rocket::{BBoxForm, BBoxTemplate, get, post, FromBBoxForm};
 use alohomora::policy::NoPolicy;
 use alohomora::sandbox::execute_sandbox;
 
-use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
-use crate::policies::ContextData;
+use crate::policies::{AnswerAccessPolicy, ContextData};
 
 use websubmit_boxed_sandboxes::train;
 use websubmit_boxed_sandboxes::evaluate_model;
 
 lazy_static! {
-    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, NoPolicy>>>> =
+    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, AnswerAccessPolicy>>>> =
         Arc::new(Mutex::new(None));
 }
 
@@ -39,14 +36,27 @@ pub(crate) fn train_and_store(
     context: Context<ContextData>,
 ) {
     println!("Re-training the model and saving it globally...");
-
     // Get data from database.
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT submitted_at, grade FROM answers", (), context);
+    let res = bg.prep_exec(
+        "SELECT * FROM answers", // TODO (allenaby) why does this break if i select submitted_at, grade
+        (), 
+        context);
     drop(bg);
 
-    let new_model = execute_sandbox::<train, _, _>(res);
+    type BBoxTime = BBox<NaiveDateTime, AnswerAccessPolicy>;
+    type BBoxGrade = BBox<u64, AnswerAccessPolicy>;
+    let grades: Vec<(BBoxTime, BBoxGrade)> = res
+        .into_iter()
+        .map(|r| {
+            (
+                from_value(r[4].clone()).unwrap(),
+                from_value(r[5].clone()).unwrap(),
+            )
+        })
+        .collect();
 
+    let new_model = execute_sandbox::<train, _, _>(grades);
     let mut model_ref = MODEL.lock().unwrap();
     *model_ref = Some(new_model.specialize_policy().unwrap());
 }
@@ -80,7 +90,7 @@ pub(crate) struct PredictGradeForm {
 struct PredictGradeContext {
     lec_id: BBox<u8, NoPolicy>,
     time: BBox<String, NoPolicy>,
-    grade: BBox<f64, NoPolicy>,
+    grade: BBox<f64, AnswerAccessPolicy>,
     parent: String,
 }
 
