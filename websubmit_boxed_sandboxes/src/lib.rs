@@ -4,13 +4,17 @@ use linfa::dataset::Dataset;
 use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 use alohomora_derive::AlohomoraSandbox;
 
 // Sandbox functions.
 #[AlohomoraSandbox()]
 pub fn hash(inputs: (String, String)) -> String {
-    format!("hash{}", inputs.0)
+    let mut s = DefaultHasher::new();
+    inputs.0.hash(&mut s);
+    format!("{}", s.finish())
 }
 
 #[AlohomoraSandbox()]
@@ -19,7 +23,7 @@ pub fn train(grades: Vec<(NaiveDateTime, u64)>) -> FittedLinearRegression<f64> {
         .into_iter()
         .map(|g| {
             [
-                g.0.clone().timestamp() as f64,
+                g.0.clone().and_utc().timestamp() as f64,
                 g.1 as f64,
             ]
         })
@@ -42,5 +46,5 @@ pub fn train(grades: Vec<(NaiveDateTime, u64)>) -> FittedLinearRegression<f64> {
 #[AlohomoraSandbox()]
 pub fn evaluate_model(inputs: (String, FittedLinearRegression<f64>)) -> f64 {
     let time = NaiveDateTime::parse_from_str(inputs.0.as_str(), "%Y-%m-%d %H:%M:%S");
-    inputs.1.params()[0] * (time.unwrap().timestamp() as f64) + inputs.1.intercept()
+    inputs.1.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + inputs.1.intercept()
 }
