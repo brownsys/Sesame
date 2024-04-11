@@ -1,0 +1,43 @@
+{{#*inline "page"}}
+    <h1>Registered users:</h1>
+
+    <table>
+        <tr>
+            <th>Email</th>
+            <th>Admin?</th>
+            <th>API key</th>
+            <th>Pseudonym</th>
+            <th>Gender</th>
+            <th>Age</th>
+            <th>Ethnicity</th>
+            <th>Remote?</th>
+            <th>Education</th>
+        </tr>
+        {{#each users}}
+            <tr>
+                <td>{{{ this.email }}}</td>
+                <td>
+                    {{#if this.is_admin}}
+                        yes
+                    {{else}}
+                        no
+                    {{/if}}
+                </td>
+                <td>{{{ this.apikey }}}</td>
+                <td>{{{ this.pseudonym }}}</td>
+                <td>{{{ this.gender }}}</td>
+                <td>{{{ this.age }}}</td>
+                <td>{{{ this.ethnicity }}}</td>
+                <td>
+                    {{#if this.remote}}
+                        yes
+                    {{else}}
+                        no
+                    {{/if}}
+                </td>
+                <td>{{{ this.education }}}</td>
+            </tr>
+        {{/each}}
+    </table>
+{{/inline}}
+{{~> (parent)~}}

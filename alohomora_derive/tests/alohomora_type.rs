@@ -71,6 +71,60 @@ impl NestedOut {
         let m_sum =  self.f3.iter().fold(0, |acc, (_k, v)| acc + v.f1 + v.f3);
         self.f1.f1 + v_sum + m_sum
     }
+
+    // Struct with verbatim items.
+    #[derive(PartialEq, Debug, Clone)]
+    pub struct VerbatimType(pub u32, pub String);
+
+    #[derive(AlohomoraType, Clone, PartialEq, Debug)]
+    #[alohomora_out_type(to_derive = [PartialEq, Debug])]
+    #[alohomora_out_type(verbatim = [f3])]
+    pub struct VerbatimBox {
+        pub f1: u64,
+        pub f2: BBox<String, NoPolicy>,
+        pub f3: VerbatimType,
+    }
+
+    #[test]
+    fn test_derived_verbatim() {
+        let input = VerbatimBox {
+            f1: 10,
+            f2: BBox::new(String::from("hello"), NoPolicy {}),
+            f3: VerbatimType(20, String::from("bye")),
+        };
+
+        let folded: BBox<_, AnyPolicy> = fold(input).unwrap();
+        let folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+        let folded = folded.discard_box();
+
+        assert_eq!(folded.f1, 10);
+        assert_eq!(folded.f2, String::from("hello"));
+        assert_eq!(folded.f3, VerbatimType(20, String::from("bye")));
+    }
+
+    // Struct with only verbatim items.
+    #[derive(AlohomoraType, Clone, PartialEq, Debug)]
+    #[alohomora_out_type(to_derive = [PartialEq, Debug])]
+    #[alohomora_out_type(verbatim = [f1, f2])]
+    pub struct OnlyVerbatimBox {
+        pub f1: u64,
+        pub f2: VerbatimType,
+    }
+
+    #[test]
+    fn test_derived_only_verbatim() {
+        let input = OnlyVerbatimBox {
+            f1: 10,
+            f2: VerbatimType(20, String::from("bye")),
+        };
+
+        let folded: BBox<_, AnyPolicy> = fold(input).unwrap();
+        let folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+        let folded = folded.discard_box();
+
+        assert_eq!(folded.f1, 10);
+        assert_eq!(folded.f2, VerbatimType(20, String::from("bye")));
+    }
 }
 
 #[test]

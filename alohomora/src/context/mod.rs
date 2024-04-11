@@ -13,7 +13,7 @@ impl<D: AlohomoraType + for<'a, 'r> FromBBoxRequest<'a, 'r> + Send + 'static> Co
 #[derive(Debug, Clone)]
 pub struct Context<D: ContextData> {
     route: String,
-    data: D,
+    data: Option<D>,
 }
 impl<D: ContextData> Context<D> {
     pub fn route(&self) -> &str {
@@ -24,7 +24,15 @@ impl<D: ContextData> Context<D> {
     pub(crate) fn new(route: String, data: D) -> Self {
         Self {
             route,
-            data,
+            data: Some(data),
+        }
+    }
+
+    // Can manufacture an empty context for ease of use when dealing with Alohomora APIs without boxes.
+    pub fn empty() -> Self {
+        Self {
+            route: String::from(""),
+            data: None,
         }
     }
 }
@@ -63,7 +71,10 @@ impl UnprotectedContext {
     pub(crate) fn from<D: ContextData>(context: Context<D>) -> Self {
         Self {
             route: context.route,
-            data: Box::new(fold(context.data).unwrap().consume().0),
+            data: match context.data {
+                None => Box::new(Option::<()>::None),
+                Some(data) => Box::new(fold(data).unwrap().consume().0),
+            }
         }
     }
     pub fn downcast_ref<D: 'static>(&self) -> Option<&D> {

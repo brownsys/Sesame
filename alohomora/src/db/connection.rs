@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-use std::ops::Deref;
 // BBox
 use crate::db::{BBoxParams, BBoxQueryResult};
 
@@ -15,15 +13,16 @@ pub struct BBoxConn {
     conn: mysql::Conn,
 }
 
-pub struct BBoxStatement<'i>(Option<mysql::Statement>, Cow<'i, str>);
-impl<'i> From<&'i str> for BBoxStatement<'i> {
+#[derive(Clone)]
+pub struct BBoxStatement(Option<mysql::Statement>, String);
+impl<'i> From<&'i str> for BBoxStatement {
     fn from(value: &'i str) -> Self {
-        BBoxStatement(None, Cow::Borrowed(value))
+        BBoxStatement(None, String::from(value))
     }
 }
-impl<'i> From<String> for BBoxStatement<'i> {
+impl From<String> for BBoxStatement {
     fn from(value: String) -> Self {
-        BBoxStatement(None, Cow::Owned(value))
+        BBoxStatement(None, value)
     }
 }
 
@@ -39,10 +38,9 @@ impl BBoxConn {
     }
 
     // Prepare a statement.
-    pub fn prep<'i, T: Into<Cow<'i, str>>>(&mut self, query: T) -> BBoxResult<BBoxStatement<'i>> {
-        let query = query.into();
-        let statement = self.conn.prep(query.deref())?;
-        Ok(BBoxStatement(Some(statement), query))
+    pub fn prep(&mut self, query: &str) -> BBoxResult<BBoxStatement> {
+        let statement = self.conn.prep(query)?;
+        Ok(BBoxStatement(Some(statement), String::from(query)))
     }
 
     // Text query and drop result.
@@ -51,7 +49,7 @@ impl BBoxConn {
     }
 
     // Parameterized query and drop result.
-    pub fn exec_drop<'i, S: Into<BBoxStatement<'i>>, P: Into<BBoxParams>, D: ContextData>(
+    pub fn exec_drop<S: Into<BBoxStatement>, P: Into<BBoxParams>, D: ContextData>(
         &mut self,
         stmt: S,
         params: P,
@@ -61,15 +59,15 @@ impl BBoxConn {
         let (statement, stmt_str) = (stmt.0, stmt.1);
         let statement = match statement {
             Some(statement) => statement,
-            None => self.conn.prep(stmt_str.deref())?,
+            None => self.conn.prep(&stmt_str)?,
         };
 
-        let params = params.into().transform(context, Reason::DB(stmt_str.deref()))?;
+        let params = params.into().transform(context, Reason::DB(&stmt_str))?;
         self.conn.exec_drop(statement, params)
     }
 
     // Parameterized query and return iterator to result.
-    pub fn exec_iter<'i, S: Into<BBoxStatement<'i>>, P: Into<BBoxParams>, D: ContextData>(
+    pub fn exec_iter<'i, S: Into<BBoxStatement>, P: Into<BBoxParams>, D: ContextData>(
         &mut self,
         stmt: S,
         params: P,
@@ -79,27 +77,27 @@ impl BBoxConn {
         let (statement, stmt_str) = (stmt.0, stmt.1);
         let statement = match statement {
             Some(statement) => statement,
-            None => self.conn.prep(stmt_str.deref())?,
+            None => self.conn.prep(&stmt_str)?,
         };
 
-        let params = params.into().transform(context, Reason::DB(stmt_str.deref()))?;
+        let params = params.into().transform(context, Reason::DB(&stmt_str))?;
         let result = self.conn.exec_iter(statement, params)?;
         Ok(BBoxQueryResult { result })
     }
 
     // Chained prep and exec function
-    pub fn prep_exec_drop<'i, T: Into<Cow<'i, str>>, P: Into<BBoxParams>, D: ContextData>(
+    pub fn prep_exec_drop<P: Into<BBoxParams>, D: ContextData>(
         &mut self,
-        query: T,
+        query: &str,
         params: P,
         context: Context<D>,
     ) -> BBoxResult<()> {
         let stmt = self.prep(query)?;
         self.exec_drop(stmt, params, context)
     }
-    pub fn prep_exec_iter<'i, T: Into<Cow<'i, str>>, P: Into<BBoxParams>, D: ContextData>(
+    pub fn prep_exec_iter<P: Into<BBoxParams>, D: ContextData>(
         &mut self,
-        query: T,
+        query: &str,
         params: P,
         context: Context<D>,
     ) -> BBoxResult<BBoxQueryResult<'_, '_, '_>> {

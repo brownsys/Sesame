@@ -17,14 +17,25 @@ pub struct AnyPolicy {
 }
 impl AnyPolicy {
     pub fn new<P: Policy + Clone + 'static>(p: P) -> Self {
-        Self {
-            policy: Box::new(p),
+        if TypeId::of::<AnyPolicy>() == TypeId::of::<P>() {
+            p.into_any()
+        } else {
+            Self {
+                policy: Box::new(p),
+            }
         }
     }
     pub fn is<P: Policy + 'static>(&self) -> bool {
         TypeId::of::<P>() == self.policy.as_ref().type_id()
     }
     pub fn specialize<P: Policy + 'static>(self) -> Result<P, String> {
+        if TypeId::of::<AnyPolicy>() == TypeId::of::<P>() {
+            let b = Box::new(self);
+            let raw = Box::into_raw(b);
+            let raw = raw as *mut P;
+            return Ok(*unsafe { Box::from_raw(raw) });
+        }
+
         if self.is::<P>() {
             let raw = Box::into_raw(self.policy);
             let raw = raw as *mut P;
@@ -38,6 +49,7 @@ impl AnyPolicy {
         }
     }
 }
+
 impl Policy for AnyPolicy {
     fn name(&self) -> String {
         format!("AnyPolicy({})", self.policy.name())
@@ -50,6 +62,9 @@ impl Policy for AnyPolicy {
     }
     fn join_logic(&self, other: Self) -> Result<Self, ()> {
         self.policy.join(other)
+    }
+    fn into_any(self) -> AnyPolicy where Self: Sized {
+        self
     }
 }
 impl Clone for AnyPolicy {

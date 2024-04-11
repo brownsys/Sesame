@@ -219,32 +219,6 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for () {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<IpAddr, P> {
-    type BBoxError = std::convert::Infallible;
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        match request.client_ip() {
-            Some(addr) => BBoxRequestOutcome::Success(addr),
-            None => BBoxRequestOutcome::Forward(()),
-        }
-    }
-}
-
-#[rocket::async_trait]
-impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<SocketAddr, P> {
-    type BBoxError = std::convert::Infallible;
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        match request.remote() {
-            Some(addr) => BBoxRequestOutcome::Success(addr),
-            None => BBoxRequestOutcome::Forward(()),
-        }
-    }
-}
-
-#[rocket::async_trait]
 impl<'a, 'r> FromBBoxRequest<'a, 'r> for BBoxCookieJar<'a, 'r> {
     type BBoxError = std::convert::Infallible;
     async fn from_bbox_request(
@@ -272,5 +246,17 @@ impl<'a, 'r, T: Send + Sync + 'static> FromBBoxRequest<'a, 'r> for &'a rocket::S
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         <&rocket::State<T> as rocket::request::FromRequest>::from_request(request.get_request())
             .await
+    }
+}
+
+#[rocket::async_trait]
+impl<'a, 'r, T: rocket::request::FromRequest<'a>, P: Policy + FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<T, P> {
+    type BBoxError = ();
+    async fn from_bbox_request(
+        request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+        let t = <T as rocket::request::FromRequest>::from_request(request.get_request())
+            .await;
+        BBoxRequestOutcome::Success(BBox::new(t.unwrap(), P::from_request(request.get_request())))
     }
 }

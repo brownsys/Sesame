@@ -121,16 +121,16 @@ impl<T, P: Policy> BBox<T, P> {
 }
 
 // Can clone a ref policy to own it.
-impl<'a, T, P: Policy + Clone> BBox<&'a T, RefPolicy<'a, P>> where T: ?Sized {
-    pub fn to_owned_policy(&self) -> BBox<&'a T, P> {
+impl<'a, T, P: Policy + Clone> BBox<T, RefPolicy<'a, P>> {
+    pub fn to_owned_policy(self) -> BBox<T, P> {
         BBox::new(self.t, self.p.policy().clone())
     }
 }
 
 // Can clone a ref to own it.
-impl<'r, T: Clone, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
-    pub fn to_owned(&self) -> BBox<T, P> {
-        BBox::new(self.t.clone(), self.p.policy().clone())
+impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
+    pub fn to_owned(&self) -> BBox<T::Owned, P> {
+        BBox::new(self.t.to_owned(), self.p.policy().clone())
     }
 }
 

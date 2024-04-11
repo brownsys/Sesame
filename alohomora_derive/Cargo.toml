@@ -12,7 +12,7 @@ proc-macro = true
 attribute-derive = "0.8.1"
 proc-macro2 = "1.0.58"
 quote = "1.0.27"
-rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+rocket_http = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 serde = "1.0"
 syn = { version = "2.0.16", features = [ "full" ] }
 
