@@ -46,7 +46,7 @@ pub trait FrontendPolicy: Policy + Send {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashSet};
+    use std::collections::HashSet;
     use crate::context::UnprotectedContext;
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, Reason};
 

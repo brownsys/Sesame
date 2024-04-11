@@ -17,7 +17,7 @@ mod helpers;
 mod login;
 mod manage;
 mod policies;
-// mod predict;
+mod predict;
 mod index;
 mod questions;
 
@@ -80,12 +80,11 @@ pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
             routes![grades::grades, grades::editg, grades::editg_submit],
         )
         .mount("/answers", routes![questions::composed_answers])
-        .mount("/leclist", routes![questions::leclist]) /*
+        .mount("/leclist", routes![questions::leclist])
         .mount(
             "/predict",
             routes![predict::predict, predict::predict_grade],
         )
-        */
         .mount("/login", routes![login::login])
         .mount(
             "/admin/lec/add",
