@@ -6,6 +6,7 @@ use fake::{Dummy, Fake, Faker};
 use rocket::http::Cookie;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fs;
 use std::iter::FromIterator;
 use std::time::{Duration, Instant};
 use websubmit_boxed::{make_rocket, parse_args};
@@ -86,9 +87,9 @@ struct Grade {
     grade: u64,
 }
 
-#[derive(Debug, Dummy, Serialize)]
+#[derive(Debug, Serialize)]
 struct PredictionRequest {
-    time: NaiveDateTime,
+    time: String,
 }
 
 fn register_users(client: &BBoxClient, users: &mut Vec<User>) -> Vec<Duration> {
@@ -248,7 +249,10 @@ fn predict_grades(client: &BBoxClient) -> Vec<Duration> {
         .map(|lecture_id| {
             (0..N_PREDICTION_ATTEMPTS_PER_LECTURE)
                 .map(|_| {
-                    let prediction_request: PredictionRequest = Faker.fake();
+                    let timestamp: NaiveDateTime = Faker.fake();
+                    let prediction_request = PredictionRequest {
+                        time: timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
+                    };
 
                     let request = client
                         .post(format!("/predict/predict_grade/{}", lecture_id))
@@ -284,6 +288,22 @@ fn get_aggregates(client: &BBoxClient) -> Vec<Duration> {
         .collect()
 }
 
+fn write_stats(name: &'static str, data: &Vec<Duration>) {
+    let mut sorted_data = data.to_owned();
+    sorted_data.sort();
+
+    fs::write(
+        name,
+        format!(
+            "{}\n50-th percentile: {:?}\n95-th percentile: {:?}\n99-th percentile: {:?}\n",
+            name,
+            sorted_data.get((sorted_data.len() as f32 * 0.50).floor() as usize),
+            sorted_data.get((sorted_data.len() as f32 * 0.95).floor() as usize),
+            sorted_data.get((sorted_data.len() as f32 * 0.99).floor() as usize),
+        ),
+    ).unwrap();
+}
+
 fn main() {
     let args = parse_args();
     let rocket = make_rocket(args);
@@ -293,21 +313,29 @@ fn main() {
 
     // 1. Bench generating ApiKeys.
     let register_users_bench = register_users(&client, &mut users);
+    write_stats("register_users_bench", &register_users_bench);
 
     // Prime the database with other data.
     add_lectures(&client);
     add_questions(&client);
-    answer_questions(&client, &users);
 
-    // 2. Bench viewing answers for a lecture.
+    // 2. Bench answering the questions.
+    let answer_questions_bench = answer_questions(&client, &users);
+    write_stats("answer_questions_bench", &answer_questions_bench);
+
+    // 3. Bench viewing answers for a lecture.
     let view_answers_bench = view_answers(&client);
+    write_stats("view_answers_bench", &view_answers_bench);
 
-    // 3. Submit a grade and retrain the prediction model.
+    // 4. Submit a grade and retrain the prediction model.
     let submit_grades_bench = submit_grades(&client, &users);
+    write_stats("submit_grades_bench", &submit_grades_bench);
 
-    // 4. Query the prediction model.
-    // let predict_grades_bench = predict_grades(&client);
+    // 5. Query the prediction model.
+    let predict_grades_bench = predict_grades(&client);
+    write_stats("predict_grades_bench", &predict_grades_bench);
 
-    // 5. Query aggregate generation.
+    // 6. Query aggregate generation.
     // let get_aggregates_bench = get_aggregates(&client);
+    // write_stats("get_aggregates_bench", &get_aggregates_bench);
 }
