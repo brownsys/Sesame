@@ -1,0 +1,5 @@
+# Tool chain for WASM sandboxing
+[toolchain]
+channel = "nightly-2023-10-06"
+components = ["rust-src", "llvm-tools-preview", "rustc-dev"]
+

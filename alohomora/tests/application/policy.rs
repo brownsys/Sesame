@@ -35,7 +35,7 @@ impl Policy for ACLPolicy {
     }
 }
 impl SchemaPolicy for ACLPolicy {
-    fn from_row(row: &Vec<Value>) -> Self where Self: Sized {
+    fn from_row(table_name: &str, row: &Vec<Value>) -> Self where Self: Sized { 
         ACLPolicy {
             users: HashSet::from([
                 String::from("admin"),

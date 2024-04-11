@@ -7,6 +7,8 @@ use crate::sandbox::rlbox::RLBoxConfiguration;
 
 // Generates wrappers.
 pub fn generate_wrappers(env: &Env, rlbox: &RLBoxConfiguration) {
+    warn!("\x1b[96mnote: \x1b[97mGenerating wrappers in {}....\x1b[0m", env.out_directory);
+
     // Render the templates given the environment.
     let wrappers = render(env, rlbox);
 
@@ -19,6 +21,8 @@ pub fn generate_wrappers(env: &Env, rlbox: &RLBoxConfiguration) {
 }
 
 pub fn build_wrappers(env: &Env) {
+    warn!("\x1b[96mnote: \x1b[97mBuilding wrappers....\x1b[0m");
+
     let status = Command::new("make")
         .current_dir(&env.out_directory)
         .status()

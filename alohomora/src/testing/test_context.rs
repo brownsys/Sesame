@@ -11,6 +11,7 @@ impl<T: Send + 'static> TestContextData<T> {
     }
 }
 
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: Send + 'static> AlohomoraType for TestContextData<T> {
     type Out = T;
 

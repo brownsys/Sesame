@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use alohomora::AlohomoraType;
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
-use alohomora_derive::{route, routes, FromBBoxForm};
+use alohomora_derive::{route, routes, FromBBoxForm, AlohomoraType};
 
 // POST request data.
 #[derive(FromBBoxForm, PartialEq, Debug)]

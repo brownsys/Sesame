@@ -37,8 +37,8 @@ impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
 }
 
 impl<P: 'static + Policy + SchemaPolicy + Clone> SchemaPolicy for TestPolicy<P> {
-    fn from_row(row: &Vec<mysql::Value>) -> Self {
-        TestPolicy { p: P::from_row(row) }
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
+        TestPolicy { p: P::from_row(table_name, row) }
     }
 }
 impl<P: 'static + Policy + FrontendPolicy + Clone> FrontendPolicy for TestPolicy<P> {

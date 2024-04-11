@@ -25,7 +25,7 @@ impl Policy for NoPolicy {
 }
 
 impl SchemaPolicy for NoPolicy {
-    fn from_row(_row: &Vec<mysql::Value>) -> Self {
+    fn from_row(_table_name: &str, _row: &Vec<mysql::Value>) -> Self {
         Self {}
     }
 }

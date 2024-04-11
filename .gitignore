@@ -1,4 +1,12 @@
-/target
+**/target
+**/target-wasm32
 **/*.rs.bk
 *.local.*
 .idea
+**/nll-facts/
+**/mir_dumps/
+**/scrutinizer.log
+**/scrutinizer.result.json
+**/wasm32-rlbox.json
+**/wasm_target
+**/lib*_sandbox.so
