@@ -110,10 +110,11 @@ impl Policy for AnswerAccessPolicy {
 }
 
 impl SchemaPolicy for AnswerAccessPolicy {
-    fn from_row(row: &Vec<mysql::Value>) -> Self
+    fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
         where
             Self: Sized,
     {
+        println!("{}", table);
         AnswerAccessPolicy::new(
             mysql::from_value(row[0].clone()),
             mysql::from_value(row[1].clone())

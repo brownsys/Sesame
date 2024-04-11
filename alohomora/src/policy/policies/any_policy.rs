@@ -29,6 +29,13 @@ impl AnyPolicy {
         TypeId::of::<P>() == self.policy.as_ref().type_id()
     }
     pub fn specialize<P: Policy + 'static>(self) -> Result<P, String> {
+        if TypeId::of::<AnyPolicy>() == TypeId::of::<P>() {
+            let b = Box::new(self);
+            let raw = Box::into_raw(b);
+            let raw = raw as *mut P;
+            return Ok(*unsafe { Box::from_raw(raw) });
+        }
+
         if self.is::<P>() {
             let raw = Box::into_raw(self.policy);
             let raw = raw as *mut P;

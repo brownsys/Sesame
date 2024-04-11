@@ -7,18 +7,10 @@ use crate::config::Config;
 use crate::policies::ContextData;
 
 // Access control policy.
-#[schema_policy(table = "users", column = 0)]
-#[schema_policy(table = "users", column = 1)]
-#[schema_policy(table = "users", column = 2)]
-#[schema_policy(table = "users", column = 3)]
-#[schema_policy(table = "users", column = 4)]
 #[schema_policy(table = "users", column = 5)]
 #[schema_policy(table = "users", column = 6)]
 #[schema_policy(table = "users", column = 7)]
-#[schema_policy(table = "users", column = 8)]
-#[schema_policy(table = "users", column = 9)]
-#[schema_policy(table = "users", column = 10)]
-#[schema_policy(table = "users", column = 11)]
+#[schema_policy(table = "agg_gender", column = 0)]
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy across tables/columns.
 #[derive(Clone)]
@@ -37,6 +29,7 @@ impl Policy for UserProfilePolicy {
 
         let user: &Option<String> = &context.user;
         let config: &Config = &context.config;
+        return false;
 
         // I am not an authenticated user. I cannot see any answers!
         if user.is_none() {
@@ -85,12 +78,15 @@ impl Policy for UserProfilePolicy {
 }
 
 impl SchemaPolicy for UserProfilePolicy {
-    fn from_row(row: &Vec<mysql::Value>) -> Self
+    fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
         where
             Self: Sized,
     {
-        UserProfilePolicy::new(
-            mysql::from_value(row[0].clone()),
-        )
+        println!("constructor {}", table);
+        if table == "users" {
+            UserProfilePolicy { owner: mysql::from_value(row[0].clone()) }
+        } else {
+            UserProfilePolicy { owner: None }
+        }
     }
 }

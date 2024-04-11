@@ -22,13 +22,17 @@ impl Policy for SamplePolicy {
     }
 }
 impl SchemaPolicy for SamplePolicy {
-    fn from_row(_row: &Vec<Value>) -> Self {
+    fn from_row(_table: &str, _row: &Vec<Value>) -> Self {
         SamplePolicy {}
     }
 }
 
 #[test]
 fn schema_policy_registration_test() {
+    ::alohomora::policy::add_schema_policy::<
+        SamplePolicy,
+    >(::std::string::String::from("my_table"), 3usize);
+
     let policy = alohomora::policy::get_schema_policies(String::from("my_table"), 3, &vec![]);
     assert_eq!(policy.name(), String::from("AnyPolicy(SamplePolicy)"));
     assert!(policy.check(&UnprotectedContext::test(()), Reason::Custom));

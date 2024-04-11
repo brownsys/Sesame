@@ -53,23 +53,19 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for Manager {
 
 #[derive(BBoxRender)]
 pub(crate) struct Aggregate<T: Serialize> {
-    property: BBox<T, NoPolicy>,
-    average: BBox<f64, NoPolicy>,
+    property: BBox<T, AnyPolicy>,
+    average: BBox<f64, AnyPolicy>,
 }
 
 #[derive(BBoxRender)]
 struct AggregateContext {
-    aggregates_per_user: Vec<Aggregate<String>>,
-    aggregates_per_gender: Vec<Aggregate<String>>,
-    aggregates_per_remote: Vec<Aggregate<u8>>,
+    aggregate: Vec<Aggregate<bool>>,
     parent: String,
 }
 
-fn transform<T: Serialize + FromValue>(agg: BBox<Vec<Vec<mysql::Value>>, AnyPolicy>) -> Vec<Aggregate<T>> {
-    let agg: Vec<BBox<Vec<mysql::Value>, AnyPolicy>> = agg.into();
+fn transform<T: Serialize + FromValue>(agg: Vec<Vec<BBox<mysql::Value, AnyPolicy>>>) -> Vec<Aggregate<T>> {
     agg.into_iter()
         .map(|r| {
-            let r: Vec<BBox<mysql::Value, AnyPolicy>> = r.into();
             Aggregate {
                 property: from_value(r[0].clone()).unwrap(),
                 average: from_value(r[1].clone()).unwrap(),
@@ -85,21 +81,16 @@ pub(crate) fn get_aggregate_grades(
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
+    println!("THIS BEFORE QUERY");
     let grades = bg.prep_exec(
-        "SELECT pseudonym, gender, is_remote, grade FROM users JOIN answers ON users.email = answers.email;",
+        "SELECT * from agg_remote",
         (),
         context.clone()
     );
     drop(bg);
 
-    let user_agg = execute_pure(grades.clone(), PrivacyPureRegion::new(|grades| average::<String>(3, 0, grades))).unwrap();
-    let gender_agg = execute_pure(grades.clone(), PrivacyPureRegion::new(|grades| average::<String>(3, 1, grades))).unwrap();
-    let remote_agg = execute_pure(grades.clone(), PrivacyPureRegion::new(|grades| average::<bool>(3, 2, grades))).unwrap();
-
     let ctx = AggregateContext {
-        aggregates_per_user: transform(user_agg),
-        aggregates_per_gender: transform(gender_agg),
-        aggregates_per_remote: transform(remote_agg),
+        aggregate: transform(grades),
         parent: String::from("layout"),
     };
 
