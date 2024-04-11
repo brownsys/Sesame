@@ -1,7 +1,7 @@
 # short class ID (human readable)
 class = "CSCI 2390"
 # MySQL database user
-db_user = "artemagvanian"
+db_user = "root"
 # MySQL database password
 db_password = "password"
 # list email addresses whose API keys get admin access
@@ -19,4 +19,4 @@ secret = "SECRET"
 # whether to send emails (set to false for development)
 send_emails = false
 # whether to reset the db (set to false for production)
-prime = true
+prime = false
