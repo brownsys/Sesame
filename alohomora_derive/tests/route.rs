@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
-use rocket_http::Status;
 use alohomora_derive::{route, routes, FromBBoxForm, AlohomoraType};
 
 // POST request data.
