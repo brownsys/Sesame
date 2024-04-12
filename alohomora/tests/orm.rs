@@ -3,8 +3,8 @@ use sea_orm::entity::prelude::*;
 use alohomora::bbox::BBox;
 use alohomora::context::UnprotectedContext;
 
-use alohomora::orm::{BBoxDatabase, BBoxDatabaseConnection, BBoxSchema};
-use alohomora::policy::{AnyPolicy, NoPolicy, ORMPolicy, Policy, Reason};
+use alohomora::orm::{BBoxDatabase, BBoxDatabaseConnection, BBoxSchema, ORMPolicy};
+use alohomora::policy::{AnyPolicy, NoPolicy, Policy, Reason};
 
 #[derive(Clone)]
 pub struct MyPolicy {

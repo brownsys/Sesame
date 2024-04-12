@@ -1,6 +1,5 @@
-use sea_orm::QueryResult;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, ORMPolicy, Policy, Reason, SchemaPolicy};
+use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
 
 // NoPolicy can be directly discarded.
 #[derive(Clone, PartialEq, Eq)]
@@ -39,9 +38,4 @@ impl FrontendPolicy for NoPolicy {
         _name: &str,
         _cookie: &'a rocket::http::Cookie<'static>,
         _request: &'a rocket::Request<'r>) -> Self { Self {}}
-}
-impl ORMPolicy for NoPolicy {
-    fn from_result(_result: &QueryResult) -> Self where Self: Sized {
-        NoPolicy {}
-    }
 }

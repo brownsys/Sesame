@@ -1,4 +1,3 @@
-use sea_orm::QueryResult;
 use crate::context::UnprotectedContext;
 use crate::policy::AnyPolicy;
 
@@ -29,12 +28,6 @@ pub trait Policy {
 // Schema policies can be constructed from DB rows.
 pub trait SchemaPolicy: Policy {
     fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
-    where
-        Self: Sized;
-}
-
-pub trait ORMPolicy : Policy {
-    fn from_result(result: &QueryResult) -> Self
     where
         Self: Sized;
 }
