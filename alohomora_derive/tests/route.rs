@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
+use rocket_http::Status;
 use alohomora_derive::{route, routes, FromBBoxForm, AlohomoraType};
 
 // POST request data.
@@ -45,7 +46,7 @@ impl<'a, 'r> alohomora::rocket::FromBBoxRequest<'a, 'r> for ContextData {
 // POST /route/<num>?<dog>&<a>
 // Example: /route/5?a=apple&dog.name=Max&dog.age=10
 #[route(POST, "/route/<num>?<dog>&<a>", data = "<data>")]
-fn my_route(
+async fn my_route(
     config: &rocket::State<Config>,
     context: Context<ContextData>,
     num: alohomora::bbox::BBox<u8, NoPolicy>,
