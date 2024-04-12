@@ -110,7 +110,7 @@ impl Policy for AnswerAccessPolicy {
 }
 
 impl SchemaPolicy for AnswerAccessPolicy {
-    fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
+    fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
         where
             Self: Sized,
     {

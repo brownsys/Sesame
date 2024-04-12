@@ -58,7 +58,13 @@ pub(crate) struct Aggregate<T: Serialize> {
 }
 
 #[derive(BBoxRender)]
-struct AggregateContext {
+struct AggregateGenderContext {
+    aggregate: Vec<Aggregate<String>>,
+    parent: String,
+}
+
+#[derive(BBoxRender)]
+struct AggregateRemoteContext {
     aggregate: Vec<Aggregate<bool>>,
     parent: String,
 }
@@ -74,8 +80,31 @@ fn transform<T: Serialize + FromValue>(agg: Vec<Vec<BBox<mysql::Value, AnyPolicy
         .collect()
 }
 
-#[get("/")]
-pub(crate) fn get_aggregate_grades(
+#[get("/gender")]
+pub(crate) fn get_aggregate_gender(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
+) -> BBoxTemplate {
+    let mut bg = backend.lock().unwrap();
+    println!("THIS BEFORE QUERY");
+    let grades = bg.prep_exec(
+        "SELECT * from agg_gender",
+        (),
+        context.clone()
+    );
+    drop(bg);
+
+    let ctx = AggregateGenderContext {
+        aggregate: transform(grades),
+        parent: String::from("layout"),
+    };
+
+    BBoxTemplate::render("manage/aggregate", &ctx, context)
+}
+
+#[get("/remote")]
+pub(crate) fn get_aggregate_remote(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ContextData>,
@@ -89,11 +118,10 @@ pub(crate) fn get_aggregate_grades(
     );
     drop(bg);
 
-    let ctx = AggregateContext {
+    let ctx = AggregateRemoteContext {
         aggregate: transform(grades),
         parent: String::from("layout"),
     };
 
-    BBoxTemplate::render("manage/users", &ctx, context)
+    BBoxTemplate::render("manage/aggregate", &ctx, context)
 }
-

@@ -7,9 +7,9 @@ use crate::config::Config;
 use crate::policies::ContextData;
 
 // Access control policy.
-#[schema_policy(table = "users", column = 5)]
-#[schema_policy(table = "users", column = 6)]
-#[schema_policy(table = "users", column = 7)]
+#[schema_policy(table = "users", column = 5)] // gender
+#[schema_policy(table = "users", column = 6)] // age
+#[schema_policy(table = "users", column = 7)] // ethnicity
 #[schema_policy(table = "agg_gender", column = 0)]
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy across tables/columns.
