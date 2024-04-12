@@ -1,3 +1,4 @@
+use std::cmp;
 use std::sync::{Arc, Mutex};
 use alohomora::AlohomoraType;
 use alohomora::context::{Context, UnprotectedContext};
@@ -6,18 +7,17 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
 
-// Access control policy.
-#[schema_policy(table = "users", column = 5)] // gender
-#[schema_policy(table = "users", column = 6)] // age
-#[schema_policy(table = "users", column = 7)] // ethnicity
+// ML training policy.
+#[schema_policy(table = "employers_release", column = 0)]
+#[schema_policy(table = "employers_release", column = 1)]
 #[derive(Clone)]
-pub struct UserProfilePolicy {
-    owner: Option<String>, // even if no owner, admins may access
+pub struct EmployersReleasePolicy {
+    consent: bool,
 }
 
-impl Policy for UserProfilePolicy {
+impl Policy for EmployersReleasePolicy {
     fn name(&self) -> String {
-        format!("UserProfilePolicy(for user {:?})", self.owner)
+        format!("EmployersReleasePolicy(consent={})", self.consent)
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
@@ -27,30 +27,16 @@ impl Policy for UserProfilePolicy {
         let user: &Option<String> = &context.user;
         let config: &Config = &context.config;
 
-        // I am not an authenticated user. I cannot see any profiles!
-        if user.is_none() {
-            return false;
-        }
-
-        // I am the owner of the profile.
         let user = user.as_ref().unwrap();
-        if let Some(owner) = &self.owner {
-            if owner == user {
-                return true;
-            }
-        }
-
-        // I am an admin.
-        if config.admins.contains(user) {
+        if config.managers.contains(user) && self.consent {
             return true;
         }
-
         return false;
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<UserProfilePolicy>() {
-            let other = other.specialize::<UserProfilePolicy>().unwrap();
+        if other.is::<EmployersReleasePolicy>() {
+            let other = other.specialize::<EmployersReleasePolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
             Ok(AnyPolicy::new(
@@ -61,23 +47,17 @@ impl Policy for UserProfilePolicy {
     }
 
     fn join_logic(&self, p2: Self) -> Result<Self, ()> {
-        let comp_owner: Option<String>;
-        if self.owner.eq(&p2.owner) {
-            comp_owner = self.owner.clone();
-        } else {
-            comp_owner = None;
-        }
-        Ok(UserProfilePolicy{
-            owner: comp_owner,
+        Ok(EmployersReleasePolicy {
+            consent: self.consent && p2.consent,
         })
     }
 }
 
-impl SchemaPolicy for UserProfilePolicy {
+impl SchemaPolicy for EmployersReleasePolicy {
     fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
         where
             Self: Sized,
     {
-        UserProfilePolicy { owner: mysql::from_value(row[0].clone()) }
+        EmployersReleasePolicy { consent: mysql::from_value(row[2].clone()) }
     }
 }

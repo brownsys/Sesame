@@ -13,13 +13,13 @@ use alohomora::policy::NoPolicy;
 use alohomora::sandbox::execute_sandbox;
 
 use crate::backend::MySqlBackend;
-use crate::policies::{AnswerAccessPolicy, ContextData};
+use crate::policies::{MLTrainingPolicy, ContextData};
 
 use websubmit_boxed_sandboxes::train;
 use websubmit_boxed_sandboxes::evaluate_model;
 
 lazy_static! {
-    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, AnswerAccessPolicy>>>> =
+    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, MLTrainingPolicy>>>> =
         Arc::new(Mutex::new(None));
 }
 
@@ -39,19 +39,19 @@ pub(crate) fn train_and_store(
     // Get data from database.
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
-        "SELECT * FROM answers", // TODO (allenaby) why does this break if i select submitted_at, grade
+        "SELECT * FROM ml_training",
         (), 
         context);
     drop(bg);
 
-    type BBoxTime = BBox<NaiveDateTime, AnswerAccessPolicy>;
-    type BBoxGrade = BBox<u64, AnswerAccessPolicy>;
+    type BBoxTime = BBox<NaiveDateTime, MLTrainingPolicy>;
+    type BBoxGrade = BBox<u64, MLTrainingPolicy>;
     let grades: Vec<(BBoxTime, BBoxGrade)> = res
         .into_iter()
         .map(|r| {
             (
-                from_value(r[4].clone()).unwrap(),
-                from_value(r[5].clone()).unwrap(),
+                from_value(r[1].clone()).unwrap(),
+                from_value(r[0].clone()).unwrap(),
             )
         })
         .collect();
@@ -90,7 +90,7 @@ pub(crate) struct PredictGradeForm {
 struct PredictGradeContext {
     lec_id: BBox<u8, NoPolicy>,
     time: BBox<String, NoPolicy>,
-    grade: BBox<f64, AnswerAccessPolicy>,
+    grade: BBox<f64, MLTrainingPolicy>,
     parent: String,
 }
 

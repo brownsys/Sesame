@@ -1,3 +1,4 @@
+use std::cmp;
 use std::sync::{Arc, Mutex};
 use alohomora::AlohomoraType;
 use alohomora::context::{Context, UnprotectedContext};
@@ -6,18 +7,21 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
 
-// Access control policy.
-#[schema_policy(table = "users", column = 5)] // gender
-#[schema_policy(table = "users", column = 6)] // age
-#[schema_policy(table = "users", column = 7)] // ethnicity
+// Aggregate access policy.
+#[schema_policy(table = "agg_gender", column = 1)]
+#[schema_policy(table = "agg_remote", column = 1)]
 #[derive(Clone)]
-pub struct UserProfilePolicy {
-    owner: Option<String>, // even if no owner, admins may access
+pub struct AggregateAccessPolicy {
+    sensitive: bool,
 }
 
-impl Policy for UserProfilePolicy {
+const SENSITIVE_TABLES: &'static [&'static str] = &[
+    "agg_gender"
+];
+
+impl Policy for AggregateAccessPolicy {
     fn name(&self) -> String {
-        format!("UserProfilePolicy(for user {:?})", self.owner)
+        format!("AggregateAccessPolicy(sensitive={})", self.sensitive)
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
@@ -27,30 +31,17 @@ impl Policy for UserProfilePolicy {
         let user: &Option<String> = &context.user;
         let config: &Config = &context.config;
 
-        // I am not an authenticated user. I cannot see any profiles!
-        if user.is_none() {
-            return false;
-        }
-
-        // I am the owner of the profile.
         let user = user.as_ref().unwrap();
-        if let Some(owner) = &self.owner {
-            if owner == user {
-                return true;
-            }
-        }
-
-        // I am an admin.
-        if config.admins.contains(user) {
+        if config.managers.contains(user) && !self.sensitive || config.admins.contains(user) {
             return true;
         }
-
         return false;
+
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<UserProfilePolicy>() {
-            let other = other.specialize::<UserProfilePolicy>().unwrap();
+        if other.is::<AggregateAccessPolicy>() {
+            let other = other.specialize::<AggregateAccessPolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
             Ok(AnyPolicy::new(
@@ -61,23 +52,17 @@ impl Policy for UserProfilePolicy {
     }
 
     fn join_logic(&self, p2: Self) -> Result<Self, ()> {
-        let comp_owner: Option<String>;
-        if self.owner.eq(&p2.owner) {
-            comp_owner = self.owner.clone();
-        } else {
-            comp_owner = None;
-        }
-        Ok(UserProfilePolicy{
-            owner: comp_owner,
+        Ok(AggregateAccessPolicy {
+            sensitive: self.sensitive || p2.sensitive,
         })
     }
 }
 
-impl SchemaPolicy for UserProfilePolicy {
+impl SchemaPolicy for AggregateAccessPolicy {
     fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
         where
             Self: Sized,
     {
-        UserProfilePolicy { owner: mysql::from_value(row[0].clone()) }
+        AggregateAccessPolicy { sensitive: SENSITIVE_TABLES.contains(&table) }
     }
 }

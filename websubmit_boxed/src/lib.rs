@@ -1,4 +1,5 @@
 use alohomora::rocket::{routes, BBoxRocket, BBoxRoute};
+use alohomora::policy::add_schema_policy;
 use rocket::fs::FileServer;
 use rocket::Build;
 use rocket_dyn_templates::Template;
@@ -31,12 +32,62 @@ fn new_logger() -> slog::Logger {
 }
 
 pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
-    ::alohomora::policy::add_schema_policy::<
+    add_schema_policy::<
+        policies::AnswerAccessPolicy,
+    >(String::from("answers"), 0usize);
+    add_schema_policy::<
+        policies::AnswerAccessPolicy,
+    >(String::from("answers"), 1usize);
+    add_schema_policy::<
+        policies::AnswerAccessPolicy,
+    >(String::from("answers"), 2usize);
+    add_schema_policy::<
+        policies::AnswerAccessPolicy,
+    >(String::from("answers"), 3usize);
+    add_schema_policy::<
+        policies::AnswerAccessPolicy,
+    >(String::from("answers"), 4usize);
+    add_schema_policy::<
+        policies::AnswerAccessPolicy,
+    >(String::from("answers"), 5usize);
+
+    add_schema_policy::<
+        policies::UserProfilePolicy,
+    >(String::from("users"), 5usize);
+    add_schema_policy::<
+        policies::UserProfilePolicy,
+    >(String::from("users"), 6usize);
+    add_schema_policy::<
+        policies::UserProfilePolicy,
+    >(String::from("users"), 7usize);
+    
+    add_schema_policy::<
         policies::KAnonymityPolicy,
-    >(::std::string::String::from("agg_gender"), 0usize);
-    ::alohomora::policy::add_schema_policy::<
+    >(String::from("agg_gender"), 1usize);
+    add_schema_policy::<
         policies::KAnonymityPolicy,
-    >(::std::string::String::from("agg_remote"), 0usize);
+    >(String::from("agg_remote"), 1usize);
+
+    add_schema_policy::<
+        policies::AggregateAccessPolicy,
+    >(String::from("agg_gender"), 1usize);
+    add_schema_policy::<
+        policies::AggregateAccessPolicy,
+    >(String::from("agg_remote"), 1usize);
+
+    add_schema_policy::<
+        policies::MLTrainingPolicy,
+    >(String::from("ml_training"), 0usize);
+    add_schema_policy::<
+        policies::MLTrainingPolicy,
+    >(String::from("ml_training"), 1usize);
+
+    add_schema_policy::<
+        policies::EmployersReleasePolicy,
+    >(String::from("employers_release"), 0usize);
+    add_schema_policy::<
+        policies::EmployersReleasePolicy,
+    >(String::from("employers_release"), 1usize);
 
     let config = args.config;
 
