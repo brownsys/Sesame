@@ -31,6 +31,9 @@ fn new_logger() -> slog::Logger {
 }
 
 pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
+    ::alohomora::policy::add_schema_policy::<
+        policies::UserProfilePolicy,
+    >(::std::string::String::from("agg_gender"), 0usize);
     let config = args.config;
 
     let backend = Arc::new(Mutex::new(

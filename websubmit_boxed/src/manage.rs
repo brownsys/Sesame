@@ -87,7 +87,6 @@ pub(crate) fn get_aggregate_gender(
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    println!("THIS BEFORE QUERY");
     let grades = bg.prep_exec(
         "SELECT * from agg_gender",
         (),
@@ -110,7 +109,6 @@ pub(crate) fn get_aggregate_remote(
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    println!("THIS BEFORE QUERY");
     let grades = bg.prep_exec(
         "SELECT * from agg_remote",
         (),
