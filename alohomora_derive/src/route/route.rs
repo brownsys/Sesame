@@ -272,6 +272,15 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
       #(let #query_idents = #query_idents.unwrap();)*
     };
 
+    // If the function is async, we should await on the result.
+    let res_await = if sig.asyncness.is_some() {
+        quote! {
+            let res = res.await;
+        }
+    } else {
+        quote! {}
+    };
+
     quote! {
       #[allow(non_camel_case_types)]
       pub struct #fn_name {}
@@ -291,6 +300,9 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
           // invoke with result.
           let res = #fn_call;
+
+          // await on response if handler is async.
+          #res_await
 
           // done!
           ::alohomora::rocket::BBoxResponseOutcome::from(_request, res)

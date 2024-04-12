@@ -1,4 +1,6 @@
 mod cookie;
+
+mod cors;
 mod data;
 mod form;
 mod json;
@@ -11,6 +13,7 @@ mod route;
 mod template;
 
 pub use crate::rocket::cookie::*;
+pub use crate::rocket::cors::*;
 pub use crate::rocket::data::*;
 pub use crate::rocket::form::*;
 pub use crate::rocket::json::*;

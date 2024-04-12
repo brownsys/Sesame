@@ -10,7 +10,10 @@ extern crate alohomora_sandbox;
 pub mod bbox;
 pub mod context;
 pub mod db;
+
+#[cfg(feature = "orm")]
 pub mod orm;
+
 pub mod policy;
 pub mod rocket;
 pub mod sandbox;
