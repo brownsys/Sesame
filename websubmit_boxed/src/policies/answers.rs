@@ -7,12 +7,12 @@ use crate::config::Config;
 use crate::policies::ContextData;
 
 // Access control policy.
-#[schema_policy(table = "answers", column = 0)]
-#[schema_policy(table = "answers", column = 1)]
-#[schema_policy(table = "answers", column = 2)]
-#[schema_policy(table = "answers", column = 3)]
-#[schema_policy(table = "answers", column = 4)]
-#[schema_policy(table = "answers", column = 5)]
+#[schema_policy(table = "answers", column = 0)] // email
+#[schema_policy(table = "answers", column = 1)] // lec
+#[schema_policy(table = "answers", column = 2)] // q
+#[schema_policy(table = "answers", column = 3)] // answer
+#[schema_policy(table = "answers", column = 4)] // submitted_at
+#[schema_policy(table = "answers", column = 5)] // grade, WHY CAN DISCUSSION LEADER SEE GRADE
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy across tables/columns.
 #[derive(Clone)]

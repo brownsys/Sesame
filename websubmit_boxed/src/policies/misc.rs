@@ -8,11 +8,8 @@ use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, sc
 #[schema_policy(table = "users", column = 1)]
 pub struct QueryableOnly {}
 
-// Content of answer column can only be accessed by:
-//   1. The user who submitted the answer (`user_id == me`);
-//   2. The admin(s) (`is me in set<admins>`);
-//   3. Any student who is leading discussion for the lecture
-//      (`P(me)` alter. `is me in set<P(students)>`);
+// Content of apikey column can only be accessed by:
+//   1. SELECT query
 impl Policy for QueryableOnly {
     fn name(&self) -> String {
         String::from("QueryableOnly")
