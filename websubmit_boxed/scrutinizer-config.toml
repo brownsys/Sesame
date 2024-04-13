@@ -1,0 +1,201 @@
+mode = "ppr"
+only_inconsistent = true
+output_file = "scrutinizer.result.json"
+
+# We only want the first argument to the closure to be treated as important
+# Since arguments are 1-indexed and the very first one is the closure itself, we mark arg#2 as important.
+important_args = [2]
+allowlist = [
+  # Prefetching.
+  'core\[\w*\]::intrinsics::\{extern#0\}::prefetch_read_data',
+  'core\[\w*\]::intrinsics::\{extern#0\}::prefetch_write_data',
+  'core\[\w*\]::intrinsics::\{extern#0\}::prefetch_read_instruction',
+  'core\[\w*\]::intrinsics::\{extern#0\}::prefetch_write_instruction',
+
+  # Optimizer.
+  'core\[\w*\]::intrinsics::\{extern#0\}::likely',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unlikely',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unreachable',
+  'core\[\w*\]::intrinsics::\{extern#0\}::assume',
+  'core\[\w*\]::intrinsics::\{extern#0\}::black_box',
+
+  # Breakpoint.
+  'core\[\w*\]::intrinsics::\{extern#0\}::breakpoint',
+
+  # size_of and others.
+  'core\[\w*\]::intrinsics::\{extern#0\}::size_of',
+  'core\[\w*\]::intrinsics::\{extern#0\}::min_align_of',
+  'core\[\w*\]::intrinsics::\{extern#0\}::pref_align_of',
+  'core\[\w*\]::intrinsics::\{extern#0\}::size_of_val',
+  'core\[\w*\]::intrinsics::\{extern#0\}::min_align_of_val',
+
+  # Assertions.
+  'core\[\w*\]::intrinsics::\{extern#0\}::assert_inhabited',
+  'core\[\w*\]::intrinsics::\{extern#0\}::assert_zero_valid',
+  'core\[\w*\]::intrinsics::\{extern#0\}::assert_mem_uninitialized_valid',
+
+  # Needs drop.
+  'core\[\w*\]::intrinsics::\{extern#0\}::needs_drop',
+
+  # Offsets.
+  'core\[\w*\]::intrinsics::\{extern#0\}::arith_offset',
+  'core\[\w*\]::intrinsics::\{extern#0\}::offset',
+
+  # Ptr mask.
+  'core\[\w*\]::intrinsics::\{extern#0\}::ptr_mask',
+
+  # Number operations.
+  'core\[\w*\]::intrinsics::\{extern#0\}::sqrtf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::sqrtf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::powif32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::powif64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::sinf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::sinf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::cosf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::cosf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::powf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::powf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::expf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::expf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::exp2f32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::exp2f64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::logf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::logf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::log10f32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::log10f64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::log2f32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::log2f64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fmaf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fmaf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fabsf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fabsf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::minnumf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::minnumf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::maxnumf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::maxnumf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::copysignf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::copysignf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::floorf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::floorf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::ceilf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::ceilf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::truncf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::truncf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::rintf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::rintf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::nearbyintf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::nearbyintf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::roundf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::roundf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::roundevenf32',
+  'core\[\w*\]::intrinsics::\{extern#0\}::roundevenf64',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fadd_fast',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fsub_fast',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fmul_fast',
+  'core\[\w*\]::intrinsics::\{extern#0\}::fdiv_fast',
+  'core\[\w*\]::intrinsics::\{extern#0\}::frem_fast',
+  'core\[\w*\]::intrinsics::\{extern#0\}::float_to_int_unchecked',
+
+  # Bit operations
+  'core\[\w*\]::intrinsics::\{extern#0\}::ctpop',
+  'core\[\w*\]::intrinsics::\{extern#0\}::ctlz',
+  'core\[\w*\]::intrinsics::\{extern#0\}::ctlz_nonzero',
+  'core\[\w*\]::intrinsics::\{extern#0\}::cttz',
+  'core\[\w*\]::intrinsics::\{extern#0\}::cttz_nonzero',
+  'core\[\w*\]::intrinsics::\{extern#0\}::bswap',
+  'core\[\w*\]::intrinsics::\{extern#0\}::bitreverse',
+
+  # Arithmetic operations with overflow.
+  'core\[\w*\]::intrinsics::\{extern#0\}::add_with_overflow',
+  'core\[\w*\]::intrinsics::\{extern#0\}::sub_with_overflow',
+  'core\[\w*\]::intrinsics::\{extern#0\}::mul_with_overflow',
+
+  # Rotates.
+  'core\[\w*\]::intrinsics::\{extern#0\}::rotate_left',
+  'core\[\w*\]::intrinsics::\{extern#0\}::rotate_right',
+
+  # Wrapping arithmetic operations.
+  'core\[\w*\]::intrinsics::\{extern#0\}::wrapping_add',
+  'core\[\w*\]::intrinsics::\{extern#0\}::wrapping_sub',
+  'core\[\w*\]::intrinsics::\{extern#0\}::wrapping_mul',
+
+  # Saturating arithmetic operations.
+  'core\[\w*\]::intrinsics::\{extern#0\}::saturating_add',
+  'core\[\w*\]::intrinsics::\{extern#0\}::saturating_sub',
+
+  # Read arbitrary memory.
+  'core\[\w*\]::intrinsics::\{extern#0\}::read_via_copy',
+
+  # Discriminants.
+  'core\[\w*\]::intrinsics::\{extern#0\}::discriminant_value',
+
+  # Variants.
+  'core\[\w*\]::intrinsics::\{extern#0\}::variant_count',
+
+  # const* business.
+  'core\[\w*\]::intrinsics::\{extern#0\}::ptr_offset_from',
+  'core\[\w*\]::intrinsics::\{extern#0\}::ptr_offset_from_unsigned',
+  'core\[\w*\]::intrinsics::\{extern#0\}::ptr_guaranteed_cmp',
+
+  # Constant evaluation.
+  'core\[\w*\]::intrinsics::\{extern#0\}::const_allocate',
+  'core\[\w*\]::intrinsics::\{extern#0\}::const_deallocate',
+  'core\[\w*\]::intrinsics::\{extern#0\}::const_eval_select',
+
+  # Raw equality comparison.
+  'core\[\w*\]::intrinsics::\{extern#0\}::raw_eq',
+
+  # Vtable.
+  'core\[\w*\]::intrinsics::\{extern#0\}::vtable_size',
+  'core\[\w*\]::intrinsics::\{extern#0\}::vtable_align',
+
+  # Unchecked arithmetic operations.
+  'core\[\w*\]::intrinsics::\{extern#0\}::exact_div',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unchecked_add',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unchecked_div',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unchecked_mul',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unchecked_rem',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unchecked_shl',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unchecked_shr',
+  'core\[\w*\]::intrinsics::\{extern#0\}::unchecked_sub',  
+
+  # Dynamic typing.
+  'core\[\w*\]::intrinsics::\{extern#0\}::type_id',
+  'core\[\w*\]::intrinsics::\{extern#0\}::type_name',
+
+  # Panicking infrastructure.
+  'core\[\w*\]::panicking::const_panic_fmt',
+  'core\[\w*\]::panicking::panic',
+  'core\[\w*\]::panicking::panic_display',
+  'core\[\w*\]::panicking::panic_fmt',
+  'core\[\w*\]::panicking::panic_nounwind',
+  'core\[\w*\]::panicking::panic_nounwind_fmt',
+  'core\[\w*\]::panicking::panic_str',
+  'core\[\w*\]::panicking::unreachable_display',
+
+  # Alloc infrastructure.
+  'alloc\[\w*\]::alloc::alloc',
+  'alloc\[\w*\]::alloc::alloc_zeroed',
+  'alloc\[\w*\]::alloc::dealloc',
+  'alloc\[\w*\]::alloc::realloc',
+  # Impls of global allocator.
+  'alloc\[\w*\]::alloc::\{impl#0\}',
+  'alloc\[\w*\]::alloc::\{impl#1\}',
+
+  # Format chrono.
+  'chrono\[\w*\]::naive::datetime::\{impl#0\}::format',
+  'alloc\[\w*\]::string::\{impl#41\}::to_string',
+  'core\[\w*\]::fmt::\{impl#3\}::new',
+
+  # Format strings.
+  'alloc\[\w*\]::fmt::format',
+
+  # Rust 1.70 calls to memcmp to compare slices.
+  # This is removed in further versions.
+  'core\[\w*\]::slice::cmp::\{extern#0\}::memcmp',
+]
+trusted_stdlib = [
+  'alloc\[\w*\]::vec',
+  'alloc\[\w*\]::slice',
+  'std\[\w*\]::collections::hash::map',
+]
