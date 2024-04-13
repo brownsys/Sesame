@@ -39,7 +39,7 @@ pub(crate) fn train_and_store(
     // Get data from database.
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
-        "SELECT * FROM ml_training",
+        "SELECT * FROM ml_training WHERE consent = 1",
         (), 
         context);
     drop(bg);

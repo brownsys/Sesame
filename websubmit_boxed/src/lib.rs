@@ -154,5 +154,9 @@ pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
         .mount("/manage", 
-        routes![manage::get_aggregate_gender, manage::get_aggregate_remote])
+            routes![manage::get_aggregate_gender, 
+                manage::get_aggregate_remote, 
+                manage::get_list_for_employers,
+                manage::get_list_for_employers_buggy]
+        )
 }

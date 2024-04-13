@@ -123,3 +123,68 @@ pub(crate) fn get_aggregate_remote(
 
     BBoxTemplate::render("manage/aggregate", &ctx, context)
 }
+
+#[derive(BBoxRender, Clone)]
+pub(crate) struct InfoForEmployers {
+    email: BBox<String, AnyPolicy>,
+    average_grade: BBox<f64, AnyPolicy>,
+}
+
+#[derive(BBoxRender)]
+struct InfoForEmployersContext {
+    users: Vec<InfoForEmployers>,
+    parent: String,
+}
+
+
+#[get("/employers")]
+pub(crate) fn get_list_for_employers(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    config: &State<Config>,
+    context: Context<ContextData>,
+) -> BBoxTemplate {
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec("SELECT * from employers_release WHERE consent = 1", (), context.clone());
+    drop(bg);
+
+    let users = res
+        .into_iter()
+        .map(|r| InfoForEmployers {
+            email: from_value(r[0].clone()).unwrap(),
+            average_grade: from_value(r[1].clone()).unwrap(),
+        })
+        .collect();
+
+    let ctx = InfoForEmployersContext {
+        users: users,
+        parent: "layout".into(),
+    };
+    BBoxTemplate::render("manage/users", &ctx, context)
+}
+
+#[get("/employers_buggy")]
+pub(crate) fn get_list_for_employers_buggy(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    config: &State<Config>,
+    context: Context<ContextData>,
+) -> BBoxTemplate {
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec("SELECT * from employers_release", (), context.clone());
+    drop(bg);
+
+    let users = res
+        .into_iter()
+        .map(|r| InfoForEmployers {
+            email: from_value(r[0].clone()).unwrap(),
+            average_grade: from_value(r[1].clone()).unwrap(),
+        })
+        .collect();
+
+    let ctx = InfoForEmployersContext {
+        users: users,
+        parent: "layout".into(),
+    };
+    BBoxTemplate::render("manage/users", &ctx, context)
+}
