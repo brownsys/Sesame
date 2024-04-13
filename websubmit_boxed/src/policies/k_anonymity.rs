@@ -40,7 +40,7 @@ impl Policy for KAnonymityPolicy {
 
     fn join_logic(&self, p2: Self) -> Result<Self, ()> {
         Ok(KAnonymityPolicy {
-            count: cmp::max(self.count, p2.count),
+            count: cmp::min(self.count, p2.count),
         })
     }
 }
