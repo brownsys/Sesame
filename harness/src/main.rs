@@ -16,6 +16,7 @@ const N_LECTURES: u32 = 10;
 const N_QUESTIONS_PER_LECTURE: u32 = 10;
 const N_PREDICTION_ATTEMPTS_PER_LECTURE: u32 = 10;
 const N_AGGREGATE_GRADES_QUERIES: u32 = 10;
+const N_EMPLOYER_INFO_QUERIES: u32 = 10;
 
 const ADMIN_APIKEY: &'static str = "hashartem@brown.edu";
 
@@ -276,7 +277,23 @@ fn get_aggregates(client: &BBoxClient) -> Vec<Duration> {
     (0..N_AGGREGATE_GRADES_QUERIES)
         .map(|_| {
             let request = client
-                .get("/manage/users")
+                .get("/manage/remote")
+                .cookie(Cookie::new("apikey", ADMIN_APIKEY));
+
+            let now = Instant::now();
+            request.dispatch();
+            let elapsed = now.elapsed();
+
+            elapsed
+        })
+        .collect()
+}
+
+fn get_employer_info(client: &BBoxClient) -> Vec<Duration> {
+    (0..N_EMPLOYER_INFO_QUERIES)
+        .map(|_| {
+            let request = client
+                .get("/manage/employers")
                 .cookie(Cookie::new("apikey", ADMIN_APIKEY));
 
             let now = Instant::now();
@@ -289,18 +306,9 @@ fn get_aggregates(client: &BBoxClient) -> Vec<Duration> {
 }
 
 fn write_stats(name: &'static str, data: &Vec<Duration>) {
-    let mut sorted_data = data.to_owned();
-    sorted_data.sort();
-
     fs::write(
         name,
-        format!(
-            "{}\n50-th percentile: {:?}\n95-th percentile: {:?}\n99-th percentile: {:?}\n",
-            name,
-            sorted_data.get((sorted_data.len() as f32 * 0.50).floor() as usize),
-            sorted_data.get((sorted_data.len() as f32 * 0.95).floor() as usize),
-            sorted_data.get((sorted_data.len() as f32 * 0.99).floor() as usize),
-        ),
+        serde_json::to_string(data).unwrap(),
     ).unwrap();
 }
 
@@ -336,6 +344,10 @@ fn main() {
     write_stats("predict_grades_bench", &predict_grades_bench);
 
     // 6. Query aggregate generation.
-    // let get_aggregates_bench = get_aggregates(&client);
-    // write_stats("get_aggregates_bench", &get_aggregates_bench);
+    let get_aggregates_bench = get_aggregates(&client);
+    write_stats("get_aggregates_bench", &get_aggregates_bench);
+
+    // 7. Employer info generation.
+    let get_employer_info_bench = get_employer_info(&client);
+    write_stats("get_employer_info_bench", &get_employer_info_bench);
 }

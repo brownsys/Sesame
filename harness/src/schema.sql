@@ -6,8 +6,12 @@ CREATE TABLE answers (email varchar(255), lec int, q int, answer text, submitted
 -- For discussion leaders: a discussion leader has access to read the submitted answers.
 CREATE TABLE discussion_leaders (id int PRIMARY KEY, email varchar(255), lec int);
 
-
 CREATE VIEW lec_qcount as SELECT questions.lec, COUNT(questions.q) AS qcount FROM questions GROUP BY questions.lec;
+CREATE VIEW agg_remote as SELECT users.is_remote, AVG(answers.grade), COUNT(DISTINCT users.email) FROM users JOIN answers on users.email = answers.email GROUP BY users.is_remote;
+CREATE VIEW agg_gender as SELECT users.gender, AVG(answers.grade), COUNT(DISTINCT users.email) FROM users JOIN answers on users.email = answers.email GROUP BY users.gender;
+
+CREATE VIEW ml_training as SELECT answers.grade, answers.submitted_at, users.consent FROM users JOIN answers on users.email = answers.email;
+CREATE VIEW employers_release as SELECT users.email, AVG(answers.grade), users.consent FROM users JOIN answers on users.email = answers.email GROUP BY users.email;
 
 -- Insert a single admin user.
 INSERT INTO users (email, apikey, is_admin, is_manager, pseudonym, gender, age, ethnicity, is_remote, education, consent) VALUES ('artem@brown.edu', 'hashartem@brown.edu', 1, 1, 'DfsHoGKHMzmek7Hv', '', 21, '', 0, '', 0);
