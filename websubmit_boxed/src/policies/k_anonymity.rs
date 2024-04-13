@@ -15,7 +15,7 @@ pub struct KAnonymityPolicy {
     count: u64,
 }
 
-const MIN_K: u64 = 100;
+const MIN_K: u64 = 10;
 
 impl Policy for KAnonymityPolicy {
     fn name(&self) -> String {

@@ -10,3 +10,5 @@
 **/wasm32-rlbox.json
 **/wasm_target
 **/lib*_sandbox.so
+**/venv/
+**/benches/

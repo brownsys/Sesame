@@ -14,7 +14,7 @@ use alohomora_derive::AlohomoraSandbox;
 pub fn hash(inputs: (String, String)) -> String {
     let mut s = DefaultHasher::new();
     inputs.0.hash(&mut s);
-    format!("hash{}", inputs.0)
+    format!("{}", s.finish())
 }
 
 #[AlohomoraSandbox()]

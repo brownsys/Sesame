@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use rand::distributions::Alphanumeric;
@@ -14,7 +15,7 @@ use alohomora::context::Context;
 use alohomora::pcr::PrivacyCriticalRegion;
 use alohomora::pure::PrivacyPureRegion;
 
-use alohomora::rocket::{BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, post, FromBBoxForm};
+use alohomora::rocket::{BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, JsonResponse, post, FromBBoxForm, OutputBBoxValue, ResponseBBoxJson};
 use alohomora::sandbox::execute_sandbox;
 use alohomora::unbox::unbox;
 
@@ -98,10 +99,18 @@ pub(crate) struct ApiKeyRequest {
     consent: Option<BBox<bool, NoPolicy>>,
 }
 
-#[derive(BBoxRender)]
 pub(crate) struct ApiKeyResponse {
-    apikey_email: BBox<String, AnyPolicy>,
-    parent: String,
+    email: BBox<String, AnyPolicy>,
+    apikey: BBox<String, AnyPolicy>,
+}
+
+impl ResponseBBoxJson for ApiKeyResponse {
+    fn to_json(self) -> OutputBBoxValue {
+        OutputBBoxValue::Object(HashMap::from([
+            (String::from("email"), self.email.to_json()),
+            (String::from("apikey"), self.apikey.to_json()),
+        ]))
+    }
 }
 
 #[derive(FromBBoxForm)]
@@ -115,7 +124,7 @@ pub(crate) fn generate(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
     context: Context<ContextData>,
-) -> BBoxTemplate {
+) -> JsonResponse<ApiKeyResponse, ContextData> {
     let pseudonym: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(16)
@@ -161,7 +170,7 @@ pub(crate) fn generate(
 
     if config.send_emails {
         unbox(
-            (data.email.clone(), hash),
+            (data.email.clone(), hash.clone()),
             context.clone(),
             PrivacyCriticalRegion::new(|(email, hash), _| {
                 email::send(
@@ -182,11 +191,11 @@ pub(crate) fn generate(
 
     // return to user
     let ctx = ApiKeyResponse {
-        apikey_email: data.email.clone().into_any_policy(),
-        parent: "layout".into(),
+        email: data.email.clone().into_any_policy(),
+        apikey: hash.clone().into_any_policy(),
     };
 
-    BBoxTemplate::render("apikey/generate", &ctx, context)
+    JsonResponse::from((ctx, context))
 }
 
 #[post("/", data = "<data>")]

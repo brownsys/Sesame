@@ -14,4 +14,4 @@ CREATE VIEW ml_training as SELECT answers.grade, answers.submitted_at, users.con
 CREATE VIEW employers_release as SELECT users.email, AVG(answers.grade), users.consent FROM users JOIN answers on users.email = answers.email GROUP BY users.email;
 
 -- Insert a single admin user.
-INSERT INTO users (email, apikey, is_admin, is_manager, pseudonym, gender, age, ethnicity, is_remote, education, consent) VALUES ('artem@brown.edu', 'hashartem@brown.edu', 1, 1, 'DfsHoGKHMzmek7Hv', '', 21, '', 0, '', 0);
+INSERT INTO users (email, apikey, is_admin, is_manager, pseudonym, gender, age, ethnicity, is_remote, education, consent) VALUES ('artem@brown.edu', 'ADMIN_API_KEY', 1, 1, 'DfsHoGKHMzmek7Hv', '', 21, '', 0, '', 0);

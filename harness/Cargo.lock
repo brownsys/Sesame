@@ -1755,6 +1755,7 @@ dependencies = [
  "rocket",
  "serde",
  "serde_html_form",
+ "serde_json",
  "websubmit_boxed",
 ]
 

@@ -11,14 +11,14 @@ use std::iter::FromIterator;
 use std::time::{Duration, Instant};
 use websubmit_boxed::{make_rocket, parse_args};
 
-const N_USERS: u32 = 10;
+const N_USERS: u32 = 30;
 const N_LECTURES: u32 = 10;
 const N_QUESTIONS_PER_LECTURE: u32 = 10;
 const N_PREDICTION_ATTEMPTS_PER_LECTURE: u32 = 10;
 const N_AGGREGATE_GRADES_QUERIES: u32 = 10;
 const N_EMPLOYER_INFO_QUERIES: u32 = 10;
 
-const ADMIN_APIKEY: &'static str = "hashartem@brown.edu";
+const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
 
 #[derive(Debug, Dummy, Serialize)]
 enum Gender {
@@ -103,10 +103,13 @@ fn register_users(client: &BBoxClient, users: &mut Vec<User>) -> Vec<Duration> {
                 .body(serde_html_form::to_string(&user).unwrap());
 
             let now = Instant::now();
-            request.dispatch();
+            let response = request.dispatch();
             let elapsed = now.elapsed();
 
-            user.token = format!("hash{}", user.email);
+            let json: serde_json::Value = response.into_json().unwrap();
+            let apikey: serde_json::Value = json.get("apikey").unwrap().to_owned();
+
+            user.token = apikey.as_str().unwrap().to_owned();
 
             elapsed
         })
@@ -306,9 +309,11 @@ fn get_employer_info(client: &BBoxClient) -> Vec<Duration> {
 }
 
 fn write_stats(name: &'static str, data: &Vec<Duration>) {
+    let duration_nanos: Vec<u128> = data.iter().map(|d| d.as_nanos()).collect();
+    fs::create_dir_all("benches/").unwrap();
     fs::write(
-        name,
-        serde_json::to_string(data).unwrap(),
+        format!("benches/{}.json", name),
+        serde_json::to_string_pretty(&duration_nanos).unwrap(),
     ).unwrap();
 }
 

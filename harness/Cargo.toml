@@ -11,6 +11,7 @@ fake = { version = "2.9.2", features = ["derive", "chrono"] }
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 websubmit_boxed = { path = "../websubmit_boxed" }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 serde_html_form = "0.2.6"
 
 [patch.crates-io]
