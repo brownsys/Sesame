@@ -102,6 +102,29 @@ pub(crate) fn get_aggregate_gender(
     BBoxTemplate::render("manage/aggregate", &ctx, context)
 }
 
+#[get("/remote_buggy")]
+pub(crate) fn get_aggregate_remote_buggy(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
+) -> BBoxTemplate {
+    let mut bg = backend.lock().unwrap();
+    let grades = bg.prep_exec(
+        "SELECT * from agg_remote",
+        (),
+        context.clone()
+    );
+    drop(bg);
+
+    let ctx = AggregateRemoteContext {
+        aggregate: transform(grades),
+        parent: String::from("layout"),
+    };
+
+    BBoxTemplate::render("manage/aggregate", &ctx, context)
+}
+
+
 #[get("/remote")]
 pub(crate) fn get_aggregate_remote(
     _manager: Manager,
@@ -110,7 +133,7 @@ pub(crate) fn get_aggregate_remote(
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec(
-        "SELECT * from agg_remote",
+        "SELECT * from agg_remote WHERE ucount >= 10",
         (),
         context.clone()
     );
