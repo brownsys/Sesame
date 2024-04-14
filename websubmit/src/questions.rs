@@ -41,7 +41,8 @@ struct LectureAnswer {
     id: u64,
     user: String,
     answer: String,
-    time: Option<NaiveDateTime>,
+    time: String,
+    grade: u64,
 }
 
 #[derive(Serialize)]
@@ -99,7 +100,7 @@ pub(crate) fn leclist(
         .collect();
 
     let ctx = LectureListContext {
-        admin: admin,
+        admin,
         lectures: lecs,
         parent: "layout",
     };
@@ -117,23 +118,21 @@ pub(crate) fn answers(
     let key: Value = (num as u64).into();
     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
     drop(bg);
+
     let answers: Vec<_> = res
         .into_iter()
         .map(|r| LectureAnswer {
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: if let Value::Time(..) = r[4] {
-                Some(from_value::<NaiveDateTime>(r[4].clone()))
-            } else {
-                None
-            },
+            time: from_value::<NaiveDateTime>(r[4].clone()).unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),
+            grade: from_value(r[5].clone()).unwrap(),
         })
         .collect();
 
     let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: answers,
+        answers,
         parent: "layout",
     };
     Template::render("answers", &ctx)
@@ -169,9 +168,9 @@ pub(crate) fn questions(
             let id: u64 = from_value(r[1].clone());
             let answer = answers.get(&id).map(|s| s.to_owned());
             LectureQuestion {
-                id: id,
+                id,
                 prompt: from_value(r[2].clone()),
-                answer: answer,
+                answer,
             }
         })
         .collect();

@@ -60,8 +60,10 @@ pub(crate) fn check_api_key<P: Policy + Clone + 'static>(
         Err(ApiKeyError::Missing)
     } else if rs.len() > 1 {
         Err(ApiKeyError::Ambiguous)
-    } else {
+    } else if rs.len() == 1 {
         Ok(from_value(rs[0][0].clone()).unwrap())
+    } else {
+        Err(ApiKeyError::BackendFailure)
     }
 }
 
@@ -73,8 +75,14 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for ApiKey {
     async fn from_bbox_request(
         request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        let context = request.guard().await.unwrap();
-        let db: &State<Arc<Mutex<MySqlBackend>>> = request.guard().await.unwrap();
+        let context = request
+            .guard()
+            .await
+            .unwrap();
+        let db: &State<Arc<Mutex<MySqlBackend>>> = request
+            .guard()
+            .await
+            .unwrap();
 
         request
             .cookies()

@@ -93,6 +93,7 @@ pub(crate) fn lec_add_submit(
 
 #[get("/<num>")]
 pub(crate) fn lec(
+    _adm: Admin,
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ContextData>,

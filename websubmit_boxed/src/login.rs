@@ -4,7 +4,6 @@ use rocket::State;
 use alohomora::context::Context;
 use alohomora::rocket::{BBoxTemplate, get};
 
-// use crate::apikey::ApiKey;
 use crate::config::Config;
 use crate::policies::ContextData;
 

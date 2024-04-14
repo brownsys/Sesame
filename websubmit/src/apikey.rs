@@ -4,6 +4,8 @@ use crate::email;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use mysql::from_value;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
 use rocket::form::Form;
 use rocket::http::Status;
 use rocket::http::{Cookie, CookieJar};
@@ -26,6 +28,12 @@ pub(crate) struct ApiKey {
 #[derive(Debug, FromForm)]
 pub(crate) struct ApiKeyRequest {
     email: String,
+    gender: String,
+    age: u32,
+    ethnicity: String,
+    is_remote: bool,
+    education: String,
+    consent: bool,
 }
 
 #[derive(Debug, FromForm)]
@@ -44,7 +52,9 @@ pub(crate) enum ApiKeyError {
 impl<'r> FromRequest<'r> for ApiKey {
     type Error = ApiKeyError;
 
-    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
+    async fn from_request(
+        request: &'r Request<'_>
+    ) -> request::Outcome<Self, Self::Error> {
         let be = request
             .guard::<&State<Arc<Mutex<MySqlBackend>>>>()
             .await
@@ -67,6 +77,12 @@ pub(crate) fn generate(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
 ) -> Template {
+    let pseudonym: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(16)
+        .map(char::from)
+        .collect();
+
     // generate an API key from email address
     let mut hasher = Sha256::new();
     hasher.input_str(&data.email);
@@ -74,6 +90,12 @@ pub(crate) fn generate(
     hasher.input_str(&config.secret);
     let hash = hasher.result_str();
 
+    let is_manager = if config.managers.contains(&data.email) {
+        1.into()
+    } else {
+        0.into()
+    };
+    
     let is_admin = if config.admins.contains(&data.email) {
         1.into()
     } else {
@@ -84,7 +106,19 @@ pub(crate) fn generate(
     let mut bg = backend.lock().unwrap();
     bg.insert(
         "users",
-        vec![data.email.as_str().into(), hash.as_str().into(), is_admin],
+        vec![
+            data.email.into(), // do i need as_str
+            hash.into(), 
+            is_admin,
+            is_manager,
+            pseudonym.into(),
+            data.gender.into(),
+            data.age.into(),
+            data.ethnicity.into(),
+            data.is_remote.into(),
+            data.education.into(),
+            data.consent.into(),
+        ],
     );
 
     if config.send_emails {
@@ -93,7 +127,10 @@ pub(crate) fn generate(
             "no-reply@csci2390-submit.cs.brown.edu".into(),
             vec![data.email.clone()],
             format!("{} API key", config.class),
-            format!("Your {} API key is: {}\n", config.class, hash.as_str(),),
+            format!(
+                "Your {} API key is: {}\n", 
+                config.class, 
+                hash.as_str(),),
         )
         .expect("failed to send API key email");
     }
@@ -111,8 +148,12 @@ pub(crate) fn check_api_key(
     key: &str,
 ) -> Result<String, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
-    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.into()]);
+    let rs = bg.prep_exec(
+        "SELECT * FROM users WHERE apikey = ?", 
+        vec![key.into()]
+    );
     drop(bg);
+
     if rs.len() < 1 {
         Err(ApiKeyError::Missing)
     } else if rs.len() > 1 {
@@ -149,7 +190,9 @@ pub(crate) fn check(
     if res.is_err() {
         Redirect::to("/")
     } else {
-        let cookie = Cookie::build("apikey", data.key.clone()).path("/").finish();
+        let cookie = Cookie::build("apikey", data.key.clone())
+            .path("/")
+            .finish();
         cookies.add(cookie);
         Redirect::to("/leclist")
     }

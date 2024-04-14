@@ -12,6 +12,8 @@ pub struct Config {
     pub db_password: String,
     /// System admin addresses
     pub admins: Vec<String>,
+    /// System manager addresses
+    pub managers: Vec<String>,
     /// Staff email addresses
     pub staff: Vec<String>,
     /// Web template directory
@@ -36,7 +38,7 @@ pub(crate) fn parse(path: &str) -> Result<Config, Error> {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
                 "failed to parse config!",
-            ))
+            ));
         }
         Some(v) => v,
     };
@@ -47,6 +49,14 @@ pub(crate) fn parse(path: &str) -> Result<Config, Error> {
         db_password: value.get("db_password").unwrap().as_str().unwrap().into(),
         admins: value
             .get("admins")
+            .unwrap()
+            .as_slice()
+            .unwrap()
+            .into_iter()
+            .map(|v| v.as_str().unwrap().into())
+            .collect(),
+        managers: value
+            .get("managers")
             .unwrap()
             .as_slice()
             .unwrap()

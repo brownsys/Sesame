@@ -91,10 +91,14 @@ pub(crate) fn lec_add_submit(
 }
 
 #[get("/<num>")]
-pub(crate) fn lec(_adm: Admin, num: u8, backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
+pub(crate) fn lec(
+    _adm: Admin, 
+    num: u8, 
+    backend: &State<Arc<Mutex<MySqlBackend>>>
+) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
-        "SELECT * FROM questions WHERE lec = ?",
+        "SELECT * FROM questions WHERE lec = ? ORDER BY q",
         vec![(num as u64).into()],
     );
     drop(bg);
@@ -109,7 +113,7 @@ pub(crate) fn lec(_adm: Admin, num: u8, backend: &State<Arc<Mutex<MySqlBackend>>
             }
         })
         .collect();
-    qs.sort_by(|a, b| a.id.cmp(&b.id));
+    // qs.sort_by(|a, b| a.id.cmp(&b.id));
 
     let ctx = LectureQuestionsContext {
         lec_id: num,
