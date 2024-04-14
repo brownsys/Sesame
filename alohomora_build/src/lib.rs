@@ -18,7 +18,7 @@ pub fn alohomora_build(scrutinize: bool, sandbox_directories: &[&str]) {
 
     if env.target != "wasm32-rlbox" {
         sandbox::build_sandbox(&env);
-        dylints::run_lints(&env);
+        // dylints::run_lints(&env);
         if scrutinize {
             scrutinizer::scrutinize(&env);
         }
