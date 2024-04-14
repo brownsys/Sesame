@@ -1,133 +1,115 @@
+use chrono::NaiveDateTime;
 use std::sync::{Arc, Mutex};
 
-use alohomora::fold::fold;
-use chrono::naive::NaiveDateTime;
+use mysql::from_value;
+use rocket::form::Form;
+use rocket::response::Redirect;
 use rocket::State;
+use rocket_dyn_templates::Template;
 
-use alohomora::context::Context;
-use alohomora::db::from_value;
-use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::rocket::{BBoxTemplate, BBoxRedirect, BBoxForm, FromBBoxForm, get, post};
-use alohomora::policy::NoPolicy;
-use alohomora::pure::PrivacyPureRegion;
-
-use crate::backend::MySqlBackend;
-use crate::policies::{AnswerAccessPolicy, ContextData};
-use crate::predict::train_and_store;
-use crate::questions::LectureAnswer;
-use crate::questions::LectureAnswersContext;
+use crate::{backend::MySqlBackend, questions::{LectureAnswer, LectureAnswersContext}};
+// use crate::predict::train_and_store;
 
 #[get("/<num>")]
 pub(crate) fn grades(
-    num: BBox<u8, NoPolicy>,
+    num: u8,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
-) -> BBoxTemplate {
-    let key = num.clone().into_bbox::<u64, NoPolicy>();
+) -> Template {
+    let key = (num as u64).into();
 
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,), context.clone());
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
     drop(bg);
 
     let answers: Vec<LectureAnswer> = res
         .into_iter()
         .map(|r| LectureAnswer {
-            id: from_value(r[2].clone()).unwrap(),
-            user: from_value(r[0].clone()).unwrap(),
-            answer: from_value(r[3].clone()).unwrap(),
-            time: from_value(r[4].clone()).unwrap()
-                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string())),
-            grade: from_value(r[5].clone()).unwrap(),
+            id: from_value(r[2].clone()),
+            user: from_value(r[0].clone()),
+            answer: from_value(r[3].clone()),
+            time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
+            grade: from_value(r[5].clone()),
         })
         .collect();
 
-    let outer_box_answers = fold(answers)
-        .unwrap()
-        .specialize_policy::<AnswerAccessPolicy>()
-        .unwrap();
-
     let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: outer_box_answers,
+        answers,
         parent: "layout".into(),
     };
 
-    BBoxTemplate::render("grades", &ctx, context)
+    Template::render("grades", &ctx)
 }
 
-#[derive(BBoxRender)]
+#[derive(Serialize)]
 struct GradeEditContext {
-    answer: BBox<String, AnswerAccessPolicy>,
-    grade: BBox<u64, AnswerAccessPolicy>,
-    lec_id: BBox<u8, NoPolicy>,
-    lec_qnum: BBox<u8, NoPolicy>,
+    answer: String,
+    grade: u64,
+    user: String,
+    lec_id: u8,
+    lec_qnum: u8,
     parent: String,
-    user: BBox<String, NoPolicy>,
 }
 
 #[get("/<user>/<num>/<qnum>")]
 pub(crate) fn editg(
-    user: BBox<String, NoPolicy>,
-    num: BBox<u8, NoPolicy>,
-    qnum: BBox<u8, NoPolicy>,
+    user: String,
+    num: u8,
+    qnum: u8,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
-) -> BBoxTemplate {
+) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT answer, grade FROM answers WHERE email = ? AND lec = ? AND q = ?",
-        (
-            user.clone(),
-            num.clone().into_bbox::<u64, NoPolicy>(),
-            qnum.clone().into_bbox::<u64, NoPolicy>(),
-        ),
-        context.clone()
+        vec![
+            user.clone().into(),
+            (num as u64).into(),
+            (qnum as u64).into(),
+        ],
     );
     drop(bg);
 
     let r = &res[0];
     let ctx = GradeEditContext {
-        answer: from_value(r[0].clone()).unwrap(),
-        grade: from_value(r[1].clone()).unwrap(),
+        answer: from_value(r[0].clone()),
+        grade: from_value(r[1].clone()),
         user: user,
         lec_id: num,
         lec_qnum: qnum,
         parent: "layout".into(),
     };
 
-    BBoxTemplate::render("gradeedit", &ctx, context)
+    Template::render("gradeedit", &ctx)
 }
 
-#[derive(Debug, FromBBoxForm)]
+#[derive(Debug, FromForm)]
 pub(crate) struct EditGradeForm {
-    grade: BBox<u64, NoPolicy>,
+    grade: u64,
 }
 
 #[post("/editg/<user>/<num>/<qnum>", data = "<data>")]
 pub(crate) fn editg_submit(
-    user: BBox<String, NoPolicy>,
-    num: BBox<u8, NoPolicy>,
-    qnum: BBox<u8, NoPolicy>,
-    data: BBoxForm<EditGradeForm>,
+    user: String,
+    num: u8,
+    qnum: u8,
+    data: Form<EditGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
-) -> BBoxRedirect {
+) -> Redirect {
     let mut bg = backend.lock().unwrap();
 
     bg.prep_exec(
         "UPDATE answers SET grade = ? WHERE email = ? AND lec = ? AND q = ?",
-        (
-            data.grade.clone(),
-            user,
-            num.clone(),
-            qnum,
-        ),
-        context.clone()
+        vec![
+            data.grade.into(),
+            user.into(),
+            num.into(),
+            qnum.into(),
+        ],
     );
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    train_and_store(backend, context.clone());
+    // train_and_store(backend, context.clone());
 
-    BBoxRedirect::to("/grades/{}", (&num,), context)
+    Redirect::to(format!("/grades/{}", num))
 }

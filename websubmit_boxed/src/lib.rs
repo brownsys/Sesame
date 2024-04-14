@@ -12,7 +12,6 @@ mod args;
 mod backend;
 mod config;
 mod email;
-
 mod grades;
 mod helpers;
 mod login;
@@ -126,29 +125,43 @@ pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
             "/js",
             BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
         )
-        .mount("/", routes![index::index])
+        .mount(
+            "/", 
+            routes![index::index])
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
         )
-        .mount("/apikey/check", routes![apikey::check])
-        .mount("/apikey/generate", routes![apikey::generate])
+        .mount(
+            "/apikey/check", 
+            routes![apikey::check])
+        .mount(
+            "/apikey/generate", 
+            routes![apikey::generate])
         .mount(
             "/grades",
             routes![grades::grades, grades::editg, grades::editg_submit],
         )
-        .mount("/answers", routes![questions::composed_answers])
-        .mount("/leclist", routes![questions::leclist])
+        .mount(
+            "/answers", 
+            routes![questions::composed_answers])
+        .mount(
+            "/leclist", 
+            routes![questions::leclist])
         .mount(
             "/predict",
             routes![predict::predict, predict::predict_grade],
         )
-        .mount("/login", routes![login::login])
+        .mount(
+            "/login", 
+            routes![login::login])
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
         )
-        .mount("/admin/users", routes![admin::get_registered_users])
+        .mount(
+            "/admin/users", 
+            routes![admin::get_registered_users])
         .mount(
             "/admin/lec",
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],

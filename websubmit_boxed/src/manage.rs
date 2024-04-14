@@ -11,16 +11,15 @@ use serde::Serialize;
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
-use crate::helpers::average;
 use crate::policies::ContextData;
 
 use alohomora::context::Context;
 use alohomora::db::from_value;
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::policy::{AnyPolicy, NoPolicy};
+use alohomora::policy::AnyPolicy;
 use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, get};
 use alohomora::pcr::PrivacyCriticalRegion;
-use alohomora::pure::{execute_pure, PrivacyPureRegion};
+use alohomora::pure::PrivacyPureRegion;
 
 pub(crate) struct Manager;
 

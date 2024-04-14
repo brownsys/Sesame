@@ -13,10 +13,6 @@ use rocket_dyn_templates::Template;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-//pub(crate) enum LectureQuestionFormError {
-//   Invalid,
-//}
-
 #[derive(Debug, FromForm)]
 pub(crate) struct LectureQuestionSubmission {
     answers: HashMap<u64, String>,
@@ -37,19 +33,19 @@ pub(crate) struct LectureQuestionsContext {
 }
 
 #[derive(Serialize)]
-struct LectureAnswer {
-    id: u64,
-    user: String,
-    answer: String,
-    time: String,
-    grade: u64,
+pub struct LectureAnswer {
+    pub id: u64,
+    pub user: String,
+    pub answer: String,
+    pub time: String,
+    pub grade: u64,
 }
 
 #[derive(Serialize)]
-struct LectureAnswersContext {
-    lec_id: u8,
-    answers: Vec<LectureAnswer>,
-    parent: &'static str,
+pub struct LectureAnswersContext {
+    pub lec_id: u8,
+    pub answers: Vec<LectureAnswer>,
+    pub parent: &'static str,
 }
 
 #[derive(Serialize)]
@@ -116,7 +112,10 @@ pub(crate) fn answers(
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let key: Value = (num as u64).into();
-    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
+    let res = bg.prep_exec(
+        "SELECT * FROM answers WHERE lec = ?", 
+        vec![key]
+    );
     drop(bg);
 
     let answers: Vec<_> = res
@@ -160,7 +159,10 @@ pub(crate) fn questions(
         let atext: String = from_value(r[3].clone());
         answers.insert(id, atext);
     }
-    let res = bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key]);
+    let res = bg.prep_exec(
+        "SELECT * FROM questions WHERE lec = ?", 
+        vec![key]
+    );
     drop(bg);
     let mut qs: Vec<_> = res
         .into_iter()

@@ -1,26 +1,24 @@
-use alohomora::context::Context;
-use alohomora::policy::NoPolicy;
-use alohomora::rocket::{get, BBoxCookieJar, BBoxRedirect};
+use rocket::http::CookieJar;
+use rocket::response::Redirect;
 use rocket::State;
 use std::sync::{Arc, Mutex};
 
 use crate::apikey;
 use crate::backend::MySqlBackend;
-use crate::policies;
 
 #[get("/")]
 pub(crate) fn index(
-    cookies: BBoxCookieJar<'_, '_>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<policies::ContextData>,
-) -> BBoxRedirect {
-    if let Some(cookie) = cookies.get::<NoPolicy>("apikey") {
-        let apikey = cookie.into();
-        match apikey::check_api_key(&*backend, &apikey, context) {
-            Ok(_user) => BBoxRedirect::to2("/leclist"),
-            Err(_) => BBoxRedirect::to2("/login"),
+    cookies: &CookieJar<'_>, 
+    backend: &State<Arc<Mutex<MySqlBackend>>>
+) -> Redirect {
+    if let Some(cookie) = cookies.get("apikey") {
+        let apikey: String = cookie.value().parse().ok().unwrap();
+        // TODO validate API key
+        match apikey::check_api_key(&*backend, &apikey) {
+            Ok(_user) => Redirect::to("/leclist"),
+            Err(_) => Redirect::to("/login"),
         }
     } else {
-        BBoxRedirect::to2("/login")
+        Redirect::to("/login")
     }
 }
