@@ -9,6 +9,7 @@ name = "alohomora"
 path = "src/lib.rs"
 
 [dependencies]
+pin-project-lite = "0.2.14"
 alohomora_derive = { version = "0.1.0", path = "../alohomora_derive", optional = true }
 alohomora_sandbox = { path = "../alohomora_sandbox" }
 sea-orm = { git = "https://github.com/KinanBab/sea-orm.git", branch = "main", features = [ "sqlx-mysql", "sqlx-sqlite", "runtime-tokio-native-tls", "macros" ], optional = true }

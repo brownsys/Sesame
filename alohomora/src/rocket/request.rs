@@ -45,6 +45,10 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
         BBoxCookieJar::new(self.request.cookies(), self.request)
     }
 
+    pub fn headers(&self) -> BBoxHeaderMap<'a, 'r> {
+        BBoxHeaderMap::new(self.request, self.request.headers())
+    }
+
     // Use this to retrieve (boxed) guards, e.g. ApiKey struct with BBoxes inside.
     pub fn guard<T>(&self) -> BoxFuture<'a, BBoxRequestOutcome<T, T::BBoxError>>
     where
@@ -184,6 +188,8 @@ impl_param_via_fromstr!(
 // Implement FromBBoxParam for a few other types that rocket controls safely
 // outside application reach.
 use std::path::PathBuf;
+use rocket::data::Outcome;
+use crate::rocket::BBoxHeaderMap;
 
 impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;
@@ -253,9 +259,14 @@ impl<'a, 'r, T: rocket::request::FromRequest<'a>, P: Policy + FrontendPolicy> Fr
     async fn from_bbox_request(
         request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        let t = <T as rocket::request::FromRequest>::from_request(request.get_request())
-            .await;
-        BBoxRequestOutcome::Success(BBox::new(t.unwrap(), P::from_request(request.get_request())))
+        match <T as rocket::request::FromRequest>::from_request(request.get_request()).await {
+            rocket::request::Outcome::Success(t) => BBoxRequestOutcome::Success(BBox::new(t, P::from_request(request.get_request()))),
+            rocket::request::Outcome::Forward(()) => BBoxRequestOutcome::Forward(()),
+            rocket::request::Outcome::Failure((status, error)) => {
+                println!("Error {} {:?}", status, error);
+                BBoxRequestOutcome::Failure((status, ()))
+            },
+        }
     }
 }
 

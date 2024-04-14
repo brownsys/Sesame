@@ -1,5 +1,8 @@
 use std::{fmt::{Debug, Formatter}, any::Any};
 use std::fmt::Write;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Poll;
 
 use either::Either;
 
@@ -8,10 +11,15 @@ use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason
 use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
 
+use pin_project_lite::pin_project;
+
 // Privacy Container type.
-pub struct BBox<T, P: Policy> {
-    t: T,
-    p: P,
+pin_project! {
+    pub struct BBox<T, P: Policy> {
+        #[pin]
+        t: T,
+        p: P,
+    }
 }
 
 // BBox is cloneable if what is inside is cloneable.
@@ -209,6 +217,32 @@ impl<'a, T: Debug> Debug for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
 impl<'a, T: PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
     fn eq(&self, other: &Self) -> bool {
         self.t.eq(&other.t)
+    }
+}
+
+impl<T, E, P: Policy> BBox<Result<T, E>, P> {
+    pub fn transpose(self) -> Result<BBox<T, P>, E> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(t?, p))
+    }
+}
+
+impl<T, P: Policy> BBox<Option<T>, P> {
+    pub fn transpose(self) -> Option<BBox<T, P>> {
+        let (t, p) = self.consume();
+        Some(BBox::new(t?, p))
+    }
+}
+
+impl<'a, T: Future, P: Policy + Clone> Future for BBox<T, P> {
+    type Output = BBox<T::Output, P>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        match this.t.poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(t) => Poll::Ready(BBox::new(t, this.p.clone())),
+        }
     }
 }
 
