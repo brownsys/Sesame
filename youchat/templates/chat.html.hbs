@@ -1,0 +1,103 @@
+<style>
+    h1, h6 {
+        font-size: 70;
+        display: inline;
+        text-align: center;
+    }
+
+    h6 {
+        font-size: large;
+        font-weight: normal;
+        font-style: italic;
+    }
+
+    p {
+        font-size: large;
+        display: inline;
+    }
+
+    .inline {
+        display: inline;
+    }
+
+    .inline_block {
+        display: inline-block;
+    }
+
+    .timestamps {
+        float: right;
+        width: 35%;
+    }
+
+    .r {
+        float: right;
+        margin-right: 5%;
+    }
+
+    .column {
+        float: left;
+        width: 50%;
+    }
+    .chat_column{
+        float: left;
+        width: 65%;
+    }
+
+    .a{
+        margin: auto;
+        float: center;
+        width: 45%;
+        padding: 0.5%;
+        border: 5px dashed grey;
+    }
+
+    .full{
+        width: 99.5%;
+    }
+
+    .submit{
+        float: right;
+    }
+</style>
+{{#if this.buggy}}
+<style>
+    h1 {
+        color: red;
+    }
+</style>
+{{/if}}
+<form action="/"><input class="submit" type="submit" value="logout"></form>
+
+{{#if this.buggy}} <h1>YouChat (Buggy) | {{{name}}}</h1> 
+{{else}} <h1>YouChat | {{{name}}}</h1> 
+{{/if}}
+<br>
+<div>
+    <div class = "column">
+        <h2 class="inline">Sent Chats</h2>
+        {{#each sent_chats}}
+            <br><p>(<b>{{{this.sender}}}</b> -> {{{this.recipient}}})&emsp;{{{this.content}}} &emsp;</p><i class = "r">{{{this.timestamp}}}</i>
+            {{else}}
+            <br><p>[no messages yet]</p>
+        {{/each}}
+    </div>
+
+    <div class = "column">
+        <h2 class="inline">Recieved Chats</h2>
+        {{#each recieved_chats}}
+            <br><p>({{{this.sender}}} -> <b>{{{this.recipient}}}</b>)&emsp;{{{this.content}}} &emsp;</p><i class = "r">{{{this.timestamp}}}</i>
+            {{else}}
+            <br><p>[no messages yet]</p>
+        {{/each}}
+    </div>
+</div>
+<div>
+    <form action="/chat/{{name}}/send" method="post" class="column a">
+        <h2 class="inline">Send a Chat</h2>
+            <input class="submit" type="submit" value="Submit">
+        <br>
+        <p>To:</p> <input name="recipient" type="text"> 
+        <br>
+        <input class="full" name="content" type="text">
+    </form>
+</div>
