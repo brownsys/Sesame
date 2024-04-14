@@ -1,8 +1,11 @@
 use mysql::prelude::*;
 use mysql::Opts;
-pub use mysql::Value;
 use mysql::*;
 use std::collections::HashMap;
+
+pub use mysql::Value;
+
+use slog::{debug, o, warn};
 
 pub struct MySqlBackend {
     pub handle: mysql::Conn,

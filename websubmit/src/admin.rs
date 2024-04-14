@@ -2,16 +2,23 @@ use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::questions::{LectureQuestion, LectureQuestionsContext};
+
 use mysql::from_value;
-use rocket::form::Form;
+
+use rocket::{get, post};
+use rocket::form::{FromForm, Form};
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::request::{self, FromRequest, Request};
 use rocket::response::Redirect;
 use rocket::State;
+
 use rocket_dyn_templates::Template;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+use serde::Serialize;
 
 pub(crate) struct Admin;
 

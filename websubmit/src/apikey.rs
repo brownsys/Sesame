@@ -1,18 +1,23 @@
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
+
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
+
 use mysql::from_value;
+
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use rocket::form::Form;
+
+use rocket::form::{FromForm, Form};
 use rocket::http::Status;
 use rocket::http::{Cookie, CookieJar};
 use rocket::outcome::IntoOutcome;
 use rocket::request::{self, FromRequest, Request};
 use rocket::response::Redirect;
-use rocket::State;
+use rocket::{post, State};
+
 use rocket_dyn_templates::Template;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

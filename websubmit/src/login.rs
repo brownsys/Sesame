@@ -1,6 +1,8 @@
 use crate::config::Config;
-use rocket::State;
+
+use rocket::{get, State};
 use rocket_dyn_templates::Template;
+
 use std::collections::HashMap;
 
 #[get("/")]

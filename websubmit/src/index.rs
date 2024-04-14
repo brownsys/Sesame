@@ -1,6 +1,7 @@
 use rocket::http::CookieJar;
 use rocket::response::Redirect;
-use rocket::State;
+use rocket::{get, State};
+
 use std::sync::{Arc, Mutex};
 
 use crate::apikey;

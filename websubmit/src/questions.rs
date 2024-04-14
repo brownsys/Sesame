@@ -3,15 +3,22 @@ use crate::apikey::ApiKey;
 use crate::backend::{MySqlBackend, Value};
 use crate::config::Config;
 use crate::email;
+
 use chrono::naive::NaiveDateTime;
 use chrono::Local;
+
 use mysql::from_value;
+
+use rocket::{get, post};
 use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+use serde::Serialize;
 
 #[derive(Debug, FromForm)]
 pub(crate) struct LectureQuestionSubmission {
@@ -124,8 +131,8 @@ pub(crate) fn answers(
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone()).unwrap().format("%Y-%m-%d %H:%M:%S").to_string(),
-            grade: from_value(r[5].clone()).unwrap(),
+            time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
+            grade: from_value(r[5].clone()),
         })
         .collect();
 

@@ -1,213 +1,197 @@
-// use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex};
 
-// use mysql::prelude::FromValue;
+use mysql::prelude::FromValue;
 
-// use rocket::http::Status;
-// use rocket::outcome::IntoOutcome;
-// use rocket::State;
+use rocket::http::Status;
+use rocket::outcome::IntoOutcome;
+use rocket::State;
 
-// use serde::Serialize;
+use serde::Serialize;
 
-// use crate::apikey::ApiKey;
-// use crate::backend::MySqlBackend;
-// use crate::config::Config;
-// use crate::helpers::average;
-// use crate::policies::ContextData;
+use mysql::from_value;
 
-// use alohomora::context::Context;
-// use alohomora::db::from_value;
-// use alohomora::bbox::{BBox, BBoxRender};
-// use alohomora::policy::{AnyPolicy, NoPolicy};
-// use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, get};
-// use alohomora::pcr::PrivacyCriticalRegion;
-// use alohomora::pure::{execute_pure, PrivacyPureRegion};
+use crate::apikey::ApiKey;
+use crate::backend::MySqlBackend;
+use crate::config::Config;
 
-// pub(crate) struct Manager;
+use rocket::get;
+use rocket::request::{FromRequest, Request, Outcome};
+use rocket_dyn_templates::Template;
 
-// #[derive(Debug)]
-// pub(crate) enum ManagerError {
-//     Unauthorized,
-// }
+pub(crate) struct Manager;
 
-// #[rocket::async_trait]
-// impl<'a, 'r> FromBBoxRequest<'a, 'r> for Manager {
-//     type BBoxError = ManagerError;
+#[derive(Debug)]
+pub(crate) enum ManagerError {
+    Unauthorized,
+}
 
-//     async fn from_bbox_request(request: BBoxRequest<'a, 'r>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-//         let apikey = request.guard::<ApiKey>().await.unwrap();
-//         let cfg = request.guard::<&State<Config>>().await.unwrap();
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Manager {
+    type Error = ManagerError;
 
-//         let manager = apikey.user.ppr(PrivacyPureRegion::new(|user: &String|
-//             if cfg.managers.contains(&user) {
-//                 Some(Manager)
-//             } else {
-//                 None
-//             }
-//         ));
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let apikey = request.guard::<ApiKey>().await.unwrap();
+        let cfg = request.guard::<&State<Config>>().await.unwrap();
 
-//         manager
-//             .into_pcr(PrivacyCriticalRegion::new(|manager, _, _| manager), ())
-//             .into_outcome((Status::Unauthorized, ManagerError::Unauthorized))
-//     }
-// }
+        let manager = if cfg.managers.contains(&apikey.user) {
+            Some(Manager)
+        } else {
+            None
+        };
 
-// #[derive(BBoxRender)]
-// pub(crate) struct Aggregate<T: Serialize> {
-//     property: BBox<T, AnyPolicy>,
-//     average: BBox<f64, AnyPolicy>,
-// }
+        manager.into_outcome((Status::Unauthorized, ManagerError::Unauthorized))
+    }
+}
 
-// #[derive(BBoxRender)]
-// struct AggregateGenderContext {
-//     aggregate: Vec<Aggregate<String>>,
-//     parent: String,
-// }
+#[derive(Serialize)]
+pub(crate) struct Aggregate<T: Serialize> {
+    property: T,
+    average: f64,
+}
 
-// #[derive(BBoxRender)]
-// struct AggregateRemoteContext {
-//     aggregate: Vec<Aggregate<bool>>,
-//     parent: String,
-// }
+#[derive(Serialize)]
+struct AggregateGenderContext {
+    aggregate: Vec<Aggregate<String>>,
+    parent: String,
+}
 
-// fn transform<T: Serialize + FromValue>(agg: Vec<Vec<BBox<mysql::Value, AnyPolicy>>>) -> Vec<Aggregate<T>> {
-//     agg.into_iter()
-//         .map(|r| {
-//             Aggregate {
-//                 property: from_value(r[0].clone()).unwrap(),
-//                 average: from_value(r[1].clone()).unwrap(),
-//             }
-//         })
-//         .collect()
-// }
+#[derive(Serialize)]
+struct AggregateRemoteContext {
+    aggregate: Vec<Aggregate<bool>>,
+    parent: String,
+}
 
-// #[get("/gender")]
-// pub(crate) fn get_aggregate_gender(
-//     _manager: Manager,
-//     backend: &State<Arc<Mutex<MySqlBackend>>>,
-//     context: Context<ContextData>,
-// ) -> BBoxTemplate {
-//     let mut bg = backend.lock().unwrap();
-//     let grades = bg.prep_exec(
-//         "SELECT * from agg_gender",
-//         (),
-//         context.clone()
-//     );
-//     drop(bg);
+fn transform<T: Serialize + FromValue>(agg: Vec<Vec<mysql::Value>>) -> Vec<Aggregate<T>> {
+    agg.into_iter()
+        .map(|r| {
+            Aggregate {
+                property: from_value(r[0].clone()),
+                average: from_value(r[1].clone()),
+            }
+        })
+        .collect()
+}
 
-//     let ctx = AggregateGenderContext {
-//         aggregate: transform(grades),
-//         parent: String::from("layout"),
-//     };
+#[get("/gender")]
+pub(crate) fn get_aggregate_gender(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let grades = bg.prep_exec(
+        "SELECT * from agg_gender",
+        vec![]
+    );
+    drop(bg);
 
-//     BBoxTemplate::render("manage/aggregate", &ctx, context)
-// }
+    let ctx = AggregateGenderContext {
+        aggregate: transform(grades),
+        parent: String::from("layout"),
+    };
 
-// #[get("/remote_buggy")]
-// pub(crate) fn get_aggregate_remote_buggy(
-//     _manager: Manager,
-//     backend: &State<Arc<Mutex<MySqlBackend>>>,
-//     context: Context<ContextData>,
-// ) -> BBoxTemplate {
-//     let mut bg = backend.lock().unwrap();
-//     let grades = bg.prep_exec(
-//         "SELECT * from agg_remote",
-//         (),
-//         context.clone()
-//     );
-//     drop(bg);
+    Template::render("manage/aggregate", &ctx)
+}
 
-//     let ctx = AggregateRemoteContext {
-//         aggregate: transform(grades),
-//         parent: String::from("layout"),
-//     };
+#[get("/remote_buggy")]
+pub(crate) fn get_aggregate_remote_buggy(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let grades = bg.prep_exec(
+        "SELECT * from agg_remote",
+        vec![]
+    );
+    drop(bg);
 
-//     BBoxTemplate::render("manage/aggregate", &ctx, context)
-// }
+    let ctx = AggregateRemoteContext {
+        aggregate: transform(grades),
+        parent: String::from("layout"),
+    };
+
+    Template::render("manage/aggregate", &ctx)
+}
 
 
-// #[get("/remote")]
-// pub(crate) fn get_aggregate_remote(
-//     _manager: Manager,
-//     backend: &State<Arc<Mutex<MySqlBackend>>>,
-//     context: Context<ContextData>,
-// ) -> BBoxTemplate {
-//     let mut bg = backend.lock().unwrap();
-//     let grades = bg.prep_exec(
-//         "SELECT * from agg_remote WHERE ucount >= 10",
-//         (),
-//         context.clone()
-//     );
-//     drop(bg);
+#[get("/remote")]
+pub(crate) fn get_aggregate_remote(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let grades = bg.prep_exec(
+        "SELECT * from agg_remote WHERE ucount >= 10",
+        vec![]
+    );
+    drop(bg);
 
-//     let ctx = AggregateRemoteContext {
-//         aggregate: transform(grades),
-//         parent: String::from("layout"),
-//     };
+    let ctx = AggregateRemoteContext {
+        aggregate: transform(grades),
+        parent: String::from("layout"),
+    };
 
-//     BBoxTemplate::render("manage/aggregate", &ctx, context)
-// }
+    Template::render("manage/aggregate", &ctx)
+}
 
-// #[derive(BBoxRender, Clone)]
-// pub(crate) struct InfoForEmployers {
-//     email: BBox<String, AnyPolicy>,
-//     average_grade: BBox<f64, AnyPolicy>,
-// }
+#[derive(Serialize, Clone)]
+pub(crate) struct InfoForEmployers {
+    email: String,
+    average_grade: f64,
+}
 
-// #[derive(BBoxRender)]
-// struct InfoForEmployersContext {
-//     users: Vec<InfoForEmployers>,
-//     parent: String,
-// }
+#[derive(Serialize)]
+struct InfoForEmployersContext {
+    users: Vec<InfoForEmployers>,
+    parent: String,
+}
 
 
-// #[get("/employers")]
-// pub(crate) fn get_list_for_employers(
-//     _manager: Manager,
-//     backend: &State<Arc<Mutex<MySqlBackend>>>,
-//     config: &State<Config>,
-//     context: Context<ContextData>,
-// ) -> BBoxTemplate {
-//     let mut bg = backend.lock().unwrap();
-//     let res = bg.prep_exec("SELECT * from employers_release WHERE consent = 1", (), context.clone());
-//     drop(bg);
+#[get("/employers")]
+pub(crate) fn get_list_for_employers(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    config: &State<Config>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec("SELECT * from employers_release WHERE consent = 1", vec![]);
+    drop(bg);
 
-//     let users = res
-//         .into_iter()
-//         .map(|r| InfoForEmployers {
-//             email: from_value(r[0].clone()).unwrap(),
-//             average_grade: from_value(r[1].clone()).unwrap(),
-//         })
-//         .collect();
+    let users = res
+        .into_iter()
+        .map(|r| InfoForEmployers {
+            email: from_value(r[0].clone()),
+            average_grade: from_value(r[1].clone()),
+        })
+        .collect();
 
-//     let ctx = InfoForEmployersContext {
-//         users: users,
-//         parent: "layout".into(),
-//     };
-//     BBoxTemplate::render("manage/users", &ctx, context)
-// }
+    let ctx = InfoForEmployersContext {
+        users: users,
+        parent: "layout".into(),
+    };
+    Template::render("manage/users", &ctx)
+}
 
-// #[get("/employers_buggy")]
-// pub(crate) fn get_list_for_employers_buggy(
-//     _manager: Manager,
-//     backend: &State<Arc<Mutex<MySqlBackend>>>,
-//     config: &State<Config>,
-//     context: Context<ContextData>,
-// ) -> BBoxTemplate {
-//     let mut bg = backend.lock().unwrap();
-//     let res = bg.prep_exec("SELECT * from employers_release", (), context.clone());
-//     drop(bg);
+#[get("/employers_buggy")]
+pub(crate) fn get_list_for_employers_buggy(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    config: &State<Config>,
+) -> Template {
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec("SELECT * from employers_release", vec![]);
+    drop(bg);
 
-//     let users = res
-//         .into_iter()
-//         .map(|r| InfoForEmployers {
-//             email: from_value(r[0].clone()).unwrap(),
-//             average_grade: from_value(r[1].clone()).unwrap(),
-//         })
-//         .collect();
+    let users = res
+        .into_iter()
+        .map(|r| InfoForEmployers {
+            email: from_value(r[0].clone()),
+            average_grade: from_value(r[1].clone()),
+        })
+        .collect();
 
-//     let ctx = InfoForEmployersContext {
-//         users: users,
-//         parent: "layout".into(),
-//     };
-//     BBoxTemplate::render("manage/users", &ctx, context)
-// }
+    let ctx = InfoForEmployersContext {
+        users: users,
+        parent: "layout".into(),
+    };
+    Template::render("manage/users", &ctx)
+}
