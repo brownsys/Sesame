@@ -1,9 +1,6 @@
-use std::cmp;
-use std::sync::{Arc, Mutex};
 use alohomora::AlohomoraType;
-use alohomora::context::{Context, UnprotectedContext};
+use alohomora::context::UnprotectedContext;
 use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
-use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
 
@@ -54,7 +51,7 @@ impl Policy for EmployersReleasePolicy {
 }
 
 impl SchemaPolicy for EmployersReleasePolicy {
-    fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
+    fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
         where
             Self: Sized,
     {

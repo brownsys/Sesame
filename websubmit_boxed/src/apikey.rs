@@ -8,14 +8,14 @@ use rocket::outcome::IntoOutcome;
 use rocket::State;
 
 use alohomora::AlohomoraType;
-use alohomora::bbox::{BBox, BBoxRender};
+use alohomora::bbox::BBox;
 use alohomora::db::from_value;
 use alohomora::policy::{NoPolicy, AnyPolicy, Policy};
 use alohomora::context::Context;
 use alohomora::pcr::PrivacyCriticalRegion;
 use alohomora::pure::PrivacyPureRegion;
 
-use alohomora::rocket::{BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, JsonResponse, post, FromBBoxForm, OutputBBoxValue, ResponseBBoxJson};
+use alohomora::rocket::{BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, FromBBoxRequest, JsonResponse, post, FromBBoxForm, OutputBBoxValue, ResponseBBoxJson};
 use alohomora::sandbox::execute_sandbox;
 use alohomora::unbox::unbox;
 

@@ -1,11 +1,6 @@
 use std::cmp;
-use std::sync::{Arc, Mutex};
-use alohomora::AlohomoraType;
-use alohomora::context::{Context, UnprotectedContext};
+use alohomora::context::UnprotectedContext;
 use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
-use crate::backend::MySqlBackend;
-use crate::config::Config;
-use crate::policies::ContextData;
 
 // K-anonymity policy.
 #[schema_policy(table = "agg_gender", column = 1)]
@@ -46,7 +41,7 @@ impl Policy for KAnonymityPolicy {
 }
 
 impl SchemaPolicy for KAnonymityPolicy {
-    fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
+    fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
         where
             Self: Sized,
     {
