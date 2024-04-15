@@ -106,7 +106,7 @@ impl MySqlBackend {
                         let vals: Vec<Value> = rowvals.iter().map(|v| v.clone().into()).collect();
                         rows.push(vals);
                     }
-                    debug!(self.log, "executed query {}, got {} rows", sql, rows.len());
+                    // debug!(self.log, "executed query {}, got {} rows", sql, rows.len());
                     return rows;
                 }
             }
@@ -122,7 +122,7 @@ impl MySqlBackend {
             table,
             vals.iter().map(|_| "?").collect::<Vec<&str>>().join(",")
         );
-        debug!(self.log, "executed insert query {} for row {:?}", q, vals);
+        // debug!(self.log, "executed insert query {} for row {:?}", q, vals);
         while let Err(e) = self.handle.exec_drop(q.clone(), vals.clone()) {
             warn!(
                 self.log,
