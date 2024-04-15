@@ -21,7 +21,7 @@ pub(crate) fn send(
         builder = builder.to(recipient);
     }
 
-    debug!(log, "Email: Subject {}\nText: {}!", subject, text);
+    // debug!(log, "Email: Subject {}\nText: {}!", subject, text);
 
     let email = builder.build();
     match email {

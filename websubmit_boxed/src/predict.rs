@@ -35,7 +35,7 @@ pub(crate) fn train_and_store(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ContextData>,
 ) {
-    println!("Re-training the model and saving it globally...");
+    // println!("Re-training the model and saving it globally...");
     // Get data from database.
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec("SELECT * FROM ml_training WHERE consent = 1", (), context);
