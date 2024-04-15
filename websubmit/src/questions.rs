@@ -213,15 +213,16 @@ pub(crate) fn questions_submit(
         bg.replace("answers", rec);
     }
 
-    let answer_log = format!(
-        "{}",
-        data.answers
-            .iter()
-            .map(|(i, t)| format!("Question {}:\n{}", i, t))
-            .collect::<Vec<_>>()
-            .join("\n-----\n")
-    );
     if config.send_emails {
+        let answer_log = format!(
+            "{}",
+            data.answers
+                .iter()
+                .map(|(i, t)| format!("Question {}:\n{}", i, t))
+                .collect::<Vec<_>>()
+                .join("\n-----\n")
+        );
+        
         let recipients = if num < 90 {
             config.staff.clone()
         } else {
