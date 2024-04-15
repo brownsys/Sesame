@@ -16,7 +16,7 @@ mysql = "21.0.2"
 mysql_common = "0.22"
 ndarray = "0.15.6"
 rand = "0.8.4"
-rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main", features = ["json"]}
 rust-crypto = "0.2.36"
 slog = { version = "2.4.0", features = ["max_level_trace", "release_max_level_trace"] }
 slog-term = "2.4.0"

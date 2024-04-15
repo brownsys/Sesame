@@ -17,8 +17,10 @@ use rocket::outcome::IntoOutcome;
 use rocket::request::{self, FromRequest, Request};
 use rocket::response::Redirect;
 use rocket::{post, State};
+use rocket::serde::{Serialize, json::Json};
 
 use rocket_dyn_templates::Template;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -53,6 +55,13 @@ pub(crate) enum ApiKeyError {
     BackendFailure,
 }
 
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub(crate) struct ApiKeyResponse {
+    email: String,
+    apikey: String,
+}
+
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for ApiKey {
     type Error = ApiKeyError;
@@ -79,7 +88,7 @@ pub(crate) fn generate(
     data: Form<ApiKeyRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-) -> Template {
+) -> Json<ApiKeyResponse> {
     let pseudonym: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(16)
@@ -137,10 +146,12 @@ pub(crate) fn generate(
     drop(bg);
 
     // return to user
-    let mut ctx = HashMap::new();
-    ctx.insert("apikey_email", data.email.clone());
-    ctx.insert("parent", "layout".into());
-    Template::render("apikey/generate", &ctx)
+    let ctx = ApiKeyResponse {
+        email: data.email.clone(),
+        apikey: hash.clone(),
+    };
+
+    Json(ctx)
 }
 
 pub(crate) fn check_api_key(

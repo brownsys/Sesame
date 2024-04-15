@@ -1,15 +1,19 @@
-use alohomora::testing::BBoxClient;
 use chrono::NaiveDateTime;
 use fake::faker::company::en::Bs;
 use fake::faker::internet::en::FreeEmail;
 use fake::{Dummy, Fake, Faker};
 use rocket::http::Cookie;
+
 use serde::Serialize;
-use std::collections::HashMap;
+
 use std::fs;
-use std::iter::FromIterator;
 use std::time::{Duration, Instant};
-use websubmit_boxed::{make_rocket, parse_args};
+
+use alohomora::testing::BBoxClient;
+use rocket::local::blocking::Client;
+
+use websubmit::{make_rocket as ws_make_rocket, parse_args as ws_parse_args};
+use websubmit_boxed::{make_rocket as wsb_make_rocket, parse_args as wsb_parse_args};
 
 const N_USERS: u32 = 30;
 const N_LECTURES: u32 = 10;
@@ -17,6 +21,8 @@ const N_QUESTIONS_PER_LECTURE: u32 = 10;
 const N_PREDICTION_ATTEMPTS_PER_LECTURE: u32 = 10;
 const N_AGGREGATE_GRADES_QUERIES: u32 = 10;
 const N_EMPLOYER_INFO_QUERIES: u32 = 10;
+
+const RUN_BOXED: bool = true;
 
 const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
 
@@ -93,7 +99,7 @@ struct PredictionRequest {
     time: String,
 }
 
-fn register_users(client: &BBoxClient, users: &mut Vec<User>) -> Vec<Duration> {
+fn register_users(client: &Client, users: &mut Vec<User>) -> Vec<Duration> {
     users
         .iter_mut()
         .map(|user| {
@@ -116,7 +122,7 @@ fn register_users(client: &BBoxClient, users: &mut Vec<User>) -> Vec<Duration> {
         .collect()
 }
 
-fn add_lectures(client: &BBoxClient) -> Vec<Duration> {
+fn add_lectures(client: &Client) -> Vec<Duration> {
     let mut lectures: Vec<Lecture> = (0..N_LECTURES).map(|_| Faker.fake()).collect();
 
     lectures
@@ -140,7 +146,7 @@ fn add_lectures(client: &BBoxClient) -> Vec<Duration> {
         .collect()
 }
 
-fn add_questions(client: &BBoxClient) -> Vec<Duration> {
+fn add_questions(client: &Client) -> Vec<Duration> {
     (0..N_LECTURES)
         .map(|lecture_id| {
             let mut questions: Vec<Question> =
@@ -170,7 +176,7 @@ fn add_questions(client: &BBoxClient) -> Vec<Duration> {
         .collect()
 }
 
-fn answer_questions(client: &BBoxClient, users: &Vec<User>) -> Vec<Duration> {
+fn answer_questions(client: &Client, users: &Vec<User>) -> Vec<Duration> {
     users
         .iter()
         .map(|user| {
@@ -198,7 +204,7 @@ fn answer_questions(client: &BBoxClient, users: &Vec<User>) -> Vec<Duration> {
         .collect()
 }
 
-fn view_answers(client: &BBoxClient) -> Vec<Duration> {
+fn view_answers(client: &Client) -> Vec<Duration> {
     (0..N_LECTURES)
         .map(|lecture_id| {
             let request = client
@@ -214,7 +220,7 @@ fn view_answers(client: &BBoxClient) -> Vec<Duration> {
         .collect()
 }
 
-fn submit_grades(client: &BBoxClient, users: &Vec<User>) -> Vec<Duration> {
+fn submit_grades(client: &Client, users: &Vec<User>) -> Vec<Duration> {
     users
         .iter()
         .map(|user| {
@@ -248,7 +254,7 @@ fn submit_grades(client: &BBoxClient, users: &Vec<User>) -> Vec<Duration> {
         .collect()
 }
 
-fn predict_grades(client: &BBoxClient) -> Vec<Duration> {
+fn predict_grades(client: &Client) -> Vec<Duration> {
     (0..N_LECTURES)
         .map(|lecture_id| {
             (0..N_PREDICTION_ATTEMPTS_PER_LECTURE)
@@ -276,7 +282,7 @@ fn predict_grades(client: &BBoxClient) -> Vec<Duration> {
         .collect()
 }
 
-fn get_aggregates(client: &BBoxClient) -> Vec<Duration> {
+fn get_aggregates(client: &Client) -> Vec<Duration> {
     (0..N_AGGREGATE_GRADES_QUERIES)
         .map(|_| {
             let request = client
@@ -292,7 +298,7 @@ fn get_aggregates(client: &BBoxClient) -> Vec<Duration> {
         .collect()
 }
 
-fn get_employer_info(client: &BBoxClient) -> Vec<Duration> {
+fn get_employer_info(client: &Client) -> Vec<Duration> {
     (0..N_EMPLOYER_INFO_QUERIES)
         .map(|_| {
             let request = client
@@ -308,51 +314,63 @@ fn get_employer_info(client: &BBoxClient) -> Vec<Duration> {
         .collect()
 }
 
-fn write_stats(name: &'static str, data: &Vec<Duration>) {
+fn write_stats(name: String, data: &Vec<Duration>) {
     let duration_nanos: Vec<u128> = data.iter().map(|d| d.as_nanos()).collect();
     fs::create_dir_all("benches/").unwrap();
     fs::write(
         format!("benches/{}.json", name),
         serde_json::to_string_pretty(&duration_nanos).unwrap(),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn main() {
-    let args = parse_args();
-    let rocket = make_rocket(args);
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let bbox_client = BBoxClient::tracked(wsb_make_rocket(wsb_parse_args())).expect("valid `Rocket`");
+    let client = Client::tracked(ws_make_rocket(ws_parse_args())).expect("valid `Rocket`");
+
+    let used_client: &Client = if RUN_BOXED {
+        &bbox_client
+    } else {
+        &client
+    };
+
+    let prefix = if RUN_BOXED {
+        "boxed_".to_owned()
+    } else {
+        "".to_owned()
+    };
 
     let mut users: Vec<User> = (0..N_USERS).map(|_| Faker.fake()).collect();
 
     // 1. Bench generating ApiKeys.
-    let register_users_bench = register_users(&client, &mut users);
-    write_stats("register_users_bench", &register_users_bench);
+    let register_users_bench = register_users(&used_client, &mut users);
+    write_stats(prefix.clone() + "register_users_bench", &register_users_bench);
 
     // Prime the database with other data.
-    add_lectures(&client);
-    add_questions(&client);
+    add_lectures(&used_client);
+    add_questions(&used_client);
 
     // 2. Bench answering the questions.
-    let answer_questions_bench = answer_questions(&client, &users);
-    write_stats("answer_questions_bench", &answer_questions_bench);
+    let answer_questions_bench = answer_questions(&used_client, &users);
+    write_stats(prefix.clone() + "answer_questions_bench", &answer_questions_bench);
 
     // 3. Bench viewing answers for a lecture.
-    let view_answers_bench = view_answers(&client);
-    write_stats("view_answers_bench", &view_answers_bench);
+    let view_answers_bench = view_answers(&used_client);
+    write_stats(prefix.clone() + "view_answers_bench", &view_answers_bench);
 
     // 4. Submit a grade and retrain the prediction model.
-    let submit_grades_bench = submit_grades(&client, &users);
-    write_stats("submit_grades_bench", &submit_grades_bench);
+    let submit_grades_bench = submit_grades(&used_client, &users);
+    write_stats(prefix.clone() + "submit_grades_bench", &submit_grades_bench);
 
     // 5. Query the prediction model.
-    let predict_grades_bench = predict_grades(&client);
-    write_stats("predict_grades_bench", &predict_grades_bench);
+    let predict_grades_bench = predict_grades(&used_client);
+    write_stats(prefix.clone() + "predict_grades_bench", &predict_grades_bench);
 
     // 6. Query aggregate generation.
-    let get_aggregates_bench = get_aggregates(&client);
-    write_stats("get_aggregates_bench", &get_aggregates_bench);
+    let get_aggregates_bench = get_aggregates(&used_client);
+    write_stats(prefix.clone() + "get_aggregates_bench", &get_aggregates_bench);
 
     // 7. Employer info generation.
-    let get_employer_info_bench = get_employer_info(&client);
-    write_stats("get_employer_info_bench", &get_employer_info_bench);
+    let get_employer_info_bench = get_employer_info(&used_client);
+    write_stats(prefix.clone() + "get_employer_info_bench", &get_employer_info_bench);
 }

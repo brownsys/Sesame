@@ -208,6 +208,7 @@ pub(crate) fn questions_submit(
             (*id).into(),
             answer.clone().into(),
             ts.clone(),
+            mysql::Value::Int(0)
         ];
         bg.replace("answers", rec);
     }
