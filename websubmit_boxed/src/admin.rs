@@ -5,14 +5,16 @@ use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::State;
 
+use alohomora::bbox::{BBox, BBoxRender, EitherBBox};
 use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::bbox::{BBox, EitherBBox, BBoxRender};
 use alohomora::pcr::{execute_pcr, PrivacyCriticalRegion};
-use alohomora::rocket::{BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, FromBBoxForm, get, post};
-use alohomora::policy::{NoPolicy, AnyPolicy};
+use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::PrivacyPureRegion;
-
+use alohomora::rocket::{
+    get, post, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxForm,
+    FromBBoxRequest,
+};
 
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
@@ -31,17 +33,19 @@ pub(crate) enum AdminError {
 impl<'a, 'r> FromBBoxRequest<'a, 'r> for Admin {
     type BBoxError = AdminError;
 
-    async fn from_bbox_request(request: BBoxRequest<'a, 'r>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    async fn from_bbox_request(
+        request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
 
-        let admin = apikey.user.ppr(PrivacyPureRegion::new(|user: &String|
+        let admin = apikey.user.ppr(PrivacyPureRegion::new(|user: &String| {
             if cfg.admins.contains(&user) {
                 Some(Admin)
             } else {
                 None
             }
-        ));
+        }));
 
         admin
             .into_pcr(PrivacyCriticalRegion::new(|admin, _, _| admin), ())
@@ -81,11 +85,7 @@ pub(crate) fn lec_add_submit(
 
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
-    bg.insert(
-        "lectures",
-        (lec_id, data.lec_label),
-        context
-    );
+    bg.insert("lectures", (lec_id, data.lec_label), context);
     drop(bg);
 
     BBoxRedirect::to2("/leclist")
@@ -104,7 +104,7 @@ pub(crate) fn lec(
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ? ORDER BY q",
         (key,),
-        context.clone()
+        context.clone(),
     );
     drop(bg);
 
@@ -115,7 +115,7 @@ pub(crate) fn lec(
             LectureQuestion {
                 id: id,
                 prompt: from_value(r[2].clone()).unwrap(),
-                answer: BBox::new(None, NoPolicy{}), //TODO(corinn) check fix - this was previously BBox::new(None, vec![])
+                answer: BBox::new(None, NoPolicy {}), //TODO(corinn) check fix - this was previously BBox::new(None, vec![])
             }
         })
         .collect();
@@ -155,7 +155,7 @@ pub(crate) fn addq(
             data.q_id.into_bbox::<u64, NoPolicy>(),
             data.q_prompt,
         ),
-        context.clone()
+        context.clone(),
     );
     drop(bg);
 
@@ -174,7 +174,7 @@ pub(crate) fn editq(
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ?",
         (num.clone().into_bbox::<u64, NoPolicy>(),),
-        context.clone()
+        context.clone(),
     );
     drop(bg);
 
@@ -186,14 +186,23 @@ pub(crate) fn editq(
             (q, qnum.clone()),
             PrivacyCriticalRegion::new(|(q, qnum), _, ()| q == qnum),
             (),
-        ).unwrap();
+        )
+        .unwrap();
 
         if q_matches {
             ctx.insert("lec_qprompt", from_value(r[2].clone()).unwrap().into());
         }
     }
-    ctx.insert("lec_id", num.into_ppr(PrivacyPureRegion::new(|num| format!("{}", num))).into());
-    ctx.insert("lec_qnum", qnum.into_ppr(PrivacyPureRegion::new(|qnum| format!("{}", qnum))).into());
+    ctx.insert(
+        "lec_id",
+        num.into_ppr(PrivacyPureRegion::new(|num| format!("{}", num)))
+            .into(),
+    );
+    ctx.insert(
+        "lec_qnum",
+        qnum.into_ppr(PrivacyPureRegion::new(|qnum| format!("{}", qnum)))
+            .into(),
+    );
     ctx.insert("parent", String::from("layout").into());
     BBoxTemplate::render("admin/lecedit", &ctx, context)
 }
@@ -215,7 +224,7 @@ pub(crate) fn editq_submit(
             num.clone().into_bbox::<u64, NoPolicy>(),
             data.q_id,
         ),
-        context.clone()
+        context.clone(),
     );
     drop(bg);
 
@@ -243,7 +252,11 @@ pub(crate) fn get_registered_users(
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT email, is_admin, apikey FROM users", (), context.clone());
+    let res = bg.prep_exec(
+        "SELECT email, is_admin, apikey FROM users",
+        (),
+        context.clone(),
+    );
     drop(bg);
 
     let users = res
@@ -251,9 +264,9 @@ pub(crate) fn get_registered_users(
         .map(|r| User {
             email: from_value(r[0].clone()).unwrap(),
             apikey: from_value(r[2].clone()).unwrap(),
-            is_admin: from_value(r[0].clone()).unwrap().into_ppr(
-                PrivacyPureRegion::new(|id| config.admins.contains(&id))
-            ),
+            is_admin: from_value(r[0].clone())
+                .unwrap()
+                .into_ppr(PrivacyPureRegion::new(|id| config.admins.contains(&id))),
         })
         .collect();
 

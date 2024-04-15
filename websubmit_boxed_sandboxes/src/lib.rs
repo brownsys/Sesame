@@ -6,8 +6,6 @@ use linfa::dataset::Dataset;
 use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 use alohomora_derive::AlohomoraSandbox;
 
@@ -17,8 +15,6 @@ pub fn hash(inputs: (String, String)) -> String {
     let mut s = Sha256::new();
     s.input_str(&inputs.0);
     s.input_str(&inputs.1);
-    // inputs.0.hash(&mut s);
-    // inputs.1.hash(&mut s);
     format!("{}", s.result_str())
 }
 

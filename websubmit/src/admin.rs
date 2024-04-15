@@ -5,13 +5,13 @@ use crate::questions::{LectureQuestion, LectureQuestionsContext};
 
 use mysql::from_value;
 
-use rocket::{get, post};
-use rocket::form::{FromForm, Form};
+use rocket::form::{Form, FromForm};
 use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::request::{self, FromRequest, Request};
 use rocket::response::Redirect;
 use rocket::State;
+use rocket::{get, post};
 
 use rocket_dyn_templates::Template;
 
@@ -98,23 +98,19 @@ pub(crate) fn lec_add_submit(
 }
 
 #[get("/<num>")]
-pub(crate) fn lec(
-    _adm: Admin, 
-    num: u8, 
-    backend: &State<Arc<Mutex<MySqlBackend>>>
-) -> Template {
+pub(crate) fn lec(_adm: Admin, num: u8, backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT * FROM questions WHERE lec = ? ORDER BY q",
         vec![(num as u64).into()],
     );
     drop(bg);
-    let mut qs: Vec<_> = res
+    let qs: Vec<_> = res
         .into_iter()
         .map(|r| {
             let id: u64 = from_value(r[1].clone());
             LectureQuestion {
-                id: id,
+                id,
                 prompt: from_value(r[2].clone()),
                 answer: None,
             }

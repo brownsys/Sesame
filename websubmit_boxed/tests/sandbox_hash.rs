@@ -1,6 +1,6 @@
-use alohomora::sandbox::execute_sandbox;
 use alohomora::bbox::BBox;
 use alohomora::policy::NoPolicy;
+use alohomora::sandbox::execute_sandbox;
 
 use websubmit_boxed_sandboxes::hash;
 

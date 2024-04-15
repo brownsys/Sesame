@@ -15,7 +15,7 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 
 use rocket::get;
-use rocket::request::{FromRequest, Request, Outcome};
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket_dyn_templates::Template;
 
 pub(crate) struct Manager;
@@ -63,11 +63,9 @@ struct AggregateRemoteContext {
 
 fn transform<T: Serialize + FromValue>(agg: Vec<Vec<mysql::Value>>) -> Vec<Aggregate<T>> {
     agg.into_iter()
-        .map(|r| {
-            Aggregate {
-                property: from_value(r[0].clone()),
-                average: from_value(r[1].clone()),
-            }
+        .map(|r| Aggregate {
+            property: from_value(r[0].clone()),
+            average: from_value(r[1].clone()),
         })
         .collect()
 }
@@ -78,10 +76,7 @@ pub(crate) fn get_aggregate_gender(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
-    let grades = bg.prep_exec(
-        "SELECT * from agg_gender",
-        vec![]
-    );
+    let grades = bg.prep_exec("SELECT * from agg_gender", vec![]);
     drop(bg);
 
     let ctx = AggregateGenderContext {
@@ -98,10 +93,7 @@ pub(crate) fn get_aggregate_remote_buggy(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
-    let grades = bg.prep_exec(
-        "SELECT * from agg_remote",
-        vec![]
-    );
+    let grades = bg.prep_exec("SELECT * from agg_remote", vec![]);
     drop(bg);
 
     let ctx = AggregateRemoteContext {
@@ -112,17 +104,13 @@ pub(crate) fn get_aggregate_remote_buggy(
     Template::render("manage/aggregate", &ctx)
 }
 
-
 #[get("/remote")]
 pub(crate) fn get_aggregate_remote(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
-    let grades = bg.prep_exec(
-        "SELECT * from agg_remote WHERE ucount >= 10",
-        vec![]
-    );
+    let grades = bg.prep_exec("SELECT * from agg_remote WHERE ucount >= 10", vec![]);
     drop(bg);
 
     let ctx = AggregateRemoteContext {
@@ -145,12 +133,11 @@ struct InfoForEmployersContext {
     parent: String,
 }
 
-
 #[get("/employers")]
 pub(crate) fn get_list_for_employers(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    config: &State<Config>,
+    _config: &State<Config>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec("SELECT * from employers_release WHERE consent = 1", vec![]);
@@ -165,7 +152,7 @@ pub(crate) fn get_list_for_employers(
         .collect();
 
     let ctx = InfoForEmployersContext {
-        users: users,
+        users,
         parent: "layout".into(),
     };
     Template::render("manage/users", &ctx)
@@ -175,7 +162,7 @@ pub(crate) fn get_list_for_employers(
 pub(crate) fn get_list_for_employers_buggy(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    config: &State<Config>,
+    _config: &State<Config>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec("SELECT * from employers_release", vec![]);
@@ -190,7 +177,7 @@ pub(crate) fn get_list_for_employers_buggy(
         .collect();
 
     let ctx = InfoForEmployersContext {
-        users: users,
+        users,
         parent: "layout".into(),
     };
     Template::render("manage/users", &ctx)

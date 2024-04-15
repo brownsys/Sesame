@@ -4,17 +4,16 @@ use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::State;
 
-use alohomora::AlohomoraType;
 use alohomora::bbox::BBox;
 use alohomora::context::Context;
 use alohomora::db::from_value;
 use alohomora::policy::NoPolicy;
 use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
+use alohomora::AlohomoraType;
 
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::QueryableOnly;
-
 
 // Custom developer defined payload attached to every context.
 #[derive(AlohomoraType, Clone)]
@@ -37,9 +36,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
         let config: &State<Config> = request.guard().await.unwrap();
 
         // Find user using ApiKey token from cookie.
-        let apikey = request
-            .cookies()
-            .get::<QueryableOnly>("apikey");
+        let apikey = request.cookies().get::<QueryableOnly>("apikey");
         let user = match apikey {
             None => None,
             Some(apikey) => {
@@ -53,8 +50,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
                 drop(bg);
                 if res.len() > 0 {
                     Some(from_value(res[0][0].clone()).unwrap())
-                }
-                else {
+                } else {
                     None
                 }
             }
@@ -69,9 +65,6 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
                     config: config.inner().clone(),
                 })
             })
-            .into_outcome((
-                Status::InternalServerError,
-                (),
-            ))
+            .into_outcome((Status::InternalServerError, ()))
     }
 }

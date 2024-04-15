@@ -1,8 +1,10 @@
+use alohomora::context::UnprotectedContext;
+use alohomora::policy::{
+    schema_policy, AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, SchemaPolicy,
+};
 use mysql::Value;
 use rocket::http::Cookie;
 use rocket::Request;
-use alohomora::context::UnprotectedContext;
-use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
 
 #[derive(Clone)]
 #[schema_policy(table = "users", column = 1)]
@@ -18,20 +20,17 @@ impl Policy for QueryableOnly {
     fn check(&self, _context: &UnprotectedContext, reason: Reason) -> bool {
         match reason {
             Reason::DB(query) => query.starts_with("SELECT"),
-            _ => false
+            _ => false,
         }
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<QueryableOnly>() { // Policies are combinable
+        if other.is::<QueryableOnly>() {
+            // Policies are combinable
             Ok(other)
-        } else {                         //Policies must be stacked
-            Ok(AnyPolicy::new(
-                PolicyAnd::new(
-                    self.clone(),
-                    other
-                )
-            ))
+        } else {
+            //Policies must be stacked
+            Ok(AnyPolicy::new(PolicyAnd::new(self.clone(), other)))
         }
     }
 
@@ -44,13 +43,20 @@ impl FrontendPolicy for QueryableOnly {
     fn from_request<'a, 'r>(_request: &'a Request<'r>) -> Self {
         QueryableOnly {}
     }
-    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self {
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a Cookie<'static>,
+        _request: &'a Request<'r>,
+    ) -> Self {
         QueryableOnly {}
     }
 }
 
 impl SchemaPolicy for QueryableOnly {
-    fn from_row(_table: &str, _row: &Vec<Value>) -> Self where Self: Sized {
+    fn from_row(_table: &str, _row: &Vec<Value>) -> Self
+    where
+        Self: Sized,
+    {
         QueryableOnly {}
     }
 }

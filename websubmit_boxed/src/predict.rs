@@ -6,17 +6,17 @@ use lazy_static::lazy_static;
 use linfa_linear::FittedLinearRegression;
 use rocket::State;
 
-use alohomora::context::Context;
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::rocket::{BBoxForm, BBoxTemplate, get, post, FromBBoxForm};
+use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
+use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm};
 use alohomora::sandbox::execute_sandbox;
 
 use crate::backend::MySqlBackend;
-use crate::policies::{MLTrainingPolicy, ContextData};
+use crate::policies::{ContextData, MLTrainingPolicy};
 
-use websubmit_boxed_sandboxes::train;
 use websubmit_boxed_sandboxes::evaluate_model;
+use websubmit_boxed_sandboxes::train;
 
 lazy_static! {
     static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, MLTrainingPolicy>>>> =
@@ -38,10 +38,7 @@ pub(crate) fn train_and_store(
     println!("Re-training the model and saving it globally...");
     // Get data from database.
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec(
-        "SELECT * FROM ml_training WHERE consent = 1",
-        (), 
-        context);
+    let res = bg.prep_exec("SELECT * FROM ml_training WHERE consent = 1", (), context);
     drop(bg);
 
     type BBoxTime = BBox<NaiveDateTime, MLTrainingPolicy>;

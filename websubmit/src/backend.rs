@@ -40,7 +40,7 @@ impl MySqlBackend {
             Opts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
         )
         .unwrap();
-        assert_eq!(db.ping().is_ok(), true);
+        assert_eq!(db.ping(), true);
 
         if prime {
             db.query_drop(format!("DROP DATABASE IF EXISTS {};", dbname))

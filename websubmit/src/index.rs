@@ -9,8 +9,8 @@ use crate::backend::MySqlBackend;
 
 #[get("/")]
 pub(crate) fn index(
-    cookies: &CookieJar<'_>, 
-    backend: &State<Arc<Mutex<MySqlBackend>>>
+    cookies: &CookieJar<'_>,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Redirect {
     if let Some(cookie) = cookies.get("apikey") {
         let apikey: String = cookie.value().parse().ok().unwrap();

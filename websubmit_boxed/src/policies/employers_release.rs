@@ -1,8 +1,8 @@
-use alohomora::AlohomoraType;
-use alohomora::context::UnprotectedContext;
-use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
 use crate::config::Config;
 use crate::policies::ContextData;
+use alohomora::context::UnprotectedContext;
+use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
+use alohomora::AlohomoraType;
 
 // ML training policy.
 #[schema_policy(table = "employers_release", column = 0)]
@@ -36,10 +36,10 @@ impl Policy for EmployersReleasePolicy {
             let other = other.specialize::<EmployersReleasePolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
-            Ok(AnyPolicy::new(
-                PolicyAnd::new(
-                    AnyPolicy::new(self.clone()),
-                    other)))
+            Ok(AnyPolicy::new(PolicyAnd::new(
+                AnyPolicy::new(self.clone()),
+                other,
+            )))
         }
     }
 
@@ -52,9 +52,11 @@ impl Policy for EmployersReleasePolicy {
 
 impl SchemaPolicy for EmployersReleasePolicy {
     fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
-        EmployersReleasePolicy { consent: mysql::from_value(row[2].clone()) }
+        EmployersReleasePolicy {
+            consent: mysql::from_value(row[2].clone()),
+        }
     }
 }

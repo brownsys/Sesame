@@ -1,10 +1,10 @@
-use alohomora::db::{BBoxConn, BBoxOpts, BBoxParams, BBoxStatement, BBoxValue}; 
-use std::collections::HashMap;
-use std::result::Result;
-use std::error::Error;
-use alohomora::context::Context;
-use slog::{debug, warn, o};
 use crate::policies::ContextData;
+use alohomora::context::Context;
+use alohomora::db::{BBoxConn, BBoxOpts, BBoxParams, BBoxStatement, BBoxValue};
+use slog::{debug, o, warn};
+use std::collections::HashMap;
+use std::error::Error;
+use std::result::Result;
 
 pub struct MySqlBackend {
     pub handle: BBoxConn,
@@ -16,14 +16,14 @@ pub struct MySqlBackend {
     db_name: String,
 }
 
-impl MySqlBackend { 
+impl MySqlBackend {
     pub fn new(
         user: &str,
         password: &str,
         dbname: &str,
         log: Option<slog::Logger>,
         prime: bool,
-    ) -> Result<Self, Box<dyn Error>> { 
+    ) -> Result<Self, Box<dyn Error>> {
         let log = match log {
             None => slog::Logger::root(slog::Discard, o!()),
             Some(l) => l,
@@ -35,7 +35,8 @@ impl MySqlBackend {
             log,
             "Connecting to MySql DB and initializing schema {}...", dbname
         );
-        let mut db = BBoxConn::new( // this is the user and password from the config.toml file
+        let mut db = BBoxConn::new(
+            // this is the user and password from the config.toml file
             BBoxOpts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
         )
         .unwrap();
@@ -79,7 +80,12 @@ impl MySqlBackend {
         .unwrap();
     }
 
-    pub fn prep_exec<P: Into<BBoxParams>>(&mut self, sql: &str, params: P, context: Context<ContextData>) -> Vec<Vec<BBoxValue>> {
+    pub fn prep_exec<P: Into<BBoxParams>>(
+        &mut self,
+        sql: &str,
+        params: P,
+        context: Context<ContextData>,
+    ) -> Vec<Vec<BBoxValue>> {
         if !self.prep_stmts.contains_key(sql) {
             let stmt = self
                 .handle
@@ -87,13 +93,14 @@ impl MySqlBackend {
                 .expect(&format!("failed to prepare statement \'{}\'", sql));
             self.prep_stmts.insert(sql.to_owned(), stmt);
         }
-        
+
         let params: BBoxParams = params.into();
         loop {
-            match self
-                .handle
-                .exec_iter(self.prep_stmts[sql].clone(), params.clone(), context.clone())
-            {
+            match self.handle.exec_iter(
+                self.prep_stmts[sql].clone(),
+                params.clone(),
+                context.clone(),
+            ) {
                 Err(e) => {
                     warn!(
                         self.log,
@@ -113,21 +120,33 @@ impl MySqlBackend {
         }
     }
 
-    fn do_insert<P: Into<BBoxParams>>(&mut self, table: &str, vals: P, replace: bool, context: Context<ContextData>) {
+    fn do_insert<P: Into<BBoxParams>>(
+        &mut self,
+        table: &str,
+        vals: P,
+        replace: bool,
+        context: Context<ContextData>,
+    ) {
         let vals: BBoxParams = vals.into();
         let mut param_count = 0;
         if let BBoxParams::Positional(vec) = &vals {
-          param_count = vec.len();
+            param_count = vec.len();
         }
-    
+
         let op = if replace { "REPLACE" } else { "INSERT" };
         let q = format!(
             "{} INTO {} VALUES ({})",
             op,
             table,
-            (0..param_count).map(|_| "?").collect::<Vec<&str>>().join(",")
+            (0..param_count)
+                .map(|_| "?")
+                .collect::<Vec<&str>>()
+                .join(",")
         );
-        while let Err(e) = self.handle.exec_drop(q.clone(), vals.clone(), context.clone()) {
+        while let Err(e) = self
+            .handle
+            .exec_drop(q.clone(), vals.clone(), context.clone())
+        {
             warn!(
                 self.log,
                 "failed to insert into {}, query {} ({}), reconnecting to database", table, q, e
@@ -136,11 +155,21 @@ impl MySqlBackend {
         }
     }
 
-    pub fn insert<P: Into<BBoxParams>>(&mut self, table: &str, vals: P, context: Context<ContextData>) {
+    pub fn insert<P: Into<BBoxParams>>(
+        &mut self,
+        table: &str,
+        vals: P,
+        context: Context<ContextData>,
+    ) {
         self.do_insert(table, vals, false, context);
     }
 
-    pub fn replace<P: Into<BBoxParams>>(&mut self, table: &str, vals: P, context: Context<ContextData>) {
+    pub fn replace<P: Into<BBoxParams>>(
+        &mut self,
+        table: &str,
+        vals: P,
+        context: Context<ContextData>,
+    ) {
         self.do_insert(table, vals, true, context);
     }
 }

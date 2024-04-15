@@ -7,15 +7,18 @@ use rocket::http::Status;
 use rocket::outcome::IntoOutcome;
 use rocket::State;
 
-use alohomora::AlohomoraType;
 use alohomora::bbox::BBox;
-use alohomora::db::from_value;
-use alohomora::policy::{NoPolicy, AnyPolicy, Policy};
 use alohomora::context::Context;
+use alohomora::db::from_value;
 use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::policy::{AnyPolicy, NoPolicy, Policy};
 use alohomora::pure::PrivacyPureRegion;
+use alohomora::AlohomoraType;
 
-use alohomora::rocket::{BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, FromBBoxRequest, JsonResponse, post, FromBBoxForm, OutputBBoxValue, ResponseBBoxJson};
+use alohomora::rocket::{
+    post, BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome,
+    FromBBoxForm, FromBBoxRequest, JsonResponse, OutputBBoxValue, ResponseBBoxJson,
+};
 use alohomora::sandbox::execute_sandbox;
 use alohomora::unbox::unbox;
 
@@ -41,7 +44,6 @@ pub(crate) struct ApiKey {
     pub key: BBox<String, QueryableOnly>,
 }
 
-
 // Check API key against database.
 pub(crate) fn check_api_key<P: Policy + Clone + 'static>(
     backend: &Arc<Mutex<MySqlBackend>>,
@@ -51,8 +53,8 @@ pub(crate) fn check_api_key<P: Policy + Clone + 'static>(
     let mut bg = backend.lock().unwrap();
     let rs = bg.prep_exec(
         "SELECT * FROM users WHERE apikey = ?",
-        (key.clone(), ),
-        context
+        (key.clone(),),
+        context,
     );
     drop(bg);
 
@@ -75,23 +77,19 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for ApiKey {
     async fn from_bbox_request(
         request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        let context = request
-            .guard()
-            .await
-            .unwrap();
-        let db: &State<Arc<Mutex<MySqlBackend>>> = request
-            .guard()
-            .await
-            .unwrap();
+        let context = request.guard().await.unwrap();
+        let db: &State<Arc<Mutex<MySqlBackend>>> = request.guard().await.unwrap();
 
         request
             .cookies()
             .get::<QueryableOnly>("apikey")
             .and_then(|cookie: BBoxCookie<'_, QueryableOnly>| Some(cookie.into()))
-            .and_then(|key: BBox<String, QueryableOnly>| match check_api_key(db, &key, context) {
-                Ok(user) => Some(ApiKey { user, key }),
-                Err(_) => None,
-            })
+            .and_then(
+                |key: BBox<String, QueryableOnly>| match check_api_key(db, &key, context) {
+                    Ok(user) => Some(ApiKey { user, key }),
+                    Err(_) => None,
+                },
+            )
             .into_outcome((Status::Unauthorized, ApiKeyError::Missing))
     }
 }
@@ -128,7 +126,7 @@ pub(crate) struct ApiKeySubmit {
 
 #[post("/", data = "<data>")]
 pub(crate) fn generate(
-    data: BBoxForm<ApiKeyRequest>, 
+    data: BBoxForm<ApiKeyRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
     context: Context<ContextData>,
@@ -143,12 +141,12 @@ pub(crate) fn generate(
     let hash = execute_sandbox::<hash, _, _>((data.email.clone(), config.secret.clone()));
 
     // Check if request corresponds to admin or manager.
-    let is_manager = data.email.ppr(
-        PrivacyPureRegion::new(|email| config.managers.contains(email))
-    );
-    let is_admin = data.email.ppr(
-        PrivacyPureRegion::new(|email| config.admins.contains(email))
-    );
+    let is_manager = data.email.ppr(PrivacyPureRegion::new(|email| {
+        config.managers.contains(email)
+    }));
+    let is_admin = data.email.ppr(PrivacyPureRegion::new(|email| {
+        config.admins.contains(email)
+    }));
 
     // insert into MySql if not exists
     let mut bg = backend.lock().unwrap();
@@ -186,14 +184,13 @@ pub(crate) fn generate(
                     "no-reply@csci2390-submit.cs.brown.edu".into(),
                     vec![email],
                     format!("{} API key", config.class),
-                    format!(
-                        "Your {} API key is: {}\n",
-                        config.class,
-                        hash
-                    ),
-                ).expect("failed to send API key email");
+                    format!("Your {} API key is: {}\n", config.class, hash),
+                )
+                .expect("failed to send API key email");
             }),
-            ()).unwrap();
+            (),
+        )
+        .unwrap();
     }
     drop(bg);
 

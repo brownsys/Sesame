@@ -1,11 +1,8 @@
-use std::cmp;
-use std::sync::{Arc, Mutex};
-use alohomora::AlohomoraType;
-use alohomora::context::{Context, UnprotectedContext};
-use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
-use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
+use alohomora::context::UnprotectedContext;
+use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
+use alohomora::AlohomoraType;
 
 // ML training policy.
 #[schema_policy(table = "ml_training", column = 0)]
@@ -39,10 +36,10 @@ impl Policy for MLTrainingPolicy {
             let other = other.specialize::<MLTrainingPolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
-            Ok(AnyPolicy::new(
-                PolicyAnd::new(
-                    AnyPolicy::new(self.clone()),
-                    other)))
+            Ok(AnyPolicy::new(PolicyAnd::new(
+                AnyPolicy::new(self.clone()),
+                other,
+            )))
         }
     }
 
@@ -54,10 +51,12 @@ impl Policy for MLTrainingPolicy {
 }
 
 impl SchemaPolicy for MLTrainingPolicy {
-    fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
-        where
-            Self: Sized,
+    fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
+    where
+        Self: Sized,
     {
-        MLTrainingPolicy { consent: mysql::from_value(row[2].clone()) }
+        MLTrainingPolicy {
+            consent: mysql::from_value(row[2].clone()),
+        }
     }
 }

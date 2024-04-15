@@ -4,12 +4,12 @@ use alohomora::fold::fold;
 use chrono::naive::NaiveDateTime;
 use rocket::State;
 
+use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::rocket::{BBoxTemplate, BBoxRedirect, BBoxForm, FromBBoxForm, get, post};
 use alohomora::policy::NoPolicy;
 use alohomora::pure::PrivacyPureRegion;
+use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxTemplate, FromBBoxForm};
 
 use crate::backend::MySqlBackend;
 use crate::policies::{AnswerAccessPolicy, ContextData};
@@ -26,7 +26,11 @@ pub(crate) fn grades(
     let key = num.clone().into_bbox::<u64, NoPolicy>();
 
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", (key,), context.clone());
+    let res = bg.prep_exec(
+        "SELECT * FROM answers WHERE lec = ?",
+        (key,),
+        context.clone(),
+    );
     drop(bg);
 
     let answers: Vec<LectureAnswer> = res
@@ -35,8 +39,11 @@ pub(crate) fn grades(
             id: from_value(r[2].clone()).unwrap(),
             user: from_value(r[0].clone()).unwrap(),
             answer: from_value(r[3].clone()).unwrap(),
-            time: from_value(r[4].clone()).unwrap()
-                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| v.format("%Y-%m-%d %H:%M:%S").to_string())),
+            time: from_value(r[4].clone())
+                .unwrap()
+                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| {
+                    v.format("%Y-%m-%d %H:%M:%S").to_string()
+                })),
             grade: from_value(r[5].clone()).unwrap(),
         })
         .collect();
@@ -81,7 +88,7 @@ pub(crate) fn editg(
             num.clone().into_bbox::<u64, NoPolicy>(),
             qnum.clone().into_bbox::<u64, NoPolicy>(),
         ),
-        context.clone()
+        context.clone(),
     );
     drop(bg);
 
@@ -116,13 +123,8 @@ pub(crate) fn editg_submit(
 
     bg.prep_exec(
         "UPDATE answers SET grade = ? WHERE email = ? AND lec = ? AND q = ?",
-        (
-            data.grade.clone(),
-            user,
-            num.clone(),
-            qnum,
-        ),
-        context.clone()
+        (data.grade.clone(), user, num.clone(), qnum),
+        context.clone(),
     );
     drop(bg);
 

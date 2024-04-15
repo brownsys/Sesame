@@ -1,5 +1,5 @@
-use alohomora::rocket::{routes, BBoxRocket, BBoxRoute};
 use alohomora::policy::add_schema_policy;
+use alohomora::rocket::{routes, BBoxRocket, BBoxRoute};
 use rocket::fs::FileServer;
 use rocket::Build;
 use rocket_dyn_templates::Template;
@@ -14,11 +14,11 @@ mod config;
 mod email;
 mod grades;
 mod helpers;
+mod index;
 mod login;
 mod manage;
 mod policies;
 mod predict;
-mod index;
 mod questions;
 
 pub use args::parse_args;
@@ -31,62 +31,34 @@ fn new_logger() -> slog::Logger {
 }
 
 pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
-    add_schema_policy::<
-        policies::AnswerAccessPolicy,
-    >(String::from("answers"), 0usize);
-    add_schema_policy::<
-        policies::AnswerAccessPolicy,
-    >(String::from("answers"), 1usize);
-    add_schema_policy::<
-        policies::AnswerAccessPolicy,
-    >(String::from("answers"), 2usize);
-    add_schema_policy::<
-        policies::AnswerAccessPolicy,
-    >(String::from("answers"), 3usize);
-    add_schema_policy::<
-        policies::AnswerAccessPolicy,
-    >(String::from("answers"), 4usize);
-    add_schema_policy::<
-        policies::AnswerAccessPolicy,
-    >(String::from("answers"), 5usize);
+    add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 0usize);
+    add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 1usize);
+    add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 2usize);
+    add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 3usize);
+    add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 4usize);
+    add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 5usize);
 
-    add_schema_policy::<
-        policies::UserProfilePolicy,
-    >(String::from("users"), 5usize);
-    add_schema_policy::<
-        policies::UserProfilePolicy,
-    >(String::from("users"), 6usize);
-    add_schema_policy::<
-        policies::UserProfilePolicy,
-    >(String::from("users"), 7usize);
-    
-    add_schema_policy::<
-        policies::KAnonymityPolicy,
-    >(String::from("agg_gender"), 1usize);
-    add_schema_policy::<
-        policies::KAnonymityPolicy,
-    >(String::from("agg_remote"), 1usize);
+    add_schema_policy::<policies::UserProfilePolicy>(String::from("users"), 5usize);
+    add_schema_policy::<policies::UserProfilePolicy>(String::from("users"), 6usize);
+    add_schema_policy::<policies::UserProfilePolicy>(String::from("users"), 7usize);
 
-    add_schema_policy::<
-        policies::AggregateAccessPolicy,
-    >(String::from("agg_gender"), 1usize);
-    add_schema_policy::<
-        policies::AggregateAccessPolicy,
-    >(String::from("agg_remote"), 1usize);
+    add_schema_policy::<policies::KAnonymityPolicy>(String::from("agg_gender"), 1usize);
+    add_schema_policy::<policies::KAnonymityPolicy>(String::from("agg_remote"), 1usize);
 
-    add_schema_policy::<
-        policies::MLTrainingPolicy,
-    >(String::from("ml_training"), 0usize);
-    add_schema_policy::<
-        policies::MLTrainingPolicy,
-    >(String::from("ml_training"), 1usize);
+    add_schema_policy::<policies::AggregateAccessPolicy>(String::from("agg_gender"), 1usize);
+    add_schema_policy::<policies::AggregateAccessPolicy>(String::from("agg_remote"), 1usize);
 
-    add_schema_policy::<
-        policies::EmployersReleasePolicy,
-    >(String::from("employers_release"), 0usize);
-    add_schema_policy::<
-        policies::EmployersReleasePolicy,
-    >(String::from("employers_release"), 1usize);
+    add_schema_policy::<policies::MLTrainingPolicy>(String::from("ml_training"), 0usize);
+    add_schema_policy::<policies::MLTrainingPolicy>(String::from("ml_training"), 1usize);
+
+    add_schema_policy::<policies::EmployersReleasePolicy>(
+        String::from("employers_release"),
+        0usize,
+    );
+    add_schema_policy::<policies::EmployersReleasePolicy>(
+        String::from("employers_release"),
+        1usize,
+    );
 
     let config = args.config;
 
@@ -125,52 +97,41 @@ pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
             "/js",
             BBoxRoute::from(FileServer::from(format!("{}/js", resource_dir))),
         )
-        .mount(
-            "/", 
-            routes![index::index])
+        .mount("/", routes![index::index])
         .mount(
             "/questions",
             routes![questions::questions, questions::questions_submit],
         )
-        .mount(
-            "/apikey/check", 
-            routes![apikey::check])
-        .mount(
-            "/apikey/generate", 
-            routes![apikey::generate])
+        .mount("/apikey/check", routes![apikey::check])
+        .mount("/apikey/generate", routes![apikey::generate])
         .mount(
             "/grades",
             routes![grades::grades, grades::editg, grades::editg_submit],
         )
-        .mount(
-            "/answers", 
-            routes![questions::composed_answers])
-        .mount(
-            "/leclist", 
-            routes![questions::leclist])
+        .mount("/answers", routes![questions::composed_answers])
+        .mount("/leclist", routes![questions::leclist])
         .mount(
             "/predict",
             routes![predict::predict, predict::predict_grade],
         )
-        .mount(
-            "/login", 
-            routes![login::login])
+        .mount("/login", routes![login::login])
         .mount(
             "/admin/lec/add",
             routes![admin::lec_add, admin::lec_add_submit],
         )
-        .mount(
-            "/admin/users", 
-            routes![admin::get_registered_users])
+        .mount("/admin/users", routes![admin::get_registered_users])
         .mount(
             "/admin/lec",
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
-        .mount("/manage", 
-            routes![manage::get_aggregate_gender, 
+        .mount(
+            "/manage",
+            routes![
+                manage::get_aggregate_gender,
                 manage::get_aggregate_remote,
                 manage::get_aggregate_remote_buggy,
                 manage::get_list_for_employers,
-                manage::get_list_for_employers_buggy]
+                manage::get_list_for_employers_buggy
+            ],
         )
 }

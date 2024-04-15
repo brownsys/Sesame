@@ -1,10 +1,10 @@
-use rocket::{routes, Rocket, Route};
 use rocket::fs::FileServer;
 use rocket::Build;
+use rocket::{routes, Rocket};
 use rocket_dyn_templates::Template;
 use slog::o;
-use std::sync::{Arc, Mutex};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 mod admin;
 mod apikey;
@@ -14,10 +14,10 @@ mod config;
 mod email;
 mod grades;
 mod helpers;
+mod index;
 mod login;
 mod manage;
 mod predict;
-mod index;
 mod questions;
 
 pub use args::parse_args;
@@ -46,24 +46,18 @@ pub fn make_rocket(args: args::Args) -> Rocket<Build> {
     let template_dir = config.template_dir.clone();
     let resource_dir = config.resource_dir.clone();
     let template = Template::custom(move |engines| {
-        let result = engines
+        engines
             .handlebars
             .register_templates_directory(".hbs", Path::new(&template_dir))
-            .expect("Failed to set template path~");
+            .expect("Failed to set template path!");
     });
 
     Rocket::build()
         .attach(template)
         .manage(backend)
         .manage(config)
-        .mount(
-            "/css",
-            FileServer::from(format!("{}/css", resource_dir)),
-        )
-        .mount(
-            "/js",
-            FileServer::from(format!("{}/js", resource_dir)),
-        )
+        .mount("/css", FileServer::from(format!("{}/css", resource_dir)))
+        .mount("/js", FileServer::from(format!("{}/js", resource_dir)))
         .mount("/", routes![index::index])
         .mount(
             "/questions",
@@ -91,11 +85,14 @@ pub fn make_rocket(args: args::Args) -> Rocket<Build> {
             "/admin/lec",
             routes![admin::lec, admin::addq, admin::editq, admin::editq_submit],
         )
-        .mount("/manage", 
-            routes![manage::get_aggregate_gender, 
+        .mount(
+            "/manage",
+            routes![
+                manage::get_aggregate_gender,
                 manage::get_aggregate_remote,
                 manage::get_aggregate_remote_buggy,
                 manage::get_list_for_employers,
-                manage::get_list_for_employers_buggy]
+                manage::get_list_for_employers_buggy
+            ],
         )
 }

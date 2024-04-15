@@ -10,7 +10,7 @@ use mysql::from_value;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 
-use rocket::form::{FromForm, Form};
+use rocket::form::{Form, FromForm};
 use rocket::http::Status;
 use rocket::http::{Cookie, CookieJar};
 use rocket::outcome::IntoOutcome;
@@ -57,9 +57,7 @@ pub(crate) enum ApiKeyError {
 impl<'r> FromRequest<'r> for ApiKey {
     type Error = ApiKeyError;
 
-    async fn from_request(
-        request: &'r Request<'_>
-    ) -> request::Outcome<Self, Self::Error> {
+    async fn from_request(request: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
         let be = request
             .guard::<&State<Arc<Mutex<MySqlBackend>>>>()
             .await
@@ -100,7 +98,7 @@ pub(crate) fn generate(
     } else {
         0.into()
     };
-    
+
     let is_admin = if config.admins.contains(&data.email) {
         1.into()
     } else {
@@ -112,16 +110,16 @@ pub(crate) fn generate(
     bg.insert(
         "users",
         vec![
-            data.email.into(), // do i need as_str
-            hash.into(), 
+            data.email.as_str().into(), // do i need as_str
+            hash.as_str().into(),
             is_admin,
             is_manager,
             pseudonym.into(),
-            data.gender.into(),
+            data.gender.as_str().into(),
             data.age.into(),
-            data.ethnicity.into(),
+            data.ethnicity.as_str().into(),
             data.is_remote.into(),
-            data.education.into(),
+            data.education.as_str().into(),
             data.consent.into(),
         ],
     );
@@ -132,10 +130,7 @@ pub(crate) fn generate(
             "no-reply@csci2390-submit.cs.brown.edu".into(),
             vec![data.email.clone()],
             format!("{} API key", config.class),
-            format!(
-                "Your {} API key is: {}\n", 
-                config.class, 
-                hash.as_str(),),
+            format!("Your {} API key is: {}\n", config.class, hash.as_str(),),
         )
         .expect("failed to send API key email");
     }
@@ -153,10 +148,7 @@ pub(crate) fn check_api_key(
     key: &str,
 ) -> Result<String, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
-    let rs = bg.prep_exec(
-        "SELECT * FROM users WHERE apikey = ?", 
-        vec![key.into()]
-    );
+    let rs = bg.prep_exec("SELECT * FROM users WHERE apikey = ?", vec![key.into()]);
     drop(bg);
 
     if rs.len() < 1 {
@@ -195,9 +187,7 @@ pub(crate) fn check(
     if res.is_err() {
         Redirect::to("/")
     } else {
-        let cookie = Cookie::build("apikey", data.key.clone())
-            .path("/")
-            .finish();
+        let cookie = Cookie::build("apikey", data.key.clone()).path("/").finish();
         cookies.add(cookie);
         Redirect::to("/leclist")
     }

@@ -13,13 +13,13 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
 
+use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::policy::AnyPolicy;
-use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest, get};
 use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::policy::AnyPolicy;
 use alohomora::pure::PrivacyPureRegion;
+use alohomora::rocket::{get, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
 
 pub(crate) struct Manager;
 
@@ -32,17 +32,19 @@ pub(crate) enum ManagerError {
 impl<'a, 'r> FromBBoxRequest<'a, 'r> for Manager {
     type BBoxError = ManagerError;
 
-    async fn from_bbox_request(request: BBoxRequest<'a, 'r>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    async fn from_bbox_request(
+        request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let apikey = request.guard::<ApiKey>().await.unwrap();
         let cfg = request.guard::<&State<Config>>().await.unwrap();
 
-        let manager = apikey.user.ppr(PrivacyPureRegion::new(|user: &String|
+        let manager = apikey.user.ppr(PrivacyPureRegion::new(|user: &String| {
             if cfg.managers.contains(&user) {
                 Some(Manager)
             } else {
                 None
             }
-        ));
+        }));
 
         manager
             .into_pcr(PrivacyCriticalRegion::new(|manager, _, _| manager), ())
@@ -68,13 +70,13 @@ struct AggregateRemoteContext {
     parent: String,
 }
 
-fn transform<T: Serialize + FromValue>(agg: Vec<Vec<BBox<mysql::Value, AnyPolicy>>>) -> Vec<Aggregate<T>> {
+fn transform<T: Serialize + FromValue>(
+    agg: Vec<Vec<BBox<mysql::Value, AnyPolicy>>>,
+) -> Vec<Aggregate<T>> {
     agg.into_iter()
-        .map(|r| {
-            Aggregate {
-                property: from_value(r[0].clone()).unwrap(),
-                average: from_value(r[1].clone()).unwrap(),
-            }
+        .map(|r| Aggregate {
+            property: from_value(r[0].clone()).unwrap(),
+            average: from_value(r[1].clone()).unwrap(),
         })
         .collect()
 }
@@ -86,11 +88,7 @@ pub(crate) fn get_aggregate_gender(
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let grades = bg.prep_exec(
-        "SELECT * from agg_gender",
-        (),
-        context.clone()
-    );
+    let grades = bg.prep_exec("SELECT * from agg_gender", (), context.clone());
     drop(bg);
 
     let ctx = AggregateGenderContext {
@@ -108,11 +106,7 @@ pub(crate) fn get_aggregate_remote_buggy(
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let grades = bg.prep_exec(
-        "SELECT * from agg_remote",
-        (),
-        context.clone()
-    );
+    let grades = bg.prep_exec("SELECT * from agg_remote", (), context.clone());
     drop(bg);
 
     let ctx = AggregateRemoteContext {
@@ -122,7 +116,6 @@ pub(crate) fn get_aggregate_remote_buggy(
 
     BBoxTemplate::render("manage/aggregate", &ctx, context)
 }
-
 
 #[get("/remote")]
 pub(crate) fn get_aggregate_remote(
@@ -134,7 +127,7 @@ pub(crate) fn get_aggregate_remote(
     let grades = bg.prep_exec(
         "SELECT * from agg_remote WHERE ucount >= 10",
         (),
-        context.clone()
+        context.clone(),
     );
     drop(bg);
 
@@ -158,16 +151,19 @@ struct InfoForEmployersContext {
     parent: String,
 }
 
-
 #[get("/employers")]
 pub(crate) fn get_list_for_employers(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    config: &State<Config>,
+    _config: &State<Config>,
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec("SELECT * from employers_release WHERE consent = 1", (), context.clone());
+    let res = bg.prep_exec(
+        "SELECT * from employers_release WHERE consent = 1",
+        (),
+        context.clone(),
+    );
     drop(bg);
 
     let users = res
@@ -189,7 +185,7 @@ pub(crate) fn get_list_for_employers(
 pub(crate) fn get_list_for_employers_buggy(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    config: &State<Config>,
+    _config: &State<Config>,
     context: Context<ContextData>,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();

@@ -3,21 +3,21 @@ use std::sync::{Arc, Mutex};
 
 use mysql::from_value;
 
-use rocket::form::{FromForm, Form};
+use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::{get, post, State};
 use rocket_dyn_templates::Template;
 
 use serde::Serialize;
 
-use crate::{backend::MySqlBackend, questions::{LectureAnswer, LectureAnswersContext}};
+use crate::{
+    backend::MySqlBackend,
+    questions::{LectureAnswer, LectureAnswersContext},
+};
 // use crate::predict::train_and_store;
 
 #[get("/<num>")]
-pub(crate) fn grades(
-    num: u8,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Template {
+pub(crate) fn grades(num: u8, backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
     let key = (num as u64).into();
 
     let mut bg = backend.lock().unwrap();
@@ -30,7 +30,9 @@ pub(crate) fn grades(
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
+            time: from_value::<NaiveDateTime>(r[4].clone())
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
             grade: from_value(r[5].clone()),
         })
         .collect();
@@ -102,12 +104,7 @@ pub(crate) fn editg_submit(
 
     bg.prep_exec(
         "UPDATE answers SET grade = ? WHERE email = ? AND lec = ? AND q = ?",
-        vec![
-            data.grade.into(),
-            user.into(),
-            num.into(),
-            qnum.into(),
-        ],
+        vec![data.grade.into(), user.into(), num.into(), qnum.into()],
     );
     drop(bg);
 

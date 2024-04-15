@@ -1,6 +1,6 @@
-use std::cmp;
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
+use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
+use std::cmp;
 
 // K-anonymity policy.
 #[schema_policy(table = "agg_gender", column = 1)]
@@ -26,10 +26,10 @@ impl Policy for KAnonymityPolicy {
             let other = other.specialize::<KAnonymityPolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
-            Ok(AnyPolicy::new(
-                PolicyAnd::new(
-                    AnyPolicy::new(self.clone()),
-                    other)))
+            Ok(AnyPolicy::new(PolicyAnd::new(
+                AnyPolicy::new(self.clone()),
+                other,
+            )))
         }
     }
 
@@ -42,9 +42,11 @@ impl Policy for KAnonymityPolicy {
 
 impl SchemaPolicy for KAnonymityPolicy {
     fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
-        KAnonymityPolicy { count: mysql::from_value(row[2].clone()) }
+        KAnonymityPolicy {
+            count: mysql::from_value(row[2].clone()),
+        }
     }
 }

@@ -1,10 +1,8 @@
-use std::sync::{Arc, Mutex};
-use alohomora::AlohomoraType;
-use alohomora::context::{Context, UnprotectedContext};
-use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
-use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
+use alohomora::context::UnprotectedContext;
+use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
+use alohomora::AlohomoraType;
 
 // Access control policy.
 #[schema_policy(table = "users", column = 5)] // gender
@@ -53,10 +51,10 @@ impl Policy for UserProfilePolicy {
             let other = other.specialize::<UserProfilePolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
-            Ok(AnyPolicy::new(
-                PolicyAnd::new(
-                    AnyPolicy::new(self.clone()),
-                    other)))
+            Ok(AnyPolicy::new(PolicyAnd::new(
+                AnyPolicy::new(self.clone()),
+                other,
+            )))
         }
     }
 
@@ -67,17 +65,17 @@ impl Policy for UserProfilePolicy {
         } else {
             comp_owner = None;
         }
-        Ok(UserProfilePolicy{
-            owner: comp_owner,
-        })
+        Ok(UserProfilePolicy { owner: comp_owner })
     }
 }
 
 impl SchemaPolicy for UserProfilePolicy {
-    fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
-        where
-            Self: Sized,
+    fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
+    where
+        Self: Sized,
     {
-        UserProfilePolicy { owner: mysql::from_value(row[0].clone()) }
+        UserProfilePolicy {
+            owner: mysql::from_value(row[0].clone()),
+        }
     }
 }

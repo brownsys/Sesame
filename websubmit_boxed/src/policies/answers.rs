@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
-use alohomora::AlohomoraType;
-use alohomora::context::{Context, UnprotectedContext};
-use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, schema_policy, SchemaPolicy};
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
+use alohomora::context::{Context, UnprotectedContext};
+use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
+use alohomora::AlohomoraType;
+use std::sync::{Arc, Mutex};
 
 // Access control policy.
 #[schema_policy(table = "answers", column = 0)] // email
@@ -12,18 +12,22 @@ use crate::policies::ContextData;
 #[schema_policy(table = "answers", column = 2)] // q
 #[schema_policy(table = "answers", column = 3)] // answer
 #[schema_policy(table = "answers", column = 4)] // submitted_at
-#[schema_policy(table = "answers", column = 5)] // grade, WHY CAN DISCUSSION LEADER SEE GRADE
+#[schema_policy(table = "answers", column = 5)]
+// grade, WHY CAN DISCUSSION LEADER SEE GRADE
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy across tables/columns.
 #[derive(Clone)]
 pub struct AnswerAccessPolicy {
     owner: Option<String>, // even if no owner, admins may access
-    lec_id: Option<u64>,  // no lec_id when Policy for multiple Answers from different lectures
+    lec_id: Option<u64>,   // no lec_id when Policy for multiple Answers from different lectures
 }
 
 impl AnswerAccessPolicy {
     pub fn new(owner: Option<String>, lec_id: Option<u64>) -> AnswerAccessPolicy {
-        AnswerAccessPolicy { owner: owner, lec_id: lec_id }
+        AnswerAccessPolicy {
+            owner: owner,
+            lec_id: lec_id,
+        }
     }
 }
 
@@ -34,7 +38,10 @@ impl AnswerAccessPolicy {
 //      (`P(me)` alter. `is me in set<P(students)>`);
 impl Policy for AnswerAccessPolicy {
     fn name(&self) -> String {
-        format!("AnswerAccessPolicy(lec id{:?} for user {:?})", self.lec_id, self.owner)
+        format!(
+            "AnswerAccessPolicy(lec id{:?} for user {:?})",
+            self.lec_id, self.owner
+        )
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
@@ -68,7 +75,7 @@ impl Policy for AnswerAccessPolicy {
             let mut bg = db.lock().unwrap();
             let vec = bg.prep_exec(
                 "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-                (lec_id, user, ),
+                (lec_id, user),
                 Context::empty(),
             );
             return vec.len() > 0;
@@ -78,14 +85,16 @@ impl Policy for AnswerAccessPolicy {
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<AnswerAccessPolicy>() { // Policies are combinable
+        if other.is::<AnswerAccessPolicy>() {
+            // Policies are combinable
             let other = other.specialize::<AnswerAccessPolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
-        } else {                    //Policies must be stacked
-            Ok(AnyPolicy::new(
-                PolicyAnd::new(
-                    AnyPolicy::new(self.clone()),
-                    other)))
+        } else {
+            //Policies must be stacked
+            Ok(AnyPolicy::new(PolicyAnd::new(
+                AnyPolicy::new(self.clone()),
+                other,
+            )))
         }
     }
 
@@ -102,21 +111,21 @@ impl Policy for AnswerAccessPolicy {
         } else {
             comp_lec_id = None;
         }
-        Ok(AnswerAccessPolicy{
+        Ok(AnswerAccessPolicy {
             owner: comp_owner,
-            lec_id: comp_lec_id
+            lec_id: comp_lec_id,
         })
     }
 }
 
 impl SchemaPolicy for AnswerAccessPolicy {
     fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         AnswerAccessPolicy::new(
             mysql::from_value(row[0].clone()),
-            mysql::from_value(row[1].clone())
+            mysql::from_value(row[1].clone()),
         )
     }
 }

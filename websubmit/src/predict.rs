@@ -8,8 +8,8 @@ use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
 
+use rocket::form::{Form, FromForm};
 use rocket::{get, post, State};
-use rocket::form::{FromForm, Form};
 use rocket_dyn_templates::Template;
 
 use mysql::from_value;
@@ -19,19 +19,13 @@ use serde::Serialize;
 use crate::backend::MySqlBackend;
 
 lazy_static! {
-    static ref MODEL: Arc<Mutex<Option<FittedLinearRegression<f64>>>> =
-        Arc::new(Mutex::new(None));
+    static ref MODEL: Arc<Mutex<Option<FittedLinearRegression<f64>>>> = Arc::new(Mutex::new(None));
 }
 
 pub fn train(grades: Vec<(NaiveDateTime, u64)>) -> FittedLinearRegression<f64> {
     let grades: Vec<[f64; 2]> = grades
         .into_iter()
-        .map(|g| {
-            [
-                g.0.clone().and_utc().timestamp() as f64,
-                g.1 as f64,
-            ]
-        })
+        .map(|g| [g.0.clone().and_utc().timestamp() as f64, g.1 as f64])
         .collect();
     let array: Array2<f64> = Array2::from(grades);
     let (x, y) = (
@@ -53,7 +47,6 @@ pub fn evaluate_model(inputs: (String, FittedLinearRegression<f64>)) -> f64 {
     inputs.1.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + inputs.1.intercept()
 }
 
-
 pub(crate) fn model_exists() -> bool {
     let model = MODEL.lock().unwrap();
     match *model {
@@ -62,25 +55,16 @@ pub(crate) fn model_exists() -> bool {
     }
 }
 
-pub(crate) fn train_and_store(
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-) {
+pub(crate) fn train_and_store(backend: &State<Arc<Mutex<MySqlBackend>>>) {
     println!("Re-training the model and saving it globally...");
     // Get data from database.
     let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec(
-        "SELECT * FROM ml_training WHERE consent = 1",
-        vec![]);
+    let res = bg.prep_exec("SELECT * FROM ml_training WHERE consent = 1", vec![]);
     drop(bg);
 
     let grades: Vec<(NaiveDateTime, u64)> = res
         .into_iter()
-        .map(|r| {
-            (
-                from_value(r[1].clone()),
-                from_value(r[0].clone()),
-            )
-        })
+        .map(|r| (from_value(r[1].clone()), from_value(r[0].clone())))
         .collect();
 
     let new_model = train(grades);
@@ -95,10 +79,7 @@ struct PredictContext {
 }
 
 #[get("/<num>")]
-pub(crate) fn predict(
-    num: u8,
-    _backend: &State<Arc<Mutex<MySqlBackend>>>,
-) -> Template {
+pub(crate) fn predict(num: u8, _backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
     let ctx = PredictContext {
         lec_id: num,
         parent: "layout".into(),

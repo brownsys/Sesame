@@ -49,12 +49,13 @@ dependencies = [
  "erased-serde",
  "figment",
  "futures",
- "handlebars 3.5.5",
+ "handlebars",
  "indexmap 1.9.3",
  "itertools",
  "lazy_static",
  "mysql",
  "mysql_common 0.22.2",
+ "pin-project-lite",
  "rocket",
  "rocket_cors",
  "rocket_dyn_templates",
@@ -1378,6 +1379,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "gcc"
+version = "0.3.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
+
+[[package]]
 name = "generator"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1498,21 +1505,6 @@ dependencies = [
  "quick-error",
  "serde",
  "serde_json",
- "walkdir",
-]
-
-[[package]]
-name = "handlebars"
-version = "5.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab283476b99e66691dee3f1640fea91487a8d81f50fb5ecc75538f8f8879a1e4"
-dependencies = [
- "log",
- "pest",
- "pest_derive",
- "serde",
- "serde_json",
- "thiserror",
  "walkdir",
 ]
 
@@ -2927,6 +2919,16 @@ checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
+version = "0.3.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64ac302d8f83c0c1974bf758f6b041c6c8ada916fbb44a609158ca8b064cc76c"
+dependencies = [
+ "libc",
+ "rand 0.4.6",
+]
+
+[[package]]
+name = "rand"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "552840b97013b1a26992c11eac34bdd778e464601a4c2054b5f0bff7c6761293"
@@ -3358,7 +3360,7 @@ version = "0.1.0-rc.1"
 source = "git+https://github.com/KinanBab/Rocket.git?branch=main#ac213c21820c64bcc87b78587e95695d484c7b72"
 dependencies = [
  "glob",
- "handlebars 3.5.5",
+ "handlebars",
  "normpath",
  "notify",
  "rocket",
@@ -3392,6 +3394,19 @@ dependencies = [
  "time 0.2.27",
  "tokio",
  "uncased",
+]
+
+[[package]]
+name = "rust-crypto"
+version = "0.2.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f76d05d3993fd5f4af9434e8e436db163a12a9d40e1a58a726f27a01dfd12a2a"
+dependencies = [
+ "gcc",
+ "libc",
+ "rand 0.3.23",
+ "rustc-serialize",
+ "time 0.1.45",
 ]
 
 [[package]]
@@ -4647,7 +4662,7 @@ dependencies = [
  "alohomora_build",
  "chrono",
  "clap",
- "handlebars 5.1.0",
+ "handlebars",
  "lazy_static",
  "lettre",
  "lettre_email",
@@ -4679,6 +4694,7 @@ dependencies = [
  "linfa",
  "linfa-linear",
  "ndarray",
+ "rust-crypto",
  "serde",
  "serde_json",
 ]

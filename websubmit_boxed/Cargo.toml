@@ -34,7 +34,7 @@ features = ["handlebars", "tera"]
 
 [dependencies.handlebars]
 features = ["dir_source"]
-version = "=5.1.0"
+version = "3.5.5"
 
 [build-dependencies]
 alohomora_build = { path = "../alohomora_build" }

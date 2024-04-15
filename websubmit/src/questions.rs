@@ -9,10 +9,10 @@ use chrono::Local;
 
 use mysql::from_value;
 
-use rocket::{get, post};
 use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
+use rocket::{get, post};
 use rocket_dyn_templates::Template;
 
 use std::collections::HashMap;
@@ -119,10 +119,7 @@ pub(crate) fn answers(
 ) -> Template {
     let mut bg = backend.lock().unwrap();
     let key: Value = (num as u64).into();
-    let res = bg.prep_exec(
-        "SELECT * FROM answers WHERE lec = ?", 
-        vec![key]
-    );
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
     drop(bg);
 
     let answers: Vec<_> = res
@@ -131,7 +128,9 @@ pub(crate) fn answers(
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone()).format("%Y-%m-%d %H:%M:%S").to_string(),
+            time: from_value::<NaiveDateTime>(r[4].clone())
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
             grade: from_value(r[5].clone()),
         })
         .collect();
@@ -166,10 +165,7 @@ pub(crate) fn questions(
         let atext: String = from_value(r[3].clone());
         answers.insert(id, atext);
     }
-    let res = bg.prep_exec(
-        "SELECT * FROM questions WHERE lec = ?", 
-        vec![key]
-    );
+    let res = bg.prep_exec("SELECT * FROM questions WHERE lec = ?", vec![key]);
     drop(bg);
     let mut qs: Vec<_> = res
         .into_iter()
