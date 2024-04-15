@@ -29,7 +29,7 @@ PLOT_LABELS = {
     "get_employer_info_bench": "Get Employer Info",
     "predict_grades_bench": "Predict Grades",
     "register_users_bench": "Register Users",
-    "submit_grades_bench": "Submit grades",
+    "submit_grades_bench": "Submit Grades",
     "view_answers_bench": "View Answers",
 }
 ENDPOINTS = ["answer_questions_bench", "get_aggregates_bench", "get_employer_info_bench", "predict_grades_bench",
@@ -63,6 +63,29 @@ def PlotMergedPercentiles(baseline, alohomora):
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
 
+# Plot 50th and 95th percentile on one figure
+def PlotMeanAndStd(baseline, alohomora):
+    b_mean = [baseline[endpoint]['mean'] for endpoint in ENDPOINTS]
+    a_mean = [alohomora[endpoint]['mean'] for endpoint in ENDPOINTS]
+
+    b_std = [baseline[endpoint]['std'] for endpoint in ENDPOINTS]
+    a_std = [alohomora[endpoint]['std'] for endpoint in ENDPOINTS]
+
+    label_baseline = "Baseline"
+    label_alohomora = "With Alohomora"
+
+    plt.errorbar(X - 0.5 * W, b_mean, yerr=b_std, label=label_baseline,
+            color=SYSTEM_COLORS['Baseline'], linestyle='None', marker='o', markersize=1)
+    plt.errorbar(X + 0.5 * W, a_mean, yerr=a_std, label=label_alohomora,
+            color=SYSTEM_COLORS['With Alohomora'], linestyle='None', marker='o', markersize=1)
+
+    plt.ylabel("Latency [ms]")
+    plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
+    plt.xlabel("Websubmit Comparison")
+    plt.ylim(ymax=15)
+    plt.legend(frameon=False, loc='upper left')
+    plt.savefig("websubmit.pdf", format="pdf",
+                bbox_inches="tight", pad_inches=0.01)
 
 # Parse an input file.
 def ParseWebsubmitFiles(dir):
@@ -74,6 +97,8 @@ def ParseWebsubmitFiles(dir):
         data[endpoint] = dict()
         data[endpoint]["50"] = np.quantile(df.to_numpy(), 0.5)
         data[endpoint]["95"] = np.quantile(df.to_numpy(), 0.95)
+        data[endpoint]["mean"] = np.mean(df.to_numpy())
+        data[endpoint]["std"] = np.std(df.to_numpy())
 
     return data
 
@@ -89,6 +114,8 @@ def ParseWebsubmitBoxedFiles(dir):
         data[endpoint] = dict()
         data[endpoint]["50"] = np.quantile(df.to_numpy(), 0.5)
         data[endpoint]["95"] = np.quantile(df.to_numpy(), 0.95)
+        data[endpoint]["mean"] = np.mean(df.to_numpy())
+        data[endpoint]["std"] = np.std(df.to_numpy())
 
     return data
 
@@ -102,4 +129,5 @@ if __name__ == "__main__":
     alohomora = ParseWebsubmitBoxedFiles('benches')
 
     # Plot output.
-    PlotMergedPercentiles(baseline, alohomora)
+    # PlotMergedPercentiles(baseline, alohomora)
+    PlotMeanAndStd(baseline, alohomora)
