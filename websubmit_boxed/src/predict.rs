@@ -97,7 +97,7 @@ struct PredictGradeContext {
 
 #[post("/predict_grade/<num>", data = "<data>")]
 pub(crate) fn predict_grade(
-    _manager: Manager,
+    // _manager: Manager,
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
