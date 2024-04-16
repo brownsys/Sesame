@@ -2,8 +2,7 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
 
-use crypto::digest::Digest;
-use crypto::sha2::Sha256;
+use sha2::{Sha256, Digest};
 
 use mysql::from_value;
 
@@ -97,10 +96,9 @@ pub(crate) fn generate(
 
     // generate an API key from email address
     let mut hasher = Sha256::new();
-    hasher.input_str(&data.email);
-    // add a secret to make API keys unforgeable without access to the server
-    hasher.input_str(&config.secret);
-    let hash = hasher.result_str();
+    hasher.update(&data.email);
+    hasher.update(&config.secret);
+    let hash = format!("{:x?}", hasher.finalize());
 
     let is_manager = if config.managers.contains(&data.email) {
         1.into()

@@ -1,7 +1,6 @@
 // use serde::{Deserialize, Serialize};
 use chrono::naive::NaiveDateTime;
-use crypto::digest::Digest;
-use crypto::sha2::Sha256;
+use sha2::{Sha256, Digest};
 use linfa::dataset::Dataset;
 use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
@@ -12,10 +11,10 @@ use alohomora_derive::AlohomoraSandbox;
 // Sandbox functions.
 #[AlohomoraSandbox()]
 pub fn hash(inputs: (String, String)) -> String {
-    let mut s = Sha256::new();
-    s.input_str(&inputs.0);
-    s.input_str(&inputs.1);
-    format!("{}", s.result_str())
+    let mut hasher = Sha256::new();
+    hasher.update(&inputs.0);
+    hasher.update(&inputs.1);
+    format!("{:x?}", hasher.finalize())
 }
 
 #[AlohomoraSandbox()]
