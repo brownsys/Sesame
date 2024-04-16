@@ -32,8 +32,6 @@ const N_RETRAINING_MODEL_QUERIES: u32 = 1000;
 const N_AGGREGATE_GRADES_QUERIES: u32 = 1000;
 const N_EMPLOYER_INFO_QUERIES: u32 = 1000;
 
-const RUN_BOXED: bool = true;
-
 const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
 
 #[derive(Debug, Dummy, Serialize)]
@@ -355,19 +353,30 @@ fn write_stats(name: String, data: &Vec<Duration>) {
     .unwrap();
 }
 
+#[cfg(feature="boxed")]
+fn get_websubmit() -> BBoxClient {
+    println!("Running boxed websubmit.");
+    BBoxClient::tracked(wsb_make_rocket(wsb_parse_args())).expect("valid `Rocket`")
+}
+
+#[cfg(feature="unboxed")]
+fn get_websubmit() -> Client {
+    println!("Running regular websubmit.");
+    Client::tracked(ws_make_rocket(ws_parse_args())).expect("valid `Rocket`")
+}
+
 fn main() {
     let ref mut r = StdRng::seed_from_u64(RNG_SEED);
     
-    let bbox_client =
-        BBoxClient::tracked(wsb_make_rocket(wsb_parse_args())).expect("valid `Rocket`");
-    let client = Client::tracked(ws_make_rocket(ws_parse_args())).expect("valid `Rocket`");
+    let client = get_websubmit();
+    let used_client: &Client = &client;
 
-    let used_client: &Client = if RUN_BOXED { &bbox_client } else { &client };
-
-    let prefix = if RUN_BOXED {
+    let prefix = if cfg!(feature="boxed") {
         "boxed_".to_owned()
-    } else {
+    } else if cfg!(feature="unboxed") {
         "".to_owned()
+    } else {
+        unreachable!()
     };
 
     let mut users: Vec<User> = (0..N_REGISTRATION_ATTEMPTS).map(|_| Faker.fake_with_rng(r)).collect();
