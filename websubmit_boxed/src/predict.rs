@@ -9,13 +9,14 @@ use rocket::State;
 use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
-use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm};
+use alohomora::pure::{execute_pure, PrivacyPureRegion};
+use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm, JsonResponse};
 use alohomora::sandbox::execute_sandbox;
 
 use crate::backend::MySqlBackend;
 use crate::policies::{ContextData, MLTrainingPolicy};
+use crate::manage::Manager;
 
-use websubmit_boxed_sandboxes::evaluate_model;
 use websubmit_boxed_sandboxes::train;
 
 lazy_static! {
@@ -66,6 +67,7 @@ struct PredictContext {
 
 #[get("/<num>")]
 pub(crate) fn predict(
+    _manager: Manager,
     num: BBox<u8, NoPolicy>,
     _backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ContextData>,
@@ -93,6 +95,7 @@ struct PredictGradeContext {
 
 #[post("/predict_grade/<num>", data = "<data>")]
 pub(crate) fn predict_grade(
+    _manager: Manager,
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
@@ -106,7 +109,14 @@ pub(crate) fn predict_grade(
     // Evaluate model.
     let time = data.time.clone();
     let model = MODEL.lock().unwrap().as_ref().unwrap().clone();
-    let grade = execute_sandbox::<evaluate_model, _, _>((time, model));
+    // let grade = execute_sandbox::<evaluate_model, _, _>((time, model));
+    let grade = execute_pure(
+        (time, model),
+        PrivacyPureRegion::new(|(time, model): (String, FittedLinearRegression<f64>)| {
+            let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
+            model.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + model.intercept()
+        }),
+    ).unwrap();
 
     let ctx = PredictGradeContext {
         lec_id: num,
@@ -115,4 +125,14 @@ pub(crate) fn predict_grade(
         parent: "layout".into(),
     };
     BBoxTemplate::render("predictgrade", &ctx, context)
+}
+
+#[get("/retrain_model")]
+pub(crate) fn retrain_model(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
+) -> JsonResponse<String, ContextData> {
+    train_and_store(backend, context.clone());
+    JsonResponse::from(("Successfully retrained the model.".to_owned(), context))
 }

@@ -73,7 +73,7 @@ pub fn make_rocket(args: args::Args) -> Rocket<Build> {
         .mount("/leclist", routes![questions::leclist])
         .mount(
             "/predict",
-            routes![predict::predict, predict::predict_grade],
+            routes![predict::predict, predict::predict_grade, predict::retrain_model],
         )
         .mount("/login", routes![login::login])
         .mount(

@@ -19,12 +19,15 @@ const N_USERS: u32 = 100;
 const N_LECTURES: u32 = 10;
 const N_QUESTIONS_PER_LECTURE: u32 = 10;
 
+const N_REGISTRATION_ATTEMPTS: u32 = 1000;
 const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: u32 = 100;
 const N_PREDICTION_ATTEMPTS_PER_LECTURE: u32 = 100;
+
+const N_RETRAINING_MODEL_QUERIES: u32 = 1000;
 const N_AGGREGATE_GRADES_QUERIES: u32 = 1000;
 const N_EMPLOYER_INFO_QUERIES: u32 = 1000;
 
-const RUN_BOXED: bool = true;
+const RUN_BOXED: bool = false;
 
 const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
 
@@ -289,6 +292,22 @@ fn predict_grades(client: &Client) -> Vec<Duration> {
         .collect()
 }
 
+fn retrain_model(client: &Client) -> Vec<Duration> {
+    (0..N_RETRAINING_MODEL_QUERIES)
+        .map(|_| {
+            let request = client
+                .get("/predict/retrain_model")
+                .cookie(Cookie::new("apikey", ADMIN_APIKEY));
+
+            let now = Instant::now();
+            request.dispatch();
+            let elapsed = now.elapsed();
+
+            elapsed
+        })
+        .collect()
+}
+
 fn get_aggregates(client: &Client) -> Vec<Duration> {
     (0..N_AGGREGATE_GRADES_QUERIES)
         .map(|_| {
@@ -344,7 +363,7 @@ fn main() {
         "".to_owned()
     };
 
-    let mut users: Vec<User> = (0..N_USERS).map(|_| Faker.fake()).collect();
+    let mut users: Vec<User> = (0..N_REGISTRATION_ATTEMPTS).map(|_| Faker.fake()).collect();
 
     // 1. Bench generating ApiKeys.
     let register_users_bench = register_users(&used_client, &mut users);
@@ -352,6 +371,10 @@ fn main() {
         prefix.clone() + "register_users_bench",
         &register_users_bench,
     );
+    println!("Created {} user accounts.", users.len());
+
+    users = users.into_iter().take(N_USERS as usize).collect();
+    println!("Using only {} users to benchmark.", users.len());
 
     // Prime the database with other data.
     add_lectures(&used_client);
@@ -363,14 +386,20 @@ fn main() {
         prefix.clone() + "answer_questions_bench",
         &answer_questions_bench,
     );
+    println!("Took {} samples for answer questions endpoint.", answer_questions_bench.len());
 
     // 3. Bench viewing answers for a lecture.
     let view_answers_bench = view_answers(&used_client);
     write_stats(prefix.clone() + "view_answers_bench", &view_answers_bench);
+    println!("Took {} samples for view answers endpoint.", view_answers_bench.len());
 
-    // 4. Submit a grade and retrain the prediction model.
-    let submit_grades_bench = submit_grades(&used_client, &users);
-    write_stats(prefix.clone() + "submit_grades_bench", &submit_grades_bench);
+    // Prime the database with grades.
+    submit_grades(&used_client, &users);
+
+    // 4. Bench retraining the model.
+    let retrain_model_bench = retrain_model(&used_client);
+    write_stats(prefix.clone() + "retrain_model_bench", &retrain_model_bench);
+    println!("Took {} samples for retrain model endpoint.", retrain_model_bench.len());
 
     // 5. Query the prediction model.
     let predict_grades_bench = predict_grades(&used_client);
@@ -378,6 +407,7 @@ fn main() {
         prefix.clone() + "predict_grades_bench",
         &predict_grades_bench,
     );
+    println!("Took {} samples for predict grades endpoint.", predict_grades_bench.len());
 
     // 6. Query aggregate generation.
     let get_aggregates_bench = get_aggregates(&used_client);
@@ -385,6 +415,7 @@ fn main() {
         prefix.clone() + "get_aggregates_bench",
         &get_aggregates_bench,
     );
+    println!("Took {} samples for get aggregates endpoint.", get_aggregates_bench.len());
 
     // 7. Employer info generation.
     let get_employer_info_bench = get_employer_info(&used_client);
@@ -392,4 +423,5 @@ fn main() {
         prefix.clone() + "get_employer_info_bench",
         &get_employer_info_bench,
     );
+    println!("Took {} samples for get employer info endpoint.", get_employer_info_bench.len());
 }

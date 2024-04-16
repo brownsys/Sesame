@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 pub use mysql::Value;
 
-use slog::{debug, o, warn};
+use slog::{o, warn};
 
 pub struct MySqlBackend {
     pub handle: mysql::Conn,

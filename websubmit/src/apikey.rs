@@ -18,9 +18,6 @@ use rocket::response::Redirect;
 use rocket::{post, State};
 use rocket::serde::{Serialize, json::Json};
 
-use rocket_dyn_templates::Template;
-
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// (username, apikey)
@@ -98,7 +95,7 @@ pub(crate) fn generate(
     let mut hasher = Sha256::new();
     hasher.update(&data.email);
     hasher.update(&config.secret);
-    let hash = format!("{:x?}", hasher.finalize());
+    let hash = format!("{:x}", hasher.finalize());
 
     let is_manager = if config.managers.contains(&data.email) {
         1.into()

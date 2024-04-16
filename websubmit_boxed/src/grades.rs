@@ -11,14 +11,15 @@ use alohomora::policy::NoPolicy;
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxTemplate, FromBBoxForm};
 
+use crate::admin::Admin;
 use crate::backend::MySqlBackend;
 use crate::policies::{AnswerAccessPolicy, ContextData};
-use crate::predict::train_and_store;
 use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
 
 #[get("/<num>")]
 pub(crate) fn grades(
+    _adm: Admin,
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context<ContextData>,
@@ -74,6 +75,7 @@ struct GradeEditContext {
 
 #[get("/<user>/<num>/<qnum>")]
 pub(crate) fn editg(
+    _adm: Admin,
     user: BBox<String, NoPolicy>,
     num: BBox<u8, NoPolicy>,
     qnum: BBox<u8, NoPolicy>,
@@ -112,6 +114,7 @@ pub(crate) struct EditGradeForm {
 
 #[post("/editg/<user>/<num>/<qnum>", data = "<data>")]
 pub(crate) fn editg_submit(
+    _adm: Admin,
     user: BBox<String, NoPolicy>,
     num: BBox<u8, NoPolicy>,
     qnum: BBox<u8, NoPolicy>,
@@ -129,7 +132,7 @@ pub(crate) fn editg_submit(
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    train_and_store(backend, context.clone());
+    // train_and_store(backend, context.clone());
 
     BBoxRedirect::to("/grades/{}", (&num,), context)
 }

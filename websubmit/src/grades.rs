@@ -10,14 +10,14 @@ use rocket_dyn_templates::Template;
 
 use serde::Serialize;
 
+use crate::admin::Admin;
 use crate::{
     backend::MySqlBackend,
     questions::{LectureAnswer, LectureAnswersContext},
 };
-use crate::predict::train_and_store;
 
 #[get("/<num>")]
-pub(crate) fn grades(num: u8, backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
+pub(crate) fn grades(_adm: Admin, num: u8, backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
     let key = (num as u64).into();
 
     let mut bg = backend.lock().unwrap();
@@ -58,6 +58,7 @@ struct GradeEditContext {
 
 #[get("/<user>/<num>/<qnum>")]
 pub(crate) fn editg(
+    _adm: Admin,
     user: String,
     num: u8,
     qnum: u8,
@@ -94,6 +95,7 @@ pub(crate) struct EditGradeForm {
 
 #[post("/editg/<user>/<num>/<qnum>", data = "<data>")]
 pub(crate) fn editg_submit(
+    _adm: Admin,
     user: String,
     num: u8,
     qnum: u8,
@@ -109,7 +111,7 @@ pub(crate) fn editg_submit(
     drop(bg);
 
     // Re-train prediction model given new grade submission.
-    train_and_store(backend);
+    // train_and_store(backend);
 
     Redirect::to(format!("/grades/{}", num))
 }

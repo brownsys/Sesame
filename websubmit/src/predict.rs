@@ -10,6 +10,7 @@ use ndarray::prelude::*;
 
 use rocket::form::{Form, FromForm};
 use rocket::{get, post, State};
+use rocket::serde::json::Json;
 use rocket_dyn_templates::Template;
 
 use mysql::from_value;
@@ -17,6 +18,7 @@ use mysql::from_value;
 use serde::Serialize;
 
 use crate::backend::MySqlBackend;
+use crate::manage::Manager;
 
 lazy_static! {
     static ref MODEL: Arc<Mutex<Option<FittedLinearRegression<f64>>>> = Arc::new(Mutex::new(None));
@@ -79,7 +81,7 @@ struct PredictContext {
 }
 
 #[get("/<num>")]
-pub(crate) fn predict(num: u8, _backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
+pub(crate) fn predict(_manager: Manager, num: u8, _backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
     let ctx = PredictContext {
         lec_id: num,
         parent: "layout".into(),
@@ -103,6 +105,7 @@ struct PredictGradeContext {
 
 #[post("/predict_grade/<num>", data = "<data>")]
 pub(crate) fn predict_grade(
+    _manager: Manager,
     num: u8,
     data: Form<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
@@ -124,4 +127,13 @@ pub(crate) fn predict_grade(
         parent: "layout".into(),
     };
     Template::render("predictgrade", &ctx)
+}
+
+#[get("/retrain_model")]
+pub(crate) fn retrain_model(
+    _manager: Manager,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Json<String> {
+    train_and_store(backend);
+    Json("Successfully retrained the model.".to_owned())
 }

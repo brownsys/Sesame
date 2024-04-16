@@ -2,10 +2,8 @@ use lettre::sendmail::SendmailTransport;
 use lettre::Transport;
 use lettre_email::Email;
 
-use slog::debug;
-
 pub(crate) fn send(
-    log: slog::Logger,
+    _log: slog::Logger,
     sender: String,
     recipients: Vec<String>,
     subject: String,

@@ -24,16 +24,25 @@ def InitializeMatplotLib():
 
 # Parameters configuring parsing of inputs and legend of plot.
 PLOT_LABELS = {
+    "register_users_bench": "Register Users",
     "answer_questions_bench": "Answer Questions",
+    "view_answers_bench": "View Answers",
+    "submit_grades_bench": "Submit Grades",
+    "retrain_model_bench": "Retrain Model",
+    "predict_grades_bench": "Predict Grades",
     "get_aggregates_bench": "Get Aggregates",
     "get_employer_info_bench": "Get Employer Info",
-    "predict_grades_bench": "Predict Grades",
-    "register_users_bench": "Register Users",
-    "submit_grades_bench": "Submit Grades",
-    "view_answers_bench": "View Answers",
 }
-ENDPOINTS = ["answer_questions_bench", "get_aggregates_bench", "get_employer_info_bench", "predict_grades_bench",
-             "register_users_bench", "submit_grades_bench", "view_answers_bench"]
+ENDPOINTS = [
+    "register_users_bench",
+    "answer_questions_bench",
+    "view_answers_bench",
+    "submit_grades_bench",
+    "retrain_model_bench",
+    "predict_grades_bench",
+    "get_aggregates_bench",
+    "get_employer_info_bench",
+]
 PERCENTILES = ["50", "95"]
 
 X = np.arange(len(ENDPOINTS))
