@@ -186,7 +186,6 @@ allowlist = [
   'chrono\[\w*\]::naive::datetime::\{impl#0\}::format',
   'alloc\[\w*\]::string::\{impl#41\}::to_string',
   'core\[\w*\]::fmt::\{impl#3\}::new',
-  'chrono\[\w*\]::format::parse::parse',
 
   # Format strings.
   'alloc\[\w*\]::fmt::format',

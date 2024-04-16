@@ -8,8 +8,8 @@ use rocket::State;
 
 use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::context::Context;
-use alohomora::policy::{AnyPolicy, NoPolicy};
-use alohomora::pure::{execute_pure, PrivacyPureRegion};
+use alohomora::policy::NoPolicy;
+use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm, JsonResponse};
 use alohomora::sandbox::execute_sandbox;
 
@@ -89,9 +89,11 @@ pub(crate) struct PredictGradeForm {
 struct PredictGradeContext {
     lec_id: BBox<u8, NoPolicy>,
     time: BBox<String, NoPolicy>,
-    grade: BBox<f64, AnyPolicy>,
+    grade: BBox<f64, MLTrainingPolicy>,
     parent: String,
 }
+
+
 
 #[post("/predict_grade/<num>", data = "<data>")]
 pub(crate) fn predict_grade(
@@ -107,16 +109,20 @@ pub(crate) fn predict_grade(
     }
 
     // Evaluate model.
-    let time = data.time.clone();
+    let time = data.time.as_ref().discard_box();
+    let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
     let model = MODEL.lock().unwrap().as_ref().unwrap().clone();
-    // let grade = execute_sandbox::<evaluate_model, _, _>((time, model));
-    let grade = execute_pure(
-        (time, model),
-        PrivacyPureRegion::new(|(time, model): (String, FittedLinearRegression<f64>)| {
-            let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
+    let grade = model.into_ppr(PrivacyPureRegion::new(|model: FittedLinearRegression<f64>|
             model.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + model.intercept()
-        }),
-    ).unwrap();
+    ));
+
+    // let grade = execute_pure(
+    //     (time, &model),
+    //     PrivacyPureRegion::new(|(time, model): (String, FittedLinearRegression<f64>)| {
+    //         let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
+    //         model.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + model.intercept()
+    //     }),
+    // ).unwrap();
 
     let ctx = PredictGradeContext {
         lec_id: num,

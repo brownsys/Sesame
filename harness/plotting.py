@@ -65,7 +65,7 @@ def PlotMergedPercentiles(baseline, alohomora):
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
     plt.xlabel("Websubmit Comparison")
-    plt.ylim(ymax=45)
+    plt.ylim(ymax=20)
     plt.legend(frameon=False)
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)

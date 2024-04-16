@@ -32,7 +32,7 @@ const N_RETRAINING_MODEL_QUERIES: u32 = 1000;
 const N_AGGREGATE_GRADES_QUERIES: u32 = 1000;
 const N_EMPLOYER_INFO_QUERIES: u32 = 1000;
 
-const RUN_BOXED: bool = false;
+const RUN_BOXED: bool = true;
 
 const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
 
