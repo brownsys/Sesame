@@ -8,6 +8,7 @@ edition = "2018"
 alohomora = { path = "../alohomora" }
 chrono = "0.4.37"
 fake = { version = "2.9.2", features = ["derive", "chrono"] }
+rand = "0.8.5"
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

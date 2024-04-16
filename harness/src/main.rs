@@ -12,8 +12,13 @@ use std::time::{Duration, Instant};
 use alohomora::testing::BBoxClient;
 use rocket::local::blocking::Client;
 
+use rand::rngs::StdRng;
+use rand::SeedableRng;
+
 use websubmit::{make_rocket as ws_make_rocket, parse_args as ws_parse_args};
 use websubmit_boxed::{make_rocket as wsb_make_rocket, parse_args as wsb_parse_args};
+
+const RNG_SEED: u64 = 3705;
 
 const N_USERS: u32 = 100;
 const N_LECTURES: u32 = 10;
@@ -127,8 +132,8 @@ fn register_users(client: &Client, users: &mut Vec<User>) -> Vec<Duration> {
         .collect()
 }
 
-fn add_lectures(client: &Client) -> Vec<Duration> {
-    let mut lectures: Vec<Lecture> = (0..N_LECTURES).map(|_| Faker.fake()).collect();
+fn add_lectures(client: &Client, r: &mut StdRng) -> Vec<Duration> {
+    let mut lectures: Vec<Lecture> = (0..N_LECTURES).map(|_| Faker.fake_with_rng(r)).collect();
 
     lectures
         .iter_mut()
@@ -151,11 +156,11 @@ fn add_lectures(client: &Client) -> Vec<Duration> {
         .collect()
 }
 
-fn add_questions(client: &Client) -> Vec<Duration> {
+fn add_questions(client: &Client, r: &mut StdRng) -> Vec<Duration> {
     (0..N_LECTURES)
         .map(|lecture_id| {
             let mut questions: Vec<Question> =
-                (0..N_QUESTIONS_PER_LECTURE).map(|_| Faker.fake()).collect();
+                (0..N_QUESTIONS_PER_LECTURE).map(|_| Faker.fake_with_rng(r)).collect();
 
             questions
                 .iter_mut()
@@ -181,14 +186,14 @@ fn add_questions(client: &Client) -> Vec<Duration> {
         .collect()
 }
 
-fn answer_questions(client: &Client, users: &Vec<User>) -> Vec<Duration> {
+fn answer_questions(client: &Client, users: &Vec<User>, r: &mut StdRng) -> Vec<Duration> {
     users
         .iter()
         .map(|user| {
             (0..N_LECTURES)
                 .map(|lecture_id| {
                     let answers: Vec<(String, String)> = (0..N_QUESTIONS_PER_LECTURE)
-                        .map(|i| (format!("answers.{}", i), Faker.fake()))
+                        .map(|i| (format!("answers.{}", i), Faker.fake_with_rng(r)))
                         .collect();
 
                     let request = client
@@ -230,7 +235,7 @@ fn view_answers(client: &Client) -> Vec<Duration> {
         .collect()
 }
 
-fn submit_grades(client: &Client, users: &Vec<User>) -> Vec<Duration> {
+fn submit_grades(client: &Client, users: &Vec<User>, r: &mut StdRng) -> Vec<Duration> {
     users
         .iter()
         .map(|user| {
@@ -238,7 +243,7 @@ fn submit_grades(client: &Client, users: &Vec<User>) -> Vec<Duration> {
                 .map(|lecture_id| {
                     (0..N_QUESTIONS_PER_LECTURE)
                         .map(|question_id| {
-                            let grade: Grade = Faker.fake();
+                            let grade: Grade = Faker.fake_with_rng(r);
 
                             let request = client
                                 .post(format!(
@@ -264,12 +269,12 @@ fn submit_grades(client: &Client, users: &Vec<User>) -> Vec<Duration> {
         .collect()
 }
 
-fn predict_grades(client: &Client) -> Vec<Duration> {
+fn predict_grades(client: &Client, r: &mut StdRng) -> Vec<Duration> {
     (0..N_LECTURES)
         .map(|lecture_id| {
             (0..N_PREDICTION_ATTEMPTS_PER_LECTURE)
                 .map(|_| {
-                    let timestamp: NaiveDateTime = Faker.fake();
+                    let timestamp: NaiveDateTime = Faker.fake_with_rng(r);
                     let prediction_request = PredictionRequest {
                         time: timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
                     };
@@ -351,6 +356,8 @@ fn write_stats(name: String, data: &Vec<Duration>) {
 }
 
 fn main() {
+    let ref mut r = StdRng::seed_from_u64(RNG_SEED);
+    
     let bbox_client =
         BBoxClient::tracked(wsb_make_rocket(wsb_parse_args())).expect("valid `Rocket`");
     let client = Client::tracked(ws_make_rocket(ws_parse_args())).expect("valid `Rocket`");
@@ -363,7 +370,7 @@ fn main() {
         "".to_owned()
     };
 
-    let mut users: Vec<User> = (0..N_REGISTRATION_ATTEMPTS).map(|_| Faker.fake()).collect();
+    let mut users: Vec<User> = (0..N_REGISTRATION_ATTEMPTS).map(|_| Faker.fake_with_rng(r)).collect();
 
     // 1. Bench generating ApiKeys.
     let register_users_bench = register_users(&used_client, &mut users);
@@ -377,11 +384,11 @@ fn main() {
     println!("Using only {} users to benchmark.", users.len());
 
     // Prime the database with other data.
-    add_lectures(&used_client);
-    add_questions(&used_client);
+    add_lectures(&used_client, r);
+    add_questions(&used_client, r);
 
     // 2. Bench answering the questions.
-    let answer_questions_bench = answer_questions(&used_client, &users);
+    let answer_questions_bench = answer_questions(&used_client, &users, r);
     write_stats(
         prefix.clone() + "answer_questions_bench",
         &answer_questions_bench,
@@ -394,7 +401,7 @@ fn main() {
     println!("Took {} samples for view answers endpoint.", view_answers_bench.len());
 
     // Prime the database with grades.
-    submit_grades(&used_client, &users);
+    submit_grades(&used_client, &users, r);
 
     // 4. Bench retraining the model.
     let retrain_model_bench = retrain_model(&used_client);
@@ -402,7 +409,7 @@ fn main() {
     println!("Took {} samples for retrain model endpoint.", retrain_model_bench.len());
 
     // 5. Query the prediction model.
-    let predict_grades_bench = predict_grades(&used_client);
+    let predict_grades_bench = predict_grades(&used_client, r);
     write_stats(
         prefix.clone() + "predict_grades_bench",
         &predict_grades_bench,

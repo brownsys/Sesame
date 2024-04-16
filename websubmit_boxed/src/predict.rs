@@ -8,7 +8,7 @@ use rocket::State;
 
 use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::context::Context;
-use alohomora::policy::NoPolicy;
+use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::{execute_pure, PrivacyPureRegion};
 use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm, JsonResponse};
 use alohomora::sandbox::execute_sandbox;
@@ -89,7 +89,7 @@ pub(crate) struct PredictGradeForm {
 struct PredictGradeContext {
     lec_id: BBox<u8, NoPolicy>,
     time: BBox<String, NoPolicy>,
-    grade: BBox<f64, MLTrainingPolicy>,
+    grade: BBox<f64, AnyPolicy>,
     parent: String,
 }
 
@@ -121,7 +121,7 @@ pub(crate) fn predict_grade(
     let ctx = PredictGradeContext {
         lec_id: num,
         time: data.time.clone(),
-        grade: grade.specialize_policy().unwrap(),
+        grade: grade,
         parent: "layout".into(),
     };
     BBoxTemplate::render("predictgrade", &ctx, context)

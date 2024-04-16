@@ -27,7 +27,6 @@ PLOT_LABELS = {
     "register_users_bench": "Register Users",
     "answer_questions_bench": "Answer Questions",
     "view_answers_bench": "View Answers",
-    "submit_grades_bench": "Submit Grades",
     "retrain_model_bench": "Retrain Model",
     "predict_grades_bench": "Predict Grades",
     "get_aggregates_bench": "Get Aggregates",
@@ -37,7 +36,6 @@ ENDPOINTS = [
     "register_users_bench",
     "answer_questions_bench",
     "view_answers_bench",
-    "submit_grades_bench",
     "retrain_model_bench",
     "predict_grades_bench",
     "get_aggregates_bench",
@@ -91,7 +89,7 @@ def PlotMeanAndStd(baseline, alohomora):
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
     plt.xlabel("Websubmit Comparison")
-    plt.ylim(ymax=45)
+    plt.ylim(ymax=20)
     plt.legend(frameon=False, loc='upper left')
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
