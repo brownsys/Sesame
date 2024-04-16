@@ -55,6 +55,7 @@ dependencies = [
  "lazy_static",
  "mysql",
  "mysql_common 0.22.2",
+ "pin-project-lite",
  "rocket",
  "rocket_cors",
  "rocket_dyn_templates",

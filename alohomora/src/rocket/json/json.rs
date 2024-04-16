@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use mysql::chrono::{NaiveDateTime, NaiveDate, NaiveTime};
 use serde_json::Value;
 
 use crate::bbox::BBox;
@@ -18,83 +19,30 @@ pub trait ResponseBBoxJson {
 
 // Implement this for predefined types, implementations for custom structs should use the derive
 // macro.
-impl<P: FrontendPolicy> RequestBBoxJson for BBox<bool, P> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
-        match value.value {
-            Value::Bool(v) => Ok(BBox::new(v, P::from_request(request.get_request()))),
-            _ => Err("Bad JSON"),
+// Implement trait for Date types.
+macro_rules! impl_request_bbox_json {
+    ($T: ty) => {
+        impl<P: FrontendPolicy> RequestBBoxJson for BBox<$T, P> {
+            fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
+                let value = value.value;
+                match serde_json::from_value(value) {
+                    Err(_) => Err("Bad JSON"),
+                    Ok(value) => Ok(BBox::new(value, P::from_request(request.get_request()))),
+                }
+            }
         }
-    }
+    };
 }
-impl<P: Policy + Clone + 'static> ResponseBBoxJson for BBox<bool, P> {
-    fn to_json(self) -> OutputBBoxValue {
-        OutputBBoxValue::BBox(self.into_any_policy().into_bbox())
-    }
-}
-
-impl<P: FrontendPolicy> RequestBBoxJson for BBox<String, P> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
-        match value.value {
-            Value::String(v) => Ok(BBox::new(v, P::from_request(request.get_request()))),
-            _ => Err("Bad JSON"),
-        }
-    }
-}
-impl<P: Policy + Clone + 'static> ResponseBBoxJson for BBox<String, P> {
-    fn to_json(self) -> OutputBBoxValue {
-        OutputBBoxValue::BBox(self.into_any_policy().into_bbox())
-    }
-}
-
-// Implement trait for BBox<number types>
-impl<P: FrontendPolicy> RequestBBoxJson for BBox<u64, P> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
-        match value.value {
-            Value::Number(v) => match v.as_u64() {
-                None => Err("Bad JSON"),
-                Some(v) => Ok(BBox::new(v, P::from_request(request.get_request()))),
-            },
-            _ => Err("Bad JSON"),
-        }
-    }
-}
-impl<P: Policy + Clone + 'static> ResponseBBoxJson for BBox<u64, P> {
-    fn to_json(self) -> OutputBBoxValue {
-        OutputBBoxValue::BBox(self.into_any_policy().into_bbox())
-    }
-}
-impl<P: FrontendPolicy> RequestBBoxJson for BBox<i64, P> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
-        match value.value {
-            Value::Number(v) => match v.as_i64() {
-                None => Err("Bad JSON"),
-                Some(v) => Ok(BBox::new(v, P::from_request(request.get_request()))),
-            },
-            _ => Err("Bad JSON"),
-        }
-    }
-}
-impl<P: Policy + Clone + 'static> ResponseBBoxJson for BBox<i64, P> {
-    fn to_json(self) -> OutputBBoxValue {
-        OutputBBoxValue::BBox(self.into_any_policy().into_bbox())
-    }
-}
-impl<P: FrontendPolicy> RequestBBoxJson for BBox<f64, P> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
-        match value.value {
-            Value::Number(v) => match v.as_f64() {
-                None => Err("Bad JSON"),
-                Some(v) => Ok(BBox::new(v, P::from_request(request.get_request()))),
-            },
-            _ => Err("Bad JSON"),
-        }
-    }
-}
-impl<P: Policy + Clone + 'static> ResponseBBoxJson for BBox<f64, P> {
-    fn to_json(self) -> OutputBBoxValue {
-        OutputBBoxValue::BBox(self.into_any_policy().into_bbox())
-    }
-}
+impl_request_bbox_json!(NaiveDateTime);
+impl_request_bbox_json!(NaiveDate);
+impl_request_bbox_json!(NaiveTime);
+impl_request_bbox_json!(u64);
+impl_request_bbox_json!(i64);
+impl_request_bbox_json!(u32);
+impl_request_bbox_json!(i32);
+impl_request_bbox_json!(f64);
+impl_request_bbox_json!(String);
+impl_request_bbox_json!(bool);
 
 // Option (for nulls).
 impl<T: RequestBBoxJson> RequestBBoxJson for Option<T> {
@@ -106,30 +54,8 @@ impl<T: RequestBBoxJson> RequestBBoxJson for Option<T> {
         }
     }
 }
-impl<T: ResponseBBoxJson> ResponseBBoxJson for Option<T> {
-    fn to_json(self) -> OutputBBoxValue {
-        match self {
-            None => OutputBBoxValue::Value(Value::Null),
-            Some(v) => v.to_json()
-        }
-    }
-}
 
-// Containers.
-impl<T: RequestBBoxJson> RequestBBoxJson for Vec<T> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
-        match value.value {
-            Value::Array(vec) => {
-                let mut result = Vec::with_capacity(vec.len());
-                for v in vec {
-                    result.push(T::from_json(InputBBoxValue::new(v), request)?);
-                }
-                Ok(result)
-            },
-            _ => Err("Bad JSON"),
-        }
-    }
-}
+// Request containers.
 impl<T: ResponseBBoxJson> ResponseBBoxJson for Vec<T> {
     fn to_json(self) -> OutputBBoxValue {
         OutputBBoxValue::Array(self.into_iter().map(|v| v.to_json()).collect())
@@ -149,18 +75,14 @@ impl<T: RequestBBoxJson> RequestBBoxJson for HashMap<String, T> {
         }
     }
 }
-impl<T: ResponseBBoxJson> ResponseBBoxJson for HashMap<String, T> {
-    fn to_json(self) -> OutputBBoxValue {
-        OutputBBoxValue::Object(self.into_iter().map(|(k, v)| (k, v.to_json())).collect())
-    }
-}
 
-// Additionally, anything that is json serializable can be made to be a response.
+// Now, we implement response trait.
+// Anything that is json serializable can be made to be a response.
 macro_rules! impl_base_types {
     ($T: ty) => {
         impl ResponseBBoxJson for $T {
             fn to_json(self) -> OutputBBoxValue {
-                OutputBBoxValue::Value(Value::from(self))
+                OutputBBoxValue::Value(serde_json::to_value(self).unwrap())
             }
         }
     };
@@ -170,3 +92,45 @@ impl_base_types!(bool);
 impl_base_types!(u64);
 impl_base_types!(i64);
 impl_base_types!(f64);
+impl_base_types!(i32);
+impl_base_types!(u32);
+impl_base_types!(NaiveDateTime);
+impl_base_types!(NaiveDate);
+impl_base_types!(NaiveTime);
+
+// BBox of anything that is ResponseBBoxJson is also ResponseBBoxJson.
+impl<T: ResponseBBoxJson, P: Policy + Clone + 'static> ResponseBBoxJson for BBox<T, P> {
+    fn to_json(self) -> OutputBBoxValue {
+        let (t, p) = self.into_any_policy().consume();
+        OutputBBoxValue::BBox(BBox::new(Box::new(t.to_json()), p))
+    }
+}
+
+// Response containers.
+impl<T: ResponseBBoxJson> ResponseBBoxJson for Option<T> {
+    fn to_json(self) -> OutputBBoxValue {
+        match self {
+            None => OutputBBoxValue::Value(Value::Null),
+            Some(v) => v.to_json()
+        }
+    }
+}
+impl<T: RequestBBoxJson> RequestBBoxJson for Vec<T> {
+    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
+        match value.value {
+            Value::Array(vec) => {
+                let mut result = Vec::with_capacity(vec.len());
+                for v in vec {
+                    result.push(T::from_json(InputBBoxValue::new(v), request)?);
+                }
+                Ok(result)
+            },
+            _ => Err("Bad JSON"),
+        }
+    }
+}
+impl<T: ResponseBBoxJson> ResponseBBoxJson for HashMap<String, T> {
+    fn to_json(self) -> OutputBBoxValue {
+        OutputBBoxValue::Object(self.into_iter().map(|(k, v)| (k, v.to_json())).collect())
+    }
+}
