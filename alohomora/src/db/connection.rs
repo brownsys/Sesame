@@ -1,4 +1,5 @@
 // BBox
+use crate::{AlohomoraType, AlohomoraTypeEnum};
 use crate::db::{BBoxParams, BBoxQueryResult};
 
 // mysql imports.
@@ -104,4 +105,23 @@ impl BBoxConn {
         let stmt = self.prep(query)?;
         self.exec_iter(stmt, params, context)
     }
+}
+
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl AlohomoraType for BBoxConn {
+    type Out = mysql::Conn;
+    fn to_enum(self) -> AlohomoraTypeEnum {
+      AlohomoraTypeEnum::Value(Box::new(self))
+    }
+    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        match e {
+            AlohomoraTypeEnum::Value(db) => {
+                match db.downcast::<BBoxConn>() {
+                  Ok(db) => Ok(db.conn),
+                  Err(_) => Err(()),
+                }
+            }
+            _ => Err(()),
+        }
+    } 
 }
