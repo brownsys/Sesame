@@ -58,7 +58,7 @@ def PlotMergedPercentiles(baseline, alohomora):
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
     plt.xlabel("Websubmit Comparison")
-    plt.ylim(ymax=15)
+    plt.ylim(ymax=45)
     plt.legend(frameon=False)
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
@@ -82,7 +82,7 @@ def PlotMeanAndStd(baseline, alohomora):
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
     plt.xlabel("Websubmit Comparison")
-    plt.ylim(ymax=15)
+    plt.ylim(ymax=45)
     plt.legend(frameon=False, loc='upper left')
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
@@ -129,5 +129,5 @@ if __name__ == "__main__":
     alohomora = ParseWebsubmitBoxedFiles('benches')
 
     # Plot output.
-    # PlotMergedPercentiles(baseline, alohomora)
-    PlotMeanAndStd(baseline, alohomora)
+    PlotMergedPercentiles(baseline, alohomora)
+    # PlotMeanAndStd(baseline, alohomora)

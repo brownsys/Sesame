@@ -15,12 +15,14 @@ use rocket::local::blocking::Client;
 use websubmit::{make_rocket as ws_make_rocket, parse_args as ws_parse_args};
 use websubmit_boxed::{make_rocket as wsb_make_rocket, parse_args as wsb_parse_args};
 
-const N_USERS: u32 = 30;
+const N_USERS: u32 = 100;
 const N_LECTURES: u32 = 10;
 const N_QUESTIONS_PER_LECTURE: u32 = 10;
-const N_PREDICTION_ATTEMPTS_PER_LECTURE: u32 = 10;
-const N_AGGREGATE_GRADES_QUERIES: u32 = 100;
-const N_EMPLOYER_INFO_QUERIES: u32 = 100;
+
+const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: u32 = 100;
+const N_PREDICTION_ATTEMPTS_PER_LECTURE: u32 = 100;
+const N_AGGREGATE_GRADES_QUERIES: u32 = 1000;
+const N_EMPLOYER_INFO_QUERIES: u32 = 1000;
 
 const RUN_BOXED: bool = true;
 
@@ -207,16 +209,21 @@ fn answer_questions(client: &Client, users: &Vec<User>) -> Vec<Duration> {
 fn view_answers(client: &Client) -> Vec<Duration> {
     (0..N_LECTURES)
         .map(|lecture_id| {
-            let request = client
-                .get(format!("/answers/{}", lecture_id))
-                .cookie(Cookie::new("apikey", ADMIN_APIKEY));
+            (0..N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE)
+                .map(|_| {
+                    let request = client
+                        .get(format!("/answers/{}", lecture_id))
+                        .cookie(Cookie::new("apikey", ADMIN_APIKEY));
 
-            let now = Instant::now();
-            request.dispatch();
-            let elapsed = now.elapsed();
+                    let now = Instant::now();
+                    request.dispatch();
+                    let elapsed = now.elapsed();
 
-            elapsed
+                    elapsed
+                })
+                .collect::<Vec<Duration>>()
         })
+        .flatten()
         .collect()
 }
 
@@ -325,14 +332,11 @@ fn write_stats(name: String, data: &Vec<Duration>) {
 }
 
 fn main() {
-    let bbox_client = BBoxClient::tracked(wsb_make_rocket(wsb_parse_args())).expect("valid `Rocket`");
+    let bbox_client =
+        BBoxClient::tracked(wsb_make_rocket(wsb_parse_args())).expect("valid `Rocket`");
     let client = Client::tracked(ws_make_rocket(ws_parse_args())).expect("valid `Rocket`");
 
-    let used_client: &Client = if RUN_BOXED {
-        &bbox_client
-    } else {
-        &client
-    };
+    let used_client: &Client = if RUN_BOXED { &bbox_client } else { &client };
 
     let prefix = if RUN_BOXED {
         "boxed_".to_owned()
@@ -344,7 +348,10 @@ fn main() {
 
     // 1. Bench generating ApiKeys.
     let register_users_bench = register_users(&used_client, &mut users);
-    write_stats(prefix.clone() + "register_users_bench", &register_users_bench);
+    write_stats(
+        prefix.clone() + "register_users_bench",
+        &register_users_bench,
+    );
 
     // Prime the database with other data.
     add_lectures(&used_client);
@@ -352,7 +359,10 @@ fn main() {
 
     // 2. Bench answering the questions.
     let answer_questions_bench = answer_questions(&used_client, &users);
-    write_stats(prefix.clone() + "answer_questions_bench", &answer_questions_bench);
+    write_stats(
+        prefix.clone() + "answer_questions_bench",
+        &answer_questions_bench,
+    );
 
     // 3. Bench viewing answers for a lecture.
     let view_answers_bench = view_answers(&used_client);
@@ -364,13 +374,22 @@ fn main() {
 
     // 5. Query the prediction model.
     let predict_grades_bench = predict_grades(&used_client);
-    write_stats(prefix.clone() + "predict_grades_bench", &predict_grades_bench);
+    write_stats(
+        prefix.clone() + "predict_grades_bench",
+        &predict_grades_bench,
+    );
 
     // 6. Query aggregate generation.
     let get_aggregates_bench = get_aggregates(&used_client);
-    write_stats(prefix.clone() + "get_aggregates_bench", &get_aggregates_bench);
+    write_stats(
+        prefix.clone() + "get_aggregates_bench",
+        &get_aggregates_bench,
+    );
 
     // 7. Employer info generation.
     let get_employer_info_bench = get_employer_info(&used_client);
-    write_stats(prefix.clone() + "get_employer_info_bench", &get_employer_info_bench);
+    write_stats(
+        prefix.clone() + "get_employer_info_bench",
+        &get_employer_info_bench,
+    );
 }
