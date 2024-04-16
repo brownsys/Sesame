@@ -1,5 +1,5 @@
 use sea_orm::{ColIdx, ColumnType, DbErr, QueryResult, TryFromU64, TryGetable, TryGetError, Value};
-use sea_orm::sea_query::{ArrayType, ValueType, ValueTypeErr};
+use sea_orm::sea_query::{ArrayType, Nullable, ValueType, ValueTypeErr};
 
 use crate::bbox::BBox;
 use crate::policy::{NoPolicy, Policy};
@@ -41,5 +41,11 @@ impl<T: ValueType> ValueType for BBox<T, NoPolicy> {
 impl<T: TryFromU64> TryFromU64 for BBox<T, NoPolicy> {
     fn try_from_u64(n: u64) -> Result<Self, DbErr> {
         Ok(BBox::new(T::try_from_u64(n)?, NoPolicy {}))
+    }
+}
+
+impl<T: Nullable, P: Policy> Nullable for BBox<T, P> {
+    fn null() -> Value {
+        T::null()
     }
 }
