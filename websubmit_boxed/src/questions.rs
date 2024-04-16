@@ -67,6 +67,13 @@ pub struct LectureAnswersContext {
     pub parent: String,
 }
 
+#[derive(BBoxRender)]
+pub struct NaiveLectureAnswersContext {
+    pub lec_id: BBox<u8, NoPolicy>,
+    pub answers: Vec<LectureAnswer>,
+    pub parent: String,
+}
+
 // TODO (allen): these are NoPolicy because not sensitive user information?
 #[derive(BBoxRender, AlohomoraType)]
 #[alohomora_out_type(to_derive = [BBoxRender, Clone])]
@@ -130,6 +137,46 @@ pub(crate) fn leclist(
     };
 
     BBoxTemplate::render("leclist", &ctx, context)
+}
+
+#[get("/naive/<num>")]
+pub(crate) fn naive_answers(
+    _admin: Admin,
+    num: BBox<u8, NoPolicy>,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
+) -> BBoxTemplate {
+    let mut bg = backend.lock().unwrap();
+    let key = num.clone().into_bbox::<u64, NoPolicy>();
+    let res = bg.prep_exec(
+        "SELECT * FROM answers WHERE lec = ?",
+        (key,),
+        context.clone(),
+    );
+    drop(bg);
+
+    // Wraps incoming column data in LectureAnswer format
+    let answers: Vec<LectureAnswer> = res
+        .into_iter()
+        .map(|r| LectureAnswer {
+            id: from_value(r[2].clone()).unwrap(),
+            user: from_value(r[0].clone()).unwrap(),
+            answer: from_value(r[3].clone()).unwrap(),
+            time: from_value(r[4].clone())
+                .unwrap()
+                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| {
+                    v.format("%Y-%m-%d %H:%M:%S").to_string()
+                })),
+            grade: from_value(r[5].clone()).unwrap(),
+        })
+        .collect();
+
+    let ctx = NaiveLectureAnswersContext {
+        lec_id: num,
+        answers,
+        parent: "layout".into(),
+    };
+    BBoxTemplate::render("answers", &ctx, context)
 }
 
 #[get("/<num>")]
