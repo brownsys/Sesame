@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use mysql::chrono::{NaiveDateTime, NaiveDate, NaiveTime};
+use serde::de::DeserializeOwned;
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::bbox::BBox;
@@ -33,6 +35,7 @@ macro_rules! impl_request_bbox_json {
         }
     };
 }
+/* 
 impl_request_bbox_json!(NaiveDateTime);
 impl_request_bbox_json!(NaiveDate);
 impl_request_bbox_json!(NaiveTime);
@@ -43,6 +46,18 @@ impl_request_bbox_json!(i32);
 impl_request_bbox_json!(f64);
 impl_request_bbox_json!(String);
 impl_request_bbox_json!(bool);
+*/
+
+impl<T: DeserializeOwned, P: FrontendPolicy> RequestBBoxJson for BBox<T, P> {
+    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> {
+        let value = value.value;
+        match serde_json::from_value(value) {
+            Err(_) => Err("Bad JSON"),
+            Ok(value) => Ok(BBox::new(value, P::from_request(request.get_request()))),
+        }
+    }
+}
+
 
 // Option (for nulls).
 impl<T: RequestBBoxJson> RequestBBoxJson for Option<T> {
