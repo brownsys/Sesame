@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::any::Any;
 use std::hash::Hash;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 use itertools::Itertools;
 
 use crate::bbox::BBox;
@@ -304,3 +305,22 @@ alohomora_type_tuple_impl!(
     [K, 10],
     [L, 11]
 );
+
+// Implement AlohomoraType for Arc<Mutex<T>>
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl<T: AlohomoraType> AlohomoraType for Arc<Mutex<T>> {
+    type Out = Arc<Mutex<T::Out>>;
+    fn to_enum(self) -> AlohomoraTypeEnum {
+        let t = Arc::into_inner(self).unwrap().into_inner().unwrap();
+        AlohomoraTypeEnum::Vec(vec![t.to_enum()])
+    }
+    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        match e {
+            AlohomoraTypeEnum::Vec(mut v) => {
+                let t = v.pop().unwrap();
+                Ok(Arc::new(Mutex::new(T::from_enum(t)?)))
+            }
+            _ => Err(()),
+        }
+    }
+}
