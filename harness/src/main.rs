@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use alohomora::testing::BBoxClient;
 use rocket::local::blocking::Client;
 
+use rand::seq::SliceRandom;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -20,19 +21,22 @@ use websubmit_boxed::{make_rocket as wsb_make_rocket, parse_args as wsb_parse_ar
 
 const RNG_SEED: u64 = 3705;
 
-const N_USERS: u32 = 100;
-const N_LECTURES: u32 = 10;
-const N_QUESTIONS_PER_LECTURE: u32 = 10;
+const N_USERS: usize = 100;
+const N_LECTURES: usize = 10;
+const N_QUESTIONS_PER_LECTURE: usize = 10;
 
-const N_REGISTRATION_ATTEMPTS: u32 = 1000;
-const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: u32 = 100;
-const N_PREDICTION_ATTEMPTS_PER_LECTURE: u32 = 100;
+const N_REGISTRATION_ATTEMPTS: usize = 1000;
 
-const N_RETRAINING_MODEL_QUERIES: u32 = 1000;
-const N_AGGREGATE_GRADES_QUERIES: u32 = 1000;
-const N_EMPLOYER_INFO_QUERIES: u32 = 1000;
+const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: usize = 100;
+const N_PREDICTION_ATTEMPTS_PER_LECTURE: usize = 100;
+const N_DISCUSSION_LEADER_QUERIES_PER_LECTURE: usize = 100;
+
+const N_RETRAINING_MODEL_QUERIES: usize = 1000;
+const N_AGGREGATE_GRADES_QUERIES: usize = 1000;
+const N_EMPLOYER_INFO_QUERIES: usize = 1000;
 
 const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
+const DISCUSSION_LEADER_KEY: &'static str = "DISCUSSION_LEADER_KEY";
 
 #[derive(Debug, Dummy, Serialize)]
 enum Gender {
@@ -157,8 +161,9 @@ fn add_lectures(client: &Client, r: &mut StdRng) -> Vec<Duration> {
 fn add_questions(client: &Client, r: &mut StdRng) -> Vec<Duration> {
     (0..N_LECTURES)
         .map(|lecture_id| {
-            let mut questions: Vec<Question> =
-                (0..N_QUESTIONS_PER_LECTURE).map(|_| Faker.fake_with_rng(r)).collect();
+            let mut questions: Vec<Question> = (0..N_QUESTIONS_PER_LECTURE)
+                .map(|_| Faker.fake_with_rng(r))
+                .collect();
 
             questions
                 .iter_mut()
@@ -212,25 +217,44 @@ fn answer_questions(client: &Client, users: &Vec<User>, r: &mut StdRng) -> Vec<D
         .collect()
 }
 
-fn view_answers(client: &Client) -> Vec<Duration> {
-    (0..N_LECTURES)
+fn view_answers(client: &Client, r: &mut StdRng) -> Vec<Duration> {
+    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE).collect();
+    samples.shuffle(r);
+
+    samples
+        .iter()
         .map(|lecture_id| {
-            (0..N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE)
-                .map(|_| {
-                    let request = client
-                        .get(format!("/answers/{}", lecture_id))
-                        .cookie(Cookie::new("apikey", ADMIN_APIKEY));
+            let request = client
+                .get(format!("/answers/{}", lecture_id))
+                .cookie(Cookie::new("apikey", ADMIN_APIKEY));
 
-                    let now = Instant::now();
-                    request.dispatch();
-                    let elapsed = now.elapsed();
+            let now = Instant::now();
+            request.dispatch();
+            let elapsed = now.elapsed();
 
-                    elapsed
-                })
-                .collect::<Vec<Duration>>()
+            elapsed
         })
-        .flatten()
-        .collect()
+        .collect::<Vec<Duration>>()
+}
+
+fn view_answers_naive(client: &Client, r: &mut StdRng) -> Vec<Duration> {
+    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE).collect();
+    samples.shuffle(r);
+
+    samples
+        .iter()
+        .map(|lecture_id| {
+            let request = client
+                .get(format!("/answers/naive/{}", lecture_id))
+                .cookie(Cookie::new("apikey", ADMIN_APIKEY));
+
+            let now = Instant::now();
+            request.dispatch();
+            let elapsed = now.elapsed();
+
+            elapsed
+        })
+        .collect::<Vec<Duration>>()
 }
 
 fn submit_grades(client: &Client, users: &Vec<User>, r: &mut StdRng) -> Vec<Duration> {
@@ -268,31 +292,30 @@ fn submit_grades(client: &Client, users: &Vec<User>, r: &mut StdRng) -> Vec<Dura
 }
 
 fn predict_grades(client: &Client, r: &mut StdRng) -> Vec<Duration> {
-    (0..N_LECTURES)
+    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_PREDICTION_ATTEMPTS_PER_LECTURE).collect();
+    samples.shuffle(r);
+
+    samples
+        .iter()
         .map(|lecture_id| {
-            (0..N_PREDICTION_ATTEMPTS_PER_LECTURE)
-                .map(|_| {
-                    let timestamp: NaiveDateTime = Faker.fake_with_rng(r);
-                    let prediction_request = PredictionRequest {
-                        time: timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
-                    };
+            let timestamp: NaiveDateTime = Faker.fake_with_rng(r);
+            let prediction_request = PredictionRequest {
+                time: timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
+            };
 
-                    let request = client
-                        .post(format!("/predict/predict_grade/{}", lecture_id))
-                        .cookie(Cookie::new("apikey", ADMIN_APIKEY))
-                        .header(rocket::http::ContentType::Form)
-                        .body(serde_html_form::to_string(&prediction_request).unwrap());
+            let request = client
+                .post(format!("/predict/predict_grade/{}", lecture_id))
+                .cookie(Cookie::new("apikey", ADMIN_APIKEY))
+                .header(rocket::http::ContentType::Form)
+                .body(serde_html_form::to_string(&prediction_request).unwrap());
 
-                    let now = Instant::now();
-                    request.dispatch();
-                    let elapsed = now.elapsed();
+            let now = Instant::now();
+            request.dispatch();
+            let elapsed = now.elapsed();
 
-                    elapsed
-                })
-                .collect::<Vec<Duration>>()
+            elapsed
         })
-        .flatten()
-        .collect()
+        .collect::<Vec<Duration>>()
 }
 
 fn retrain_model(client: &Client) -> Vec<Duration> {
@@ -343,6 +366,46 @@ fn get_employer_info(client: &Client) -> Vec<Duration> {
         .collect()
 }
 
+fn get_discussion_leader(client: &Client, r: &mut StdRng) -> Vec<Duration> {
+    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_DISCUSSION_LEADER_QUERIES_PER_LECTURE).collect();
+    samples.shuffle(r);
+
+    samples
+        .iter()
+        .map(|lecture_id| {
+            let request = client
+                .get(format!("/answers/discussion_leaders/{}", lecture_id))
+                .cookie(Cookie::new("apikey", DISCUSSION_LEADER_KEY));
+
+            let now = Instant::now();
+            request.dispatch();
+            let elapsed = now.elapsed();
+
+            elapsed
+        })
+        .collect::<Vec<Duration>>()
+}
+
+fn get_discussion_leader_naive(client: &Client, r: &mut StdRng) -> Vec<Duration> {
+    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_DISCUSSION_LEADER_QUERIES_PER_LECTURE).collect();
+    samples.shuffle(r);
+
+    samples
+        .iter()
+        .map(|lecture_id| {
+            let request = client
+                .get(format!("/answers/discussion_leaders/naive/{}", lecture_id))
+                .cookie(Cookie::new("apikey", DISCUSSION_LEADER_KEY));
+
+            let now = Instant::now();
+            request.dispatch();
+            let elapsed = now.elapsed();
+
+            elapsed
+        })
+        .collect::<Vec<Duration>>()
+}
+
 fn write_stats(name: String, data: &Vec<Duration>) {
     let duration_nanos: Vec<u128> = data.iter().map(|d| d.as_nanos()).collect();
     fs::create_dir_all("benches/").unwrap();
@@ -353,13 +416,13 @@ fn write_stats(name: String, data: &Vec<Duration>) {
     .unwrap();
 }
 
-#[cfg(feature="boxed")]
+#[cfg(feature = "boxed")]
 fn get_websubmit() -> BBoxClient {
     println!("Running boxed websubmit.");
     BBoxClient::tracked(wsb_make_rocket(wsb_parse_args())).expect("valid `Rocket`")
 }
 
-#[cfg(feature="unboxed")]
+#[cfg(feature = "unboxed")]
 fn get_websubmit() -> Client {
     println!("Running regular websubmit.");
     Client::tracked(ws_make_rocket(ws_parse_args())).expect("valid `Rocket`")
@@ -367,19 +430,21 @@ fn get_websubmit() -> Client {
 
 fn main() {
     let ref mut r = StdRng::seed_from_u64(RNG_SEED);
-    
+
     let client = get_websubmit();
     let used_client: &Client = &client;
 
-    let prefix = if cfg!(feature="boxed") {
+    let prefix = if cfg!(feature = "boxed") {
         "boxed_".to_owned()
-    } else if cfg!(feature="unboxed") {
+    } else if cfg!(feature = "unboxed") {
         "".to_owned()
     } else {
         unreachable!()
     };
 
-    let mut users: Vec<User> = (0..N_REGISTRATION_ATTEMPTS).map(|_| Faker.fake_with_rng(r)).collect();
+    let mut users: Vec<User> = (0..N_REGISTRATION_ATTEMPTS)
+        .map(|_| Faker.fake_with_rng(r))
+        .collect();
 
     // 1. Bench generating ApiKeys.
     let register_users_bench = register_users(&used_client, &mut users);
@@ -402,12 +467,18 @@ fn main() {
         prefix.clone() + "answer_questions_bench",
         &answer_questions_bench,
     );
-    println!("Took {} samples for answer questions endpoint.", answer_questions_bench.len());
+    println!(
+        "Took {} samples for answer questions endpoint.",
+        answer_questions_bench.len()
+    );
 
     // 3. Bench viewing answers for a lecture.
-    let view_answers_bench = view_answers(&used_client);
+    let view_answers_bench = view_answers(&used_client, r);
     write_stats(prefix.clone() + "view_answers_bench", &view_answers_bench);
-    println!("Took {} samples for view answers endpoint.", view_answers_bench.len());
+    println!(
+        "Took {} samples for view answers endpoint.",
+        view_answers_bench.len()
+    );
 
     // Prime the database with grades.
     submit_grades(&used_client, &users, r);
@@ -415,7 +486,10 @@ fn main() {
     // 4. Bench retraining the model.
     let retrain_model_bench = retrain_model(&used_client);
     write_stats(prefix.clone() + "retrain_model_bench", &retrain_model_bench);
-    println!("Took {} samples for retrain model endpoint.", retrain_model_bench.len());
+    println!(
+        "Took {} samples for retrain model endpoint.",
+        retrain_model_bench.len()
+    );
 
     // 5. Query the prediction model.
     let predict_grades_bench = predict_grades(&used_client, r);
@@ -423,7 +497,10 @@ fn main() {
         prefix.clone() + "predict_grades_bench",
         &predict_grades_bench,
     );
-    println!("Took {} samples for predict grades endpoint.", predict_grades_bench.len());
+    println!(
+        "Took {} samples for predict grades endpoint.",
+        predict_grades_bench.len()
+    );
 
     // 6. Query aggregate generation.
     let get_aggregates_bench = get_aggregates(&used_client);
@@ -431,7 +508,10 @@ fn main() {
         prefix.clone() + "get_aggregates_bench",
         &get_aggregates_bench,
     );
-    println!("Took {} samples for get aggregates endpoint.", get_aggregates_bench.len());
+    println!(
+        "Took {} samples for get aggregates endpoint.",
+        get_aggregates_bench.len()
+    );
 
     // 7. Employer info generation.
     let get_employer_info_bench = get_employer_info(&used_client);
@@ -439,5 +519,40 @@ fn main() {
         prefix.clone() + "get_employer_info_bench",
         &get_employer_info_bench,
     );
-    println!("Took {} samples for get employer info endpoint.", get_employer_info_bench.len());
+    println!(
+        "Took {} samples for get employer info endpoint.",
+        get_employer_info_bench.len()
+    );
+
+    // FOLD EXPERIMENT.
+
+    // Discussion leader normal (runs for both boxed and unboxed).
+    let get_discussion_leader_bench = get_discussion_leader(&used_client, r);
+    write_stats(
+        prefix.clone() + "get_discussion_leader_bench",
+        &get_discussion_leader_bench,
+    );
+    println!(
+        "Took {} samples for get discussion leader endpoint.",
+        get_discussion_leader_bench.len()
+    );
+
+    if cfg!(feature = "boxed") {
+        let get_discussion_leader_naive_bench = get_discussion_leader_naive(&used_client, r);
+        write_stats(
+            prefix.clone() + "get_discussion_leader_naive_bench",
+            &get_discussion_leader_naive_bench,
+        );
+        println!(
+            "Took {} samples for get discussion leader naive endpoint.",
+            get_discussion_leader_naive_bench.len()
+        );
+
+        let view_answers_naive_bench = view_answers_naive(&used_client, r);
+        write_stats(prefix.clone() + "view_answers_naive_bench", &view_answers_naive_bench);
+        println!(
+            "Took {} samples for view answers naive endpoint.",
+            view_answers_naive_bench.len()
+        );
+    }
 }

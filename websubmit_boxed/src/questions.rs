@@ -224,6 +224,121 @@ pub(crate) fn composed_answers(
     BBoxTemplate::render("answers", &ctx, context)
 }
 
+#[get("/discussion_leaders/<num>")]
+pub(crate) fn answers_for_discussion_leaders(
+    num: BBox<u8, NoPolicy>,
+    apikey: ApiKey,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
+) -> BBoxTemplate {
+    let key = num.clone().into_bbox::<u64, NoPolicy>();
+
+    let is_discussion_leader = {
+        let mut bg = backend.lock().unwrap();
+        let vec = bg.prep_exec(
+            "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
+            (key.clone(), apikey.user),
+            context.clone(),
+        );
+        vec.len() > 0
+    };
+
+    if !is_discussion_leader {
+        panic!()
+    }
+
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec(
+        "SELECT * FROM answers WHERE lec = ?",
+        (key,),
+        context.clone(),
+    );
+    drop(bg);
+
+    // Wraps incoming column data in LectureAnswer format
+    let answers: Vec<LectureAnswer> = res
+        .into_iter()
+        .map(|r| LectureAnswer {
+            id: from_value(r[2].clone()).unwrap(),
+            user: from_value(r[0].clone()).unwrap(),
+            answer: from_value(r[3].clone()).unwrap(),
+            time: from_value(r[4].clone())
+                .unwrap()
+                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| {
+                    v.format("%Y-%m-%d %H:%M:%S").to_string()
+                })),
+            grade: from_value(r[5].clone()).unwrap(),
+        })
+        .collect();
+
+    let outer_box_answers = fold(answers)
+        .unwrap()
+        .specialize_policy::<AnswerAccessPolicy>()
+        .unwrap();
+
+    let ctx = LectureAnswersContext {
+        lec_id: num,
+        answers: outer_box_answers,
+        parent: "layout".into(),
+    };
+    BBoxTemplate::render("answers", &ctx, context)
+}
+
+#[get("/discussion_leaders/naive/<num>")]
+pub(crate) fn answers_for_discussion_leaders_naive(
+    num: BBox<u8, NoPolicy>,
+    apikey: ApiKey,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+    context: Context<ContextData>,
+) -> BBoxTemplate {
+    let key = num.clone().into_bbox::<u64, NoPolicy>();
+
+    let is_discussion_leader = {
+        let mut bg = backend.lock().unwrap();
+        let vec = bg.prep_exec(
+            "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
+            (key.clone(), apikey.user),
+            context.clone(),
+        );
+        vec.len() > 0
+    };
+
+    if !is_discussion_leader {
+        panic!()
+    }
+
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec(
+        "SELECT * FROM answers WHERE lec = ?",
+        (key,),
+        context.clone(),
+    );
+    drop(bg);
+
+    // Wraps incoming column data in LectureAnswer format
+    let answers: Vec<LectureAnswer> = res
+        .into_iter()
+        .map(|r| LectureAnswer {
+            id: from_value(r[2].clone()).unwrap(),
+            user: from_value(r[0].clone()).unwrap(),
+            answer: from_value(r[3].clone()).unwrap(),
+            time: from_value(r[4].clone())
+                .unwrap()
+                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| {
+                    v.format("%Y-%m-%d %H:%M:%S").to_string()
+                })),
+            grade: from_value(r[5].clone()).unwrap(),
+        })
+        .collect();
+
+    let ctx = NaiveLectureAnswersContext {
+        lec_id: num,
+        answers,
+        parent: "layout".into(),
+    };
+    BBoxTemplate::render("answers", &ctx, context)
+}
+
 #[get("/<num>")]
 pub(crate) fn questions(
     apikey: ApiKey,

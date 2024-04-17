@@ -108,7 +108,12 @@ pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
             "/grades",
             routes![grades::grades, grades::editg, grades::editg_submit],
         )
-        .mount("/answers", routes![questions::composed_answers, questions::naive_answers])
+        .mount("/answers", routes![
+            questions::composed_answers, 
+            questions::naive_answers, 
+            questions::answers_for_discussion_leaders,
+            questions::answers_for_discussion_leaders_naive,
+        ])
         .mount("/leclist", routes![questions::leclist])
         .mount(
             "/predict",

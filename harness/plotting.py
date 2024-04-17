@@ -8,7 +8,8 @@ matplotlib.use("Agg")
 
 SYSTEM_COLORS = {
     'Baseline': 'C0',
-    'With Alohomora': 'C1',
+    'Alohomora': 'C1',
+    'Naive Alohomora': 'C2',
 }
 
 
@@ -32,6 +33,7 @@ PLOT_LABELS = {
     "get_aggregates_bench": "Get Aggregates",
     "get_employer_info_bench": "Get Employer Info",
 }
+
 ENDPOINTS = [
     "register_users_bench",
     "answer_questions_bench",
@@ -41,9 +43,31 @@ ENDPOINTS = [
     "get_aggregates_bench",
     "get_employer_info_bench",
 ]
+
+FOLD_BASELINE_ENDPOINTS = [
+    "view_answers_bench",
+    "get_discussion_leader_bench",
+]
+
+FOLD_ALOHOMORA_ENDPOINTS = [
+    "boxed_view_answers_bench",
+    "boxed_get_discussion_leader_bench",
+]
+
+FOLD_NAIVE_ALOHOMORA_ENDPOINTS = [
+    "boxed_view_answers_naive_bench",
+    "boxed_get_discussion_leader_naive_bench",
+]
+
+FOLD_ENDPOINTS = [
+    "Admin",
+    "Discussion Leader",
+]
+
 PERCENTILES = ["50", "95"]
 
 X = np.arange(len(ENDPOINTS))
+X_F = np.arange(len(FOLD_ENDPOINTS))
 W = 0.3
 
 
@@ -55,12 +79,12 @@ def PlotMergedPercentiles(baseline, alohomora):
 
         alpha = 1 if percentile == "50" else 0.3
         label_baseline = "Baseline" if percentile == "50" else None
-        label_alohomora = "With Alohomora" if percentile == "50" else None
+        label_alohomora = "Alohomora" if percentile == "50" else None
 
         plt.bar(X - 0.5 * W, b, W, label=label_baseline,
                 color=SYSTEM_COLORS['Baseline'], alpha=alpha)
         plt.bar(X + 0.5 * W, a, W, label=label_alohomora,
-                color=SYSTEM_COLORS['With Alohomora'], alpha=alpha)
+                color=SYSTEM_COLORS['Alohomora'], alpha=alpha)
 
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
@@ -68,6 +92,48 @@ def PlotMergedPercentiles(baseline, alohomora):
     plt.ylim(ymax=20)
     plt.legend(frameon=False)
     plt.savefig("websubmit.pdf", format="pdf",
+                bbox_inches="tight", pad_inches=0.01)
+
+def PlotFoldPercentiles(baseline, alohomora, naive):
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    fig.subplots_adjust(hspace=0.1) 
+
+    ax1.set_ylim(95, 115)  # outliers only
+    ax2.set_ylim(0, 25)  # most of the data
+
+    for percentile in PERCENTILES:
+        b = [fold_baseline[endpoint][percentile] for endpoint in FOLD_BASELINE_ENDPOINTS]
+        a = [fold_alohomora[endpoint][percentile] for endpoint in FOLD_ALOHOMORA_ENDPOINTS]
+        n = [fold_naive[endpoint][percentile] for endpoint in FOLD_NAIVE_ALOHOMORA_ENDPOINTS]
+
+        alpha = 1 if percentile == "50" else 0.3
+        label_baseline = "Baseline" if percentile == "50" else None
+        label_alohomora = "Alohomora" if percentile == "50" else None
+        label_naive = "Naive Alohomora" if percentile == "50" else None
+
+        ax1.bar(X_F - W, b, W, color=SYSTEM_COLORS['Baseline'], label=label_baseline, alpha=alpha)
+        ax1.bar(X_F, n, W, color=SYSTEM_COLORS['Naive Alohomora'], label=label_naive, alpha=alpha)
+        ax1.bar(X_F + W, a, W, color=SYSTEM_COLORS['Alohomora'], label=label_alohomora, alpha=alpha)
+
+        ax2.bar(X_F - W, b, W, color=SYSTEM_COLORS['Baseline'], label=label_baseline, alpha=alpha)
+        ax2.bar(X_F, n, W, color=SYSTEM_COLORS['Naive Alohomora'], label=label_naive, alpha=alpha)
+        ax2.bar(X_F + W, a, W, color=SYSTEM_COLORS['Alohomora'], label=label_alohomora, alpha=alpha)
+
+    d = .5  # proportion of vertical to horizontal extent of the slanted line
+    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=10,
+                linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+    ax1.plot([0, 1], [0, 0], transform=ax1.transAxes, **kwargs)
+    ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
+
+    ax1.legend(frameon=False)
+
+    ax1.xaxis.set_ticks_position('none')
+    ax2.set_xticks(X_F, FOLD_ENDPOINTS, rotation=25, ha='right')
+    
+    plt.xlabel("Fold Comparison")
+    plt.ylabel("Latency [ms]")
+
+    plt.savefig("fold.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
 
 # Plot 50th and 95th percentile on one figure
@@ -79,19 +145,19 @@ def PlotMeanAndStd(baseline, alohomora):
     a_std = [alohomora[endpoint]['std'] for endpoint in ENDPOINTS]
 
     label_baseline = "Baseline"
-    label_alohomora = "With Alohomora"
+    label_alohomora = "Alohomora"
 
     plt.errorbar(X - 0.5 * W, b_mean, yerr=b_std, label=label_baseline,
             color=SYSTEM_COLORS['Baseline'], linestyle='None', marker='o', markersize=1)
     plt.errorbar(X + 0.5 * W, a_mean, yerr=a_std, label=label_alohomora,
-            color=SYSTEM_COLORS['With Alohomora'], linestyle='None', marker='o', markersize=1)
+            color=SYSTEM_COLORS['Alohomora'], linestyle='None', marker='o', markersize=1)
 
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
     plt.xlabel("Websubmit Comparison")
     plt.ylim(ymax=20)
     plt.legend(frameon=False, loc='upper left')
-    plt.savefig("websubmit.pdf", format="pdf",
+    plt.savefig("websubmit-mean.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
 
 # Parse an input file.
@@ -126,6 +192,48 @@ def ParseWebsubmitBoxedFiles(dir):
 
     return data
 
+# Parse an input file.
+def ParseFoldWebsubmitFiles(dir):
+    data = dict()
+
+    for endpoint in FOLD_BASELINE_ENDPOINTS:
+        df = pd.read_json(dir + "/" + endpoint + ".json")[0] / 1000000
+
+        data[endpoint] = dict()
+        data[endpoint]["50"] = np.quantile(df.to_numpy(), 0.5)
+        data[endpoint]["95"] = np.quantile(df.to_numpy(), 0.95)
+        data[endpoint]["mean"] = np.mean(df.to_numpy())
+        data[endpoint]["std"] = np.std(df.to_numpy())
+
+    return data
+
+def ParseFoldWebsubmitBoxedFiles(dir):
+    data = dict()
+
+    for endpoint in FOLD_ALOHOMORA_ENDPOINTS:
+        df = pd.read_json(dir + "/" + endpoint + ".json")[0] / 1000000
+
+        data[endpoint] = dict()
+        data[endpoint]["50"] = np.quantile(df.to_numpy(), 0.5)
+        data[endpoint]["95"] = np.quantile(df.to_numpy(), 0.95)
+        data[endpoint]["mean"] = np.mean(df.to_numpy())
+        data[endpoint]["std"] = np.std(df.to_numpy())
+
+    return data
+
+def ParseFoldWebsubmitNaiveFiles(dir):
+    data = dict()
+
+    for endpoint in FOLD_NAIVE_ALOHOMORA_ENDPOINTS:
+        df = pd.read_json(dir + "/" + endpoint + ".json")[0] / 1000000
+
+        data[endpoint] = dict()
+        data[endpoint]["50"] = np.quantile(df.to_numpy(), 0.5)
+        data[endpoint]["95"] = np.quantile(df.to_numpy(), 0.95)
+        data[endpoint]["mean"] = np.mean(df.to_numpy())
+        data[endpoint]["std"] = np.std(df.to_numpy())
+
+    return data
 
 # Main.
 if __name__ == "__main__":
@@ -135,6 +243,11 @@ if __name__ == "__main__":
     baseline = ParseWebsubmitFiles('benches')
     alohomora = ParseWebsubmitBoxedFiles('benches')
 
+    fold_baseline = ParseFoldWebsubmitFiles('benches')
+    fold_alohomora = ParseFoldWebsubmitBoxedFiles('benches')
+    fold_naive = ParseFoldWebsubmitNaiveFiles('benches')
+
     # Plot output.
     PlotMergedPercentiles(baseline, alohomora)
     # PlotMeanAndStd(baseline, alohomora)
+    PlotFoldPercentiles(fold_baseline, fold_alohomora, fold_naive)

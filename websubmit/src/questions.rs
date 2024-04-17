@@ -9,6 +9,7 @@ use chrono::Local;
 
 use mysql::from_value;
 
+use rocket::http::Status;
 use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
@@ -141,6 +142,52 @@ pub(crate) fn answers(
         parent: "layout",
     };
     Template::render("answers", &ctx)
+}
+
+#[get("/discussion_leaders/<num>")]
+pub(crate) fn answers_for_discussion_leaders(
+    num: u8,
+    apikey: ApiKey,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Result<Template, Status> {
+    let key: Value = (num as u64).into();
+
+    let is_discussion_leader = {
+        let mut bg = backend.lock().unwrap();
+        let vec = bg.prep_exec(
+            "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
+            vec![key.clone(), apikey.user.into()],
+        );
+        vec.len() > 0
+    };
+
+    if !is_discussion_leader {
+        return Err(Status::Unauthorized);
+    }
+
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
+    drop(bg);
+
+    let answers: Vec<_> = res
+        .into_iter()
+        .map(|r| LectureAnswer {
+            id: from_value(r[2].clone()),
+            user: from_value(r[0].clone()),
+            answer: from_value(r[3].clone()),
+            time: from_value::<NaiveDateTime>(r[4].clone())
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            grade: from_value(r[5].clone()),
+        })
+        .collect();
+
+    let ctx = LectureAnswersContext {
+        lec_id: num,
+        answers,
+        parent: "layout",
+    };
+    Ok(Template::render("answers", &ctx))
 }
 
 #[get("/<num>")]

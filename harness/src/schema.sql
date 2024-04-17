@@ -14,4 +14,16 @@ CREATE VIEW ml_training as SELECT answers.grade, answers.submitted_at, users.con
 CREATE VIEW employers_release as SELECT users.email, AVG(answers.grade), users.consent FROM users JOIN answers on users.email = answers.email GROUP BY users.email;
 
 -- Insert a single admin user.
-INSERT INTO users (email, apikey, is_admin, is_manager, pseudonym, gender, age, ethnicity, is_remote, education, consent) VALUES ('artem@brown.edu', 'ADMIN_API_KEY', 1, 1, 'DfsHoGKHMzmek7Hv', '', 21, '', 0, '', 0);
+INSERT INTO users (email, apikey, is_admin, is_manager, pseudonym, gender, age, ethnicity, is_remote, education, consent) VALUES ('artem@brown.edu', 'ADMIN_API_KEY', 1, 1, 'admin_pseudonym', '', 21, '', 0, '', 0);
+INSERT INTO users (email, apikey, is_admin, is_manager, pseudonym, gender, age, ethnicity, is_remote, education, consent) VALUES ('discussion_leader@brown.edu', 'DISCUSSION_LEADER_KEY', 0, 0, 'discussion_leader_pseudonym', '', 21, '', 0, '', 0);
+
+INSERT INTO discussion_leaders (id, email, lec) VALUES (0, "discussion_leader@brown.edu", 0);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (1, "discussion_leader@brown.edu", 1);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (2, "discussion_leader@brown.edu", 2);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (3, "discussion_leader@brown.edu", 3);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (4, "discussion_leader@brown.edu", 4);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (5, "discussion_leader@brown.edu", 5);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (6, "discussion_leader@brown.edu", 6);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (7, "discussion_leader@brown.edu", 7);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (8, "discussion_leader@brown.edu", 8);
+INSERT INTO discussion_leaders (id, email, lec) VALUES (9, "discussion_leader@brown.edu", 9);
