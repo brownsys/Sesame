@@ -63,7 +63,8 @@ impl BBoxConn {
             None => self.conn.prep(&stmt_str)?,
         };
 
-        let params = params.into().transform(context, Reason::DB(&stmt_str))?;
+        let params = params.into();
+        let params = params.clone().transform(context, Reason::DB(&stmt_str, params.to_reason()))?;
         self.conn.exec_drop(statement, params)
     }
 
@@ -81,7 +82,8 @@ impl BBoxConn {
             None => self.conn.prep(&stmt_str)?,
         };
 
-        let params = params.into().transform(context, Reason::DB(&stmt_str))?;
+        let params = params.into();
+        let params = params.clone().transform(context, Reason::DB(&stmt_str, params.to_reason()))?;
         let result = self.conn.exec_iter(statement, params)?;
         Ok(BBoxQueryResult { result })
     }
