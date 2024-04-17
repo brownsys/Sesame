@@ -22,32 +22,6 @@ pub trait ResponseBBoxJson {
 // Implement this for predefined types, implementations for custom structs should use the derive
 // macro.
 // Implement trait for Date types.
-macro_rules! impl_request_bbox_json {
-    ($T: ty) => {
-        impl<P: FrontendPolicy> RequestBBoxJson for BBox<$T, P> {
-            fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
-                let value = value.value;
-                match serde_json::from_value(value) {
-                    Err(_) => Err("Bad JSON"),
-                    Ok(value) => Ok(BBox::new(value, P::from_request(request.get_request()))),
-                }
-            }
-        }
-    };
-}
-/* 
-impl_request_bbox_json!(NaiveDateTime);
-impl_request_bbox_json!(NaiveDate);
-impl_request_bbox_json!(NaiveTime);
-impl_request_bbox_json!(u64);
-impl_request_bbox_json!(i64);
-impl_request_bbox_json!(u32);
-impl_request_bbox_json!(i32);
-impl_request_bbox_json!(f64);
-impl_request_bbox_json!(String);
-impl_request_bbox_json!(bool);
-*/
-
 impl<T: DeserializeOwned, P: FrontendPolicy> RequestBBoxJson for BBox<T, P> {
     fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> {
         let value = value.value;
