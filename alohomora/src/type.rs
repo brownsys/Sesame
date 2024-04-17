@@ -214,6 +214,21 @@ impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for Hash
     }
 }
 
+
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl AlohomoraType for () {
+    type Out = ();
+    fn to_enum(self) -> AlohomoraTypeEnum {
+        AlohomoraTypeEnum::Value(Box::new(()))
+    }
+    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        match e {
+            AlohomoraTypeEnum::Value(_) => Ok(()),
+            _ => Err(()),
+        }
+    }
+}
+
 // Implement AlohomoraType for tuples made up of AlohomoraTypes.
 macro_rules! alohomora_type_tuple_impl {
   ($([$A:tt,$i:tt]),*) => (
