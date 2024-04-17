@@ -1,0 +1,30 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+name = "bench"
+version = "0.1.0"
+authors = ["Allen Aby <allen.aby@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "bin"
+path = "src/bin.rs"
+
+[dependencies]
+alohomora = { path = "../../alohomora/", default_features = false, features = ["derive"] }
+chrono = { version = "0.4.0", features = ["serde"] }
+linfa-linear = "0.6.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bench_lib = { path = "../bench_lib" }
+
+[build-dependencies]
+alohomora_build = { path = "../../alohomora_build" }
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
+
+[workspace.metadata.dylint]
+libraries = [
+    { path = "../../alohomora_lints" },
+]
