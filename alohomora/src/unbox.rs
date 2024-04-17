@@ -20,12 +20,12 @@ pub fn unbox<S: AlohomoraType, D: ContextData, C: Clone + AlohomoraType, O, F: F
     arg: C
 ) -> Result<O, UnboxError> where C::Out: CloneableAny + Clone {
     match fold(data) {
-        _ => Err(FoldError),
         Ok(data) => {
             match data.into_unbox(context, functor, arg) {
                 Err(_) => Err(PolicyViolation),
                 Ok(result) => Ok(result),
             }
-        }
+        },
+        _ => Err(FoldError),
     }
 }
