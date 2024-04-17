@@ -1,6 +1,7 @@
 extern crate futures;
 
 use futures::future::BoxFuture;
+use rocket::http::ContentType;
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use std::option::Option;
@@ -22,6 +23,10 @@ pub struct BBoxRequest<'a, 'r> {
 impl<'a, 'r> BBoxRequest<'a, 'r> {
     pub fn new(request: &'a rocket::Request<'r>) -> Self {
         BBoxRequest { request }
+    }
+
+    pub fn content_type(&self) -> Option<&ContentType> {
+        self.request.content_type()
     }
 
     pub(crate) fn get_request(&self) -> &'a rocket::Request<'r> {

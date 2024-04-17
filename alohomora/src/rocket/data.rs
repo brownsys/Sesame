@@ -1,7 +1,9 @@
 use std::fmt::Debug;
 
+use rocket::data::Capped;
+
 use crate::bbox::BBox;
-use crate::policy::FrontendPolicy;
+use crate::policy::{FrontendPolicy, Policy};
 use crate::rocket::{BBoxDataField, BBoxValueField};
 use crate::rocket::form::{BBoxForm, FromBBoxForm};
 use crate::rocket::request::BBoxRequest;
@@ -89,5 +91,12 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T>{
             Ok(value) => BBoxDataOutcome::Success(BBoxForm(value)),
             Err(e) => BBoxDataOutcome::Failure((e.status(), e)),
         }
+    }
+}
+
+impl<'a, P: Policy> BBox<rocket::data::DataStream<'a>, P> {
+    pub async fn into_bytes(self) -> std::io::Result<BBox<Capped<Vec<u8>>, P>> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(t.into_bytes().await?, p))
     }
 }
