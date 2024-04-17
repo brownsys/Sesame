@@ -26,8 +26,6 @@ def InitializeMatplotLib():
 # Parameters configuring parsing of inputs and legend of plot.
 PLOT_LABELS = {
     "register_users_bench": "Register Users",
-    "answer_questions_bench": "Answer Questions",
-    "view_answers_bench": "View Answers",
     "retrain_model_bench": "Retrain Model",
     "predict_grades_bench": "Predict Grades",
     "get_aggregates_bench": "Get Aggregates",
@@ -36,8 +34,6 @@ PLOT_LABELS = {
 
 ENDPOINTS = [
     "register_users_bench",
-    "answer_questions_bench",
-    "view_answers_bench",
     "retrain_model_bench",
     "predict_grades_bench",
     "get_aggregates_bench",
@@ -73,6 +69,48 @@ W = 0.3
 
 # Plot 50th and 95th percentile on one figure
 def PlotMergedPercentiles(baseline, alohomora):
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    fig.subplots_adjust(hspace=0.1) 
+
+    ax1.set_ylim(0.09, 25)
+    ax2.set_ylim(0, 0.09)
+
+    for percentile in PERCENTILES:
+        b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS]
+        a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS]
+
+        alpha = 1 if percentile == "50" else 0.3
+        label_baseline = "Baseline" if percentile == "50" else None
+        label_alohomora = "Alohomora" if percentile == "50" else None
+
+        ax1.bar(X - 0.5 * W, b, W, label=label_baseline,
+                color=SYSTEM_COLORS['Baseline'], alpha=alpha)
+        ax2.bar(X - 0.5 * W, b, W, label=label_baseline,
+                color=SYSTEM_COLORS['Baseline'], alpha=alpha)
+        
+        ax1.bar(X + 0.5 * W, a, W, label=label_alohomora,
+                color=SYSTEM_COLORS['Alohomora'], alpha=alpha)
+        ax2.bar(X + 0.5 * W, a, W, label=label_alohomora,
+                color=SYSTEM_COLORS['Alohomora'], alpha=alpha)
+
+    d = .5  # proportion of vertical to horizontal extent of the slanted line
+    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=10,
+                linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+    ax1.plot([0, 1], [0, 0], transform=ax1.transAxes, **kwargs)
+    ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
+
+    ax1.legend(frameon=False, fontsize="7")
+
+    ax1.xaxis.set_ticks_position('none')
+    ax2.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
+
+    plt.xlabel("Websubmit Comparison")
+    plt.ylabel("Latency [ms]")
+    plt.savefig("websubmit.pdf", format="pdf",
+                bbox_inches="tight", pad_inches=0.01)
+
+# Plot 50th and 95th percentile on one figure
+def PlotMergedPercentilesNoBreak(baseline, alohomora):
     for percentile in PERCENTILES:
         b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS]
         a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS]
@@ -89,8 +127,8 @@ def PlotMergedPercentiles(baseline, alohomora):
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
     plt.xlabel("Websubmit Comparison")
-    plt.ylim(ymax=20)
-    plt.legend(frameon=False)
+    plt.ylim(ymax=12)
+    plt.legend(frameon=False, fontsize="7")
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
 
@@ -98,7 +136,7 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     fig.subplots_adjust(hspace=0.1) 
 
-    ax1.set_ylim(95, 115)  # outliers only
+    ax1.set_ylim(255, 275)  # outliers only
     ax2.set_ylim(0, 25)  # most of the data
 
     for percentile in PERCENTILES:
@@ -128,7 +166,7 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
     ax1.legend(frameon=False)
 
     ax1.xaxis.set_ticks_position('none')
-    ax2.set_xticks(X_F, FOLD_ENDPOINTS, rotation=25, ha='right')
+    ax2.set_xticks(X_F, FOLD_ENDPOINTS)
     
     plt.xlabel("Fold Comparison")
     plt.ylabel("Latency [ms]")
@@ -249,5 +287,6 @@ if __name__ == "__main__":
 
     # Plot output.
     PlotMergedPercentiles(baseline, alohomora)
+    # PlotMergedPercentilesNoBreak(baseline, alohomora)
     # PlotMeanAndStd(baseline, alohomora)
     PlotFoldPercentiles(fold_baseline, fold_alohomora, fold_naive)
