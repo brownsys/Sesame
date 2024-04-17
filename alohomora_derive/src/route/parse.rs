@@ -34,12 +34,14 @@ fn parse_parameter(s: &str) -> Option<String> {
 enum Method {
     Post,
     Get,
+    Delete,
 }
 impl Method {
     pub fn from_string(method: &str) -> Option<Self> {
         match method {
             "POST" => Some(Method::Post),
             "GET" => Some(Method::Get),
+            "DELETE" => Some(Method::Delete),
             _ => None,
         }
     }
@@ -47,6 +49,7 @@ impl Method {
         match self {
             Method::Post => Ident::new("Post", Span::call_site()),
             Method::Get => Ident::new("Get", Span::call_site()),
+            Method::Delete => Ident::new("Delete", Span::call_site()),
         }
     }
 }
