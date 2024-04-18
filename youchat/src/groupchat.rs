@@ -1,10 +1,9 @@
 use rocket::State;
-use alohomora::pcr::execute_pcr;
-use alohomora::pcr::PrivacyCriticalRegion;
 use std::sync::{Mutex, Arc};
 use alohomora::{bbox::BBox, policy::NoPolicy};
 use alohomora::rocket::{BBoxRedirect, BBoxTemplate, BBoxForm};
-use alohomora::db::BBoxRow; 
+use alohomora::db::BBoxRow;
+use alohomora::pure::{execute_pure, PrivacyPureRegion};
 use alohomora_derive::{get, post};
 use crate::backend::MySqlBackend;
 use crate::common::*;
@@ -95,7 +94,8 @@ fn validate_user_permissions(gc_name: BBox<String, NoPolicy>,
             let row = row_result.unwrap(); 
             UserCode::from_row(row)
         })
-        .collect::<Vec<_>>(); 
+        .collect::<Vec<_>>();
+
     // check to see if the user is an admin
     if *(user_name.discard_box()) == *(group.clone().admin.discard_box()) {
         return PermissionType::Admin;
@@ -140,13 +140,19 @@ pub(crate) fn try_delete(gc_name: BBox<String, NoPolicy>,
                 chats[index.clone().discard_box()].clone()
             };
 
-            let user_is_sender = execute_pcr(
-                    to_delete.sender, 
-                    PrivacyCriticalRegion::new(|sender, _, user_name| { sender == user_name}),
-                    user_name.clone().discard_box())
-                .unwrap();
+            // Ensure they can delete.
+            let can_delete = execute_pure(
+                (user_name.clone(), to_delete.sender.clone()),
+                PrivacyPureRegion::new(|(user_name, sender): (String, String)| {
+                    if user_name == sender {
+                        Ok(())
+                    } else {
+                        Err("Permission denied")
+                    }
+                }),
+            );
             
-            if user_is_sender {
+            if can_delete.unwrap().transpose().is_ok() {
                 delete(gc_name, user_name, index, backend, context.clone())
             } else {
                 BBoxRedirect::to("/chat/{}/{}", (&gc_name, &user_name), context.clone())

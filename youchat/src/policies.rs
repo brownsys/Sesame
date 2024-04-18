@@ -1,12 +1,11 @@
-use std::sync::{Arc, Mutex};
+use mysql::prelude::Queryable;
 
 use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, SchemaPolicy, Reason};
 use alohomora::AlohomoraType;
 use alohomora_derive::schema_policy;
 use alohomora::context::UnprotectedContext;
-use crate::backend::MySqlBackend;
+use alohomora::db::BBoxParam;
 use crate::context::*;
-use crate::common::Group;
 
 // access control policy for the chats database
 // #[schema_policy(table = "chats", column = 0)]
@@ -25,7 +24,6 @@ pub struct ChatAccessPolicy {
 }
 
 impl ChatAccessPolicy {
-    #[allow(dead_code)]
     pub fn new(sender: Option<String>, 
                 recipient: Option<String>, 
                 groupchat: Option<String>)
@@ -61,62 +59,51 @@ impl Policy for ChatAccessPolicy {
         let context: &ContextDataOut = context.downcast_ref().unwrap();
 
         let user: &Option<String> = &context.user;
-        let db: &Arc<Mutex<MySqlBackend>> = &context.db;
-        //let config: &Config = &context.config;
 
         // check sender, receiver
-        if let Some(name) = user {   
+        if let Some(name) = user {
             // check if we're the sender or the reciever
-            match self.sender.clone() {
-                Some(sender) => 
-                    if sender == *name { return true; }
-                None => ()
+            if self.sender.is_some() && self.sender.as_ref().unwrap() == name {
+                return true;
             }
-            match self.recipient.clone() {
-                Some(recipient) => 
-                    if recipient == *name { return true; }
-                None => ()
+            if self.recipient.is_some() && self.recipient.as_ref().unwrap() == name {
+                return true;
             }
     
-        // check if we're a group admin or group member
-            if let Some(groupchat) = self.groupchat.clone() {
+            // check if we're a group admin or group member
+            if let Some(groupchat) = &self.groupchat {
                 // get group
-                let group = {
-                    let mut bg = db.lock().unwrap();
-                    let group_res: Vec<_> = (*bg).handle
-                        .prep_exec_iter(
-                            "SELECT * FROM group_chats WHERE group_name = ?", 
-                            vec![groupchat.clone()], 
-                            YouChatContext::empty())
-                        .unwrap()
-                        .collect();
-                    
-                    let mut group = None;
-                    for g in group_res { //TODO (corinn) better way to handle this?
-                        group = Some(Group::new(g.unwrap())); //or group_res[0]?
-                        break;
-                    }
+                let mut db = context.db.lock().unwrap();
+                let mut group_res = db.exec_iter(
+                        "SELECT * FROM group_chats WHERE group_name = ?",
+                        (groupchat.to_owned(),),
+                ).unwrap();
 
-                    // make sure it's a real group
-                    if group.is_none() { return false; }
-                    group
-                }.unwrap();
+                let (group_admin, group_code): (String, String) = match group_res.next() {
+                    None => { return false },
+                    Some(Err(_)) => { return false },
+                    Some(Ok(group)) => (
+                        mysql::from_value(group.get(1).unwrap()),
+                        mysql::from_value(group.get(2).unwrap()),
+                    ),
+                };
+                drop(group_res);
+                drop(db);
 
                 // check if we're admin
-                if *name == *group.admin.discard_box() { return true; }
+                if name == &group_admin {
+                    return true;
+                }
     
                 // check if the user has a code that match the group's
-                let mut bg = db.lock().unwrap();
-                let codes_res = (*bg).handle.prep_exec_iter(
-                    "SELECT * FROM users_group WHERE user_name = ? AND access_code = ?", 
-                    vec![&name, &group.access_code.discard_box()],
-                    YouChatContext::empty()
-                ).unwrap(); 
+                let mut db = context.db.lock().unwrap();
+                let mut codes_res = db.exec_iter(
+                    "SELECT * FROM users_group WHERE user_name = ? AND access_code = ?",
+                    (name.clone(), group_code),
+                ).unwrap();
 
-                // if so, hooray!
-                if codes_res.count() > 0 { return true; }
+                return codes_res.next().is_some();
             }
-
         }
         // otherwise, we shouldn't be able to see the chat
         false
