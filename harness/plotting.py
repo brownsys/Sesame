@@ -104,7 +104,7 @@ def PlotMergedPercentiles(baseline, alohomora):
     ax1.xaxis.set_ticks_position('none')
     ax2.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
 
-    plt.xlabel("Websubmit Comparison")
+    # plt.xlabel("Websubmit Comparison")
     plt.ylabel("Latency [ms]")
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
@@ -124,9 +124,9 @@ def PlotMergedPercentilesNoBreak(baseline, alohomora):
         plt.bar(X + 0.5 * W, a, W, label=label_alohomora,
                 color=SYSTEM_COLORS['Alohomora'], alpha=alpha)
 
-    plt.ylabel("Latency [ms]")
+    plt.ylabel("Latency [ms]", loc="center")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
-    plt.xlabel("Websubmit Comparison")
+    # plt.xlabel("Websubmit Comparison")
     plt.ylim(ymax=12)
     plt.legend(frameon=False, fontsize="7")
     plt.savefig("websubmit.pdf", format="pdf",
@@ -168,8 +168,8 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
     ax1.xaxis.set_ticks_position('none')
     ax2.set_xticks(X_F, FOLD_ENDPOINTS)
     
-    plt.xlabel("Fold Comparison")
-    plt.ylabel("Latency [ms]")
+    # plt.xlabel("Fold Comparison")
+    fig.text(0, 0.5, 'Latency [ms]', va='center', rotation='vertical')
 
     plt.savefig("fold.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
@@ -192,7 +192,7 @@ def PlotMeanAndStd(baseline, alohomora):
 
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
-    plt.xlabel("Websubmit Comparison")
+    # plt.xlabel("Websubmit Comparison")
     plt.ylim(ymax=20)
     plt.legend(frameon=False, loc='upper left')
     plt.savefig("websubmit-mean.pdf", format="pdf",
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     fold_naive = ParseFoldWebsubmitNaiveFiles('benches')
 
     # Plot output.
-    PlotMergedPercentiles(baseline, alohomora)
-    # PlotMergedPercentilesNoBreak(baseline, alohomora)
+    # PlotMergedPercentiles(baseline, alohomora)
+    PlotMergedPercentilesNoBreak(baseline, alohomora)
     # PlotMeanAndStd(baseline, alohomora)
     PlotFoldPercentiles(fold_baseline, fold_alohomora, fold_naive)
