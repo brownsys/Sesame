@@ -249,11 +249,6 @@ impl<P: Policy> BBox<String, P> {
         Ok(BBox::new(NaiveTime::parse_from_str(&t, fmt)?, p))
     }
 }
-impl <P: Policy> BBox<NaiveDateTime, P> {
-    pub fn into_string(self) -> BBox<String, P> {
-
-    }
-}
 
 // Unit tests.
 #[cfg(test)]
