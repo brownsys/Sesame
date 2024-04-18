@@ -318,7 +318,6 @@ dependencies = [
  "alohomora_build",
  "bench_lib",
  "chrono",
- "linfa-linear",
  "serde",
  "serde_json",
 ]
@@ -335,8 +334,6 @@ dependencies = [
  "linfa",
  "linfa-linear",
  "ndarray",
- "serde",
- "serde_json",
  "sha2 0.10.8",
 ]
 

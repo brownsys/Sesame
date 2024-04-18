@@ -12,8 +12,6 @@ linfa = "0.6.1"
 linfa-linear = "0.6.1"
 ndarray = "0.15.6"
 sha2 = "0.10.8"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 alohomora_derive = { path = "../../alohomora_derive" }
 alohomora_sandbox = { path = "../../alohomora_sandbox" }
 
@@ -27,8 +25,6 @@ path = "src/lib.rs"
 
 [package.metadata]
 sandboxes = [
-  "add_numbers",
-  "mult_numbers",
   "hash",
   "train"
 ]
