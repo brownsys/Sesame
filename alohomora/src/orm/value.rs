@@ -20,9 +20,9 @@ impl<T: Into<Value>, P: Policy> From<BBox<T, P>> for Value {
     }
 }
 
-impl<T: ValueType> ValueType for BBox<T, NoPolicy> {
+impl<T: ValueType, P: ORMPolicy> ValueType for BBox<T, P> {
     fn try_from(v: Value) -> Result<Self, ValueTypeErr> {
-        Ok(BBox::new(T::try_from(v)?, NoPolicy {}))
+        Ok(BBox::new(T::try_from(v)?, P::empty()))
     }
 
     fn type_name() -> String {
@@ -38,9 +38,9 @@ impl<T: ValueType> ValueType for BBox<T, NoPolicy> {
     }
 }
 
-impl<T: TryFromU64> TryFromU64 for BBox<T, NoPolicy> {
+impl<T: TryFromU64, P: ORMPolicy> TryFromU64 for BBox<T, P> {
     fn try_from_u64(n: u64) -> Result<Self, DbErr> {
-        Ok(BBox::new(T::try_from_u64(n)?, NoPolicy {}))
+        Ok(BBox::new(T::try_from_u64(n)?, P::empty()))
     }
 }
 

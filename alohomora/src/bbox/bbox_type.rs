@@ -17,6 +17,7 @@ use crate::fold::fold;
 
 // Privacy Container type.
 pin_project! {
+    #[derive(Debug, PartialEq)]
     pub struct BBox<T, P: Policy> {
         #[pin]
         t: T,
@@ -192,18 +193,6 @@ impl<T> BBox<T, NoPolicy> {
         self.t
     }
 }
-impl<T: Debug> Debug for BBox<T, NoPolicy> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Box(")?;
-        self.t.fmt(f)?;
-        f.write_char(')')
-    }
-}
-impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
-    fn eq(&self, other: &Self) -> bool {
-        self.t.eq(&other.t)
-    }
-}
 
 // Same but for RefPolicy<NoPolicy>
 impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
@@ -211,19 +200,6 @@ impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
         self.t
     }
 }
-impl<'a, T: Debug> Debug for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Box(")?;
-        self.t.fmt(f)?;
-        f.write_char(')')
-    }
-}
-impl<'a, T: PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
-    fn eq(&self, other: &Self) -> bool {
-        self.t.eq(&other.t)
-    }
-}
-
 impl<T, E, P: Policy> BBox<Result<T, E>, P> {
     pub fn transpose(self) -> Result<BBox<T, P>, E> {
         let (t, p) = self.consume();
@@ -247,6 +223,12 @@ impl<'a, T: Future, P: Policy + Clone> Future for BBox<T, P> {
             Poll::Pending => Poll::Pending,
             Poll::Ready(t) => Poll::Ready(BBox::new(t, this.p.clone())),
         }
+    }
+}
+
+impl<T: Default, P: Policy + Default> Default for BBox<T, P> {
+    fn default() -> Self {
+        BBox::new(T::default(), P::default())
     }
 }
 
