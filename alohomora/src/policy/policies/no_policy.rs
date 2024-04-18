@@ -2,7 +2,7 @@ use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
 
 // NoPolicy can be directly discarded.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NoPolicy {}
 impl NoPolicy {
     pub fn new () -> Self {
@@ -38,4 +38,10 @@ impl FrontendPolicy for NoPolicy {
         _name: &str,
         _cookie: &'a rocket::http::Cookie<'static>,
         _request: &'a rocket::Request<'r>) -> Self { Self {}}
+}
+
+impl Default for NoPolicy {
+    fn default() -> Self {
+        NoPolicy {}
+    }
 }
