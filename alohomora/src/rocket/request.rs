@@ -6,6 +6,8 @@ use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use std::option::Option;
 use std::result::Result;
+use rocket_firebase_auth::{BearerToken, FirebaseAuth, FirebaseToken};
+use std::convert::TryFrom;
 
 use crate::bbox::BBox;
 use crate::policy::{FrontendPolicy, Policy};
@@ -52,6 +54,18 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
 
     pub fn headers(&self) -> BBoxHeaderMap<'a, 'r> {
         BBoxHeaderMap::new(self.request, self.request.headers())
+    }
+
+    pub async fn firebase_token<P: FrontendPolicy>(&self, firebase_auth: &FirebaseAuth)
+    -> Option<BBox<FirebaseToken, P>> {
+        let header = self.request.headers().get_one("Authorization")?;
+        match BearerToken::try_from(header) {
+            Err(_) => None,
+            Ok(token) => match firebase_auth.verify(token.as_str()).await {
+                Err(_) => None,
+                Ok(token) => Some(BBox::new(token, P::from_request(self.request))),
+            },
+        }
     }
 
     // Use this to retrieve (boxed) guards, e.g. ApiKey struct with BBoxes inside.

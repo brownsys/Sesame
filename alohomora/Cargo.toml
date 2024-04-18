@@ -19,6 +19,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main", features= ["json"] }
 rocket_cors = { git = "https://github.com/KinanBab/rocket_cors.git", branch = "main" }
+rocket_firebase_auth = { git = "https://github.com/22ridley/rocket-firebase-auth.git" }
 figment = "0.10.6"
 lazy_static = "1.4.0"
 erased-serde = "0.3.25"
