@@ -28,7 +28,7 @@ pub fn hash(inputs: (String, String, i64)) -> (i64, String, i64) {
 
 #[AlohomoraSandbox()]
 pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, i64)) -> (i64, FittedLinearRegression<f64>, i64) {
-  println!("reached");
+  // println!("reached");
   // END TIMER (start in bin)
   let now = Utc::now().timestamp_nanos_opt().unwrap();
   let setup = now - inputs.1;
