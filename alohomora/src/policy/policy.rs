@@ -40,7 +40,7 @@ impl<'i> Clone for Reason<'i> {
 }
 
 // Public facing Policy traits.
-pub trait Policy {
+pub trait Policy : Send + Sync {
     fn name(&self) -> String;
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
     // TODO(babman): Stream line join, find way to make join combine inside AndPolicy instead of stacking!
