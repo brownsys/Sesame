@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::task::Poll;
 
 use either::Either;
+use mysql::chrono;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason, CloneableAny};
@@ -229,6 +230,28 @@ impl<'a, T: Future, P: Policy + Clone> Future for BBox<T, P> {
 impl<T: Default, P: Policy + Default> Default for BBox<T, P> {
     fn default() -> Self {
         BBox::new(T::default(), P::default())
+    }
+}
+
+// For datetime.
+use chrono::{NaiveDateTime, NaiveDate, NaiveTime, ParseResult};
+impl<P: Policy> BBox<String, P> {
+    pub fn into_date_time(self, fmt: &str) -> ParseResult<BBox<NaiveDateTime, P>> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(NaiveDateTime::parse_from_str(&t, fmt)?, p))
+    }
+    pub fn into_date(self, fmt: &str) -> ParseResult<BBox<NaiveDate, P>> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(NaiveDate::parse_from_str(&t, fmt)?, p))
+    }
+    pub fn into_time(self, fmt: &str) -> ParseResult<BBox<NaiveTime, P>> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(NaiveTime::parse_from_str(&t, fmt)?, p))
+    }
+}
+impl <P: Policy> BBox<NaiveDateTime, P> {
+    pub fn into_string(self) -> BBox<String, P> {
+
     }
 }
 

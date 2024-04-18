@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
+use std::fmt::{Debug, Formatter};
 use crate::context::UnprotectedContext;
-use crate::policy::{Policy, Reason};
+use crate::policy::{NoPolicy, Policy, Reason};
 
 // Any (owned) Policy.
 trait TypeIdPolicyTrait: Policy + Any {
@@ -70,5 +71,16 @@ impl Clone for AnyPolicy {
         Self {
             policy: self.policy.clone()
         }
+    }
+}
+impl Debug for AnyPolicy {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.name())
+    }
+}
+
+impl PartialEq for AnyPolicy {
+    fn eq(&self, other: &Self) -> bool {
+        true
     }
 }
