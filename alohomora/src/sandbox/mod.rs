@@ -6,14 +6,14 @@ use crate::fold::fold;
 use crate::policy::AnyPolicy;
 
 // Expose alohomora_sandbox API that controls the interface outside sandbox.
-pub use alohomora_sandbox::{AlohomoraSandbox};
+pub use alohomora_sandbox::{AlohomoraSandbox, FinalSandboxOut};
 
 #[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::{AlohomoraSandbox};
+pub use alohomora_derive::AlohomoraSandbox;
 
 
 // Main function for executing sandboxes over BBoxed data.
-pub fn execute_sandbox<'a, 'b, S, T, R>(t: T) -> BBox<R, AnyPolicy>
+pub fn execute_sandbox<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
     where
         T: AlohomoraType,
         T::Out: Serialize + Deserialize<'a>,

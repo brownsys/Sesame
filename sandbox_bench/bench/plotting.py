@@ -59,15 +59,31 @@ def PlotBenchmarks(data):
     x = []
     y1 = []
     y2 = []
+    y3 = []
+    y4 = []
+    y5 = []
+    # y6 = []
     for (endpoint, times) in data:
         x.append(endpoint)
-        y1.append(times[0])
-        y2.append(times[1])
-    plt.bar(x, y1, color='r')
-    plt.bar(x, y2, bottom=y1, color='b')
+        y1.append(times[1])
+        y2.append(times[2])
+        y3.append(times[3])
+        y4.append(times[4])
+        y5.append(times[5])
+        # y6.append(times[5])
+    y1 = np.array(y1)
+    y2 = np.array(y2)
+    y3 = np.array(y3)
+    y4 = np.array(y4)
+    y5 = np.array(y5)
+    plt.bar(x, y1)
+    plt.bar(x, y2, bottom=y1)
+    plt.bar(x, y3, bottom=y1+y2)
+    plt.bar(x, y4, bottom=y1+y2+y3)
+    plt.bar(x, y5, bottom=y1+y2+y3+y4)
     plt.xlabel('Endpoints')
     plt.ylabel('Time (ns)')
-    plt.legend(["Construction", "Teardown"])
+    plt.legend(["Serialize", "Setup", "Function", "Teardown", "Deserialize"])
     plt.title("Sandbox Drill Down")
     plt.savefig("benchmarks.png", bbox_inches="tight", pad_inches=0.01)
 
@@ -76,6 +92,6 @@ def PlotBenchmarks(data):
 if __name__ == "__main__":
     InitializeMatplotLib()
 
-    benches = ParseWebsubmitFiles("benches")
+    benches = ParseWebsubmitFiles("results")
     avgs = CalcAvgs(benches)
     PlotBenchmarks(avgs)

@@ -11,9 +11,9 @@ use sha2::{Digest, Sha256};
 
 // Sandbox functions.
 #[AlohomoraSandbox()]
-pub fn hash(inputs: (String, String, i64)) -> (i64, String, i64) {
+pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
   // END TIMER (start in bin)
-  let now = Utc::now().timestamp_nanos_opt().unwrap();
+  let now = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   let setup = now - inputs.2;
 
   let mut hasher = Sha256::new();
@@ -22,15 +22,14 @@ pub fn hash(inputs: (String, String, i64)) -> (i64, String, i64) {
   let key = format!("{:x}", hasher.finalize());
 
   // START TIMER (end in bin)
-  let now = Utc::now().timestamp_nanos_opt().unwrap();
+  let now = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   (setup, key, now)
 }
 
 #[AlohomoraSandbox()]
-pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, i64)) -> (i64, FittedLinearRegression<f64>, i64) {
-  // println!("reached");
+pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
   // END TIMER (start in bin)
-  let now = Utc::now().timestamp_nanos_opt().unwrap();
+  let now = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   let setup = now - inputs.1;
 
   let grades = inputs.0;
@@ -52,6 +51,6 @@ pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, i64)) -> (i64, FittedLinearRegr
   let model = lin_reg.fit(&dataset).unwrap();
 
   // START TIMER (end in bin)
-  let now = Utc::now().timestamp_nanos_opt().unwrap();
+  let now = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   (setup, model, now)
 }

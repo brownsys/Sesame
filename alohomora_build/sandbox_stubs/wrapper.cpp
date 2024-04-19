@@ -15,6 +15,7 @@
 #include <cassert>
 #include <string>
 #include <memory>
+#include <chrono>
 
 #include "{name}.wasm.h"
 
@@ -45,13 +46,16 @@ void {sandbox}_sandbox_free(char*);     // Frees allocated data (inside sandbox)
 
 using namespace std;
 using namespace rlbox;
+using namespace std::chrono;
 
 // Define base type for {name}
 RLBOX_DEFINE_BASE_TYPES_FOR({name}, wasm2c);
 
 {{ for sandbox in sandboxes }}
-char* invoke_sandbox_{sandbox}_c(const char* arg) \{
+sandbox_out invoke_sandbox_{sandbox}_c(const char* arg) \{
   // Declare and create a new sandbox
+  // WANT TO TIME CREATION + MEM MALLOC, START TIMER HERE 
+  auto start = high_resolution_clock::now();
   rlbox_sandbox_{name} sandbox;
   sandbox.create_sandbox();
 
@@ -60,9 +64,16 @@ char* invoke_sandbox_{sandbox}_c(const char* arg) \{
   tainted_{name}<char*> tainted_arg = sandbox.malloc_in_sandbox<char>(size);
   strncpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
 
+  // END TIMER HERE
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<nanoseconds>(stop - start);
+  unsigned long long setup = duration.count();
+
   // Invoke sandbox.
   tainted_{name}<char*> tainted_result = sandbox.invoke_sandbox_function({sandbox}_sandbox, tainted_arg);
+  //START TIMER HERE FOR TEARDOWN
   char* buffer = tainted_result.INTERNAL_unverified_safe();
+  start = high_resolution_clock::now();
 
   // Copy output to our memory.
   size = strlen(buffer) + 1;
@@ -73,8 +84,12 @@ char* invoke_sandbox_{sandbox}_c(const char* arg) \{
   sandbox.invoke_sandbox_function({sandbox}_sandbox_free, tainted_result);
   sandbox.free_in_sandbox(tainted_arg);
   sandbox.destroy_sandbox();
+  // END TIMER HERE FOR TEARDOWN
+  stop = high_resolution_clock::now();
+  duration = duration_cast<nanoseconds>(stop - start);
+  unsigned long long teardown = duration.count();
 
-  return result;
+  return sandbox_out \{ result, setup, teardown };
 }
 
 {{ endfor }}
