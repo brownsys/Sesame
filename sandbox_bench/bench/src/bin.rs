@@ -13,11 +13,23 @@ use bench_lib::{hash, train};
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
 use linfa_linear::FittedLinearRegression;
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
 
 fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   (1..iters + 1).map(|_i| {
-    let email = BBox::new("allen_aby@brown.edu".to_string(), NoPolicy {});
-    let secret = BBox::new("SECRET".to_string(), NoPolicy {});
+    let email: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect();
+    let email = BBox::new(email, NoPolicy {});
+    let secret: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(15)
+        .map(char::from)
+        .collect();
+    let secret = BBox::new(secret, NoPolicy {});
 
     // START TIMER (end inside hash)
     let now = Utc::now();
@@ -49,10 +61,16 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   type BBoxGrade = BBox<u64, NoPolicy>;
 
   (1..iters + 1).map(|_i| {
-    let grades: Vec<(BBoxTime, BBoxGrade)> = vec![
-      (BBox::new(NaiveDateTime::parse_from_str("2023-03-13 13:40:26", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy {}), BBox::new(90 as u64, NoPolicy {})),
-      (BBox::new(NaiveDateTime::parse_from_str("2023-03-09 13:54:05", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy {}), BBox::new(95 as u64, NoPolicy {})),
-    ];
+    let num_grades = 5000;
+    let mut rng = rand::thread_rng();
+    let grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
+      let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
+      let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
+      let submitted_at = BBox::new(submitted_at, NoPolicy {});
+      let grade: u64 = rng.gen_range(0..=100);
+      let grade = BBox::new(grade, NoPolicy {});
+      (submitted_at, grade)
+    }).collect();
 
     // START TIMER (end inside train)
     let now = Utc::now();
@@ -75,11 +93,6 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let total = end - now;
     let function = total - output.0 - (end - output.2);
     (total, serialize, setup, function, teardown, deserialize)
-    // let time = NaiveDateTime::parse_from_str("2023-03-13 13:40:50", "%Y-%m-%d %H:%M:%S");
-    // let grade = model.into_ppr(PrivacyPureRegion::new(|model: FittedLinearRegression<f64>|
-    //   model.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + model.intercept()
-    // ));
-    // let grade = grade.specialize_policy::<NoPolicy>().unwrap();
   }).collect()
 }
 
@@ -94,8 +107,25 @@ fn write_stats(name: String, data: Vec<(u64, u64, u64, u64, u64, u64)>) {
 
 fn main() {
   let hash_res = hash_bench(100);
+  let hash_res = hash_res[10..].to_vec();
   write_stats("hash".to_string(), hash_res);
 
   let train_res = train_bench(100);
+  let train_res = train_res[10..].to_vec();
   write_stats("train".to_string(), train_res);
+  /*
+  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
+  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
+
+  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
+  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
+
+
+  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
+  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
+
+
+  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
+  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
+  */
 }

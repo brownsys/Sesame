@@ -45,14 +45,14 @@ def ParseWebsubmitFiles(dir):
 
 
 def CalcAvgs(data):
-    avgs = []
+    marks = ["Total", "Serialize", "Setup", "Function", "Teardown", "Deserialize"]
     for (endpoint, bench) in data.items():
+        print("Endpoint: ", endpoint)
         times = np.array(bench)
         times = np.mean(times, axis=0)
-        print(times)
-        avgs.append((endpoint, times))
-
-    return avgs
+        times = times / 1000
+        for _ in range(len(times)):
+            print(marks[_], " ", times[_])
 
 
 def PlotBenchmarks(data):
@@ -76,15 +76,14 @@ def PlotBenchmarks(data):
     y3 = np.array(y3)
     y4 = np.array(y4)
     y5 = np.array(y5)
-    plt.bar(x, y1)
-    plt.bar(x, y2, bottom=y1)
+    plt.bar(x, y2)
+    plt.bar(x, y1, bottom=y2)
     plt.bar(x, y3, bottom=y1+y2)
     plt.bar(x, y4, bottom=y1+y2+y3)
     plt.bar(x, y5, bottom=y1+y2+y3+y4)
     plt.xlabel('Endpoints')
     plt.ylabel('Time (ns)')
-    plt.legend(["Serialize", "Setup", "Function", "Teardown", "Deserialize"])
-    plt.title("Sandbox Drill Down")
+    plt.legend(["Setup", "Serialize", "Function", "Teardown", "Deserialize"])
     plt.savefig("benchmarks.png", bbox_inches="tight", pad_inches=0.01)
 
 
@@ -93,5 +92,5 @@ if __name__ == "__main__":
     InitializeMatplotLib()
 
     benches = ParseWebsubmitFiles("results")
-    avgs = CalcAvgs(benches)
-    PlotBenchmarks(avgs)
+    CalcAvgs(benches)
+    # PlotBenchmarks(avgs)

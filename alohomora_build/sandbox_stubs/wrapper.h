@@ -3,14 +3,21 @@ extern "C" \{
 #endif
 
 void invoke_free_c(char*);
+
+struct __attribute__ ((packed)) SizedSliceC \{
+  unsigned char *result;
+  unsigned int size;
+};
+
 struct sandbox_out \{ 
     char* result; 
+    unsigned size;
     unsigned long long setup; 
     unsigned long long teardown; 
 };
 
 {{- for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(const char* arg);
+sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size);
 {{- endfor }}
 
 #ifdef __cplusplus
