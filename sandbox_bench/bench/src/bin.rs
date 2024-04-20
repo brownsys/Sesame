@@ -2,7 +2,7 @@ extern crate alohomora;
 extern crate bench_lib;
 
 use std::fs;
-use std::vec;
+// use std::vec;
 
 use alohomora::bbox::BBox;
 use alohomora::policy::NoPolicy;
@@ -16,83 +16,166 @@ use linfa_linear::FittedLinearRegression;
 use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
 
-fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
+// fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
+//   (1..iters + 1).map(|_i| {
+//     let email: String = thread_rng()
+//         .sample_iter(&Alphanumeric)
+//         .take(30)
+//         .map(char::from)
+//         .collect();
+//     let email = BBox::new(email, NoPolicy {});
+//     let secret: String = thread_rng()
+//         .sample_iter(&Alphanumeric)
+//         .take(15)
+//         .map(char::from)
+//         .collect();
+//     let secret = BBox::new(secret, NoPolicy {});
+
+//     // START TIMER (end inside hash)
+//     let now = Utc::now();
+//     let now = now.timestamp_nanos_opt().unwrap() as u64;
+
+//     type Out = FinalSandboxOut<(u64, String, u64)>;
+//     let output = execute_sandbox::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {}))); // TODO (allenaby) why does this work if now doesn't have bbox, because impl Alohomora type for u64?
+    
+//     // END TIMER (start inside hash)
+//     let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+
+//     let output = output.specialize_policy::<NoPolicy>().unwrap();
+//     let output: Out = output.discard_box();
+//     let setup = output.setup;
+//     let teardown = output.teardown;
+//     let output = output.result;
+
+
+//     let serialize = output.0 - setup;
+//     let deserialize = (end - output.2) - teardown;
+//     let total = end - now;
+//     let function = total - output.0 - (end - output.2);
+//     (total, serialize, setup, function, teardown, deserialize)
+//   }).collect()
+// }
+
+fn hash_baseline_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   (1..iters + 1).map(|_i| {
     let email: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30)
         .map(char::from)
         .collect();
-    let email = BBox::new(email, NoPolicy {});
+    // let email = BBox::new(email, NoPolicy {});
     let secret: String = thread_rng()
         .sample_iter(&Alphanumeric)
         .take(15)
         .map(char::from)
         .collect();
-    let secret = BBox::new(secret, NoPolicy {});
+    // let secret = BBox::new(secret, NoPolicy {});
 
-    // START TIMER (end inside hash)
-    let now = Utc::now();
-    let now = now.timestamp_nanos_opt().unwrap() as u64;
+    // // START TIMER (end inside hash)
+    // let now = Utc::now();
+    // let now = now.timestamp_nanos_opt().unwrap() as u64;
 
-    type Out = FinalSandboxOut<(u64, String, u64)>;
-    let output = execute_sandbox::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {}))); // TODO (allenaby) why does this work if now doesn't have bbox, because impl Alohomora type for u64?
+    let output = bench_lib::hash((email, secret, 0));
+
+    // type Out = FinalSandboxOut<(u64, String, u64)>;
+    // let output = execute_sandbox::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {}))); // TODO (allenaby) why does this work if now doesn't have bbox, because impl Alohomora type for u64?
     
-    // END TIMER (start inside hash)
-    let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    // // END TIMER (start inside hash)
+    // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
 
-    let output = output.specialize_policy::<NoPolicy>().unwrap();
-    let output: Out = output.discard_box();
-    let setup = output.setup;
-    let teardown = output.teardown;
-    let output = output.result;
+    // let output = output.specialize_policy::<NoPolicy>().unwrap();
+    // let output: Out = output.discard_box();
+    // let setup = output.setup;
+    // let teardown = output.teardown;
+    // let output = output.result;
 
 
-    let serialize = output.0 - setup;
-    let deserialize = (end - output.2) - teardown;
-    let total = end - now;
-    let function = total - output.0 - (end - output.2);
-    (total, serialize, setup, function, teardown, deserialize)
+    // let serialize = output.0 - setup;
+    // let deserialize = (end - output.2) - teardown;
+    // let total = end - now;
+    // let function = total - output.0 - (end - output.2);
+    (output.0, 0u64, 0u64, 0u64, 0u64, 0u64)
   }).collect()
 }
 
-fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
-  type BBoxTime = BBox<NaiveDateTime, NoPolicy>;
-  type BBoxGrade = BBox<u64, NoPolicy>;
+// fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
+//   type BBoxTime = BBox<NaiveDateTime, NoPolicy>;
+//   type BBoxGrade = BBox<u64, NoPolicy>;
+
+//   (1..iters + 1).map(|_i| {
+//     let num_grades = 5000;
+//     let mut rng = rand::thread_rng();
+//     let grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
+//       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
+//       let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
+//       let submitted_at = BBox::new(submitted_at, NoPolicy {});
+//       let grade: u64 = rng.gen_range(0..=100);
+//       let grade = BBox::new(grade, NoPolicy {});
+//       (submitted_at, grade)
+//     }).collect();
+
+//     // START TIMER (end inside train)
+//     let now = Utc::now();
+//     let now = now.timestamp_nanos_opt().unwrap() as u64;
+
+//     type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
+//     let output = execute_sandbox::<train, _, _>((grades, BBox::new(now, NoPolicy {})));
+
+//     // END TIMER (start inside hash)
+//     let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+
+//     let output = output.specialize_policy::<NoPolicy>().unwrap();
+//     let output: Out = output.discard_box();
+//     let setup = output.setup;
+//     let teardown = output.teardown;
+//     let output = output.result;
+
+//     let serialize = output.0 - setup;
+//     let deserialize = (end - output.2) - teardown;
+//     let total = end - now;
+//     let function = total - output.0 - (end - output.2);
+//     (total, serialize, setup, function, teardown, deserialize)
+//   }).collect()
+// }
+
+fn train_baseline_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
+  // type BBoxTime = BBox<NaiveDateTime, NoPolicy>;
+  // type BBoxGrade = BBox<u64, NoPolicy>;
 
   (1..iters + 1).map(|_i| {
     let num_grades = 5000;
     let mut rng = rand::thread_rng();
-    let grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
+    let grades: Vec<(NaiveDateTime, u64)> = (1..num_grades + 1).map(|_j| {
       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
       let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
-      let submitted_at = BBox::new(submitted_at, NoPolicy {});
+      // let submitted_at = BBox::new(submitted_at, NoPolicy {});
       let grade: u64 = rng.gen_range(0..=100);
-      let grade = BBox::new(grade, NoPolicy {});
+      // let grade = BBox::new(grade, NoPolicy {});
       (submitted_at, grade)
     }).collect();
 
-    // START TIMER (end inside train)
-    let now = Utc::now();
-    let now = now.timestamp_nanos_opt().unwrap() as u64;
+    // // START TIMER (end inside train)
+    // let now = Utc::now();
+    // let now = now.timestamp_nanos_opt().unwrap() as u64;
 
-    type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
-    let output = execute_sandbox::<train, _, _>((grades, BBox::new(now, NoPolicy {})));
+    // type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
+    // let output = execute_sandbox::<train, _, _>((grades, BBox::new(now, NoPolicy {})));
+    let output = bench_lib::train((grades, 0));
 
-    // END TIMER (start inside hash)
-    let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    // // END TIMER (start inside hash)
+    // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
 
-    let output = output.specialize_policy::<NoPolicy>().unwrap();
-    let output: Out = output.discard_box();
-    let setup = output.setup;
-    let teardown = output.teardown;
-    let output = output.result;
+    // let output = output.specialize_policy::<NoPolicy>().unwrap();
+    // let output: Out = output.discard_box();
+    // let setup = output.setup;
+    // let teardown = output.teardown;
+    // let output = output.result;
 
-    let serialize = output.0 - setup;
-    let deserialize = (end - output.2) - teardown;
-    let total = end - now;
-    let function = total - output.0 - (end - output.2);
-    (total, serialize, setup, function, teardown, deserialize)
+    // let serialize = output.0 - setup;
+    // let deserialize = (end - output.2) - teardown;
+    // let total = end - now;
+    // let function = total - output.0 - (end - output.2);
+    (output.0, 0u64, 0u64, 0u64, 0u64, 0u64)
   }).collect()
 }
 
@@ -106,13 +189,23 @@ fn write_stats(name: String, data: Vec<(u64, u64, u64, u64, u64, u64)>) {
 }
 
 fn main() {
-  let hash_res = hash_bench(100);
-  let hash_res = hash_res[10..].to_vec();
-  write_stats("hash".to_string(), hash_res);
+  
+  // let hash_res = hash_bench(100);
+  // let hash_res = hash_res[10..].to_vec();
+  // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(100);
-  let train_res = train_res[10..].to_vec();
-  write_stats("train".to_string(), train_res);
+  // let train_res = train_bench(100);
+  // let train_res = train_res[10..].to_vec();
+  // write_stats("train".to_string(), train_res);
+
+  let hash_baseline_res = hash_baseline_bench(100);
+  let hash_baseline_res = hash_baseline_res[10..].to_vec();
+  write_stats("hash_baseline".to_string(), hash_baseline_res);
+
+  let train_baseline_res = train_baseline_bench(100);
+  let train_baseline_res = train_baseline_res[10..].to_vec();
+  write_stats("train_baseline".to_string(), train_baseline_res);
+
   /*
   let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
   println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
@@ -128,4 +221,11 @@ fn main() {
   let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
   println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
   */
+  // let y = 3;
+  // let password = b"Hello world!";
+  // let password = Vec::from(password);
+  // let password = BBox::new(password, NoPolicy {});
+  // let bbox = execute_sandbox::<gen_pub_key, _, _>(password);
+  // let bbox = bbox.specialize_policy::<NoPolicy>().unwrap();
+  // println!("{:#?}", bbox.discard_box().result);
 }

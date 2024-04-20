@@ -30,6 +30,8 @@ PLOT_LABELS = {
 ENDPOINTS = [
     "hash",
     "train",
+    "hash_baseline",
+    "train_baseline",
 ]
 
 
