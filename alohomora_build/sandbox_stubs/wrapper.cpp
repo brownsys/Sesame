@@ -64,7 +64,7 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
   // Declare and create a new sandbox
   // WANT TO TIME CREATION + MEM MALLOC, START TIMER HERE 
   auto start = high_resolution_clock::now();
-  rlbox_sandbox_{name} sandbox;
+  rlbox_sandbox_{name} sandbox; // TODO: problem
   sandbox.create_sandbox();
 
   // Copy param into sandbox.

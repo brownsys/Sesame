@@ -8,11 +8,11 @@ use alohomora::policy::NoPolicy;
 use alohomora::sandbox::execute_sandbox;
 use alohomora::pure::PrivacyPureRegion;
 
-use myapp_lib::{add_numbers, Numbers};
+use myapp_lib::{add_numbers, Numbers, div_numbers};
 
 fn main() {
-  let bbox = BBox::new(Numbers { a: 4, b: 15 }, NoPolicy {});
-  let bbox = execute_sandbox::<add_numbers, _, _>(bbox);
+  let bbox = BBox::new(Numbers { a: 20, b: 4 }, NoPolicy {});
+  let bbox = execute_sandbox::<div_numbers, _, _>(bbox);
   let bbox = bbox.specialize_policy::<NoPolicy>().unwrap();
   println!("{}", bbox.discard_box());
 

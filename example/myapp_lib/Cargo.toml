@@ -24,4 +24,5 @@ path = "src/lib.rs"
 sandboxes = [
   "add_numbers",
   "mult_numbers",
+  "div_numbers"
 ]

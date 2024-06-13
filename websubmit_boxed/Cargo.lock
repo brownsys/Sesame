@@ -92,6 +92,7 @@ dependencies = [
 name = "alohomora_sandbox"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "cargo_toml",
  "serde",
  "serde_json",
