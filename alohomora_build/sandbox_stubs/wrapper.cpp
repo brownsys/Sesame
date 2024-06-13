@@ -53,23 +53,23 @@ RLBOX_DEFINE_BASE_TYPES_FOR({name}, wasm2c);
 
 // std::unique_ptr<rlbox_sandbox_{name}> sandbox = nullptr;
 
-// void zero_memory() \{
-//   void *heap = sandbox->get_memory_location();
-//   uint64_t size = sandbox->get_total_memory();
-//   memset(heap, 0, size);
-// }
+// Declare global sandbox.
+rlbox_sandbox_{name} sandbox;
+bool sandbox_initialized = false;
 
 {{ for sandbox in sandboxes }}
 sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
-  // Declare and create a new sandbox.
+  
+  // Initialize the sandbox if it hasn't been already.
   auto start = high_resolution_clock::now();
-  rlbox_sandbox_{name} sandbox; // TODO: problem
-  sandbox.create_sandbox();
+
+  if (!sandbox_initialized) \{
+      sandbox.create_sandbox();
+      sandbox_initialized = true;
+  }
 
   // Copy param into sandbox.
-
   tainted_{name}<char*> tainted_arg = sandbox.malloc_in_sandbox<char>(size);
-  // strncpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
   memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
 
   // END SETUP TIMER HERE
@@ -92,7 +92,8 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
 
   // Destroy sandbox.
   sandbox.free_in_sandbox(tainted_arg);
-  sandbox.destroy_sandbox();
+  sandbox.reset_sandbox();
+  // sandbox.destroy_sandbox();
 
   // END TEARDOWN TIMER HERE
   stop = high_resolution_clock::now();
