@@ -51,9 +51,9 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
                     // then switch to using my rebuilding method
                     // make sure this doesn't leak anything
                     // make sure printing doesnt work anymore
-                    .expect("\x1b[91merror: \x1b[97mFailed to pull 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
+                    .expect("\x1b[91merror: \x1b[97mFailed to pull 'https://github.com/AlexanderPortland/rlbox_wasm2c_sandbox.git'.\x1b[0m");
                 if !status.success() {
-                    panic!("\x1b[91merror: \x1b[97mFailed to pull 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
+                    panic!("\x1b[91merror: \x1b[97mFailed to pull 'https://github.com/AlexanderPortland/rlbox_wasm2c_sandbox.git'.\x1b[0m");
                 }
             } else {
                 panic!("\x1b[91merror: rlbox_wasm2c_sandbox directory is a file {}'.\x1b[0m", rlbox_wasm2c_sandbox_path);
@@ -64,12 +64,12 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
             // Clone.
             let status = Command::new("git")
                 .arg("clone")
-                .arg("https://github.com/AllenAby/rlbox_wasm2c_sandbox.git")
+                .arg("https://github.com/AlexanderPortland/rlbox_wasm2c_sandbox.git")
                 .arg(&rlbox_wasm2c_sandbox_path)
                 .status()
-                .expect("\x1b[91merror: \x1b[97mFailed to fetch 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
+                .expect("\x1b[91merror: \x1b[97mFailed to fetch 'https://github.com/AlexanderPortland/rlbox_wasm2c_sandbox.git'.\x1b[0m");
             if !status.success() {
-                panic!("\x1b[91merror: \x1b[97mFailed to fetch 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
+                panic!("\x1b[91merror: \x1b[97mFailed to fetch 'https://github.com/AlexanderPortland/rlbox_wasm2c_sandbox.git'.\x1b[0m");
             }
 
             // Configure CMake (Once).

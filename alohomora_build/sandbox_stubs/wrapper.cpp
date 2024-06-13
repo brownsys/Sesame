@@ -61,38 +61,40 @@ RLBOX_DEFINE_BASE_TYPES_FOR({name}, wasm2c);
 
 {{ for sandbox in sandboxes }}
 sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
-  // Declare and create a new sandbox
-  // WANT TO TIME CREATION + MEM MALLOC, START TIMER HERE 
+  // Declare and create a new sandbox.
   auto start = high_resolution_clock::now();
   rlbox_sandbox_{name} sandbox; // TODO: problem
   sandbox.create_sandbox();
 
   // Copy param into sandbox.
-  // size_t size = strlen(arg) + 1;
+
   tainted_{name}<char*> tainted_arg = sandbox.malloc_in_sandbox<char>(size);
   // strncpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
   memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
 
-  // END TIMER HERE
+  // END SETUP TIMER HERE
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<nanoseconds>(stop - start);
   unsigned long long setup = duration.count();
 
   // Invoke sandbox.
   tainted_{name}<char *> tainted_result = sandbox.invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
-  //START TIMER HERE FOR TEARDOWN
+
+
+  // START TEARDOWN TIMER HERE
   char* buffer = tainted_result.INTERNAL_unverified_safe();
   uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
   start = high_resolution_clock::now();
+
   // Copy output to our memory.
   char* result = (char*) malloc(size2);
-  // strncpy(result, buffer, size);
   memcpy(result, buffer + 2, size2);
-  // destroy sandbox
-  // sandbox.invoke_sandbox_function({sandbox}_sandbox_free, tainted_result);
+
+  // Destroy sandbox.
   sandbox.free_in_sandbox(tainted_arg);
   sandbox.destroy_sandbox();
-  // END TIMER HERE FOR TEARDOWN
+
+  // END TEARDOWN TIMER HERE
   stop = high_resolution_clock::now();
   duration = duration_cast<nanoseconds>(stop - start);
   unsigned long long teardown = duration.count();
