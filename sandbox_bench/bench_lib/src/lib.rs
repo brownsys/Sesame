@@ -10,6 +10,7 @@ use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
+use alohomora_derive::AlohomoraSandbox;
 // use std::str::FromStr;
 use std::time::{Duration, Instant};
 
@@ -28,7 +29,7 @@ use std::iter;
 // }
 
 // Sandbox functions.
-// #[AlohomoraSandbox()]
+#[AlohomoraSandbox()]
 pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
@@ -38,14 +39,17 @@ pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
   let mut hasher = Sha256::new();
   hasher.update(&inputs.0);
   hasher.update(&inputs.1);
-  let key = format!("{:x}", hasher.finalize());
+  let key = format!("{:x}", hasher.clone().finalize());
+
+  // println!("im in the sandbox");
+  // println!("your hash is {:x}", hasher.finalize());
 
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   (now.elapsed().as_nanos() as u64, key, 0)
 }
 
-// #[AlohomoraSandbox()]
+#[AlohomoraSandbox()]
 pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;

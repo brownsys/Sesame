@@ -92,6 +92,7 @@ dependencies = [
 name = "alohomora_sandbox"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "cargo_toml",
  "serde",
  "serde_json",
@@ -318,6 +319,8 @@ dependencies = [
  "alohomora_build",
  "bench_lib",
  "chrono",
+ "linfa-linear",
+ "rand 0.8.5",
  "serde",
  "serde_json",
 ]
