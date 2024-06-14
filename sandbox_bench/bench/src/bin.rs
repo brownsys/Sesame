@@ -1,7 +1,7 @@
 extern crate alohomora;
 extern crate bench_lib;
 
-use std::fs;
+use std::{fs, thread};
 // use std::vec;
 
 use alohomora::bbox::BBox;
@@ -193,23 +193,47 @@ fn write_stats(name: String, data: Vec<(u64, u64, u64, u64, u64, u64)>) {
   .unwrap();
 }
 
+use std::process;
+
 fn main() {
-  
-  let hash_res = hash_bench(100);
-  let hash_res = hash_res[10..].to_vec();
-  write_stats("hash".to_string(), hash_res);
+  // BENCHMARKING
+  // let hash_res = hash_bench(100);
+  // let hash_res = hash_res[10..].to_vec();
+  // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(100);
-  let train_res = train_res[10..].to_vec();
-  write_stats("train".to_string(), train_res);
+  // let train_res = train_bench(100);
+  // let train_res = train_res[10..].to_vec();
+  // write_stats("train".to_string(), train_res);
 
-  let hash_baseline_res = hash_baseline_bench(100);
-  let hash_baseline_res = hash_baseline_res[10..].to_vec();
-  write_stats("hash_baseline".to_string(), hash_baseline_res);
+  // let hash_baseline_res = hash_baseline_bench(100);
+  // let hash_baseline_res = hash_baseline_res[10..].to_vec();
+  // write_stats("hash_baseline".to_string(), hash_baseline_res);
 
-  let train_baseline_res = train_baseline_bench(100);
-  let train_baseline_res = train_baseline_res[10..].to_vec();
-  write_stats("train_baseline".to_string(), train_baseline_res);
+  // let train_baseline_res = train_baseline_bench(100);
+  // let train_baseline_res = train_baseline_res[10..].to_vec();
+  // write_stats("train_baseline".to_string(), train_baseline_res);
+
+  // SANDBOX POOL TESTING
+
+  let NUM_THREADS = 4;
+  let mut threads = vec![];
+
+  // spawn all the testing threads
+  for i in 0..NUM_THREADS {
+      println!("spawning thread {i}");
+      let t = thread::spawn(||{
+        println!("hello from thread {:?}", thread::current().id());
+        let hash_res = hash_bench(2);
+      });
+      threads.push(t);
+  }
+
+  // join all the testing threads
+  while threads.len() > 0 {
+    let t = threads.remove(0);
+    t.join().unwrap();
+  }
+
 
   /*
   let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
