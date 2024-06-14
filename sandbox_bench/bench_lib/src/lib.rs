@@ -39,7 +39,10 @@ pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
   let mut hasher = Sha256::new();
   hasher.update(&inputs.0);
   hasher.update(&inputs.1);
-  let key = format!("{:x}", hasher.finalize());
+  let key = format!("{:x}", hasher.clone().finalize());
+
+  println!("im in the sandbox");
+  println!("your dumbass hash is {:x}", hasher.finalize());
 
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;

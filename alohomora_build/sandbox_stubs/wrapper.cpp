@@ -17,12 +17,6 @@
 #include <memory>
 #include <chrono>
 #include <unistd.h>
-#include <sys/syscall.h>
-
-// #ifndef SYS_pthread_self
-// #error "SYS_pthread_self unavailable on this system"
-// #endif
-// #define pthread_self() ((pid_t)syscall(SYS_pthread_self)) // get TID macro for sandbox pool debugging
 
 #include "{name}.wasm.h"
 
@@ -60,45 +54,32 @@ RLBOX_DEFINE_BASE_TYPES_FOR({name}, wasm2c);
 
 // std::unique_ptr<rlbox_sandbox_{name}> sandbox = nullptr;
 
-// Declare global sandbox.
-rlbox_sandbox_{name} sandbox;
-bool sandbox_initialized = false;
-
-std::mutex pool_mtx;             // used to protect access to the sandbox list (shouldnt really be needed except for using the cv)
-std::condition_variable pool_cv;  // used to notify threads when a sandbox is available
-
-std::atomic_int used_slots = 0;
-
 struct sandbox_container \{
     rlbox_sandbox_{name} sandbox;
     std::mutex sandbox_mtx;
 } typedef sandbox_container_t;
 
-std::vector<sandbox_container_t*> sandbox_pool;
 const int NUM_SANDBOXES = 10;
+std::vector<sandbox_container_t*> sandbox_pool;
+
+std::mutex pool_mtx;              // used to protect access to modifying the sandbox pool
+std::condition_variable pool_cv;  // used to notify threads when a sandbox is available
 
 // Initialize the sandbox containers and create sandboxes within each.
 void initialize_sandbox_pool() \{
-    printf("%d: initializing pool\n", pthread_self());
     for (int i = 0; i < NUM_SANDBOXES; i++) \{
         sandbox_container_t* ptr = new sandbox_container_t;
-        printf("%d: just pushed back to %d there\n", pthread_self(), i);
         sandbox_pool.push_back(ptr);
-        printf("%d: now len is %zu\n", pthread_self(), sandbox_pool.size());
         sandbox_pool[i]->sandbox.create_sandbox();
-        printf("%d: just created sandbox %zu\n", pthread_self(), sandbox_pool.size());
     }
 }
 
 {{ for sandbox in sandboxes }}
 sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
     auto start = high_resolution_clock::now();
-    printf("%d: invoking some shit\n", pthread_self());
 
     // Lock the sandbox pool for accessing.
     std::unique_lock<std::mutex> pool_lock(pool_mtx);
-
-    printf("%d: got unique lock\n", pthread_self());
 
     // Initialize the pool if it hasn't been.
     if (sandbox_pool.size() == 0) \{
@@ -112,27 +93,16 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
         // Loop through all slots to see if any are available
         for (int i = 0; i < sandbox_pool.size() && slot == -1; i++) \{
             bool found = sandbox_pool[i]->sandbox_mtx.try_lock();
-            printf("%d: checking slot %d\n", pthread_self(), i);
             if (found) slot = i;
         }
 
         // If none are, wait to be notified that one is done being used
-        if (slot == -1) \{
-            printf("%d: waiting (bc %d slots are used)\n", pthread_self(), used_slots.load());
-                pool_cv.wait(
-                    pool_lock);
-            printf("%d: up an at em again\n", pthread_self());
-        }
+        if (slot == -1) pool_cv.wait(pool_lock);
     }
-
-    ++used_slots;
-    printf("%d: found slot %d is free!!! (now %d slots are used)\n", pthread_self(), slot, used_slots.load());
 
     // We have a sandbox to use and have locked that, so we can unlock the pool now.
     pool_lock.unlock();
 
-
-    printf("%d: operating on slot %d!!!\n", pthread_self(), slot);
     // Do the actual operations on the sandbox.
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
 
@@ -158,25 +128,21 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
         memcpy(result, buffer + 2, size2);
 
         // Reset sandbox for next use.
-        sandbox->free_in_sandbox(tainted_arg);
-        printf("%d: resetting slot %d!!!\n", pthread_self(), slot);
+        sandbox->free_in_sandbox(tainted_arg); // this call might be redundant but I'm a little spooked to remove it
         sandbox->reset_sandbox();
 
-    
-    --used_slots;
-    printf("%d: all done with slot %d (now %d used slots)\n", pthread_self(), slot, used_slots.load());
     // Unlock the sandbox now that it's been reset.
     sandbox_pool[slot]->sandbox_mtx.unlock();
     // Notify a thread that a sandbox slot has opened up.
     pool_cv.notify_one();
 
-  // END TEARDOWN TIMER HERE
-  stop = high_resolution_clock::now();
-  duration = duration_cast<nanoseconds>(stop - start);
-  unsigned long long teardown = duration.count();
+    // END TEARDOWN TIMER HERE
+    stop = high_resolution_clock::now();
+    duration = duration_cast<nanoseconds>(stop - start);
+    unsigned long long teardown = duration.count();
 
-  // Return timing data.
-  return sandbox_out \{ result, size2, setup, teardown };
+    // Return timing data.
+    return sandbox_out \{ result, size2, setup, teardown };
 }
 
 {{ endfor }}
