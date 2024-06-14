@@ -75,13 +75,9 @@ struct sandbox_container \{
 } typedef sandbox_container_t;
 
 std::vector<sandbox_container_t*> sandbox_pool;
-const int NUM_SANDBOXES = 2;
+const int NUM_SANDBOXES = 10;
 
-// TODO: vector for sandbox pool
-// with mutex for each sandbox
-// try locking it to see if its used
-
-// initializes the sandbox list the first time we need a sandbox
+// Initialize the sandbox containers and create sandboxes within each.
 void initialize_sandbox_pool() \{
     printf("%d: initializing pool\n", pthread_self());
     for (int i = 0; i < NUM_SANDBOXES; i++) \{
@@ -94,42 +90,33 @@ void initialize_sandbox_pool() \{
     }
 }
 
-// TODO: should probably handle this at somepoint
-void teardown_sandbox_pool() \{
-
-}
-
-void operate_on_sandbox(rlbox_sandbox_{name}* sandbox) \{
-
-}
-
 {{ for sandbox in sandboxes }}
 sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
     auto start = high_resolution_clock::now();
-
     printf("%d: invoking some shit\n", pthread_self());
 
+    // Lock the sandbox pool for accessing.
     std::unique_lock<std::mutex> pool_lock(pool_mtx);
 
     printf("%d: got unique lock\n", pthread_self());
 
-    // 0. if the pool isn't initialized, initialize it
+    // Initialize the pool if it hasn't been.
     if (sandbox_pool.size() == 0) \{
         initialize_sandbox_pool();
     }
     assert(sandbox_pool.size() == NUM_SANDBOXES);
 
-    
+    // Find a free sandbox for the thread to use.
     int slot = -1;
     while (slot == -1) \{
-        // 1. loop through all sandboxes to find a slot
+        // Loop through all slots to see if any are available
         for (int i = 0; i < sandbox_pool.size() && slot == -1; i++) \{
             bool found = sandbox_pool[i]->sandbox_mtx.try_lock();
             printf("%d: checking slot %d\n", pthread_self(), i);
             if (found) slot = i;
         }
 
-        // 2b. if none are free, we need to wait until any are freed up and then try again
+        // If none are, wait to be notified that one is done being used
         if (slot == -1) \{
             printf("%d: waiting (bc %d slots are used)\n", pthread_self(), used_slots.load());
                 pool_cv.wait(
@@ -139,15 +126,14 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
     }
 
     ++used_slots;
-
     printf("%d: found slot %d is free!!! (now %d slots are used)\n", pthread_self(), slot, used_slots.load());
 
-    // we're done accessing the pool, so we can unlock this
+    // We have a sandbox to use and have locked that, so we can unlock the pool now.
     pool_lock.unlock();
 
-    // here we do the actual ops within the sandbox
-    printf("%d: operating on slot %d!!!\n", pthread_self(), slot);
 
+    printf("%d: operating on slot %d!!!\n", pthread_self(), slot);
+    // Do the actual operations on the sandbox.
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
 
         // Copy param into sandbox.
@@ -171,26 +157,25 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
         char* result = (char*) malloc(size2);
         memcpy(result, buffer + 2, size2);
 
-        // Destroy sandbox.
+        // Reset sandbox for next use.
         sandbox->free_in_sandbox(tainted_arg);
         printf("%d: resetting slot %d!!!\n", pthread_self(), slot);
         sandbox->reset_sandbox();
 
-    // unlock the sandbox for others to use
-    sandbox_pool[slot]->sandbox_mtx.unlock();
-
-    // notify those waiting with the contion variable
+    
     --used_slots;
+    printf("%d: all done with slot %d (now %d used slots)\n", pthread_self(), slot, used_slots.load());
+    // Unlock the sandbox now that it's been reset.
+    sandbox_pool[slot]->sandbox_mtx.unlock();
+    // Notify a thread that a sandbox slot has opened up.
     pool_cv.notify_one();
-
-    printf("%d: all done (now %d used slots)\n", pthread_self(), used_slots.load());
-
-  // sandbox.destroy_sandbox();
 
   // END TEARDOWN TIMER HERE
   stop = high_resolution_clock::now();
   duration = duration_cast<nanoseconds>(stop - start);
   unsigned long long teardown = duration.count();
+
+  // Return timing data.
   return sandbox_out \{ result, size2, setup, teardown };
 }
 
