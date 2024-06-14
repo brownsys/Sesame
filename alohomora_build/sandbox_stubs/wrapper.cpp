@@ -59,7 +59,7 @@ struct sandbox_container \{
     std::mutex sandbox_mtx;
 } typedef sandbox_container_t;
 
-const int NUM_SANDBOXES = 10;
+const int NUM_SANDBOXES = 4;
 std::vector<sandbox_container_t*> sandbox_pool;
 
 std::mutex pool_mtx;              // used to protect access to modifying the sandbox pool
