@@ -236,10 +236,10 @@ fn test_sandbox_pool(){
 
 fn main() {
   // BENCHMARKING
-  // run_benchmarks();
+  run_benchmarks();
 
   // SANDBOX POOL TESTING
-  test_sandbox_pool();
+  // test_sandbox_pool();
 
   /*
   let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
