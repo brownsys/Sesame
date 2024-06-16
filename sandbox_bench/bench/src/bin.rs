@@ -56,6 +56,7 @@ fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let total = end - now;
     // let function = total - output.0 - (end - output.2);
     let function = output.0;
+    // println!("final hash {}", output.1);
     (total, 0, setup, function, teardown, 0) // <--- key for results
   }).collect()
 }
@@ -237,6 +238,11 @@ fn test_sandbox_pool(){
 fn main() {
   // BENCHMARKING
   run_benchmarks();
+  // TODO:
+  // - why is there no setup that takes a longer amount of time?
+  // - why are we getting more round numbers than expected or similar times
+  // - does a smaller sandbox make this faster?
+  // - does the madvise wipe make it proportionally faster?
 
   // SANDBOX POOL TESTING
   // test_sandbox_pool();
