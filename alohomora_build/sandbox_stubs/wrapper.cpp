@@ -17,6 +17,7 @@
 #include <memory>
 #include <chrono>
 #include <unistd.h>
+#include <condition_variable>
 
 #include "{name}.wasm.h"
 
