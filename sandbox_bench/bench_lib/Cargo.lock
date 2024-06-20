@@ -52,6 +52,7 @@ dependencies = [
 name = "alohomora_sandbox"
 version = "0.1.0"
 dependencies = [
+ "alohomora_derive",
  "bincode",
  "cargo_toml",
  "serde",
@@ -191,6 +192,7 @@ dependencies = [
  "linfa",
  "linfa-linear",
  "ndarray",
+ "once_cell",
  "sha2",
 ]
 
@@ -754,9 +756,9 @@ dependencies = [
 
 [[package]]
 name = "lazy_static"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "lazycell"
@@ -2317,3 +2319,8 @@ name = "yansi"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
+
+[[patch.unused]]
+name = "funty"
+version = "1.2.0"
+source = "git+https://github.com/bitvecto-rs/funty/?rev=7ef0d890fbcd8b3def1635ac1a877fc298488446#7ef0d890fbcd8b3def1635ac1a877fc298488446"

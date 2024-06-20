@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" \{
 #endif
@@ -17,8 +19,14 @@ struct sandbox_out \{
 };
 
 {{- for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size);
+struct sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot);
 {{- endfor }}
+
+void* alloc_mem_in_sandbox(unsigned size, size_t sandbox_index);
+void free_mem_in_sandbox(void* ptr, size_t sandbox_index);
+
+void unlock_sandbox(size_t sandbox_index);
+size_t get_lock_on_sandbox();
 
 #ifdef __cplusplus
 }

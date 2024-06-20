@@ -16,6 +16,7 @@
 #include <string>
 #include <memory>
 #include <chrono>
+#include <stddef.h>
 #include <unistd.h>
 #include <condition_variable>
 
@@ -33,8 +34,8 @@ extern "C" \{
 #endif
 
 {{for sandbox in sandboxes }}
-char * {sandbox}_sandbox(const char*, unsigned size);  // Calls the sandbox function (inside sandbox)
-void {sandbox}_sandbox_free(char*);                        // Frees allocated data (inside sandbox)
+char* {sandbox}_sandbox(const char*);  // Calls the sandbox function (inside sandbox)
+void {sandbox}_sandbox_free(char*);  // Frees allocated data (inside sandbox)
 {{endfor}}
 
 #ifdef __cplusplus
@@ -60,13 +61,13 @@ struct sandbox_container \{
     std::mutex sandbox_mtx;
 } typedef sandbox_container_t;
 
-const int NUM_SANDBOXES = 4;
+const int NUM_SANDBOXES = 10;
 std::vector<sandbox_container_t*> sandbox_pool;
 
 std::mutex pool_mtx;              // used to protect access to modifying the sandbox pool
 std::condition_variable pool_cv;  // used to notify threads when a sandbox is available
 
-// Initialize the sandbox containers and create sandboxes within each.
+// Initializes the sandbox containers and create sandboxes within each.
 void initialize_sandbox_pool() \{
     for (int i = 0; i < NUM_SANDBOXES; i++) \{
         sandbox_container_t* ptr = new sandbox_container_t;
@@ -75,23 +76,46 @@ void initialize_sandbox_pool() \{
     }
 }
 
-{{ for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
-    auto start = high_resolution_clock::now();
+// Allocates `size` bytes of memory in the sandbox specified by `sandbox_index`.
+void* alloc_mem_in_sandbox(unsigned size, size_t sandbox_index) \{
+    if (sandbox_pool.size() == 0) initialize_sandbox_pool();
+    rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
 
-    // Lock the sandbox pool for accessing.
+    // Call malloc in sandbox
+    tainted_{name}<char*> result_tainted = sandbox->malloc_in_sandbox<char>(size);
+
+    // Swizzle returned pointer
+    void* result = result_tainted.UNSAFE_unverified();
+    return result;
+}
+
+// Frees the memory pointed to by `ptr` the sandbox specified by `sandbox_index`.
+void free_mem_in_sandbox(void* ptr, size_t sandbox_index) \{
+    if (sandbox_pool.size() == 0) initialize_sandbox_pool();
+    rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
+
+    // Unswizzle ptr to be inside the sandbox
+    tainted_{name} <void*> tainted_ptr;
+    tainted_ptr.assign_raw_pointer(*sandbox, ptr);
+
+    sandbox->free_in_sandbox(tainted_ptr);
+}
+
+// Get a lock on a sandbox from the pool for memory allocation & use.
+size_t get_lock_on_sandbox() \{
+    // Lock the sandbox pool for accessing
     std::unique_lock<std::mutex> pool_lock(pool_mtx);
 
-    // Initialize the pool if it hasn't been.
+    // Initialize the pool if it hasn't been
     if (sandbox_pool.size() == 0) \{
         initialize_sandbox_pool();
     }
     assert(sandbox_pool.size() == NUM_SANDBOXES);
 
-    // Find a free sandbox for the thread to use.
+    // Find a free sandbox for the thread to use
     int slot = -1;
     while (slot == -1) \{
-        // Loop through all slots to see if any are available
+        // Loop through all slots in the pool to see if any are available
         for (int i = 0; i < sandbox_pool.size() && slot == -1; i++) \{
             bool found = sandbox_pool[i]->sandbox_mtx.try_lock();
             if (found) slot = i;
@@ -101,41 +125,49 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
         if (slot == -1) pool_cv.wait(pool_lock);
     }
 
-    // We have a sandbox to use and have locked that, so we can unlock the pool now.
-    pool_lock.unlock();
+    return slot;
+}
 
-    // Do the actual operations on the sandbox.
-    rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
+// Unlock a specific sandbox from the pool after use.
+void unlock_sandbox(size_t sandbox_index) \{
+    std::unique_lock<std::mutex> pool_lock(pool_mtx);  // This might be unneccessary
+    sandbox_pool[sandbox_index]->sandbox_mtx.unlock();
 
-        // Copy param into sandbox.
-        tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
-        memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
-
-        // END SETUP TIMER HERE
-        auto stop = high_resolution_clock::now();
-        auto duration = duration_cast<nanoseconds>(stop - start);
-        unsigned long long setup = duration.count();
-
-        // Invoke sandbox.
-        tainted_{name}<char *> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
-
-        // START TEARDOWN TIMER HERE
-        char* buffer = tainted_result.INTERNAL_unverified_safe();
-        uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
-        start = high_resolution_clock::now();
-
-        // Copy output to our memory.
-        char* result = (char*) malloc(size2);
-        memcpy(result, buffer + 2, size2);
-
-        // Reset sandbox for next use.
-        sandbox->free_in_sandbox(tainted_arg); // this call might be redundant but I'm a little spooked to remove it
-        sandbox->reset_sandbox();
-
-    // Unlock the sandbox now that it's been reset.
-    sandbox_pool[slot]->sandbox_mtx.unlock();
     // Notify a thread that a sandbox slot has opened up.
     pool_cv.notify_one();
+}
+
+{{ for sandbox in sandboxes }}
+sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
+    auto start = high_resolution_clock::now();
+
+    // Get the sandbox
+    rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
+
+    // END SETUP TIMER HERE
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<nanoseconds>(stop - start);
+    unsigned long long setup = duration.count();
+
+    // Swizzle arg ptr into the sandbox
+    char* arg2 = (char*)arg;             // `assign_raw_pointer` only works with char*s so we have to cast it first
+    tainted_{name} <char*> tainted_arg;
+    tainted_arg.assign_raw_pointer(*sandbox, arg2);
+
+    // Invoke sandbox.
+    tainted_{name}<char*> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg);
+
+    // START TEARDOWN TIMER HERE
+    char* buffer = tainted_result.INTERNAL_unverified_safe();
+    uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
+    start = high_resolution_clock::now();
+
+    // Copy output to our memory.
+    char* result = (char*) malloc(size2);
+    memcpy(result, buffer + 2, size2);
+
+    // Reset sandbox for next use.
+    sandbox->reset_sandbox();
 
     // END TEARDOWN TIMER HERE
     stop = high_resolution_clock::now();
@@ -143,7 +175,7 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
     unsigned long long teardown = duration.count();
 
     // Return timing data.
-    return sandbox_out \{ result, size2, setup, teardown };
+    return sandbox_out \{result, size2, setup, teardown};
 }
 
 {{ endfor }}

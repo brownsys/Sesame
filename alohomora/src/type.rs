@@ -1,3 +1,4 @@
+use std::alloc::{Allocator, Global};
 use std::collections::HashMap;
 use std::any::Any;
 use std::hash::Hash;
@@ -20,14 +21,14 @@ pub fn compose_policies(policy1: Result<Option<AnyPolicy>, ()>, policy2: Result<
 }
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum AlohomoraTypeEnum {
+pub enum AlohomoraTypeEnum<A1: Allocator = Global, A2: Allocator = Global> {
     BBox(BBox<Box<dyn Any>, AnyPolicy>),
     Value(Box<dyn Any>),
-    Vec(Vec<AlohomoraTypeEnum>),
-    Struct(HashMap<String, AlohomoraTypeEnum>),
+    Vec(Vec<AlohomoraTypeEnum<A2>, A1>),
+    Struct(HashMap<String, AlohomoraTypeEnum<A2>>),
 }
 
-impl AlohomoraTypeEnum {
+impl<A: Allocator + Clone> AlohomoraTypeEnum<A> {
     // Combines the policies of all the BBox inside this type.
     pub fn policy(&self) -> Result<Option<AnyPolicy>, ()> {
         match self {
@@ -54,15 +55,17 @@ impl AlohomoraTypeEnum {
     }
 
     // Transforms the Enum to an unboxed enum.
-    pub(crate) fn remove_bboxes(self) -> AlohomoraTypeEnum {
+    pub(crate) fn remove_bboxes(self) -> AlohomoraTypeEnum<A> {
         match self {
             AlohomoraTypeEnum::Value(val) => AlohomoraTypeEnum::Value(val),
             AlohomoraTypeEnum::BBox(bbox) => AlohomoraTypeEnum::Value(bbox.consume().0),
-            AlohomoraTypeEnum::Vec(vec) => AlohomoraTypeEnum::Vec(
-                vec
-                    .into_iter()
-                    .map(|e| e.remove_bboxes())
-                    .collect()),
+            AlohomoraTypeEnum::Vec(vec) => {
+                let mut result = Vec::new_in((*vec.allocator()).clone());
+                for e in vec.into_iter() {
+                    result.push(e.remove_bboxes());
+                }
+                AlohomoraTypeEnum::Vec(result)
+            },
             AlohomoraTypeEnum::Struct(hashmap) => AlohomoraTypeEnum::Struct(
                 hashmap
                     .into_iter()
@@ -86,12 +89,11 @@ impl AlohomoraTypeEnum {
 
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to
 // sandboxes.
-pub trait AlohomoraType<P: Policy = AnyPolicy> {
+pub trait AlohomoraType<P: Policy = AnyPolicy, A: Allocator + Clone = Global> {
     type Out;     // Unboxed form of struct
-    fn to_enum(self) -> AlohomoraTypeEnum;
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()>;
+    fn to_enum(self) -> AlohomoraTypeEnum<A>;
+    fn from_enum(e: AlohomoraTypeEnum<A>) -> Result<Self::Out, ()>;
 }
-
 
 // Implement AlohomoraType for various primitives.
 macro_rules! alohomora_type_impl {
@@ -99,10 +101,10 @@ macro_rules! alohomora_type_impl {
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
         impl AlohomoraType for $T {
             type Out = $T;
-            fn to_enum(self) -> AlohomoraTypeEnum {
+            fn to_enum(self) -> AlohomoraTypeEnum<Global> {
                 AlohomoraTypeEnum::Value(Box::new(self))
             }
-            fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+            fn from_enum(e: AlohomoraTypeEnum<Global>) -> Result<Self::Out, ()> {
                 match e {
                     AlohomoraTypeEnum::Value(v) => match v.downcast() {
                         Err(_) => Err(()),
@@ -126,18 +128,19 @@ alohomora_type_impl!(u64);
 alohomora_type_impl!(bool);
 alohomora_type_impl!(f64);
 alohomora_type_impl!(String);
+alohomora_type_impl!(*mut std::ffi::c_void);
 
 // Implement AlohomoraType for Option
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: AlohomoraType> AlohomoraType for Option<T> {
     type Out = Option<T::Out>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
+    fn to_enum(self) -> AlohomoraTypeEnum<Global> {
         match self {
             None => AlohomoraTypeEnum::Vec(Vec::new()),
             Some(t) => AlohomoraTypeEnum::Vec(vec![t.to_enum()]),
         }
     }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: AlohomoraTypeEnum<Global>) -> Result<Self::Out, ()> {
         match e {
             AlohomoraTypeEnum::Vec(mut vec) => match vec.pop() {
                 None => Ok(None),
@@ -152,10 +155,10 @@ impl<T: AlohomoraType> AlohomoraType for Option<T> {
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
     type Out = T;
-    fn to_enum(self) -> AlohomoraTypeEnum {
+    fn to_enum(self) -> AlohomoraTypeEnum<Global> {
         AlohomoraTypeEnum::BBox(self.into_any())
     }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: AlohomoraTypeEnum<Global>) -> Result<Self::Out, ()> {
         match e {
             AlohomoraTypeEnum::Value(v) => match v.downcast() {
                 Err(_) => Err(()),
@@ -166,17 +169,21 @@ impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
     }
 }
 
-// Implement AlohomoraType for containers of AlohomoraTypes
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<S: AlohomoraType> AlohomoraType for Vec<S> {
-    type Out = Vec<S::Out>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::Vec(self.into_iter().map(|s| s.to_enum()).collect())
+impl<S: AlohomoraType, P: Policy, A: Allocator + Clone> AlohomoraType<P, A> for Vec<S, A> {
+    type Out = Vec<S::Out, A>;
+    fn to_enum(self) -> AlohomoraTypeEnum<A> {
+        let mut result = Vec::with_capacity_in(self.len(), (*self.allocator()).clone());
+        for s in self.into_iter() {
+            result.push(s.to_enum());
+        }
+        // self.into_iter().map(|s| s.to_enum()).collect();
+        AlohomoraTypeEnum::Vec(result)
     }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: AlohomoraTypeEnum<A>) -> Result<Self::Out, ()> {
         match e {
             AlohomoraTypeEnum::Vec(v) => {
-                let mut result = Vec::new();
+                let mut result = Vec::with_capacity_in(v.len(), (*v.allocator()).clone());
                 for e in v.into_iter() {
                     result.push(S::from_enum(e)?);
                 }
@@ -190,10 +197,10 @@ impl<S: AlohomoraType> AlohomoraType for Vec<S> {
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for HashMap<K, S> {
     type Out = HashMap<K, S::Out>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
+    fn to_enum(self) -> AlohomoraTypeEnum<Global> {
         AlohomoraTypeEnum::Struct(self.into_iter().map(|(k, v)| (k.to_string(), v.to_enum())).collect())
     }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: AlohomoraTypeEnum<Global>) -> Result<Self::Out, ()> {
         match e {
             AlohomoraTypeEnum::Struct(m) => {
                 let mut result = HashMap::new();
@@ -235,12 +242,12 @@ macro_rules! alohomora_type_tuple_impl {
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl<$($A: AlohomoraType,)*> AlohomoraType for ($($A,)*) {
         type Out = ($($A::Out,)*);
-        fn to_enum(self) -> AlohomoraTypeEnum {
+        fn to_enum(self) -> AlohomoraTypeEnum<Global> {
             #[allow(non_snake_case)]
             let ($($A,)*) = ($(self.$i.to_enum(),)*);
             AlohomoraTypeEnum::Vec(vec![$($A,)*])
         }
-        fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        fn from_enum(e: AlohomoraTypeEnum<Global>) -> Result<Self::Out, ()> {
             match e {
                 AlohomoraTypeEnum::Vec(v) => {
                     #[allow(non_snake_case)]
