@@ -5,6 +5,7 @@ extern crate syn;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::{ItemFn, Ident, FnArg, ReturnType};
+// use ::alohomora_sandbox::alloc_mem_in_sandbox;
 
 pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     let function_signature = input.sig;

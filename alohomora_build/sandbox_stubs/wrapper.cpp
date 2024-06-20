@@ -33,9 +33,13 @@ extern "C" \{
 #endif
 
 {{for sandbox in sandboxes }}
-char * {sandbox}_sandbox(const char*, unsigned size);  // Calls the sandbox function (inside sandbox)
-void {sandbox}_sandbox_free(char*);                        // Frees allocated data (inside sandbox)
+char* {sandbox}_sandbox(const char*, unsigned size);  // Calls the sandbox function (inside sandbox)
+// void* alloc_in_sandbox(unsigned size);
+
+void {sandbox}_sandbox_free(char*);  // Frees allocated data (inside sandbox)
 {{endfor}}
+
+// function for moving args into sandbox memory
 
 #ifdef __cplusplus
 }
@@ -60,7 +64,7 @@ struct sandbox_container \{
     std::mutex sandbox_mtx;
 } typedef sandbox_container_t;
 
-const int NUM_SANDBOXES = 4;
+const int NUM_SANDBOXES = 1;
 std::vector<sandbox_container_t*> sandbox_pool;
 
 std::mutex pool_mtx;              // used to protect access to modifying the sandbox pool
@@ -73,6 +77,37 @@ void initialize_sandbox_pool() \{
         sandbox_pool.push_back(ptr);
         sandbox_pool[i]->sandbox.create_sandbox();
     }
+}
+
+void* alloc_mem_in_sandbox(unsigned size) \{
+    if (sandbox_pool.size() == 0) initialize_sandbox_pool();
+
+    printf("invoking alloc in sandbox\n");
+    // unsigned arg = size;
+    rlbox_sandbox_{name}* sandbox = &sandbox_pool[0]->sandbox;
+    int arg_buf = 10;
+    // const char* arg = &arg_buf;
+    // unsigned size = sizeof(int);
+
+    auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, 10);
+    void* result = result_tainted.INTERNAL_unverified_safe();
+
+    // tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
+    // memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
+
+    // // Invoke sandbox.
+    // tainted_{name}<char *> tainted_result = sandbox->invoke_sandbox_function(alloc_in_sandbox_sandbox, tainted_arg, size);
+
+    // // START TEARDOWN TIMER HERE
+    // char* buffer = tainted_result.INTERNAL_unverified_safe();
+    // uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
+
+    // // Copy output to our memory.
+    // char* result = (char*) malloc(size2);
+    // memcpy(result, buffer + 2, size2);
+
+    printf("done invoking alloc in sandbox, got ptr 0x%p\n", result);
+    return (void*)result;
 }
 
 {{ for sandbox in sandboxes }}
@@ -107,9 +142,15 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
     // Do the actual operations on the sandbox.
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
 
-        // Copy param into sandbox.
+        // DONT Copy param into sandbox.
         tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
         memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
+
+        // INSTEAD call down function in sandbox to allocate space
+        // sandbox->alloc_in_sandbox(10);
+        // sandbox->invoke_sandbox_function(alloc_in_sandbox, 10);
+        // then call up function outside of sandbox to copy into that space
+        // transfer_arg();
 
         // END SETUP TIMER HERE
         auto stop = high_resolution_clock::now();

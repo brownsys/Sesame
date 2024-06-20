@@ -46,12 +46,13 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
                     .current_dir(&rlbox_wasm2c_sandbox_path)
                     .arg("pull")
                     .status()
-                    // TODO: replace all 'AllenAby' with 'AllenAby'
-                    // make sure everything works okay
-                    // then switch to using my rebuilding method
-                    // make sure this doesn't leak anything
-                    // make sure printing doesnt work anymore
                     .expect("\x1b[91merror: \x1b[97mFailed to pull 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
+                let status2 = Command::new("git")
+                    .current_dir(&rlbox_wasm2c_sandbox_path)
+                    .arg("checkout")
+                    .arg("testing")
+                    .status()
+                    .expect("\x1b[91merror: \x1b[97mFailed to checkout testing branch of 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
                 if !status.success() {
                     panic!("\x1b[91merror: \x1b[97mFailed to pull 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
                 }
@@ -71,6 +72,12 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
             if !status.success() {
                 panic!("\x1b[91merror: \x1b[97mFailed to fetch 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
             }
+            let status2 = Command::new("git")
+                    .current_dir(&rlbox_wasm2c_sandbox_path)
+                    .arg("checkout")
+                    .arg("testing")
+                    .status()
+                    .expect("\x1b[91merror: \x1b[97mFailed to checkout testing branch of 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'.\x1b[0m");
 
             // Configure CMake (Once).
             let status = Command::new("cmake")

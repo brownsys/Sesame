@@ -20,6 +20,10 @@ struct sandbox_out \{
 sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size);
 {{- endfor }}
 
+void* alloc_mem_in_sandbox(unsigned size);
+
+void* alloc_in_sandbox(unsigned size);
+
 #ifdef __cplusplus
 }
 #endif

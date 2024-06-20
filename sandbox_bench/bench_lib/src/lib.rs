@@ -3,6 +3,7 @@
 // use age::Recipient;
 // use base64::Engine;
 // use base64::engine::general_purpose::STANDARD as base64;
+// use alohomora_sandbox::alloc_mem_in_sandbox;
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
 use linfa::dataset::Dataset;
@@ -47,6 +48,20 @@ pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   (now.elapsed().as_nanos() as u64, key, 0)
+}
+
+// #[AlohomoraSandbox()]
+#[no_mangle]
+// #[cfg(target_arch = "wasm32")]
+pub extern "C" fn alloc_in_sandbox(size: usize) -> u64 {
+  println!("allocating in sandbox");
+  let b = Box::new(Vec::with_capacity(size));
+
+  let static_ref: &'static mut Vec<(f64, u64)> = Box::leak(b);
+  let static_ptr: *mut Vec<(f64, u64)> = static_ref;
+  let num = static_ptr as u64;
+  println!("have ptr {:?} and num {:?}", static_ptr, num);
+  return num;
 }
 
 #[AlohomoraSandbox()]
