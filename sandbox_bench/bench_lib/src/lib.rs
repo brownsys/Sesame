@@ -53,7 +53,7 @@ pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
 // #[AlohomoraSandbox()]
 #[no_mangle]
 // #[cfg(target_arch = "wasm32")]
-pub extern "C" fn alloc_in_sandbox(size: usize) -> u64 {
+pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut Vec<(f64, u64)> {
   println!("allocating in sandbox");
   let b = Box::new(Vec::with_capacity(size));
 
@@ -61,7 +61,8 @@ pub extern "C" fn alloc_in_sandbox(size: usize) -> u64 {
   let static_ptr: *mut Vec<(f64, u64)> = static_ref;
   let num = static_ptr as u64;
   println!("have ptr {:?} and num {:?}", static_ptr, num);
-  return num;
+  // return 10;
+  return static_ptr;
 }
 
 #[AlohomoraSandbox()]

@@ -95,18 +95,7 @@ void* alloc_mem_in_sandbox(unsigned size) \{
     // tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
     // memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
 
-    // // Invoke sandbox.
-    // tainted_{name}<char *> tainted_result = sandbox->invoke_sandbox_function(alloc_in_sandbox_sandbox, tainted_arg, size);
-
-    // // START TEARDOWN TIMER HERE
-    // char* buffer = tainted_result.INTERNAL_unverified_safe();
-    // uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
-
-    // // Copy output to our memory.
-    // char* result = (char*) malloc(size2);
-    // memcpy(result, buffer + 2, size2);
-
-    printf("done invoking alloc in sandbox, got ptr 0x%p\n", result);
+    printf("done invoking alloc in sandbox, got ptr %p\n", result);
     return (void*)result;
 }
 

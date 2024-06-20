@@ -89,7 +89,7 @@ macro_rules! invoke_sandbox {
             ptr
         };
         
-        println!("got ptr {:?}", ptr);
+        println!("macro got ptr {:?}", ptr);
 
         // Invoke sandbox via C.
         let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(v.as_ptr(), v.len() as u32) };
