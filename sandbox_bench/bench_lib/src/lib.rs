@@ -51,24 +51,41 @@ use std::iter;
 //   (now.elapsed().as_nanos() as u64, key, 0)
 // }
 
+#[derive(Debug)]
+pub struct TestStruct {
+  my_int: u32,
+  my_float: f32,
+  my_float2: f64,
+}
+
 // #[AlohomoraSandbox()]
 #[no_mangle]
 // #[cfg(target_arch = "wasm32")]
-pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut Vec<(f64, u64)> {
+pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
   println!("allocating in sandbox");
-  let b = Box::new(Vec::with_capacity(size));
+  let mut b = Box::new(TestStruct{my_int: 12, my_float: 0.123, my_float2: 0.321});
 
-  let static_ref: &'static mut Vec<(f64, u64)> = Box::leak(b);
-  let static_ptr: *mut Vec<(f64, u64)> = static_ref;
-  let num = static_ptr as u64;
-  println!("have ptr {:?} and num {:?}", static_ptr, num);
+  // (*b).push((0.31, 1));
+  // (*b).push((5.23, 10123));
+  // (*b).push((111.2, 12824));
+  println!("pushed element");
+
+  // let static_ref: &'static mut Vec<(f64, u64)> = Box::leak(b);
+  let static_ptr: *mut TestStruct = Box::into_raw(b);
+  // let num = static_ptr as u64;
+  println!("**static pointer in sandbox {:?}", static_ptr);
+
+  unsafe {
+    println!("**struct is {:?}", (&*static_ptr));
+  }
   // return 10;
-  return static_ptr;
+  return static_ptr as *mut std::ffi::c_void;
 }
 
 #[AlohomoraSandbox()]
 pub fn train2(inputs: *mut std::ffi::c_void) -> (u64, (), u64) {
-  let vec_ptr: *mut Vec<(f64, u64)> = inputs as *mut Vec<(f64, u64)>;
+  println!("in vector");
+  let vec_ptr: *mut TestStruct = inputs as *mut TestStruct;
 
   unsafe {
     println!("vec is -- {:?}", *vec_ptr);

@@ -64,7 +64,7 @@ struct sandbox_container \{
     std::mutex sandbox_mtx;
 } typedef sandbox_container_t;
 
-const int NUM_SANDBOXES = 1;
+const int NUM_SANDBOXES = 2;
 std::vector<sandbox_container_t*> sandbox_pool;
 
 std::mutex pool_mtx;              // used to protect access to modifying the sandbox pool
@@ -79,24 +79,25 @@ void initialize_sandbox_pool() \{
     }
 }
 
-void* alloc_mem_in_sandbox(unsigned size) \{
+void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index) \{
     if (sandbox_pool.size() == 0) initialize_sandbox_pool();
 
-    printf("invoking alloc in sandbox\n");
+    printf("invoking alloc in sandbox %d\n", sandbox_index);
     // unsigned arg = size;
-    rlbox_sandbox_{name}* sandbox = &sandbox_pool[0]->sandbox;
-    int arg_buf = 10;
+    rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
+    // int arg_buf = 10;
     // const char* arg = &arg_buf;
     // unsigned size = sizeof(int);
 
     auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, 10);
-    void* result = result_tainted.INTERNAL_unverified_safe();
+    void* result = result_tainted.UNSAFE_unverified();
 
     // tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
     // memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
 
     printf("done invoking alloc in sandbox, got ptr %p\n", result);
-    return (void*)result;
+
+    return result;
 }
 
 {{ for sandbox in sandboxes }}

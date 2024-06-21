@@ -70,7 +70,7 @@ pub struct FinalSandboxOut<R> {
 // pub extern "C" fn transfer_arg(arg: Box<Vec<(f64, u64)>>, sandbox_loc: &mut Box<Vec<(f64, u64)>>) -> bool {
 // #[cfg(target_arch = "wasm32")]
 extern "C" {
-    pub fn alloc_mem_in_sandbox(size: usize) -> *mut Vec<(f64, u64)>;
+    pub fn alloc_mem_in_sandbox(size: usize, sandbox: usize) -> *mut std::ffi::c_void;
 }
 
 // Called by Alohomora (from the application process) to invoke the sandbox.
@@ -83,16 +83,59 @@ macro_rules! invoke_sandbox {
         // let arg = ::std::ffi::CString::new(arg).unwrap();
         println!("in macro");
         let ptr: *mut std::ffi::c_void = unsafe {
-            let ptr = ::alohomora_sandbox::alloc_mem_in_sandbox(10);
+            let ptr = ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0);
+            println!("ptr1 is {:?}", ptr);
+
+            // let ptr1 = ::alohomora_sandbox::alloc_mem_in_sandbox(10, 1);
+            // println!("ptr2 is {:?}", ptr1);
             // then we use the from_raw on it
 
-            ptr as *mut std::ffi::c_void
+            ptr
         };
         
         println!("macro got ptr {:?}", ptr);
 
+        #[derive(Debug)]
+        pub struct TestStruct {
+            my_int: u32,
+            my_float: f32,
+            my_float2: f64,
+        }
+
+        let real_ptr = ptr as *mut TestStruct;
+
+        println!("macro got real ptr {:?}", real_ptr);
+
+        unsafe {
+            // println!("**lenght of vector is {:?} and vec is {:?}", (&*real_ptr).len(), (&*real_ptr));
+            println!("**struct is {:?}", (&*real_ptr));
+        }
+        
+        
+        unsafe {
+            println!("macro real ptr deref {:?}", *real_ptr);
+
+            let mut b: Box<TestStruct> = Box::from_raw(real_ptr);
+            // println!("macro | real ptr is {:?}", real_ptr);
+            // println!("macro | box is {:?}", b);
+
+            b.my_int = 21;
+            
+            // println!("macro | w capacity {:?}", (*b).capacity());
+            // println!("macro | box is w interior {:?}", *b);
+
+            // println!("macro | leaking box (bc we didnt allocate it)");
+            Box::leak(b); // leak the box bc we didn't really allocate it
+            // (*b).push((0.1, 3));
+            // TODO: change for push_within_capacity() to make sure we're not exceeding sandbox allocated mem
+        }
+
         // Invoke sandbox via C.
+        println!("*entering FUNCTOR");
+
         let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(ptr, 0) };
+
+        println!("*just finished some macro business");
         let ret = ret2.result;
 
         // Deserialize output.
