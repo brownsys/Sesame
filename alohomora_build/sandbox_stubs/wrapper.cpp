@@ -100,7 +100,7 @@ void* alloc_mem_in_sandbox(unsigned size) \{
 }
 
 {{ for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
+sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size) \{
     auto start = high_resolution_clock::now();
 
     // Lock the sandbox pool for accessing.
@@ -132,8 +132,8 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
 
         // DONT Copy param into sandbox.
-        tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
-        memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
+        // tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
+        // memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
 
         // INSTEAD call down function in sandbox to allocate space
         // sandbox->alloc_in_sandbox(10);
@@ -146,8 +146,15 @@ sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size) \{
         auto duration = duration_cast<nanoseconds>(stop - start);
         unsigned long long setup = duration.count();
 
+        // tainted_{name}<void*> tainted_arg;
+        char* arg2 = (char*)arg;
+        tainted_{name} <char*> tainted_arg;
+        tainted_arg.assign_raw_pointer(*sandbox, arg2);
+
+        // tainted_{name}<void*> tainted_arg2 = (tainted_{name}<void*>) tainted_arg;
+
         // Invoke sandbox.
-        tainted_{name}<char *> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
+        tainted_{name}<char*> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
 
         // START TEARDOWN TIMER HERE
         char* buffer = tainted_result.INTERNAL_unverified_safe();

@@ -17,7 +17,7 @@ struct sandbox_out \{
 };
 
 {{- for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(const char* arg, unsigned size);
+sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size);
 {{- endfor }}
 
 void* alloc_mem_in_sandbox(unsigned size);

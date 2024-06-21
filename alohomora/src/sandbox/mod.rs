@@ -16,7 +16,7 @@ pub use alohomora_derive::AlohomoraSandbox;
 pub fn execute_sandbox<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
     where
         T: AlohomoraType,
-        T::Out: Serialize + Deserialize<'a>,
+        T::Out: ,
         R: Serialize + Deserialize<'b>,
         S: AlohomoraSandbox<'a, 'b, T::Out, R>,
 {

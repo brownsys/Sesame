@@ -12,6 +12,7 @@ use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
 use alohomora_derive::AlohomoraSandbox;
+use std::os::raw::c_void;
 // use std::str::FromStr;
 use std::time::{Duration, Instant};
 
@@ -30,25 +31,25 @@ use std::iter;
 // }
 
 // Sandbox functions.
-#[AlohomoraSandbox()]
-pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
-  // END TIMER (start in bin)
-  // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-  let now = Instant::now();
-  // let setup = now - inputs.2;
+// #[AlohomoraSandbox()]
+// pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
+//   // END TIMER (start in bin)
+//   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+//   let now = Instant::now();
+//   // let setup = now - inputs.2;
 
-  let mut hasher = Sha256::new();
-  hasher.update(&inputs.0);
-  hasher.update(&inputs.1);
-  let key = format!("{:x}", hasher.clone().finalize());
+//   let mut hasher = Sha256::new();
+//   hasher.update(&inputs.0);
+//   hasher.update(&inputs.1);
+//   let key = format!("{:x}", hasher.clone().finalize());
 
-  // println!("im in the sandbox");
-  // println!("your hash is {:x}", hasher.finalize());
+//   // println!("im in the sandbox");
+//   // println!("your hash is {:x}", hasher.finalize());
 
-  // START TIMER (end in bin)
-  // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-  (now.elapsed().as_nanos() as u64, key, 0)
-}
+//   // START TIMER (end in bin)
+//   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+//   (now.elapsed().as_nanos() as u64, key, 0)
+// }
 
 // #[AlohomoraSandbox()]
 #[no_mangle]
@@ -66,34 +67,44 @@ pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut Vec<(f64, u64)> {
 }
 
 #[AlohomoraSandbox()]
-pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
-  // END TIMER (start in bin)
-  // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-  let now = Instant::now();
-  // let setup = now - inputs.1;
+pub fn train2(inputs: *mut std::ffi::c_void) -> (u64, (), u64) {
+  let vec_ptr: *mut Vec<(f64, u64)> = inputs as *mut Vec<(f64, u64)>;
 
-  let grades = inputs.0;
-  let grades: Vec<[f64; 2]> = grades
-      .into_iter()
-      .map(|g| [g.0.clone().and_utc().timestamp() as f64, g.1 as f64])
-      .collect();
-  let array: Array2<f64> = Array2::from(grades);
-  let (x, y) = (
-      array.slice(s![.., 0..1]).to_owned(),
-      array.column(1).to_owned(),
-  );
-
-  let dataset: Dataset<f64, f64, Dim<[usize; 1]>> =
-      Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
-
-  // Train the model.
-  let lin_reg = LinearRegression::new();
-  let model = lin_reg.fit(&dataset).unwrap();
-
-  // START TIMER (end in bin)
-  // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-  (now.elapsed().as_nanos() as u64, model, 0)
+  unsafe {
+    println!("vec is -- {:?}", *vec_ptr);
+  }
+  (0, (), 1)
 }
+
+// #[AlohomoraSandbox()]
+// pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
+//   // END TIMER (start in bin)
+//   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+//   let now = Instant::now();
+//   // let setup = now - inputs.1;
+
+//   let grades = inputs.0;
+//   let grades: Vec<[f64; 2]> = grades
+//       .into_iter()
+//       .map(|g| [g.0.clone().and_utc().timestamp() as f64, g.1 as f64])
+//       .collect();
+//   let array: Array2<f64> = Array2::from(grades);
+//   let (x, y) = (
+//       array.slice(s![.., 0..1]).to_owned(),
+//       array.column(1).to_owned(),
+//   );
+
+//   let dataset: Dataset<f64, f64, Dim<[usize; 1]>> =
+//       Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
+
+//   // Train the model.
+//   let lin_reg = LinearRegression::new();
+//   let model = lin_reg.fit(&dataset).unwrap();
+
+//   // START TIMER (end in bin)
+//   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+//   (now.elapsed().as_nanos() as u64, model, 0)
+// }
 
 // #[AlohomoraSandbox()]
 // pub fn encrypt_password_with_recipients(inputs: (String, Vec<String>)) -> Result<String, Error> {

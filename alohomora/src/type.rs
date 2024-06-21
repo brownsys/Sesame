@@ -125,6 +125,7 @@ alohomora_type_impl!(u64);
 alohomora_type_impl!(bool);
 alohomora_type_impl!(f64);
 alohomora_type_impl!(String);
+alohomora_type_impl!(*mut std::ffi::c_void);
 
 // Implement AlohomoraType for Option
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]

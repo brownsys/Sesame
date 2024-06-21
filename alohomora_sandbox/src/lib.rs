@@ -8,14 +8,14 @@ use serde::{Serialize, Deserialize};
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: Deserialize<'a>, R: Serialize, F: Fn(T) -> R>(
-    functor: F, arg: *const u8, len: u32) -> *mut u8 {
+pub fn sandbox_preamble<'a, R: Serialize, F: Fn(*mut std::ffi::c_void) -> R>(
+    functor: F, arg: *mut std::ffi::c_void, len: u32) -> *mut u8 {
     use std::slice;
     use std::mem;
 
     // Deserialize input.
-    let bytes = unsafe { slice::from_raw_parts(arg, len as usize) };
-    let arg = bincode::deserialize(bytes).unwrap();
+    // let bytes = unsafe { slice::from_raw_parts(arg, len as usize) };
+    // let arg = bincode::deserialize(bytes).unwrap();
 
     // Call function.
     let ret = functor(arg);
@@ -37,7 +37,7 @@ pub fn sandbox_preamble<'a, T: Deserialize<'a>, R: Serialize, F: Fn(T) -> R>(
 }
 
 // Trait that sandboxed functions should implement.
-pub trait AlohomoraSandbox<'a, 'b, T: Serialize + Deserialize<'a>, R: Serialize + Deserialize<'b>> {
+pub trait AlohomoraSandbox<'a, 'b, T, R: Serialize + Deserialize<'b>> {
     fn invoke(arg: T) -> FinalSandboxOut<R>;
 }
 // pub trait AlohomoraSandbox2<'a, 'b, T: Serialize + Deserialize<'a>, R: Serialize + Deserialize<'b>> {
@@ -78,21 +78,21 @@ extern "C" {
 macro_rules! invoke_sandbox {
     ($functor:ident, $arg:ident) => {
         // Serialize argument.
-        let v: Vec<u8> = ::alohomora_sandbox::bincode::serialize(&$arg).unwrap();
+        // let v: Vec<u8> = ::alohomora_sandbox::bincode::serialize(&$arg).unwrap();
         // let arg = ::alohomora_sandbox::serde_json::to_string(&$arg).unwrap();
         // let arg = ::std::ffi::CString::new(arg).unwrap();
         println!("in macro");
-        let ptr = unsafe {
+        let ptr: *mut std::ffi::c_void = unsafe {
             let ptr = ::alohomora_sandbox::alloc_mem_in_sandbox(10);
             // then we use the from_raw on it
 
-            ptr
+            ptr as *mut std::ffi::c_void
         };
         
         println!("macro got ptr {:?}", ptr);
 
         // Invoke sandbox via C.
-        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(v.as_ptr(), v.len() as u32) };
+        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(ptr, 0) };
         let ret = ret2.result;
 
         // Deserialize output.
