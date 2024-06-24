@@ -3,7 +3,7 @@ pub extern crate serde;
 pub extern crate serde_json;
 
 
-use std::ffi::c_uint;
+use std::{ffi::c_uint, os::raw::c_void};
 use serde::{Serialize, Deserialize};
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
@@ -73,6 +73,30 @@ extern "C" {
     pub fn alloc_mem_in_sandbox(size: usize, sandbox: usize) -> *mut std::ffi::c_void;
 }
 
+// 1. swizzle it out
+// 2. do our modifications on the data type
+// 3. make sure we swizzle back all pointers in the data type
+
+// use the same example strategy from the RLBox paper to find example pointer
+pub fn swizzle_ptr<T>(ptr: u32, known_ptr: *mut std::ffi::c_void) -> *mut T {
+    let TOP32: u64 = 0xFFFFFFFF00000000;
+    let BOT32: u32 = 0xFFFFFFFF;
+    let example_ptr: u64 = known_ptr as u64;
+    println!("example ptr is {example_ptr}");
+    let base: u64 = example_ptr & TOP32;
+    println!("base is {example_ptr}");
+    let swizzled: u64 = (ptr as u64) + base;
+    return swizzled as *mut T;
+}
+
+pub fn unswizzle_ptr<T>(ptr: *mut T) -> u32 {
+    let TOP32: u64 = 0xFFFFFFFF00000000;
+    let BOT32: u64 = 0xFFFFFFFF;
+    let ptr = ptr as u64;
+    let swizzled: u64 = ptr & BOT32;
+    return swizzled as u32;
+}
+
 // Called by Alohomora (from the application process) to invoke the sandbox.
 #[macro_export]
 macro_rules! invoke_sandbox {
@@ -85,41 +109,74 @@ macro_rules! invoke_sandbox {
         let ptr: *mut std::ffi::c_void = unsafe {
             let ptr = ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0);
             println!("ptr1 is {:?}", ptr);
-
-            // let ptr1 = ::alohomora_sandbox::alloc_mem_in_sandbox(10, 1);
-            // println!("ptr2 is {:?}", ptr1);
-            // then we use the from_raw on it
-
             ptr
         };
+
+        #[derive(Debug)]
+        pub struct TestStructUnswizzled {
+            my_int: u32, // 4
+            my_float: f32, // 4
+            my_float2: f64, // 8 <- 16 total
+            ptr_to_buddy: u32, // 8b
+        }
+
+        #[derive(Debug)]
+        pub struct TestStructReal {
+            _unswizzled: *mut TestStructUnswizzled,
+            my_int: u32,
+            my_float: f32,  
+            my_float2: f64,
+            ptr_to_buddy: *mut i32,
+        }
+
+        pub unsafe fn swizzle(unswizzled: *mut TestStructUnswizzled) -> TestStructReal {
+            TestStructReal{
+                _unswizzled: unswizzled,
+                my_int: (*unswizzled).my_int,
+                my_float: (*unswizzled).my_float,
+                my_float2: (*unswizzled).my_float2,
+                ptr_to_buddy: ::alohomora_sandbox::swizzle_ptr((*unswizzled).ptr_to_buddy, unswizzled as *mut c_void)
+            }
+        }
+        
+        impl TestStructReal{
+            pub unsafe fn unswizzle(&self) {
+                (*self._unswizzled).my_int = self.my_int;
+                (*self._unswizzled).my_float = self.my_float;
+                (*self._unswizzled).my_float2 = self.my_float2;
+                (*self._unswizzled).ptr_to_buddy = ::alohomora_sandbox::unswizzle_ptr(self.ptr_to_buddy);
+            }
+        }
         
         println!("macro got ptr {:?}", ptr);
 
-        #[derive(Debug)]
-        pub struct TestStruct {
-            my_int: u32,
-            my_float: f32,
-            my_float2: f64,
-        }
-
-        let real_ptr = ptr as *mut TestStruct;
+        let real_ptr = ptr as *mut TestStructUnswizzled;
 
         println!("macro got real ptr {:?}", real_ptr);
 
         unsafe {
-            // println!("**lenght of vector is {:?} and vec is {:?}", (&*real_ptr).len(), (&*real_ptr));
-            println!("**struct is {:?}", (&*real_ptr));
+            println!("**original struct is {:?}", (&*real_ptr));
+            let mut swizzled = swizzle(real_ptr);
+            println!("swizzled {:?}", swizzled);
+            
+            println!("my buddy is {:?}", *(swizzled.ptr_to_buddy));
+            swizzled.my_int += 100000;
+            *(swizzled.ptr_to_buddy) = 1000;
+
+            swizzled.unswizzle();
+            println!("post unswizzle original is {:?}", (&*real_ptr));
+            println!("my buddy is {:?}", *(swizzled.ptr_to_buddy));
         }
         
         
         unsafe {
-            println!("macro real ptr deref {:?}", *real_ptr);
+            // println!("macro real ptr deref {:?}", *real_ptr);
 
-            let mut b: Box<TestStruct> = Box::from_raw(real_ptr);
+            let mut b: Box<TestStructUnswizzled> = Box::from_raw(real_ptr);
             // println!("macro | real ptr is {:?}", real_ptr);
             // println!("macro | box is {:?}", b);
 
-            b.my_int = 21;
+            // b.my_int = 21;
             
             // println!("macro | w capacity {:?}", (*b).capacity());
             // println!("macro | box is w interior {:?}", *b);

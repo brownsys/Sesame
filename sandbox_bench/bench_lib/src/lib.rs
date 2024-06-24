@@ -17,7 +17,7 @@ use std::os::raw::c_void;
 use std::time::{Duration, Instant};
 
 use std::io::{Read, Write};
-use std::iter;
+use std::{iter, ptr};
 
 // static mut GLOBAL: u64 = 0;
 
@@ -53,9 +53,10 @@ use std::iter;
 
 #[derive(Debug)]
 pub struct TestStruct {
-  my_int: u32,
-  my_float: f32,
-  my_float2: f64,
+    my_int: u32,
+    my_float: f32,
+    my_float2: f64, 
+    ptr_to_buddy: *mut i32,
 }
 
 // #[AlohomoraSandbox()]
@@ -63,7 +64,18 @@ pub struct TestStruct {
 // #[cfg(target_arch = "wasm32")]
 pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
   println!("allocating in sandbox");
-  let mut b = Box::new(TestStruct{my_int: 12, my_float: 0.123, my_float2: 0.321});
+  let mut b0 = Box::new(TestStruct{my_int: 73, my_float: 0.999, my_float2: 0.888, ptr_to_buddy: ptr::null_mut()});
+  let ptr = Box::into_raw(b0);
+  println!("**b0 pointer in sandbox {:?}", ptr);
+
+  let mut box1 = Box::new(301);
+  let ptr1 = Box::into_raw(box1);
+
+  let mut b = Box::new(TestStruct{my_int: 12, my_float: 0.123, my_float2: 0.321, ptr_to_buddy: ptr1});
+
+  println!("size of TestStruct data type {:?}", std::mem::size_of::<TestStruct>());
+  println!("size of *mut TestStruct data type {:?}", std::mem::size_of::<*mut TestStruct>());
+  println!("size of *mut i32 data type {:?}", std::mem::size_of::<*mut i32>());
 
   // (*b).push((0.31, 1));
   // (*b).push((5.23, 10123));
