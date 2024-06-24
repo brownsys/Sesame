@@ -105,11 +105,8 @@ macro_rules! invoke_sandbox {
         // let v: Vec<u8> = ::alohomora_sandbox::bincode::serialize(&$arg).unwrap();
         // let arg = ::alohomora_sandbox::serde_json::to_string(&$arg).unwrap();
         // let arg = ::std::ffi::CString::new(arg).unwrap();
-        println!("in macro");
         let ptr: *mut std::ffi::c_void = unsafe {
-            let ptr = ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0);
-            println!("ptr1 is {:?}", ptr);
-            ptr
+            ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
         };
 
         #[derive(Debug)]
@@ -126,7 +123,7 @@ macro_rules! invoke_sandbox {
             my_int: u32,
             my_float: f32,  
             my_float2: f64,
-            ptr_to_buddy: *mut i32,
+            ptr_to_buddy: *mut i32, // maybe this should be wrapped in another thing to make sure we can call 
         }
 
         pub unsafe fn swizzle(unswizzled: *mut TestStructUnswizzled) -> TestStructReal {
@@ -147,25 +144,26 @@ macro_rules! invoke_sandbox {
                 (*self._unswizzled).ptr_to_buddy = ::alohomora_sandbox::unswizzle_ptr(self.ptr_to_buddy);
             }
         }
-        
-        println!("macro got ptr {:?}", ptr);
 
         let real_ptr = ptr as *mut TestStructUnswizzled;
 
-        println!("macro got real ptr {:?}", real_ptr);
-
         unsafe {
-            println!("**original struct is {:?}", (&*real_ptr));
+            println!("original struct (in sandbox) is {:?}", (&*real_ptr));
             let mut swizzled = swizzle(real_ptr);
-            println!("swizzled {:?}", swizzled);
+            println!("swizzled struct is {:?}", swizzled);
             
-            println!("my buddy is {:?}", *(swizzled.ptr_to_buddy));
+            println!("*ptr_to_buddy for the swizzled struct is {:?}", *(swizzled.ptr_to_buddy));
+
             swizzled.my_int += 100000;
             *(swizzled.ptr_to_buddy) = 1000;
 
+            println!("now swizzled is {:?}", swizzled);
+            println!("unswizzling it (so changes are reflected in sandbox)");
+
             swizzled.unswizzle();
-            println!("post unswizzle original is {:?}", (&*real_ptr));
-            println!("my buddy is {:?}", *(swizzled.ptr_to_buddy));
+
+            println!("original is now {:?}", (&*real_ptr));
+            // println!("*ptr_to_buddy for original is {:?}", *(swizzled.ptr_to_buddy));
         }
         
         

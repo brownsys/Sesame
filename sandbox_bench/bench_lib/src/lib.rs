@@ -63,44 +63,31 @@ pub struct TestStruct {
 #[no_mangle]
 // #[cfg(target_arch = "wasm32")]
 pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
-  println!("allocating in sandbox");
-  let mut b0 = Box::new(TestStruct{my_int: 73, my_float: 0.999, my_float2: 0.888, ptr_to_buddy: ptr::null_mut()});
+  let mut b0 = Box::new(TestStruct{my_int: 0, my_float: 0.0, my_float2: 0.0, ptr_to_buddy: ptr::null_mut()});
   let ptr = Box::into_raw(b0);
-  println!("**b0 pointer in sandbox {:?}", ptr);
 
-  let mut box1 = Box::new(301);
+  let mut box1 = Box::new(0);
   let ptr1 = Box::into_raw(box1);
 
-  let mut b = Box::new(TestStruct{my_int: 12, my_float: 0.123, my_float2: 0.321, ptr_to_buddy: ptr1});
-
-  println!("size of TestStruct data type {:?}", std::mem::size_of::<TestStruct>());
-  println!("size of *mut TestStruct data type {:?}", std::mem::size_of::<*mut TestStruct>());
-  println!("size of *mut i32 data type {:?}", std::mem::size_of::<*mut i32>());
+  let mut b = Box::new(TestStruct{my_int: 0, my_float: 0.0, my_float2: 0.0, ptr_to_buddy: ptr1});
 
   // (*b).push((0.31, 1));
   // (*b).push((5.23, 10123));
   // (*b).push((111.2, 12824));
-  println!("pushed element");
 
   // let static_ref: &'static mut Vec<(f64, u64)> = Box::leak(b);
   let static_ptr: *mut TestStruct = Box::into_raw(b);
-  // let num = static_ptr as u64;
-  println!("**static pointer in sandbox {:?}", static_ptr);
 
-  unsafe {
-    println!("**struct is {:?}", (&*static_ptr));
-  }
-  // return 10;
   return static_ptr as *mut std::ffi::c_void;
 }
 
 #[AlohomoraSandbox()]
 pub fn train2(inputs: *mut std::ffi::c_void) -> (u64, (), u64) {
-  println!("in vector");
   let vec_ptr: *mut TestStruct = inputs as *mut TestStruct;
 
   unsafe {
-    println!("vec is -- {:?}", *vec_ptr);
+    println!("in the sandbox, the struct is {:?}", *vec_ptr);
+    println!("and *ptr_to_buddy is {:?}", *((*vec_ptr).ptr_to_buddy));
   }
   (0, (), 1)
 }

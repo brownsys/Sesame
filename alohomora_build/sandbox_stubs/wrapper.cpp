@@ -82,7 +82,7 @@ void initialize_sandbox_pool() \{
 void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index) \{
     if (sandbox_pool.size() == 0) initialize_sandbox_pool();
 
-    printf("invoking alloc in sandbox %d\n", sandbox_index);
+    // printf("invoking alloc in sandbox %d\n", sandbox_index);
     // unsigned arg = size;
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
     // int arg_buf = 10;
