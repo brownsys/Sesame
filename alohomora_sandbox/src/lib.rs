@@ -126,6 +126,7 @@ macro_rules! invoke_sandbox {
             // swizzled.my_int += 100000;
             // *(swizzled.ptr_to_buddy) = 1000;
 
+            // TODO: pop off old vec and push onto new vec here
             swizzled.data.push(10);
 
             println!("now swizzled is {:?}", swizzled);
