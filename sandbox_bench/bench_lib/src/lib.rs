@@ -9,15 +9,22 @@ use chrono::Utc;
 use linfa::dataset::Dataset;
 use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
+use myvec::*;
+use teststruct::*;
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
 use alohomora_derive::AlohomoraSandbox;
+use std::convert::TryInto;
 use std::os::raw::c_void;
+use std::ptr::NonNull;
 // use std::str::FromStr;
 use std::time::{Duration, Instant};
 
 use std::io::{Read, Write};
 use std::{iter, ptr};
+
+mod myvec;
+mod teststruct;
 
 // static mut GLOBAL: u64 = 0;
 
@@ -68,26 +75,66 @@ pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
 
   let mut box1 = Box::new(0);
   let ptr1 = Box::into_raw(box1);
+  println!("size of NonNull<i32> is {:?}", std::mem::size_of::<NonNull<i32>>());
+  println!("size of struct is {:?}", std::mem::size_of::<MyVec<i32>>());
+  println!("alignment of struct is {:?}", std::mem::align_of::<MyVec<i32>>());
+  let mut vec: MyVec<i32> = MyVec::new();
+  for i in 0..size {
+    vec.push(i.try_into().unwrap());
+    println!("vec is now {:?}", vec);
+  }
+
+  for i in 3..size {
+    vec.remove(0);
+    println!("vec is now {:?}", vec);
+  }
+
+  let vec_ptr = &mut vec as *mut MyVec<i32>;
+  let buf_ptr = &mut vec.buf as *mut RawMyVec<i32>;
+  let len_ptr = &mut vec.len as *mut usize;
+  let cap_ptr = &mut vec.buf.cap as *mut usize;
+  let ptr_ptr = &mut vec.buf.ptr as *mut NonNull<i32>;
+
+  let b = Box::new(vec);
+
+  
+
+  println!("vec is at addr {:?}", &vec_ptr);
+  let vec_ptr = Box::into_raw(b);
+  println!("into raw ptr is {:?}", vec_ptr);
+  println!("rawvec is at addr {:?}", buf_ptr);
+  println!("ptr is at addr {:?}", ptr_ptr);
+  println!("len is at addr {:?}", len_ptr);
+  println!("cap is at addr {:?}", cap_ptr);
 
   let mut b = Box::new(TestStruct{my_int: 0, my_float: 0.0, my_float2: 0.0, ptr_to_buddy: ptr1});
-
-  // (*b).push((0.31, 1));
-  // (*b).push((5.23, 10123));
-  // (*b).push((111.2, 12824));
 
   // let static_ref: &'static mut Vec<(f64, u64)> = Box::leak(b);
   let static_ptr: *mut TestStruct = Box::into_raw(b);
 
-  return static_ptr as *mut std::ffi::c_void;
+  unsafe {
+    println!("vec is now {:?}", *vec_ptr);
+    println!("vec is now {:?}", *vec_ptr);
+  }
+  
+
+  return vec_ptr as *mut std::ffi::c_void;
 }
 
 #[AlohomoraSandbox()]
 pub fn train2(inputs: *mut std::ffi::c_void) -> (u64, (), u64) {
-  let vec_ptr: *mut TestStruct = inputs as *mut TestStruct;
+  let vec_ptr: *mut MyVec<i32> = inputs as *mut MyVec<i32>;
+  
 
   unsafe {
-    println!("in the sandbox, the struct is {:?}", *vec_ptr);
-    println!("and *ptr_to_buddy is {:?}", *((*vec_ptr).ptr_to_buddy));
+    let mut b = Box::from_raw(vec_ptr);
+    println!("in the sandbox, the struct is {:?}", *b);
+
+    for i in 0..(*b).len(){
+      println!("item {i}: {:?}", (*b).pop());
+    }
+
+    // println!("and *ptr_to_buddy is {:?}", *((*vec_ptr)));
   }
   (0, (), 1)
 }
