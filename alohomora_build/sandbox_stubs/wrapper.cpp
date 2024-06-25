@@ -89,7 +89,7 @@ void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index) \{
     // const char* arg = &arg_buf;
     // unsigned size = sizeof(int);
 
-    auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, 10);
+    auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, size);
     void* result = result_tainted.UNSAFE_unverified();
 
     // tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);

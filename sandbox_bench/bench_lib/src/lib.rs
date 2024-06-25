@@ -70,45 +70,23 @@ pub struct TestStruct {
 #[no_mangle]
 // #[cfg(target_arch = "wasm32")]
 pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
-  let mut b0 = Box::new(TestStruct{my_int: 0, my_float: 0.0, my_float2: 0.0, ptr_to_buddy: ptr::null_mut()});
-  let ptr = Box::into_raw(b0);
-
-  let mut box1 = Box::new(0);
-  let ptr1 = Box::into_raw(box1);
-
-  let mut vec: Vec<i32> = Vec::new();
+  println!("allocing w size {:?}", size);
+  let mut vec: Vec<(f64, u64)> = Vec::new();
   for i in 0..size {
-    vec.push(i.try_into().unwrap());
+    vec.push((0.0, i.try_into().unwrap()));
     println!("vec is now {:?}", vec);
   }
 
-  for i in 3..size {
+  for i in 0..size {
     vec.remove(0);
     println!("vec is now {:?}", vec);
   }
 
-  let vec_ptr = &mut vec as *mut Vec<i32>;
-  // let buf_ptr = &mut vec.buf as *mut RawMyVec<i32>;
-  // let len_ptr = &mut vec.len as *mut usize;
-  // let cap_ptr = &mut vec.buf.cap as *mut usize;
-  // let ptr_ptr = &mut vec.buf.ptr as *mut NonNull<i32>;
-
-  let b = Box::new(vec);
-
-  
+  let vec_ptr = &mut vec as *mut Vec<(f64, u64)>;
 
   println!("vec is at addr {:?}", &vec_ptr);
+  let b = Box::new(vec);
   let vec_ptr = Box::into_raw(b);
-  // println!("into raw ptr is {:?}", vec_ptr);
-  // println!("rawvec is at addr {:?}", buf_ptr);
-  // println!("ptr is at addr {:?}", ptr_ptr);
-  // println!("len is at addr {:?}", len_ptr);
-  // println!("cap is at addr {:?}", cap_ptr);
-
-  let mut b = Box::new(TestStruct{my_int: 0, my_float: 0.0, my_float2: 0.0, ptr_to_buddy: ptr1});
-
-  // let static_ref: &'static mut Vec<(f64, u64)> = Box::leak(b);
-  let static_ptr: *mut TestStruct = Box::into_raw(b);
 
   unsafe {
     println!("vec is now {:?}", *vec_ptr);
@@ -121,8 +99,7 @@ pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
 
 #[AlohomoraSandbox()]
 pub fn train2(inputs: *mut std::ffi::c_void) -> (u64, (), u64) {
-  let vec_ptr: *mut Vec<i32> = inputs as *mut Vec<i32>;
-  
+  let vec_ptr: *mut Vec<(f64, u64)> = inputs as *mut Vec<(f64, u64)>;
 
   unsafe {
     let mut b = Box::from_raw(vec_ptr);

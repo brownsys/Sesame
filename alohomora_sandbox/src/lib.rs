@@ -102,60 +102,36 @@ macro_rules! invoke_sandbox {
         // let v: Vec<u8> = ::alohomora_sandbox::bincode::serialize(&$arg).unwrap();
         // let arg = ::alohomora_sandbox::serde_json::to_string(&$arg).unwrap();
         // let arg = ::std::ffi::CString::new(arg).unwrap();
+        let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
+
         let ptr: *mut std::ffi::c_void = unsafe {
-            ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
+            // TODO: handle sandbox allocation
+            ::alohomora_sandbox::alloc_mem_in_sandbox((*input_vec).len(), 0)
         };
+
+        println!("***the arg is $arg {:?}", $arg);
  
-
-        println!("size of struct is {:?}", std::mem::size_of::<MyVecUnswizzled>());
-        println!("alignment of struct is {:?}", std::mem::align_of::<MyVecUnswizzled>());
-
-        println!("size of NonNull<i32> is {:?}", std::mem::size_of::<NonNull<i32>>());
-
         let real_ptr = ptr as *mut MyVecUnswizzled;
 
         unsafe {
             println!("original struct (in sandbox) is {:?}", (&*real_ptr));
             println!("len of sandbox struct is {:?}", (*real_ptr).len);
 
-            let mut swizzled = myvec::swizzle(real_ptr);
+            let mut swizzled: Unswizzled<MyVec<(f64, u64)>, MyVecUnswizzled> = myvec::swizzle(real_ptr);
             println!("swizzled struct is {:?}", swizzled);
+
+            // Push items on the old vector into the swizzled vector.
+            for item in (*input_vec).iter() {
+                // TODO: should be push_with_capacity to avoid reallocation
+                swizzled.data.push(item.clone());
+                println!("now swizzled is {:?}", swizzled);
+            }
             
-            // println!("*ptr_to_buddy for the swizzled struct is {:?}", *(swizzled.ptr_to_buddy));
-
-            // swizzled.my_int += 100000;
-            // *(swizzled.ptr_to_buddy) = 1000;
-
-            // TODO: pop off old vec and push onto new vec here
-            swizzled.data.push(10);
-
-            println!("now swizzled is {:?}", swizzled);
             println!("unswizzling it (so changes are reflected in sandbox)");
 
             swizzled.unswizzle();
 
             println!("original is now {:?}", (&*real_ptr));
-            // println!("*ptr_to_buddy for original is {:?}", *(swizzled.ptr_to_buddy));
-        }
-        
-        
-        unsafe {
-            // println!("macro real ptr deref {:?}", *real_ptr);
-
-            let mut b: Box<MyVecUnswizzled> = Box::from_raw(real_ptr);
-            println!("macro | real ptr is {:?}", real_ptr);
-            Box::leak(b);
-            // println!("macro | box is {:?}", b);
-
-            // b.my_int = 21;
-            
-            // println!("macro | w capacity {:?}", (*b).capacity());
-            // println!("macro | box is w interior {:?}", *b);
-
-            // println!("macro | leaking box (bc we didnt allocate it)");
-            // Box::leak(b); // leak the box bc we didn't really allocate it
-            // (*b).push((0.1, 3));
-            // TODO: change for push_within_capacity() to make sure we're not exceeding sandbox allocated mem
         }
 
         // Invoke sandbox via C.
