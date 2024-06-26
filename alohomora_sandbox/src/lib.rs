@@ -111,27 +111,36 @@ macro_rules! invoke_sandbox {
 
         println!("***the arg is $arg {:?}", $arg);
  
-        let real_ptr = ptr as *mut MyVecUnswizzled;
+        let real_ptr = ptr as *mut GrandparentUnswizzled;
 
         unsafe {
             println!("original struct (in sandbox) is {:?}", (&*real_ptr));
-            println!("len of sandbox struct is {:?}", (*real_ptr).len);
 
-            let mut swizzled: Unswizzled<MyVec<(f64, u64)>, MyVecUnswizzled> = myvec::swizzle(real_ptr);
-            println!("swizzled struct is {:?}", swizzled);
+            // let real_ptr = ptr as *mut MyVecUnswizzled;
+            // println!("len of sandbox struct is {:?}", (*real_ptr).len);
+
+            let mut swizzled: *mut Grandparent = nested::swizzle_grand(real_ptr);
+
+            println!("swizzled struct is {:?}", *swizzled);
+            println!("swizzled favorite kid is {:?}", *(*swizzled).favorite_kid);
+            println!("their favorite kid is {:?}", *(*(*swizzled).favorite_kid).favorite_kid);
 
             // Push items on the old vector into the swizzled vector.
-            for item in (*input_vec).iter() {
-                // TODO: should be push_with_capacity to avoid reallocation
-                swizzled.data.push(item.clone());
-                println!("now swizzled is {:?}", swizzled);
-            }
+            // for item in (*input_vec).iter() {
+            //     // TODO: should be push_with_capacity to avoid reallocation
+            //     swizzled.data.push(item.clone());
+            //     println!("now swizzled is {:?}", swizzled);
+            // }
             
             println!("unswizzling it (so changes are reflected in sandbox)");
 
-            swizzled.unswizzle();
+            let new = nested::unswizzle_grand(swizzled);
+            println!("new is {:?} with original {:?}", new, real_ptr);
+            // swizzled.unswizzle();
 
             println!("original is now {:?}", (&*real_ptr));
+            // println!("swizzled favorite kid is {:?}", *(*real_ptr).favorite_kid);
+            // println!("their favorite kid is {:?}", *(*(*real_ptr).favorite_kid).favorite_kid);
         }
 
         // Invoke sandbox via C.

@@ -11,6 +11,7 @@ use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use myvec::*;
 use teststruct::*;
+use nested::*;
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
 use alohomora_derive::AlohomoraSandbox;
@@ -23,8 +24,13 @@ use std::time::{Duration, Instant};
 use std::io::{Read, Write};
 use std::{iter, ptr};
 
+
+
+extern crate once_cell;
+
 mod myvec;
 mod teststruct;
+mod nested;
 
 // static mut GLOBAL: u64 = 0;
 
@@ -71,45 +77,49 @@ pub struct TestStruct {
 // #[cfg(target_arch = "wasm32")]
 pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
   println!("allocing w size {:?}", size);
-  let mut vec: Vec<(f64, u64)> = Vec::new();
-  for i in 0..size {
-    vec.push((0.0, i.try_into().unwrap()));
-    println!("vec is now {:?}", vec);
-  }
+  println!("size is {:?}", std::mem::size_of::<SandboxPointer<Parent>>());
 
-  for i in 0..size {
-    vec.remove(0);
-    println!("vec is now {:?}", vec);
-  }
+  let mut baby = Box::new(Baby {
+    goos_gaad: 0,
+    iq: 0,
+    height: 0.0,
+  });
+  let baby_ptr = Box::into_raw(baby);
 
-  let vec_ptr = &mut vec as *mut Vec<(f64, u64)>;
+  let mut mom = Box::new(Parent {
+    cookouts_held: 0,
+    hours_at_work: 0,
+    height: 0.0,
+    favorite_kid: baby_ptr,
+  });
+  let mom_ptr = Box::into_raw(mom);
 
-  println!("vec is at addr {:?}", &vec_ptr);
-  let b = Box::new(vec);
-  let vec_ptr = Box::into_raw(b);
+  let mut mimi = Box::new(Grandparent {
+    cookies_baked: 0,
+    pickleball_rank: 0,
+    height: 0.0,
+    favorite_kid: mom_ptr,
+  });
+  let mimi_ptr = Box::into_raw(mimi);
 
   unsafe {
-    println!("vec is now {:?}", *vec_ptr);
+    println!("vec is now {:?}", *mimi_ptr);
     // println!("vec is now {:?}", *vec_ptr);
   }
   
 
-  return vec_ptr as *mut std::ffi::c_void;
+  return mimi_ptr as *mut std::ffi::c_void;
 }
 
 #[AlohomoraSandbox()]
 pub fn train2(inputs: *mut std::ffi::c_void) -> (u64, (), u64) {
-  let vec_ptr: *mut Vec<(f64, u64)> = inputs as *mut Vec<(f64, u64)>;
+  let vec_ptr: *mut Grandparent = inputs as *mut Grandparent;
 
   unsafe {
     let mut b = Box::from_raw(vec_ptr);
     println!("in the sandbox, the struct is {:?}", *b);
-
-    for i in 0..(*b).len(){
-      println!("item {i}: {:?}", (*b).pop());
-    }
-
-    // println!("and *ptr_to_buddy is {:?}", *((*vec_ptr)));
+    println!("favorite kid is {:?}", *(*b).favorite_kid);
+    println!("their favorite kid is {:?}", *(*(*b).favorite_kid).favorite_kid);
   }
   (0, (), 1)
 }

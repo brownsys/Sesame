@@ -104,6 +104,29 @@ use rand::distributions::Alphanumeric;
 //   }).collect()
 // }
 
+#[derive(Debug)]
+pub struct Grandparent {
+    pub cookies_baked: u32,
+    pub pickleball_rank: u32,
+    pub height: f64,
+    pub favorite_kid: *mut Parent,
+}
+
+#[derive(Debug)]
+pub struct Parent {
+    pub cookouts_held: u32,
+    pub hours_at_work: u32,
+    pub height: f64,
+    pub favorite_kid: *mut Baby,
+}
+
+#[derive(Debug)]
+pub struct Baby {
+    pub goos_gaad: u32,
+    pub iq: u32,
+    pub height: f64,
+}
+
 fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   type BBoxTime = BBox<NaiveDateTime, NoPolicy>;
   type BBoxGrade = BBox<u64, NoPolicy>;
@@ -125,14 +148,37 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let now = now.timestamp_nanos_opt().unwrap() as u64;
 
     let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0)];
+
+    let baby = Box::new(Baby {
+      goos_gaad: 18,
+      iq: 10,
+      height: 1.3,
+    });
+    let baby_ptr = Box::into_raw(baby);
+  
+    let mom = Box::new(Parent {
+      cookouts_held: 3,
+      hours_at_work: 1004919491,
+      height: 6.2,
+      favorite_kid: baby_ptr,
+    });
+    let mom_ptr = Box::into_raw(mom);
+  
+    let mimi = Box::new(Grandparent {
+      cookies_baked: 13000,
+      pickleball_rank: 1,
+      height: 5.8,
+      favorite_kid: mom_ptr,
+    });
+    let mimi_ptr = Box::into_raw(mimi);
     
     let test_ptr: &mut Vec<(f64, u64)> = &mut test_grades;
-    let ptr = test_ptr as *mut Vec<(f64, u64)>;
-    let ptr2 = ptr as *mut std::ffi::c_void;
+    let ptr = mimi_ptr as *mut Vec<(f64, u64)>;
+    let void_ptr = ptr as *mut std::ffi::c_void;
     
 
     type Out = FinalSandboxOut<(u64, (), u64)>;
-    let output = execute_sandbox::<train2, _, _>(ptr2);
+    let output = execute_sandbox::<train2, _, _>(void_ptr);
 
     // END TIMER (start inside hash)
     let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
