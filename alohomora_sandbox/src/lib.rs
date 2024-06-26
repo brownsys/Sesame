@@ -126,17 +126,10 @@ macro_rules! invoke_sandbox {
             // println!("swizzled struct is {:?}", *swizzled);
             // println!("swizzled favorite kid is {:?}", *(*swizzled).favorite_kid);
             // println!("their favorite kid is {:?}", *(*(*swizzled).favorite_kid).favorite_kid);
-
-            // Push items on the old vector into the swizzled vector.
-            // for item in (*input_vec).iter() {
-            //     // TODO: should be push_with_capacity to avoid reallocation
-            //     swizzled.data.push(item.clone());
-            //     println!("now swizzled is {:?}", swizzled);
-            // }
             
             println!("unswizzling it (so changes are reflected in sandbox)");
 
-            let new = nested::unswizzle_grand(outside, inside);
+            let new = nested::Swizzleable::unswizzle(outside, inside);
             // println!("new is {:?} with original {:?}", new, real_ptr);
             // swizzled.unswizzle();
 

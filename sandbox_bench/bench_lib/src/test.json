@@ -1,0 +1,23 @@
+Fields::Named 
+{ brace_token: Brace, 
+named: 
+[Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: 
+Some(Ident { ident: "cookies_baked", span: #0 bytes(21316..21329) }), colon_token: Some(Colon), ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "u32", span: #0 bytes(21331..21334) }, arguments: PathArguments::None }] } } }, 
+Comma, Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: Some(Ident { ident: "pickleball_rank", span: #0 bytes(21344..21359) }), colon_token: Some(Colon), ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "u32", span: #0 bytes(21361..21364) }, arguments: PathArguments::None }] } } }, Comma, Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: Some(Ident { ident: "height", span: #0 bytes(21374..21380) }), colon_token: Some(Colon), ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "f64", span: #0 bytes(21382..21385) }, arguments: PathArguments::None }] } } }, Comma, 
+
+
+Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: 
+Some(Ident { ident: "favorite_kid", span: #0 bytes(21395..21407) }), colon_token: Some(Colon), 
+ty: Type::Ptr { star_token: Star, const_token: None, mutability: Some(Mut), elem: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "Parent", span: #0 bytes(21414..21420) }, arguments: PathArguments::None }] } } } }, Comma] }
+
+
+
+
+
+Fields::Named { brace_token: Brace, named: [Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: Some(Ident { ident: "cookies_baked", span: #0 bytes(21316..21329) }), colon_token: Some(Colon), ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "u32", span: #0 bytes(21331..21334) }, arguments: PathArguments::None }] } } }, Comma, Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: Some(Ident { ident: "pickleball_rank", span: #0 bytes(21344..21359) }), colon_token: Some(Colon), ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "u32", span: #0 bytes(21361..21364) }, arguments: PathArguments::None }] } } }, Comma, Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: Some(Ident { ident: "height", span: #0 bytes(21374..21380) }), colon_token: Some(Colon), ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "f64", span: #0 bytes(21382..21385) }, arguments: PathArguments::None }] } } }, Comma, 
+
+Field { attrs: [], vis: Visibility::Public(Pub), mutability: FieldMutability::None, ident: 
+Some(Ident { ident: "favorite_kid", span: #0 bytes(21395..21407) }), colon_token: Some(Colon), 
+ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "SandboxPointer", span: #0 bytes(21409..21423) }, arguments: PathArguments::AngleBracketed { colon2_token: None, lt_token: Lt, args: [GenericArgument::Type(Type::Path { qself: Some(QSelf { lt_token: Lt, ty: Type::Path { qself: None, path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "Parent", span: #0 bytes(21425..21431) }, arguments: PathArguments::None }] } }, position: 1, as_token: Some(As), gt_token: Gt }), path: Path { leading_colon: None, segments: [PathSegment { ident: Ident { ident: "Swizzleable", span: #0 bytes(21435..21446) }, arguments: PathArguments::None }, PathSep, PathSegment { ident: Ident { ident: "Unswizzled", span: #0 bytes(21449..21459) }, arguments: PathArguments::None }] } })], gt_token: Gt } }] } } }, 
+
+Comma] }

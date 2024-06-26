@@ -2,9 +2,9 @@ extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
 
-use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
-use syn::{ItemFn, Ident, FnArg, ReturnType};
+use proc_macro2::{Span, TokenStream};
+use quote::{quote, quote_spanned, ToTokens};
+use syn::{parse::Parser, DeriveInput, FnArg, Ident, ItemFn, ReturnType};
 // use ::alohomora_sandbox::alloc_mem_in_sandbox;
 
 pub fn sandbox_impl(input: ItemFn) -> TokenStream {
@@ -87,5 +87,118 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
             use std::ffi::CString;
             let _ = unsafe { CString::from_raw(ret) };
         }
+    }
+}
+
+pub type Error = (Span, &'static str);
+
+pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error> {
+    let mut stream = TokenStream::new();
+
+    // 1. define unswizzled type
+    // 2. implement Swizzleable trait
+    // 2a. define Unswizzled as unswizzled type from (1)
+    // 2b. define unswizzle function
+    //      
+
+    if let syn::Data::Struct(struct_data) = input.data {
+        let struct_name = input.ident.clone();
+        let unswizzled_struct_name = Ident::new(&format!("{}Unswizzled", struct_name), struct_name.span());
+
+        // panic!("{:?}", struct_data.fields);
+        // set up the fields of the unswizzled version of this struct
+        let mut unswizzled_fields = TokenStream::new();
+        let mut unswizzle_function = TokenStream::new();
+        let (outside_name, inside_name) = (Ident::new("outside", Span::call_site()), 
+                                                         Ident::new("inside", Span::call_site()));
+        match struct_data.fields.clone() {
+            syn::Fields::Named(fields) => {
+                for field in fields.named.iter() {
+                    let field_name = field.ident.clone().unwrap();
+                    // TODO: also fix usizes
+                    if let syn::Type::Ptr(ptr) = &field.ty {
+                        // if this field is a pointer, we make it a sandbox ptr
+                        if let syn::Type::Path(p) = *ptr.elem.clone() {
+                            let ptr_to_type = &p.path.segments.first().unwrap().ident;
+
+                            let new_field = syn::Field::parse_named.parse2(
+                                quote! { pub #field_name: SandboxPointer<<#ptr_to_type as Swizzleable>::Unswizzled> }
+                            ).unwrap();
+                            new_field.to_tokens(&mut unswizzled_fields);
+                            unswizzled_fields.extend(quote!{,});            // add back comma bc we remove it when just getting the field
+
+                            
+                            let big_swizzle_line = quote!{
+                                (*#inside_name).#field_name = 
+                                    unswizzle_ptr(
+                                    // ^^ unswizzle that pointer (to be in the sandbox)
+                                        Swizzleable::unswizzle((*#outside_name).#field_name, 
+                                        // ^^ unswizzle that whole data structure (to be in the sandbox)
+                                            swizzle_ptr(&(*#inside_name).#field_name, #inside_name)));
+                                            // ^^ first, swizzle the inside pointer to be global
+                            };
+                            unswizzle_function.extend(big_swizzle_line);
+                        } else { return Err((input.ident.span(), "TODO")) }
+                    } else {
+                        // if not we keep as is
+                        (*field).to_tokens(&mut unswizzled_fields);
+                        unswizzled_fields.extend(quote!{,});                // add back comma bc we remove it when just getting the field
+
+
+                        let function_copy_line = quote!{
+                            (*#inside_name).#field_name = (*#outside_name).#field_name;
+                        };
+                        unswizzle_function.extend(function_copy_line);
+                    }
+                }
+            }
+            _ => return Err((input.ident.span(), "TODO")),
+        }
+        
+        #[allow(non_snake_case)]
+        let UNSWIZZLED_DEF = quote!{
+            #[automatically_derived]
+            #[derive(Debug)]
+            pub struct #unswizzled_struct_name {
+                #unswizzled_fields
+            }
+        };
+        
+        // create the function for implementing the trait
+        
+        // match struct_data.fields {
+        //     syn::Fields::Named(fields) => {
+
+
+        //     },
+        //     _ => return Err((input.ident.span(), "TODO")),
+        // }
+        // for every field, if it's not a pointer we copy it
+
+        // if it is a pointer, we 
+        //    1. swizzle it, 
+        //    2. recursively unswizzle the struct it points to, and then 
+        //    3. unswizzle the pointer that gets returned 
+        
+
+        // implement the actual trait
+        #[allow(non_snake_case)]
+        let TRAIT_IMPL = quote!{
+            #[automatically_derived]
+            impl Swizzleable for #struct_name {
+                type Unswizzled = #unswizzled_struct_name;
+                unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled {
+                    #unswizzle_function
+                    println!("unswizzling from macro");
+                    inside
+                }
+            }
+        };
+    
+        stream.extend(UNSWIZZLED_DEF);
+        stream.extend(TRAIT_IMPL);
+        return Ok(stream);
+    } else {
+        Err((input.ident.span(), "derive(Swizzleable) only works on structs"))
     }
 }

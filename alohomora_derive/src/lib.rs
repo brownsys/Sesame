@@ -98,6 +98,18 @@ pub fn AlohomoraSandbox(_args: TokenStream, input: TokenStream) -> TokenStream {
     result
 }
 
+#[proc_macro_derive(Swizzleable)]
+pub fn derive_swizzleable(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    match sandbox::derive_swizzleable_impl(input) {
+        Ok(tokens) => {
+            println!("have tokens {:?}", tokens);
+            tokens.into()
+        },
+        Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
+    }
+}
+
 #[proc_macro_derive(RequestBBoxJson)]
 pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
