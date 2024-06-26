@@ -102,28 +102,30 @@ macro_rules! invoke_sandbox {
         // let v: Vec<u8> = ::alohomora_sandbox::bincode::serialize(&$arg).unwrap();
         // let arg = ::alohomora_sandbox::serde_json::to_string(&$arg).unwrap();
         // let arg = ::std::ffi::CString::new(arg).unwrap();
-        let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
+        // let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
 
         let ptr: *mut std::ffi::c_void = unsafe {
             // TODO: handle sandbox allocation
-            ::alohomora_sandbox::alloc_mem_in_sandbox((*input_vec).len(), 0)
+            ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
         };
 
         println!("***the arg is $arg {:?}", $arg);
  
-        let real_ptr = ptr as *mut GrandparentUnswizzled;
+        let inside = ptr as *mut GrandparentUnswizzled;
+        let outside = $arg as *mut Grandparent;
 
         unsafe {
-            println!("original struct (in sandbox) is {:?}", (&*real_ptr));
+            println!("original struct (in sandbox) is {:?}", (&*inside));
+            println!("outside (in sandbox) is {:?}", (&*outside));
 
             // let real_ptr = ptr as *mut MyVecUnswizzled;
             // println!("len of sandbox struct is {:?}", (*real_ptr).len);
 
-            let mut swizzled: *mut Grandparent = nested::swizzle_grand(real_ptr);
+            // let mut swizzled: *mut Grandparent = nested::swizzle_grand(real_ptr);
 
-            println!("swizzled struct is {:?}", *swizzled);
-            println!("swizzled favorite kid is {:?}", *(*swizzled).favorite_kid);
-            println!("their favorite kid is {:?}", *(*(*swizzled).favorite_kid).favorite_kid);
+            // println!("swizzled struct is {:?}", *swizzled);
+            // println!("swizzled favorite kid is {:?}", *(*swizzled).favorite_kid);
+            // println!("their favorite kid is {:?}", *(*(*swizzled).favorite_kid).favorite_kid);
 
             // Push items on the old vector into the swizzled vector.
             // for item in (*input_vec).iter() {
@@ -134,11 +136,11 @@ macro_rules! invoke_sandbox {
             
             println!("unswizzling it (so changes are reflected in sandbox)");
 
-            let new = nested::unswizzle_grand(swizzled);
-            println!("new is {:?} with original {:?}", new, real_ptr);
+            let new = nested::unswizzle_grand(outside, inside);
+            // println!("new is {:?} with original {:?}", new, real_ptr);
             // swizzled.unswizzle();
 
-            println!("original is now {:?}", (&*real_ptr));
+            println!("inside is now {:?}", (&*inside));
             // println!("swizzled favorite kid is {:?}", *(*real_ptr).favorite_kid);
             // println!("their favorite kid is {:?}", *(*(*real_ptr).favorite_kid).favorite_kid);
         }

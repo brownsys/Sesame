@@ -44,6 +44,7 @@ pub struct Baby {
     pub height: f64,
 }
 
+// convert a sandbox pointer to one that will work globally
 pub fn swizzle_ptr<T, U>(ptr: &SandboxPointer<T>, known_ptr: *mut U) -> *mut T {
     let known_ptr = known_ptr as *mut c_void;
     let top32: u64 = 0xFFFFFFFF00000000;
@@ -54,6 +55,7 @@ pub fn swizzle_ptr<T, U>(ptr: &SandboxPointer<T>, known_ptr: *mut U) -> *mut T {
     return swizzled as *mut T;
 }
 
+// convert global pointer to one that will work inside the sandbox
 pub fn unswizzle_ptr<T>(ptr: *mut T) -> SandboxPointer<T> {
     let top32: u64 = 0xFFFFFFFF00000000;
     let bot32: u64 = 0xFFFFFFFF;
@@ -90,6 +92,8 @@ pub struct ParentUnswizzled {
     pub height: f64,
     pub favorite_kid: SandboxPointer<Baby>,
 }
+
+type BabyUnswizzled = Baby;
 
 // use global dict instead of Unswizzled<U, T> type.
 
@@ -141,47 +145,33 @@ pub unsafe fn swizzle_parent(u: *mut ParentUnswizzled) -> *mut Parent {
     ptr
 }
 
-pub unsafe fn unswizzle_grand(s: *mut Grandparent) -> *mut GrandparentUnswizzled {
-    let unswizzled = *LOCAL_TO_SANDBOX.get(&(s as usize)).unwrap() as *mut GrandparentUnswizzled;
-    println!("got unswizzled addr {:?} for swizzled addr {:?}", unswizzled, s);
+// you give me the outside sandbox and i copy it onto the inside sandbox version
+pub unsafe fn unswizzle_grand(outside: *mut Grandparent, inside: *mut GrandparentUnswizzled) -> *mut GrandparentUnswizzled {
+    // let unswizzled = *LOCAL_TO_SANDBOX.get(&(s as usize)).unwrap() as *mut GrandparentUnswizzled;
+    println!("got unswizzled addr {:?} for swizzled addr {:?}", inside, outside);
 
-    (*unswizzled).cookies_baked = (*s).cookies_baked;
-    (*unswizzled).pickleball_rank = (*s).pickleball_rank;
-    (*unswizzled).height = (*s).height;
-    (*unswizzled).favorite_kid = unswizzle_ptr(unswizzle_parent((*s).favorite_kid));
-    unswizzled
+    (*inside).cookies_baked = (*outside).cookies_baked;
+    (*inside).pickleball_rank = (*outside).pickleball_rank;
+    (*inside).height = (*outside).height;
+    (*inside).favorite_kid = unswizzle_ptr(unswizzle_parent((*outside).favorite_kid, swizzle_ptr(&(*inside).favorite_kid, inside)));
+    inside
 }
 
-pub unsafe fn unswizzle_parent(s: *mut Parent) -> *mut ParentUnswizzled {
+pub unsafe fn unswizzle_parent(outside: *mut Parent, inside: *mut ParentUnswizzled) -> *mut ParentUnswizzled {
 
-    let unswizzled = *LOCAL_TO_SANDBOX.get(&(s as usize)).unwrap() as *mut ParentUnswizzled;
-    println!("got unswizzled PARENT addr {:?} for swizzled addr {:?}", unswizzled, s);
+    // let unswizzled = *LOCAL_TO_SANDBOX.get(&(s as usize)).unwrap() as *mut ParentUnswizzled;
+    println!("got unswizzled addr {:?} for swizzled addr {:?}", inside, outside);
 
-    (*unswizzled).cookouts_held = (*s).cookouts_held;
-    (*unswizzled).hours_at_work = (*s).hours_at_work;
-    (*unswizzled).height = (*s).height;
-    (*unswizzled).favorite_kid = unswizzle_ptr((*s).favorite_kid);
-    unswizzled
+    (*inside).cookouts_held = (*outside).cookouts_held;
+    (*inside).hours_at_work = (*outside).hours_at_work;
+    (*inside).height = (*outside).height;
+    (*inside).favorite_kid = unswizzle_ptr(unswizzle_baby((*outside).favorite_kid, swizzle_ptr(&(*inside).favorite_kid, inside)));
+    inside
 }
 
-
-
-
-
-
-impl UnswizzledData for ParentUnswizzled {
-    fn swizzle(&self) {
-        
-    }
-}
-
-
-pub trait UnswizzledData {
-    // Swizzle whole data type out of sandboxed memory.
-    fn swizzle(&self);
-}
-
-pub trait SwizzledData {
-    // Swizzle whole data type back into sandboxed memory.
-    fn unswizzle(&self);
+pub unsafe fn unswizzle_baby(outside: *mut Baby, inside: *mut BabyUnswizzled) -> *mut BabyUnswizzled {
+    (*inside).goos_gaad = (*outside).goos_gaad;
+    (*inside).iq = (*outside).iq;
+    (*inside).height = (*outside).height;
+    inside
 }
