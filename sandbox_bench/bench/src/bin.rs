@@ -8,6 +8,7 @@ use alohomora::bbox::BBox;
 use alohomora::policy::NoPolicy;
 use alohomora::sandbox::{execute_sandbox, FinalSandboxOut};
 
+use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
 use bench_lib::train2;
 
@@ -112,7 +113,7 @@ pub struct Grandparent {
     pub favorite_kid: *mut Parent,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parent {
     pub cookouts_held: u32,
     pub hours_at_work: u32,
@@ -120,7 +121,7 @@ pub struct Parent {
     pub favorite_kid: *mut Baby,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Baby {
     pub goos_gaad: u32,
     pub iq: u32,
@@ -149,36 +150,37 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0)];
 
-    let baby = Box::new(Baby {
-      goos_gaad: 18,
-      iq: 10,
-      height: 1.3,
-    });
-    let baby_ptr = Box::into_raw(baby);
+    // let baby = Box::new(Baby {
+    //   goos_gaad: 18,
+    //   iq: 10,
+    //   height: 1.3,
+    // });
+    // let baby_ptr = Box::into_raw(baby);
   
-    let mom = Box::new(Parent {
-      cookouts_held: 3,
-      hours_at_work: 1004919491,
-      height: 6.2,
-      favorite_kid: baby_ptr,
-    });
-    let mom_ptr = Box::into_raw(mom);
+    // let mom = Box::new(Parent {
+    //   cookouts_held: 3,
+    //   hours_at_work: 1004919491,
+    //   height: 6.2,
+    //   favorite_kid: baby_ptr,
+    // });
+    // let mom_ptr = Box::into_raw(mom);
   
-    let mimi = Box::new(Grandparent {
-      cookies_baked: 13000,
-      pickleball_rank: 1,
-      height: 5.8,
-      favorite_kid: mom_ptr,
-    });
-    let mimi_ptr = Box::into_raw(mimi);
+    // let mimi = Box::new(Grandparent {
+    //   cookies_baked: 13000,
+    //   pickleball_rank: 1,
+    //   height: 5.8,
+    //   favorite_kid: mom_ptr,
+    // });
+    // let mimi_ptr = Box::into_raw(mimi);
     
     let test_ptr: &mut Vec<(f64, u64)> = &mut test_grades;
-    let ptr = mimi_ptr as *mut Vec<(f64, u64)>;
-    let void_ptr = ptr as *mut std::ffi::c_void;
+    // let ptr = mimi_ptr as *mut Vec<(f64, u64)>;
+    // let void_ptr = ptr as *mut std::ffi::c_void;
     
 
+    // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
     type Out = FinalSandboxOut<(u64, (), u64)>;
-    let output = execute_sandbox::<train2, _, _>(void_ptr);
+    let output = execute_sandbox::<train2, _, _>(test_grades);
 
     // END TIMER (start inside hash)
     let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;

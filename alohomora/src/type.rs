@@ -166,6 +166,22 @@ impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
     }
 }
 
+// FIXME: is this okay??
+// impl<T: AlohomoraType + Clone> AlohomoraType for *mut T {
+//     type Out = T::Out;
+//     fn to_enum(self) -> AlohomoraTypeEnum {
+//         let a = unsafe {
+//             (*self).clone().to_enum()
+//         };
+//         a
+//     }
+//     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+//         match e {
+//             _ => todo!()
+//         }
+//     }
+// }
+
 // Implement AlohomoraType for containers of AlohomoraTypes
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<S: AlohomoraType> AlohomoraType for Vec<S> {

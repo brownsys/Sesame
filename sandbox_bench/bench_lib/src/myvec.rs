@@ -2,47 +2,101 @@ use std::alloc::{self, Layout};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::ptr::{self, NonNull};
+use std::ptr;
 
-type SandboxPointer = u32;
+use alohomora_derive::Swizzleable;
+use crate::nested::{unswizzle_ptr, swizzle_ptr, SandboxPointer};
 
-#[derive(Debug)]
-pub struct RawMyVecUnswizzled {
-    pub ptr: SandboxPointer,
-    pub cap: u32, // typically `usize`, but that's 4 bytes in sandbox and 8 outside
+use crate::Swizzleable;
+
+// type SandboxPointer = u32;
+
+// #[derive(Debug)]
+// pub struct RawMyVecUnswizzled {
+//     pub ptr: SandboxPointer,
+//     pub cap: u32, // typically `usize`, but that's 4 bytes in sandbox and 8 outside
+// }
+
+// #[derive(Debug)]
+// pub struct MyVecUnswizzled {
+//     pub buf: RawMyVecUnswizzled,
+//     pub len: u32,
+// }
+
+// pub unsafe fn swizzle<T>(unswizzled: *mut MyVecUnswizzled) -> Unswizzled<MyVec<T>, MyVecUnswizzled> {
+//     let d = MyVec::<T> {
+//         buf: RawMyVec { 
+//             ptr: NonNull::new(::alohomora_sandbox::swizzle_ptr((*unswizzled).buf.ptr, unswizzled as *mut std::ffi::c_void)).unwrap(), 
+//             cap: (*unswizzled).buf.cap as usize
+//         },
+//         len: (*unswizzled).len as usize,
+//     };
+
+//     Unswizzled {
+//         _unswizzled: unswizzled,
+//         data: d,
+//     }
+// }
+// #[derive(Debug)]
+// pub struct Unswizzled<S, U> {
+//     _unswizzled: *mut U,
+//     pub data: S,
+// }
+
+// impl<T> Unswizzled<MyVec<T>, MyVecUnswizzled> {
+//     pub unsafe fn unswizzle(&self) {
+//         (*self._unswizzled).len = self.data.len as u32;
+//         (*self._unswizzled).buf.cap = self.data.buf.cap as u32;
+//         (*self._unswizzled).buf.ptr = ::alohomora_sandbox::unswizzle_ptr(self.data.buf.ptr.as_ptr());
+//     }
+// }
+
+#[derive(Debug, Copy, Clone)]
+pub struct NonNull<T: Sized> {
+    pub pointer: *const T,
 }
 
-#[derive(Debug)]
-pub struct MyVecUnswizzled {
-    pub buf: RawMyVecUnswizzled,
-    pub len: u32,
+#[derive(Debug, Copy, Clone)]
+pub struct NonNullUnswizzled<T> {
+    pub pointer: SandboxPointer<T>,
 }
 
-pub unsafe fn swizzle<T>(unswizzled: *mut MyVecUnswizzled) -> Unswizzled<MyVec<T>, MyVecUnswizzled> {
-    let d = MyVec::<T> {
-        buf: RawMyVec { 
-            ptr: NonNull::new(::alohomora_sandbox::swizzle_ptr((*unswizzled).buf.ptr, unswizzled as *mut std::ffi::c_void)).unwrap(), 
-            cap: (*unswizzled).buf.cap as usize
-        },
-        len: (*unswizzled).len as usize,
-    };
-
-    Unswizzled {
-        _unswizzled: unswizzled,
-        data: d,
+impl<T: Sized> NonNull<T> {
+    pub const fn as_ptr(self) -> *mut T {
+        self.pointer as *mut T
+    }
+    pub const fn dangling() -> Self {
+        // SAFETY: mem::align_of() returns a non-zero usize which is then casted
+        // to a *mut T. Therefore, `ptr` is not null and the conditions for
+        // calling new_unchecked() are respected.
+        unsafe {
+            let ptr = mem::align_of::<T>() as *mut T;
+            NonNull::new_unchecked(ptr)
+        }
+    }
+    pub const unsafe fn new_unchecked(ptr: *mut T) -> Self {
+        unsafe {
+            NonNull { pointer: ptr as _ }
+        }
+    }
+    pub const fn new(ptr: *mut T) -> Option<Self> {
+        Some(unsafe { Self::new_unchecked(ptr) })
     }
 }
 #[derive(Debug)]
-pub struct Unswizzled<S, U> {
-    _unswizzled: *mut U,
-    pub data: S,
+pub struct RawMyVecUnswizzled<T> {
+    pub ptr: NonNullUnswizzled<T>,
+    pub cap: u32,
 }
-
-impl<T> Unswizzled<MyVec<T>, MyVecUnswizzled> {
-    pub unsafe fn unswizzle(&self) {
-        (*self._unswizzled).len = self.data.len as u32;
-        (*self._unswizzled).buf.cap = self.data.buf.cap as u32;
-        (*self._unswizzled).buf.ptr = ::alohomora_sandbox::unswizzle_ptr(self.data.buf.ptr.as_ptr());
+impl<T> Swizzleable for RawMyVec<T> {
+    type Unswizzled = RawMyVecUnswizzled<T>;
+    unsafe fn unswizzle(
+        outside: *mut Self,
+        inside: *mut Self::Unswizzled,
+    ) -> *mut Self::Unswizzled {
+        std::ptr::copy((*outside).ptr.pointer, swizzle_ptr(&(*inside).ptr.pointer, inside), (*outside).cap);
+        (*inside).cap = (*outside).cap as u32;
+        inside
     }
 }
 
@@ -52,10 +106,17 @@ pub struct RawMyVec<T> {
     pub cap: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Swizzleable)]
 pub struct MyVec<T> {
     pub buf: RawMyVec<T>,
     pub len: usize,
+}
+
+impl<T> Swizzleable for Vec<T> {
+    type Unswizzled = Vec<T>;
+    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled {
+        Swizzleable::unswizzle(outside as *mut MyVec<T>, inside as *mut MyVecUnswizzled<T>) as *mut Vec<T>
+    }
 }
 
 unsafe impl<T: Send> Send for RawMyVec<T> {}
@@ -101,7 +162,7 @@ impl<T> RawMyVec<T> {
             unsafe { alloc::alloc(new_layout) }
         } else {
             let old_layout = Layout::array::<T>(self.cap).unwrap();
-            let old_ptr = self.ptr.as_ptr() as *mut u8;
+            let old_ptr = self.ptr.pointer as *mut u8;
             unsafe { alloc::realloc(old_ptr, old_layout, new_layout.size()) }
         };
 
@@ -131,7 +192,7 @@ impl<T> Drop for RawMyVec<T> {
 
 impl<T> MyVec<T> {
     fn ptr(&self) -> *mut T {
-        self.buf.ptr.as_ptr()
+        self.buf.ptr.pointer as *mut T
     }
 
     fn cap(&self) -> usize {

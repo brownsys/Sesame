@@ -24,10 +24,9 @@ use std::time::{Duration, Instant};
 use std::io::{Read, Write};
 use std::{iter, ptr};
 
-
-
 extern crate once_cell;
 
+mod nonnull;
 mod myvec;
 mod teststruct;
 mod nested;
@@ -77,49 +76,55 @@ pub struct TestStruct {
 // #[cfg(target_arch = "wasm32")]
 pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
   println!("allocing w size {:?}", size);
-  println!("size is {:?}", std::mem::size_of::<SandboxPointer<Parent>>());
+  // println!("size is {:?}", std::mem::size_of::<SandboxPointer<Parent>>());
 
-  let mut baby = Box::new(Baby {
-    goos_gaad: 0,
-    iq: 0,
-    height: 0.0,
-  });
-  let baby_ptr = Box::into_raw(baby);
+  // let mut baby = Box::new(Baby {
+  //   goos_gaad: 0,
+  //   iq: 0,
+  //   height: 0.0,
+  // });
+  // let baby_ptr = Box::into_raw(baby);
 
-  let mut mom = Box::new(Parent {
-    cookouts_held: 0,
-    hours_at_work: 0,
-    height: 0.0,
-    favorite_kid: baby_ptr,
-  });
-  let mom_ptr = Box::into_raw(mom);
+  // let mut mom = Box::new(Parent {
+  //   cookouts_held: 0,
+  //   hours_at_work: 0,
+  //   height: 0.0,
+  //   favorite_kid: baby_ptr,
+  // });
+  // let mom_ptr = Box::into_raw(mom);
 
-  let mut mimi = Box::new(Grandparent {
-    cookies_baked: 0,
-    pickleball_rank: 0,
-    height: 0.0,
-    favorite_kid: mom_ptr,
-  });
-  let mimi_ptr = Box::into_raw(mimi);
+  // let mut mimi = Box::new(Grandparent {
+  //   cookies_baked: 0,
+  //   pickleball_rank: 0,
+  //   height: 0.0,
+  //   favorite_kid: mom_ptr,
+  // });
+  // let mimi_ptr = Box::into_raw(mimi);
+
+  let b: Box<Vec<(f64, u64)>> = Box::new(Vec::with_capacity(size));
+  let ptr = Box::into_raw(b);
+
 
   unsafe {
-    println!("vec is now {:?}", *mimi_ptr);
+    println!("vec is now {:?}", *ptr);
     // println!("vec is now {:?}", *vec_ptr);
   }
   
-
-  return mimi_ptr as *mut std::ffi::c_void;
+  return ptr as *mut std::ffi::c_void;
 }
 
 #[AlohomoraSandbox()]
-pub fn train2(inputs: *mut std::ffi::c_void) -> (u64, (), u64) {
-  let vec_ptr: *mut Grandparent = inputs as *mut Grandparent;
+pub fn train2(inputs: Vec<(f64, u64)>) -> (u64, (), u64) {
+  // let vec_ptr: *mut Grandparent = inputs as *mut Grandparent;
+  
 
   unsafe {
-    let mut b = Box::from_raw(vec_ptr);
+    // let mut b = Box::from_raw(inputs);
+    let b = &inputs;
+
     println!("in the sandbox, the struct is {:?}", *b);
-    println!("favorite kid is {:?}", *(*b).favorite_kid);
-    println!("their favorite kid is {:?}", *(*(*b).favorite_kid).favorite_kid);
+    // println!("favorite kid is {:?}", *(*b).favorite_kid);
+    // println!("their favorite kid is {:?}", *(*(*b).favorite_kid).favorite_kid);
   }
   (0, (), 1)
 }

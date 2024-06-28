@@ -102,10 +102,7 @@ pub fn AlohomoraSandbox(_args: TokenStream, input: TokenStream) -> TokenStream {
 pub fn derive_swizzleable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match sandbox::derive_swizzleable_impl(input) {
-        Ok(tokens) => {
-            println!("have tokens {:?}", tokens);
-            tokens.into()
-        },
+        Ok(tokens) => tokens.into(),
         Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
     }
 }

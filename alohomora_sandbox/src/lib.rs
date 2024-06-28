@@ -2,12 +2,13 @@ pub extern crate bincode;
 pub extern crate serde;
 pub extern crate serde_json;
 
-use std::{ffi::c_uint, os::raw::c_void};
+use std::{ffi::c_uint, marker::PhantomData, os::raw::c_void};
 use serde::{Serialize, Deserialize};
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, R: Serialize, F: Fn(*mut std::ffi::c_void) -> R>(
+pub fn sandbox_preamble<'a, T, R: Serialize, F: Fn(T) -> R>(
+    // TODO:                ^^ T should be Swizzlable
     functor: F, arg: *mut std::ffi::c_void, len: u32) -> *mut u8 {
     use std::slice;
     use std::mem;
@@ -17,7 +18,13 @@ pub fn sandbox_preamble<'a, R: Serialize, F: Fn(*mut std::ffi::c_void) -> R>(
     // let arg = bincode::deserialize(bytes).unwrap();
 
     // Call function.
-    let ret = functor(arg);
+    let ptr = arg as *mut T;
+    
+    let ret = unsafe { 
+        let b = Box::from_raw(ptr);
+        functor(*b)
+    };
+    
 
     // Serialize output.
     let mut ret = bincode::serialize(&ret).unwrap();
@@ -104,19 +111,22 @@ macro_rules! invoke_sandbox {
         // let arg = ::std::ffi::CString::new(arg).unwrap();
         // let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
 
-        let ptr: *mut std::ffi::c_void = unsafe {
+        let inside_ptr: *mut std::ffi::c_void = unsafe {
             // TODO: handle sandbox allocation
             ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
         };
 
         println!("***the arg is $arg {:?}", $arg);
  
-        let inside = ptr as *mut GrandparentUnswizzled;
-        let outside = $arg as *mut Grandparent;
+        let b = Box::new($arg);
+        let outside_ptr: *mut MyVec<(f64, u64)> = Box::into_raw(b) as *mut MyVec<(f64, u64)>;
+        let inside_ptr = inside_ptr as *mut MyVecUnswizzled<(f64, u64)>;
+        // let outside = &$arg as *const Grandparent;
+        // let outside = outside as *mut Grandparent;
 
         unsafe {
-            println!("original struct (in sandbox) is {:?}", (&*inside));
-            println!("outside (in sandbox) is {:?}", (&*outside));
+            println!("original struct (in sandbox) is {:?}", (&*inside_ptr));
+            println!("outside (in sandbox) is {:?}", (&*outside_ptr));
 
             // let real_ptr = ptr as *mut MyVecUnswizzled;
             // println!("len of sandbox struct is {:?}", (*real_ptr).len);
@@ -129,11 +139,11 @@ macro_rules! invoke_sandbox {
             
             println!("unswizzling it (so changes are reflected in sandbox)");
 
-            let new = nested::Swizzleable::unswizzle(outside, inside);
+            let new = nested::Swizzleable::unswizzle(outside_ptr, inside_ptr);
             // println!("new is {:?} with original {:?}", new, real_ptr);
             // swizzled.unswizzle();
 
-            println!("inside is now {:?}", (&*inside));
+            println!("inside is now {:?}", (&*inside_ptr));
             // println!("swizzled favorite kid is {:?}", *(*real_ptr).favorite_kid);
             // println!("their favorite kid is {:?}", *(*(*real_ptr).favorite_kid).favorite_kid);
         }
@@ -141,7 +151,7 @@ macro_rules! invoke_sandbox {
         // Invoke sandbox via C.
         println!("*entering FUNCTOR");
 
-        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(ptr, 0) };
+        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(inside_ptr as *mut std::ffi::c_void, 0) };
 
         println!("*just finished some macro business");
         let ret = ret2.result;
