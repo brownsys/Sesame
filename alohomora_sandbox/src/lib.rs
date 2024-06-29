@@ -111,16 +111,29 @@ macro_rules! invoke_sandbox {
         // let arg = ::std::ffi::CString::new(arg).unwrap();
         // let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
 
+        // 1. get lock on a sandbox
+        // 2. make custom allocator for that sandbox
+
+        println!("***the arg is $arg {:?}", $arg);
+        let b = Box::new($arg);
+        // TODO: putting large things into this box might accidentally make us copy them twice
+        // maybe i should use a mutable reference instead??
+        let outside_ptr = Box::into_raw(b) as *mut Vec<(f64, u64)>;
+
+
+        // 3. use custom allocator to allocate it with same shape as `outside_ptr`
         let inside_ptr: *mut std::ffi::c_void = unsafe {
             // TODO: handle sandbox allocation
             ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
         };
+        let inside_ptr = inside_ptr as *mut Vec<(f64, u64)>;
 
-        println!("***the arg is $arg {:?}", $arg);
- 
-        let b = Box::new($arg);
-        let outside_ptr: *mut MyVec<(f64, u64)> = Box::into_raw(b) as *mut MyVec<(f64, u64)>;
-        let inside_ptr = inside_ptr as *mut MyVecUnswizzled<(f64, u64)>;
+        // 4. swizzle them into the new memory
+
+        
+        
+        
+        
         // let outside = &$arg as *const Grandparent;
         // let outside = outside as *mut Grandparent;
 

@@ -176,7 +176,7 @@ pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error>
 
                 // the copying line should just handle swizzling ptrs (not the generic)
                 let deep_convert_line = quote!{
-                    // TODO: THIS WHOLE LINE IS REDUNDANT
+                    // TODO: THIS WHOLE LINE IS REDUNDANT, we should be copying its value instead
                     (*#inside_name).#field_name = 
                         unswizzle_ptr(
                         // ^^ 3. unswizzle that pointer (to also be in the sandbox)
@@ -185,7 +185,6 @@ pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error>
                 };
                 unswizzle_function.extend(deep_convert_line);
             }
-            
             
             need_new_struct = true;
         } else if let syn::Type::Path(path) = &field.ty {

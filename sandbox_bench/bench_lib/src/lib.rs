@@ -26,7 +26,6 @@ use std::{iter, ptr};
 
 extern crate once_cell;
 
-mod nonnull;
 mod myvec;
 mod teststruct;
 mod nested;

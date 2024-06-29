@@ -148,7 +148,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let now = Utc::now();
     let now = now.timestamp_nanos_opt().unwrap() as u64;
 
-    let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0)];
+    let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000)];
 
     // let baby = Box::new(Baby {
     //   goos_gaad: 18,
