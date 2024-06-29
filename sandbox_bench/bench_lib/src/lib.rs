@@ -1,9 +1,9 @@
 // use alohomora_derive::AlohomoraSandbox;
-
 // use age::Recipient;
 // use base64::Engine;
 // use base64::engine::general_purpose::STANDARD as base64;
 // use alohomora_sandbox::alloc_mem_in_sandbox;
+#![feature(allocator_api)]
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
 use linfa::dataset::Dataset;

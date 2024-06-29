@@ -1,30 +1,14 @@
-use std::{collections::HashMap, hash::Hash, marker::PhantomData, os::raw::c_void};
 use alohomora_derive::{AlohomoraType, Swizzleable};
 use once_cell::sync::Lazy;
-
-use crate::MyVec;
-
-
-static mut LOCAL_TO_SANDBOX: Lazy<HashMap<usize, usize>> = Lazy::new(||{
-    HashMap::new()
-});
+use alohomora_sandbox::*;
+use alohomora_sandbox::{ptr::*, alloc::*};
 
 
-// The sandbox pointer type. T represents what the pointer points to (for helpful type-checking)
-#[derive(Debug, Clone, Copy)]
-pub struct SandboxPointer<T> {
-    pub ptr: u32,                   // actual 4 byte pointer
-    _phantom: PhantomData<T>
-}
+// static mut LOCAL_TO_SANDBOX: Lazy<HashMap<usize, usize>> = Lazy::new(||{
+//     HashMap::new()
+// });
 
-impl<T> SandboxPointer<T> {
-    pub fn new(ptr: u32) -> Self {
-        SandboxPointer { ptr, _phantom: PhantomData::default() }
-    }
-}
-// tells us which 
-
-#[derive(Debug, Swizzleable)]
+#[derive(Debug, Clone, Swizzleable)]
 pub struct Parent {
     pub cookouts_held: u32,
     pub hours_at_work: u32,
@@ -37,26 +21,6 @@ pub struct Baby {
     pub goos_gaad: u32,
     pub iq: u32,
     pub height: f64,
-}
-
-// convert a sandbox pointer to one that will work globally
-pub fn swizzle_ptr<T, U>(ptr: &SandboxPointer<T>, known_ptr: *mut U) -> *mut T {
-    let known_ptr = known_ptr as *mut c_void;
-    let top32: u64 = 0xFFFFFFFF00000000;
-    let bot32: u32 = 0xFFFFFFFF;
-    let example_ptr: u64 = known_ptr as u64;
-    let base: u64 = example_ptr & top32;
-    let swizzled: u64 = (ptr.ptr as u64) + base;
-    return swizzled as *mut T;
-}
-
-// convert global pointer to one that will work inside the sandbox
-pub fn unswizzle_ptr<T>(ptr: *mut T) -> SandboxPointer<T> {
-    let top32: u64 = 0xFFFFFFFF00000000;
-    let bot32: u64 = 0xFFFFFFFF;
-    let ptr = ptr as u64;
-    let swizzled: u64 = ptr & bot32;
-    return SandboxPointer::<T>::new(swizzled as u32);
 }
 
 // **************************** UNSWIZZLED VERSIONS ****************************
@@ -122,11 +86,21 @@ pub struct Unswizzled<S, U> {
 //     ptr
 // }
 
-pub trait Swizzleable {
-    type Unswizzled;
-    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled;
-    // unsafe fn swizzle(inside: *mut Self::Unswizzled, outside: *mut Self) -> *mut Self;
-}
+// impl AllocateableInSandbox for Parent {
+//     unsafe fn allocate_in_sandbox(info: *mut Self, alloc: SandboxAllocator) -> *mut Self {
+//         let mut b = Box::new_in((*info).clone(), alloc.clone());
+//         (*b).favorite_kid = AllocateableInSandbox::allocate_in_sandbox((*b).favorite_kid, alloc);
+//         Box::into_raw(b)
+//     }
+// }
+
+// impl AllocateableInSandbox for Baby {
+//     unsafe fn allocate_in_sandbox(info: *mut Self, alloc: SandboxAllocator) -> *mut Self {
+//         // let old_box = Box::from_raw(info);
+//         let b = Box::new_in((*info).clone(), alloc);
+//         Box::into_raw(b)
+//     }
+// }
 // #![feature(associated_type_bounds)]
 // pub trait IntoSwizzleable {
 //     unsafe fn to_swizzleable(non_swizzleable: *mut Self) -> Box<dyn Swizzleable>;
@@ -145,7 +119,7 @@ pub trait Swizzleable {
 //     }
 // }
 
-#[derive(Debug, Swizzleable)]
+#[derive(Debug, Clone, Swizzleable)]
 pub struct Grandparent {
     pub cookies_baked: u32,
     pub pickleball_rank: u32,

@@ -1,5 +1,18 @@
 {
     "files.associations": {
-        "complex": "cpp"
+        "complex": "cpp",
+        "__hash_table": "cpp",
+        "__split_buffer": "cpp",
+        "__tree": "cpp",
+        "array": "cpp",
+        "bitset": "cpp",
+        "initializer_list": "cpp",
+        "map": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "unordered_map": "cpp",
+        "vector": "cpp",
+        "__locale": "cpp",
+        "typeinfo": "cpp"
     }
 }

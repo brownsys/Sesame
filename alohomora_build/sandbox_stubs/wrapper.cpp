@@ -40,6 +40,8 @@ void {sandbox}_sandbox_free(char*);  // Frees allocated data (inside sandbox)
 {{endfor}}
 
 // function for moving args into sandbox memory
+// void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index);
+// void free_mem_in_sandbox(void* ptr, unsigned sandbox_index);
 
 #ifdef __cplusplus
 }
@@ -83,21 +85,31 @@ void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index) \{
     if (sandbox_pool.size() == 0) initialize_sandbox_pool();
 
     // printf("invoking alloc in sandbox %d\n", sandbox_index);
-    // unsigned arg = size;
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
-    // int arg_buf = 10;
-    // const char* arg = &arg_buf;
-    // unsigned size = sizeof(int);
 
-    auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, size);
+    // auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, size);
+    tainted_{name}<char*> result_tainted = sandbox->malloc_in_sandbox<char>(size);
     void* result = result_tainted.UNSAFE_unverified();
-
-    // tainted_{name}<char*> tainted_arg = sandbox->malloc_in_sandbox<char>(size);
-    // memcpy(tainted_arg.unverified_safe_pointer_because(size, "writing to region"), arg, size);
-
-    printf("done invoking alloc in sandbox, got ptr %p\n", result);
+    printf("cpp: done invoking alloc in sandbox %d, got ptr %p for sz %d\n", sandbox_index, result, size);
 
     return result;
+}
+
+void free_mem_in_sandbox(void* ptr, unsigned sandbox_index) \{
+    // TODO: need synchronization for these fns
+    if (sandbox_pool.size() == 0) initialize_sandbox_pool();
+
+    rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
+
+    // char* ptr_cha/r = (char*)ptr;
+    tainted_{name} <void*> tainted_ptr;
+    tainted_ptr.assign_raw_pointer(*sandbox, ptr);
+
+    printf("cpp: trying to invoke free in sandbox %d, for ptr %p\n", sandbox_index, ptr);
+
+    sandbox->free_in_sandbox(tainted_ptr);
+
+    printf("\tcpp: free complete\n");
 }
 
 {{ for sandbox in sandboxes }}

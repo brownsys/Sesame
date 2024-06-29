@@ -1,24 +1,100 @@
-use std::alloc::{self, Layout};
-use std::marker::PhantomData;
-use std::mem;
-use std::ops::{Deref, DerefMut};
-use std::ptr::{self, NonNull};
+use std::{alloc::{self, Layout}, marker::PhantomData, mem, ops::{Deref, DerefMut}, ptr};
+use crate::{ptr::*, swizzle::Swizzleable};
+use ::alohomora_derive::Swizzleable;
 
-struct RawVec<T> {
-    ptr: NonNull<T>,
-    cap: usize,
+#[derive(Debug, Copy, Clone)]
+pub struct NonNull<T: Sized> {
+    pub pointer: *const T,
 }
 
-unsafe impl<T: Send> Send for RawVec<T> {}
-unsafe impl<T: Sync> Sync for RawVec<T> {}
+#[derive(Debug, Copy, Clone)]
+pub struct NonNullUnswizzled<T> {
+    pub pointer: SandboxPointer<T>,
+}
 
-impl<T> RawVec<T> {
+impl<T: Sized> NonNull<T> {
+    pub const fn as_ptr(self) -> *mut T {
+        self.pointer as *mut T
+    }
+    pub const fn dangling() -> Self {
+        // SAFETY: mem::align_of() returns a non-zero usize which is then casted
+        // to a *mut T. Therefore, `ptr` is not null and the conditions for
+        // calling new_unchecked() are respected.
+        unsafe {
+            let ptr = mem::align_of::<T>() as *mut T;
+            NonNull::new_unchecked(ptr)
+        }
+    }
+    pub const unsafe fn new_unchecked(ptr: *mut T) -> Self {
+        unsafe {
+            NonNull { pointer: ptr as _ }
+        }
+    }
+    pub const fn new(ptr: *mut T) -> Option<Self> {
+        Some(unsafe { Self::new_unchecked(ptr) })
+    }
+}
+#[derive(Debug)]
+pub struct RawMyVecUnswizzled<T> {
+    pub ptr: NonNullUnswizzled<T>,
+    pub cap: u32,
+}
+impl<T> Swizzleable for RawMyVec<T> {
+    type Unswizzled = RawMyVecUnswizzled<T>;
+    unsafe fn unswizzle(
+        outside: *mut Self,
+        inside: *mut Self::Unswizzled,
+    ) -> *mut Self::Unswizzled {
+        std::ptr::copy((*outside).ptr.pointer, swizzle_ptr(&(*inside).ptr.pointer, inside), (*outside).cap);
+        (*inside).cap = (*outside).cap as u32;
+        inside
+    }
+}
+
+#[derive(Debug)]
+pub struct RawMyVec<T> {
+    pub ptr: NonNull<T>,
+    pub cap: usize,
+}
+
+#[derive(Debug)]
+pub struct MyVec<T> {
+    pub buf: RawMyVec<T>,
+    pub len: usize,
+}
+
+#[derive(Debug)]
+pub struct MyVecUnswizzled<T> {
+    pub buf: RawMyVecUnswizzled<T>,
+    pub len: u32,
+}
+
+impl<T> Swizzleable for MyVec<T> {
+    type Unswizzled = MyVecUnswizzled<T>;
+    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled {
+        (*inside).len = (*outside).len as u32;
+        Swizzleable::unswizzle(&mut (*outside).buf as *mut RawMyVec<T>, &mut (*inside).buf as *mut RawMyVecUnswizzled<T>);
+        inside
+    }
+}
+
+impl<T> Swizzleable for Vec<T> {
+    type Unswizzled = Vec<T>;
+    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled {
+        Swizzleable::unswizzle(outside as *mut MyVec<T>, inside as *mut MyVecUnswizzled<T>) as *mut Vec<T>
+    }
+}
+
+unsafe impl<T: Send> Send for RawMyVec<T> {}
+unsafe impl<T: Sync> Sync for RawMyVec<T> {}
+
+impl<T> RawMyVec<T> {
     fn new() -> Self {
         // !0 is usize::MAX. This branch should be stripped at compile time.
         let cap = if mem::size_of::<T>() == 0 { !0 } else { 0 };
 
         // `NonNull::dangling()` doubles as "unallocated" and "zero-sized allocation"
-        RawVec {
+        RawMyVec {
             ptr: NonNull::dangling(),
             cap,
         }
@@ -26,7 +102,7 @@ impl<T> RawVec<T> {
 
     fn grow(&mut self) {
         // since we set the capacity to usize::MAX when T has size 0,
-        // getting to here necessarily means the Vec is overfull.
+        // getting to here necessarily means the MyVec is overfull.
         assert!(mem::size_of::<T>() != 0, "capacity overflow");
 
         let (new_cap, new_layout) = if self.cap == 0 {
@@ -52,7 +128,7 @@ impl<T> RawVec<T> {
             unsafe { alloc::alloc(new_layout) }
         } else {
             let old_layout = Layout::array::<T>(self.cap).unwrap();
-            let old_ptr = self.ptr.as_ptr() as *mut u8;
+            let old_ptr = self.ptr.pointer as *mut u8;
             unsafe { alloc::realloc(old_ptr, old_layout, new_layout.size()) }
         };
 
@@ -65,29 +141,24 @@ impl<T> RawVec<T> {
     }
 }
 
-impl<T> Drop for RawVec<T> {
+impl<T> Drop for RawMyVec<T> {
     fn drop(&mut self) {
         let elem_size = mem::size_of::<T>();
 
         if self.cap != 0 && elem_size != 0 {
-            unsafe {
-                alloc::dealloc(
-                    self.ptr.as_ptr() as *mut u8,
-                    Layout::array::<T>(self.cap).unwrap(),
-                );
-            }
+            // unsafe {
+            //     alloc::dealloc(
+            //         self.ptr.as_ptr() as *mut u8,
+            //         Layout::array::<T>(self.cap).unwrap(),
+            //     );
+            // }
         }
     }
 }
 
-pub struct Vec<T> {
-    buf: RawVec<T>,
-    len: usize,
-}
-
-impl<T> Vec<T> {
+impl<T> MyVec<T> {
     fn ptr(&self) -> *mut T {
-        self.buf.ptr.as_ptr()
+        self.buf.ptr.pointer as *mut T
     }
 
     fn cap(&self) -> usize {
@@ -95,8 +166,8 @@ impl<T> Vec<T> {
     }
 
     pub fn new() -> Self {
-        Vec {
-            buf: RawVec::new(),
+        MyVec {
+            buf: RawMyVec::new(),
             len: 0,
         }
     }
@@ -160,7 +231,7 @@ impl<T> Vec<T> {
         let iter = unsafe { RawValIter::new(&self) };
 
         // this is a mem::forget safety thing. If Drain is forgotten, we just
-        // leak the whole Vec's contents. Also we need to do this *eventually*
+        // leak the whole MyVec's contents. Also we need to do this *eventually*
         // anyway, so why not do it now?
         self.len = 0;
 
@@ -171,27 +242,27 @@ impl<T> Vec<T> {
     }
 }
 
-impl<T> Drop for Vec<T> {
+impl<T> Drop for MyVec<T> {
     fn drop(&mut self) {
         while let Some(_) = self.pop() {}
-        // deallocation is handled by RawVec
+        // deallocation is handled by RawMyVec
     }
 }
 
-impl<T> Deref for Vec<T> {
+impl<T> Deref for MyVec<T> {
     type Target = [T];
     fn deref(&self) -> &[T] {
         unsafe { std::slice::from_raw_parts(self.ptr(), self.len) }
     }
 }
 
-impl<T> DerefMut for Vec<T> {
+impl<T> DerefMut for MyVec<T> {
     fn deref_mut(&mut self) -> &mut [T] {
         unsafe { std::slice::from_raw_parts_mut(self.ptr(), self.len) }
     }
 }
 
-impl<T> IntoIterator for Vec<T> {
+impl<T> IntoIterator for MyVec<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
     fn into_iter(self) -> IntoIter<T> {
@@ -274,7 +345,7 @@ impl<T> DoubleEndedIterator for RawValIter<T> {
 }
 
 pub struct IntoIter<T> {
-    _buf: RawVec<T>, // we don't actually care about this. Just need it to live.
+    _buf: RawMyVec<T>, // we don't actually care about this. Just need it to live.
     iter: RawValIter<T>,
 }
 
@@ -301,7 +372,7 @@ impl<T> Drop for IntoIter<T> {
 }
 
 pub struct Drain<'a, T: 'a> {
-    vec: PhantomData<&'a mut Vec<T>>,
+    vec: PhantomData<&'a mut MyVec<T>>,
     iter: RawValIter<T>,
 }
 

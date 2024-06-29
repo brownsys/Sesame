@@ -149,7 +149,7 @@ pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error>
                 // This is lowk the dumbest possible way to do this
                 let new_field = syn::Field::parse_named.parse2(
                     quote! { 
-                        pub #field_name: SandboxPointer<<#ptr_to_type as Swizzleable>::Unswizzled> 
+                        pub #field_name: ::alohomora_sandbox::ptr::SandboxPointer<<#ptr_to_type as ::alohomora_sandbox::swizzle::Swizzleable>::Unswizzled> 
                     }
                 ).unwrap();
                 new_field.to_tokens(&mut unswizzled_fields);
@@ -158,11 +158,11 @@ pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error>
                 // and then recursively unswizzle it into the sandbox
                 let deep_convert_line = quote!{
                     (*#inside_name).#field_name = 
-                        unswizzle_ptr(
+                        ::alohomora_sandbox::ptr::unswizzle_ptr(
                         // ^^ 3. unswizzle that pointer (to also be in the sandbox)
-                            Swizzleable::unswizzle((*#outside_name).#field_name, 
+                            ::alohomora_sandbox::swizzle::Swizzleable::unswizzle((*#outside_name).#field_name, 
                             // ^^ 2. unswizzle that whole data structure (to be in the sandbox)
-                                swizzle_ptr(&(*#inside_name).#field_name, #inside_name)));
+                                ::alohomora_sandbox::ptr::swizzle_ptr(&(*#inside_name).#field_name, #inside_name)));
                                 // ^^ 1. swizzle the inside pointer to be global
                 };
                 unswizzle_function.extend(deep_convert_line);
@@ -171,16 +171,16 @@ pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error>
                 //          we should instead constrain them to only be swizzleable types
                 // the field should just be a sandbox pointer to the generic type
                 unswizzled_fields.extend(quote!{
-                    pub #field_name: SandboxPointer<#ptr_to_type>,
+                    pub #field_name: ::alohomora_sandbox::ptr::SandboxPointer<#ptr_to_type>,
                 });
 
                 // the copying line should just handle swizzling ptrs (not the generic)
                 let deep_convert_line = quote!{
                     // TODO: THIS WHOLE LINE IS REDUNDANT, we should be copying its value instead
                     (*#inside_name).#field_name = 
-                        unswizzle_ptr(
+                        ::alohomora_sandbox::ptr::unswizzle_ptr(
                         // ^^ 3. unswizzle that pointer (to also be in the sandbox)
-                            swizzle_ptr(&(*#inside_name).#field_name, #inside_name));
+                            ::alohomora_sandbox::ptr::swizzle_ptr(&(*#inside_name).#field_name, #inside_name));
                             // ^^ 1. swizzle the inside pointer to be global
                 };
                 unswizzle_function.extend(deep_convert_line);
@@ -199,7 +199,7 @@ pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error>
 
                 // and simply copy it to unswizzle
                 unswizzle_function.extend(quote!{
-                    Swizzleable::unswizzle(&mut (*#outside_name).#field_name as *mut #type_ident #struct_generics, &mut (*#inside_name).#field_name as *mut #new_struct_ident #struct_generics);
+                    ::alohomora_sandbox::swizzle::Swizzleable::unswizzle(&mut (*#outside_name).#field_name as *mut #type_ident #struct_generics, &mut (*#inside_name).#field_name as *mut #new_struct_ident #struct_generics);
                 });
             } else {
                 // it's a primitive
@@ -271,7 +271,7 @@ pub fn derive_swizzleable_impl(input: DeriveInput) -> Result<TokenStream, Error>
     #[allow(non_snake_case)]
     let TRAIT_IMPL = quote!{
         #[automatically_derived]
-        impl #struct_generics Swizzleable for #struct_name #struct_generics {
+        impl #struct_generics ::alohomora_sandbox::swizzle::Swizzleable for #struct_name #struct_generics {
             type Unswizzled = #unswizzled_struct_name #unswizzled_struct_generics;
             unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled {
                 #unswizzle_function

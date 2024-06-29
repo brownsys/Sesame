@@ -17,12 +17,13 @@ struct sandbox_out \{
 };
 
 {{- for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size);
+struct sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size);
 {{- endfor }}
 
 void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index);
+void free_mem_in_sandbox(void* ptr, unsigned sandbox_index);
 
-void* alloc_in_sandbox(unsigned size);
+// void* alloc_in_sandbox(unsigned size);
 
 #ifdef __cplusplus
 }

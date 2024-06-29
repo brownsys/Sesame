@@ -1,9 +1,15 @@
+#![feature(allocator_api)]
 pub extern crate bincode;
 pub extern crate serde;
 pub extern crate serde_json;
 
 use std::{ffi::c_uint, marker::PhantomData, os::raw::c_void};
 use serde::{Serialize, Deserialize};
+
+pub mod ptr;
+pub mod swizzle;
+pub mod alloc;
+mod vec;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
@@ -77,29 +83,12 @@ pub struct FinalSandboxOut<R> {
 // #[cfg(target_arch = "wasm32")]
 extern "C" {
     pub fn alloc_mem_in_sandbox(size: usize, sandbox: usize) -> *mut std::ffi::c_void;
+    pub fn free_mem_in_sandbox(ptr: *mut std::ffi::c_void, sandbox: usize);
 }
 
 // 1. swizzle it out
 // 2. do our modifications on the data type
 // 3. make sure we swizzle back all pointers in the data type
-
-// use the same example strategy from the RLBox paper to find example pointer
-pub fn swizzle_ptr<T>(ptr: u32, known_ptr: *mut std::ffi::c_void) -> *mut T {
-    let top32: u64 = 0xFFFFFFFF00000000;
-    let bot32: u32 = 0xFFFFFFFF;
-    let example_ptr: u64 = known_ptr as u64;
-    let base: u64 = example_ptr & top32;
-    let swizzled: u64 = (ptr as u64) + base;
-    return swizzled as *mut T;
-}
-
-pub fn unswizzle_ptr<T>(ptr: *mut T) -> u32 {
-    let top32: u64 = 0xFFFFFFFF00000000;
-    let bot32: u64 = 0xFFFFFFFF;
-    let ptr = ptr as u64;
-    let swizzled: u64 = ptr & bot32;
-    return swizzled as u32;
-}
 
 // Called by Alohomora (from the application process) to invoke the sandbox.
 #[macro_export]
@@ -112,7 +101,9 @@ macro_rules! invoke_sandbox {
         // let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
 
         // 1. get lock on a sandbox
+        let sandbox = 0;
         // 2. make custom allocator for that sandbox
+        let alloc = ::alohomora_sandbox::alloc::SandboxAllocator::new(sandbox);
 
         println!("***the arg is $arg {:?}", $arg);
         let b = Box::new($arg);
@@ -122,9 +113,12 @@ macro_rules! invoke_sandbox {
 
 
         // 3. use custom allocator to allocate it with same shape as `outside_ptr`
+
         let inside_ptr: *mut std::ffi::c_void = unsafe {
+            let p: *mut Vec<(f64, u64), ::alohomora_sandbox::alloc::SandboxAllocator> = ::alohomora_sandbox::alloc::AllocateableInSandbox::allocate_in_sandbox(outside_ptr, alloc);
+            p as *mut std::ffi::c_void
             // TODO: handle sandbox allocation
-            ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
+            // ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
         };
         let inside_ptr = inside_ptr as *mut Vec<(f64, u64)>;
 
@@ -152,7 +146,7 @@ macro_rules! invoke_sandbox {
             
             println!("unswizzling it (so changes are reflected in sandbox)");
 
-            let new = nested::Swizzleable::unswizzle(outside_ptr, inside_ptr);
+            let new = ::alohomora_sandbox::swizzle::Swizzleable::unswizzle(outside_ptr, inside_ptr);
             // println!("new is {:?} with original {:?}", new, real_ptr);
             // swizzled.unswizzle();
 
