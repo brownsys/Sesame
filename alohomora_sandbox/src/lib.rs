@@ -111,7 +111,7 @@ macro_rules! invoke_sandbox {
         // 2. make custom allocator for that sandbox
         let alloc = ::alohomora_sandbox::alloc::SandboxAllocator::new(sandbox);
 
-        println!("***the arg is {:?} w type {:?}", $arg, stringify!($arg_ty));
+        // println!("***the arg is {:?} w type {:?}", $arg, stringify!($arg_ty));
         
         let outside_ptr = (&$arg as *const $arg_ty) as *mut $arg_ty;
         // ^^ could also put in a box to get ptr but keeping old should be faster
@@ -127,7 +127,7 @@ macro_rules! invoke_sandbox {
             let fake_old_inside = (*inside_ptr).clone();
 
             println!("inside (in sandbox) is {:?}", (&*inside_ptr));
-            println!("outside (out of sandbox) is {:?}", (&*outside_ptr));
+            println!("outside (out of sandbox) is len {:?} cap {:?}", (*outside_ptr).len(), (*outside_ptr).capacity());
 
             println!("unswizzling it (so changes are reflected in sandbox)");
 

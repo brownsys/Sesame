@@ -54,7 +54,7 @@ impl<T: Debug> Swizzleable for RawMyVec<T> {
     ) -> *mut Self::Unswizzled {
         // we need to save the old state of the inside to prevent it from being override with a new memory layout
         println!("a outside is {:?} and inside is {:?}", (*outside).ptr.pointer, old_inside);
-        std::ptr::copy((*outside).ptr.pointer, old_inside.ptr.pointer as *mut T, (*outside).cap);
+        std::ptr::copy((*outside).ptr.pointer, old_inside.ptr.pointer as *mut T, old_inside.cap);
         println!("b");
         let inside = inside as *mut Self::Unswizzled;
         println!("c");

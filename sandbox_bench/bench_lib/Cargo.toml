@@ -28,7 +28,8 @@ path = "src/lib.rs"
 [package.metadata]
 sandboxes = [
   # "hash",
-  "train2",
+  # "train",
+  "train2"
   # "alloc_in_sandbox",
   # "transfer_arg"
 ]

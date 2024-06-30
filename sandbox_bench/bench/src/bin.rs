@@ -135,7 +135,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   (1..iters + 1).map(|_i| {
     let num_grades = 5000;
     let mut rng = rand::thread_rng();
-    let grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
+    let mut grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
       let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
       let submitted_at = BBox::new(submitted_at, NoPolicy {});
@@ -174,15 +174,16 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // });
     // let mimi_ptr = Box::into_raw(mimi);
     
-    let test_ptr: &mut Vec<(f64, u64)> = &mut test_grades;
-    let test_ptr2 = &mut test_grades2;
+    // let test_ptr: &mut Vec<(f64, u64)> = &mut test_grades;
+    // let test_ptr2 = &mut test_grades2;
+    // let grades_ref = &mut grades;
     // let ptr = mimi_ptr as *mut Vec<(f64, u64)>;
     // let void_ptr = ptr as *mut std::ffi::c_void;
     
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
     type Out = FinalSandboxOut<(u64, (), u64)>;
-    let output = execute_sandbox::<train2, _, _>(test_grades);
+    let output = execute_sandbox::<train2, _, _>(grades);
 
     // END TIMER (start inside hash)
     let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
