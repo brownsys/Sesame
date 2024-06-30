@@ -103,8 +103,6 @@ impl<T: Debug> Swizzleable for MyVec<T> {
         let inside = inside as *mut Self::Unswizzled;
         println!("g");
         Swizzleable::unswizzle(&mut (*outside).buf as *mut RawMyVec<T>, &mut (*inside).buf as *mut RawMyVecUnswizzled<T>, &old_inside.buf);
-        // let _ = Box::leak(Box::new(b));
-        // let _ = Box::into_raw(b);
         println!("h");
         (*inside).len = (*outside).len as u32;
         println!("i");

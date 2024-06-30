@@ -1,3 +1,4 @@
+use alohomora_sandbox::{alloc::AllocateableInSandbox, swizzle::Swizzleable};
 use serde::{Serialize, Deserialize};
 
 use crate::AlohomoraType;
@@ -16,7 +17,7 @@ pub use alohomora_derive::AlohomoraSandbox;
 pub fn execute_sandbox<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
     where
         T: AlohomoraType,
-        T::Out: ,
+        T::Out: Clone + Swizzleable + AllocateableInSandbox, // TODO: might not need clone here
         R: Serialize + Deserialize<'b>,
         S: AlohomoraSandbox<'a, 'b, T::Out, R>,
 {

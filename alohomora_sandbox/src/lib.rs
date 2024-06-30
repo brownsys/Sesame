@@ -4,7 +4,9 @@ pub extern crate serde;
 pub extern crate serde_json;
 
 use std::{ffi::c_uint, marker::PhantomData, os::raw::c_void};
+use alloc::AllocateableInSandbox;
 use serde::{Serialize, Deserialize};
+use swizzle::Swizzleable;
 
 pub mod ptr;
 pub mod swizzle;
@@ -49,7 +51,11 @@ pub fn sandbox_preamble<'a, T, R: Serialize, F: Fn(T) -> R>(
 }
 
 // Trait that sandboxed functions should implement.
-pub trait AlohomoraSandbox<'a, 'b, T, R: Serialize + Deserialize<'b>> {
+pub trait AlohomoraSandbox<'a, 'b, T, R> 
+    where 
+        T: Clone + Swizzleable + AllocateableInSandbox,
+        R: Serialize + Deserialize<'b>
+{
     fn invoke(arg: T) -> FinalSandboxOut<R>;
 }
 // pub trait AlohomoraSandbox2<'a, 'b, T: Serialize + Deserialize<'a>, R: Serialize + Deserialize<'b>> {
@@ -93,64 +99,47 @@ extern "C" {
 // Called by Alohomora (from the application process) to invoke the sandbox.
 #[macro_export]
 macro_rules! invoke_sandbox {
-    ($functor:ident, $arg:ident) => {
+    ($functor:ident, $arg:ident, $arg_ty:ty) => {
         // Serialize argument.
         // let v: Vec<u8> = ::alohomora_sandbox::bincode::serialize(&$arg).unwrap();
         // let arg = ::alohomora_sandbox::serde_json::to_string(&$arg).unwrap();
         // let arg = ::std::ffi::CString::new(arg).unwrap();
         // let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
 
-        // 1. get lock on a sandbox
+        // 1. get lock on a sandbox (TODO: do it for real)
         let sandbox = 0;
         // 2. make custom allocator for that sandbox
         let alloc = ::alohomora_sandbox::alloc::SandboxAllocator::new(sandbox);
 
-        println!("***the arg is {:?}", $arg);
-        let b = Box::new($arg);
-        // TODO: putting large things into this box might accidentally make us copy them twice
-        // maybe i should use a mutable reference instead??
-        let outside_ptr = Box::into_raw(b) as *mut Vec<(f64, u64)>;
-
+        println!("***the arg is {:?} w type {:?}", $arg, stringify!($arg_ty));
+        
+        let outside_ptr = (&$arg as *const $arg_ty) as *mut $arg_ty;
+        // ^^ could also put in a box to get ptr but keeping old should be faster
 
         // 3. use custom allocator to allocate it with same shape as `outside_ptr`
-
-        let inside_ptr: *mut std::ffi::c_void = unsafe {
-            let p: *mut Vec<(f64, u64), ::alohomora_sandbox::alloc::SandboxAllocator> = ::alohomora_sandbox::alloc::AllocateableInSandbox::allocate_in_sandbox(outside_ptr, alloc);
-            p as *mut std::ffi::c_void
-            // TODO: handle sandbox allocation
-            // ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
+        let inside_ptr: *mut $arg_ty = unsafe {
+            let p = ::alohomora_sandbox::alloc::AllocateableInSandbox::allocate_in_sandbox(outside_ptr, alloc);
+            p as *mut $arg_ty
         };
-        let inside_ptr = inside_ptr as *mut Vec<(f64, u64)>;
-        let my_inside_ptr = inside_ptr as *mut ::alohomora_sandbox::vec::MyVec<(f64, u64)>;
-        
 
         // 4. swizzle them into the new memory
-
         let new_inside_ptr = unsafe {
             let fake_old_inside = (*inside_ptr).clone();
 
-            // println!("pld inside ptr is {:?}", old_inside);
-
-            // let old_inside = old_inside.into();
-
-            println!("original struct (in sandbox) is {:?}", (&*inside_ptr));
-            println!("outside (in sandbox) is {:?}", (&*outside_ptr));
+            println!("inside (in sandbox) is {:?}", (&*inside_ptr));
+            println!("outside (out of sandbox) is {:?}", (&*outside_ptr));
 
             println!("unswizzling it (so changes are reflected in sandbox)");
 
             let new = ::alohomora_sandbox::swizzle::Swizzleable::unswizzle(outside_ptr, inside_ptr, &fake_old_inside);
-            // println!("new is {:?} with original {:?}", new, real_ptr);
-            // swizzled.unswizzle();
-
-            println!("inside is now {:?}", (&*inside_ptr));
             
+            println!("inside is now {:?}", (&*inside_ptr));
             new
         };
-
+        
         // Invoke sandbox via C.
         println!("*entering FUNCTOR");
-
-        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(inside_ptr as *mut std::ffi::c_void, 0) };
+        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, 0) };
 
         println!("*just finished some macro business");
         let ret = ret2.result;

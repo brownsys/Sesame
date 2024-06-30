@@ -4,4 +4,3 @@ pub trait Swizzleable {
     unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled, old_inside: &Self) -> *mut Self::Unswizzled;
     // unsafe fn swizzle(inside: *mut Self::Unswizzled, outside: *mut Self) -> *mut Self;
 }
-

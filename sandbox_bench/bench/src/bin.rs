@@ -148,7 +148,8 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let now = Utc::now();
     let now = now.timestamp_nanos_opt().unwrap() as u64;
 
-    let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000)];
+    let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000),(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000)];
+    let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
 
     // let baby = Box::new(Baby {
     //   goos_gaad: 18,
@@ -174,6 +175,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // let mimi_ptr = Box::into_raw(mimi);
     
     let test_ptr: &mut Vec<(f64, u64)> = &mut test_grades;
+    let test_ptr2 = &mut test_grades2;
     // let ptr = mimi_ptr as *mut Vec<(f64, u64)>;
     // let void_ptr = ptr as *mut std::ffi::c_void;
     
