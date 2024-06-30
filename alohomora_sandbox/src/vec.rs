@@ -1,10 +1,16 @@
-use std::{alloc::{self, Layout}, marker::PhantomData, mem, ops::{Deref, DerefMut}, ptr};
+use std::{alloc::{self, Layout}, fmt::Debug, marker::PhantomData, mem, ops::{Deref, DerefMut}, ptr};
 use crate::{ptr::*, swizzle::Swizzleable};
 use ::alohomora_derive::Swizzleable;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy)]
 pub struct NonNull<T: Sized> {
     pub pointer: *const T,
+}
+
+impl<T> Clone for NonNull<T> {
+    fn clone(&self) -> Self {
+        NonNull { pointer: self.pointer.clone() }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -39,15 +45,24 @@ pub struct RawMyVecUnswizzled<T> {
     pub ptr: NonNullUnswizzled<T>,
     pub cap: u32,
 }
-impl<T> Swizzleable for RawMyVec<T> {
+impl<T: Debug> Swizzleable for RawMyVec<T> {
     type Unswizzled = RawMyVecUnswizzled<T>;
     unsafe fn unswizzle(
         outside: *mut Self,
         inside: *mut Self::Unswizzled,
+        old_inside: &Self,
     ) -> *mut Self::Unswizzled {
-        std::ptr::copy((*outside).ptr.pointer, swizzle_ptr(&(*inside).ptr.pointer, inside), (*outside).cap);
-        (*inside).cap = (*outside).cap as u32;
-        inside
+        // we need to save the old state of the inside to prevent it from being override with a new memory layout
+        println!("a outside is {:?} and inside is {:?}", (*outside).ptr.pointer, old_inside);
+        std::ptr::copy((*outside).ptr.pointer, old_inside.ptr.pointer as *mut T, (*outside).cap);
+        println!("b");
+        let inside = inside as *mut Self::Unswizzled;
+        println!("c");
+        (*inside).cap = (*outside).cap as u32;  // everything else gets copied from outside to move data
+        println!("d");
+        (*inside).ptr.pointer = unswizzle_ptr(old_inside.ptr.clone().as_ptr()); // ptrs get copied from old_inside to preserve data structure
+        println!("e");
+        inside as *mut Self::Unswizzled
     }
 }
 
@@ -57,10 +72,22 @@ pub struct RawMyVec<T> {
     pub cap: usize,
 }
 
+impl<T> Clone for RawMyVec<T> {
+    fn clone(&self) -> Self {
+        RawMyVec { ptr: self.ptr.clone(), cap: self.cap.clone() }
+    }
+}
+
 #[derive(Debug)]
 pub struct MyVec<T> {
     pub buf: RawMyVec<T>,
     pub len: usize,
+}
+
+impl<T> Clone for MyVec<T> {
+    fn clone(&self) -> Self {
+        MyVec { buf: self.buf.clone(), len: self.len.clone() }
+    }
 }
 
 #[derive(Debug)]
@@ -69,19 +96,48 @@ pub struct MyVecUnswizzled<T> {
     pub len: u32,
 }
 
-impl<T> Swizzleable for MyVec<T> {
+impl<T: Debug> Swizzleable for MyVec<T> {
     type Unswizzled = MyVecUnswizzled<T>;
-    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled {
+    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled, old_inside: &Self) -> *mut Self::Unswizzled {
+        println!("f");
+        let inside = inside as *mut Self::Unswizzled;
+        println!("g");
+        Swizzleable::unswizzle(&mut (*outside).buf as *mut RawMyVec<T>, &mut (*inside).buf as *mut RawMyVecUnswizzled<T>, &old_inside.buf);
+        // let _ = Box::leak(Box::new(b));
+        // let _ = Box::into_raw(b);
+        println!("h");
         (*inside).len = (*outside).len as u32;
-        Swizzleable::unswizzle(&mut (*outside).buf as *mut RawMyVec<T>, &mut (*inside).buf as *mut RawMyVecUnswizzled<T>);
+        println!("i");
         inside
     }
 }
 
-impl<T> Swizzleable for Vec<T> {
+impl<T> From<Vec<T>> for MyVec<T> {
+    fn from(value: Vec<T>) -> Self {
+        let b = Box::new(value);
+        let ptr = Box::into_raw(b);
+        let ptr = ptr as *mut MyVec<T>;
+        let b = unsafe { Box::from_raw(ptr) };
+        *b
+    }
+}
+
+impl<T> From<MyVec<T>> for Vec<T> {
+    fn from(value: MyVec<T>) -> Self {
+        let b = Box::new(value);
+        let ptr = Box::into_raw(b);
+        let ptr = ptr as *mut Vec<T>;
+        let b = unsafe { Box::from_raw(ptr) };
+        *b
+    }
+}
+
+impl<T: Clone + Debug> Swizzleable for Vec<T> {
     type Unswizzled = Vec<T>;
-    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled) -> *mut Self::Unswizzled {
-        Swizzleable::unswizzle(outside as *mut MyVec<T>, inside as *mut MyVecUnswizzled<T>) as *mut Vec<T>
+    unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled, old_inside: &Self) -> *mut Self::Unswizzled {
+        let old_inside_ptr = inside as *mut MyVec<T>;
+        let old_inside = (*old_inside_ptr).clone();
+        Swizzleable::unswizzle(outside as *mut MyVec<T>, inside as *mut MyVecUnswizzled<T>, &old_inside) as *mut Vec<T>
     }
 }
 

@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 pub mod ptr;
 pub mod swizzle;
 pub mod alloc;
-mod vec;
+pub mod vec;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
@@ -105,7 +105,7 @@ macro_rules! invoke_sandbox {
         // 2. make custom allocator for that sandbox
         let alloc = ::alohomora_sandbox::alloc::SandboxAllocator::new(sandbox);
 
-        println!("***the arg is $arg {:?}", $arg);
+        println!("***the arg is {:?}", $arg);
         let b = Box::new($arg);
         // TODO: putting large things into this box might accidentally make us copy them twice
         // maybe i should use a mutable reference instead??
@@ -121,39 +121,31 @@ macro_rules! invoke_sandbox {
             // ::alohomora_sandbox::alloc_mem_in_sandbox(10, 0)
         };
         let inside_ptr = inside_ptr as *mut Vec<(f64, u64)>;
+        let my_inside_ptr = inside_ptr as *mut ::alohomora_sandbox::vec::MyVec<(f64, u64)>;
+        
 
         // 4. swizzle them into the new memory
 
-        
-        
-        
-        
-        // let outside = &$arg as *const Grandparent;
-        // let outside = outside as *mut Grandparent;
+        let new_inside_ptr = unsafe {
+            let fake_old_inside = (*inside_ptr).clone();
 
-        unsafe {
+            // println!("pld inside ptr is {:?}", old_inside);
+
+            // let old_inside = old_inside.into();
+
             println!("original struct (in sandbox) is {:?}", (&*inside_ptr));
             println!("outside (in sandbox) is {:?}", (&*outside_ptr));
 
-            // let real_ptr = ptr as *mut MyVecUnswizzled;
-            // println!("len of sandbox struct is {:?}", (*real_ptr).len);
-
-            // let mut swizzled: *mut Grandparent = nested::swizzle_grand(real_ptr);
-
-            // println!("swizzled struct is {:?}", *swizzled);
-            // println!("swizzled favorite kid is {:?}", *(*swizzled).favorite_kid);
-            // println!("their favorite kid is {:?}", *(*(*swizzled).favorite_kid).favorite_kid);
-            
             println!("unswizzling it (so changes are reflected in sandbox)");
 
-            let new = ::alohomora_sandbox::swizzle::Swizzleable::unswizzle(outside_ptr, inside_ptr);
+            let new = ::alohomora_sandbox::swizzle::Swizzleable::unswizzle(outside_ptr, inside_ptr, &fake_old_inside);
             // println!("new is {:?} with original {:?}", new, real_ptr);
             // swizzled.unswizzle();
 
             println!("inside is now {:?}", (&*inside_ptr));
-            // println!("swizzled favorite kid is {:?}", *(*real_ptr).favorite_kid);
-            // println!("their favorite kid is {:?}", *(*(*real_ptr).favorite_kid).favorite_kid);
-        }
+            
+            new
+        };
 
         // Invoke sandbox via C.
         println!("*entering FUNCTOR");

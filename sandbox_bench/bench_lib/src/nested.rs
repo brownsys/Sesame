@@ -8,7 +8,7 @@ use alohomora_sandbox::{ptr::*, alloc::*};
 //     HashMap::new()
 // });
 
-#[derive(Debug, Clone, Swizzleable)]
+#[derive(Debug, Clone)]
 pub struct Parent {
     pub cookouts_held: u32,
     pub hours_at_work: u32,
@@ -16,7 +16,7 @@ pub struct Parent {
     pub favorite_kid: *mut Baby,
 }
 
-#[derive(Debug, Clone, Swizzleable)]
+#[derive(Debug, Clone)]
 pub struct Baby {
     pub goos_gaad: u32,
     pub iq: u32,
@@ -119,7 +119,7 @@ pub struct Unswizzled<S, U> {
 //     }
 // }
 
-#[derive(Debug, Clone, Swizzleable)]
+#[derive(Debug, Clone)]
 pub struct Grandparent {
     pub cookies_baked: u32,
     pub pickleball_rank: u32,
