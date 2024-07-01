@@ -53,15 +53,10 @@ impl<T: Debug> Swizzleable for RawMyVec<T> {
         old_inside: &Self,
     ) -> *mut Self::Unswizzled {
         // we need to save the old state of the inside to prevent it from being override with a new memory layout
-        println!("a outside is {:?} and inside is {:?}", (*outside).ptr.pointer, old_inside);
         std::ptr::copy((*outside).ptr.pointer, old_inside.ptr.pointer as *mut T, old_inside.cap);
-        println!("b");
         let inside = inside as *mut Self::Unswizzled;
-        println!("c");
         (*inside).cap = (*outside).cap as u32;  // everything else gets copied from outside to move data
-        println!("d");
         (*inside).ptr.pointer = unswizzle_ptr(old_inside.ptr.clone().as_ptr()); // ptrs get copied from old_inside to preserve data structure
-        println!("e");
         inside as *mut Self::Unswizzled
     }
 }
@@ -99,13 +94,9 @@ pub struct MyVecUnswizzled<T> {
 impl<T: Debug> Swizzleable for MyVec<T> {
     type Unswizzled = MyVecUnswizzled<T>;
     unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled, old_inside: &Self) -> *mut Self::Unswizzled {
-        println!("f");
         let inside = inside as *mut Self::Unswizzled;
-        println!("g");
         Swizzleable::unswizzle(&mut (*outside).buf as *mut RawMyVec<T>, &mut (*inside).buf as *mut RawMyVecUnswizzled<T>, &old_inside.buf);
-        println!("h");
         (*inside).len = (*outside).len as u32;
-        println!("i");
         inside
     }
 }

@@ -12,7 +12,7 @@ impl SandboxAllocator {
 unsafe impl Allocator for SandboxAllocator {
     fn allocate(&self, layout: std::alloc::Layout) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
         // allocate in sandbox memory
-        println!("rust-- trying to allocate with allocator {:?} for layout {:?}", self, layout);
+        // println!("rust-- trying to allocate with allocator {:?} for layout {:?}", self, layout);
         // Allocate memory in sandbox.
         let raw_ptr = unsafe { crate::alloc_mem_in_sandbox(layout.size(), self.sandbox_index) };
         

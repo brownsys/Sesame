@@ -90,7 +90,7 @@ void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index) \{
     // auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, size);
     tainted_{name}<char*> result_tainted = sandbox->malloc_in_sandbox<char>(size);
     void* result = result_tainted.UNSAFE_unverified();
-    printf("cpp: done invoking alloc in sandbox %d, got ptr %p for sz %d\n", sandbox_index, result, size);
+    // printf("cpp: done invoking alloc in sandbox %d, got ptr %p for sz %d\n", sandbox_index, result, size);
 
     return result;
 }
@@ -168,19 +168,24 @@ sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size) \{
 
         // Invoke sandbox.
         tainted_{name}<char*> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
+        // tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
 
         // START TEARDOWN TIMER HERE
         char* buffer = tainted_result.INTERNAL_unverified_safe();
         uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
         start = high_resolution_clock::now();
 
+
         // Copy output to our memory.
         char* result = (char*) malloc(size2);
         memcpy(result, buffer + 2, size2);
 
+
         // Reset sandbox for next use.
-        sandbox->free_in_sandbox(tainted_arg); // this call might be redundant but I'm a little spooked to remove it
+        // sandbox->free_in_sandbox(tainted_arg); // this call might be redundant but I'm a little spooked to remove it
         sandbox->reset_sandbox();
+        // sandbox->destroy_sandbox();
+        // sandbox->create_sandbox();
 
     // Unlock the sandbox now that it's been reset.
     sandbox_pool[slot]->sandbox_mtx.unlock();

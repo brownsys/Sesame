@@ -12,3 +12,4 @@
 **/lib*_sandbox.so
 **/venv/
 **/benches/
+**/results/

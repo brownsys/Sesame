@@ -10,7 +10,7 @@ use alohomora::sandbox::{execute_sandbox, FinalSandboxOut};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
-use bench_lib::train2;
+use bench_lib::{train2, train};
 
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
@@ -133,7 +133,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   type BBoxGrade = BBox<u64, NoPolicy>;
 
   (1..iters + 1).map(|_i| {
-    let num_grades = 5000;
+    let num_grades = 50000;
     let mut rng = rand::thread_rng();
     let mut grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
@@ -148,42 +148,12 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let now = Utc::now();
     let now = now.timestamp_nanos_opt().unwrap() as u64;
 
-    let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000),(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000)];
-    let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
-
-    // let baby = Box::new(Baby {
-    //   goos_gaad: 18,
-    //   iq: 10,
-    //   height: 1.3,
-    // });
-    // let baby_ptr = Box::into_raw(baby);
-  
-    // let mom = Box::new(Parent {
-    //   cookouts_held: 3,
-    //   hours_at_work: 1004919491,
-    //   height: 6.2,
-    //   favorite_kid: baby_ptr,
-    // });
-    // let mom_ptr = Box::into_raw(mom);
-  
-    // let mimi = Box::new(Grandparent {
-    //   cookies_baked: 13000,
-    //   pickleball_rank: 1,
-    //   height: 5.8,
-    //   favorite_kid: mom_ptr,
-    // });
-    // let mimi_ptr = Box::into_raw(mimi);
-    
-    // let test_ptr: &mut Vec<(f64, u64)> = &mut test_grades;
-    // let test_ptr2 = &mut test_grades2;
-    // let grades_ref = &mut grades;
-    // let ptr = mimi_ptr as *mut Vec<(f64, u64)>;
-    // let void_ptr = ptr as *mut std::ffi::c_void;
-    
+    // let mut test_grades: Vec<(f64, u64)> = vec![(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000),(0.1, 1), (1.2, 2), (2.3, 3), (1003.1, 591), (0.0, 0), (0.131, 1000)];
+    // let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
-    type Out = FinalSandboxOut<(u64, (), u64)>;
-    let output = execute_sandbox::<train2, _, _>(grades);
+    type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
+    let output = execute_sandbox::<train, _, _>(grades);
 
     // END TIMER (start inside hash)
     let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
@@ -203,46 +173,46 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   }).collect()
 }
 
-// fn train_baseline_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
-//   // type BBoxTime = BBox<NaiveDateTime, NoPolicy>;
-//   // type BBoxGrade = BBox<u64, NoPolicy>;
+fn train_baseline_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
+  // type BBoxTime = BBox<NaiveDateTime, NoPolicy>;
+  // type BBoxGrade = BBox<u64, NoPolicy>;
 
-//   (1..iters + 1).map(|_i| {
-//     let num_grades = 5000;
-//     let mut rng = rand::thread_rng();
-//     let grades: Vec<(NaiveDateTime, u64)> = (1..num_grades + 1).map(|_j| {
-//       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
-//       let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
-//       // let submitted_at = BBox::new(submitted_at, NoPolicy {});
-//       let grade: u64 = rng.gen_range(0..=100);
-//       // let grade = BBox::new(grade, NoPolicy {});
-//       (submitted_at, grade)
-//     }).collect();
+  (1..iters + 1).map(|_i| {
+    let num_grades = 50000;
+    let mut rng = rand::thread_rng();
+    let grades: Vec<(NaiveDateTime, u64)> = (1..num_grades + 1).map(|_j| {
+      let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
+      let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
+      // let submitted_at = BBox::new(submitted_at, NoPolicy {});
+      let grade: u64 = rng.gen_range(0..=100);
+      // let grade = BBox::new(grade, NoPolicy {});
+      (submitted_at, grade)
+    }).collect();
 
-//     // // START TIMER (end inside train)
-//     // let now = Utc::now();
-//     // let now = now.timestamp_nanos_opt().unwrap() as u64;
+    // // START TIMER (end inside train)
+    // let now = Utc::now();
+    // let now = now.timestamp_nanos_opt().unwrap() as u64;
 
-//     // type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
-//     // let output = execute_sandbox::<train, _, _>((grades, BBox::new(now, NoPolicy {})));
-//     let output = bench_lib::train((grades, 0));
+    // type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
+    // let output = execute_sandbox::<train, _, _>((grades, BBox::new(now, NoPolicy {})));
+    let output = bench_lib::train(grades);
 
-//     // // END TIMER (start inside hash)
-//     // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    // // END TIMER (start inside hash)
+    // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
 
-//     // let output = output.specialize_policy::<NoPolicy>().unwrap();
-//     // let output: Out = output.discard_box();
-//     // let setup = output.setup;
-//     // let teardown = output.teardown;
-//     // let output = output.result;
+    // let output = output.specialize_policy::<NoPolicy>().unwrap();
+    // let output: Out = output.discard_box();
+    // let setup = output.setup;
+    // let teardown = output.teardown;
+    // let output = output.result;
 
-//     // let serialize = output.0 - setup;
-//     // let deserialize = (end - output.2) - teardown;
-//     // let total = end - now;
-//     // let function = total - output.0 - (end - output.2);
-//     (output.0, 0u64, 0u64, 0u64, 0u64, 0u64)
-//   }).collect()
-// }
+    // let serialize = output.0 - setup;
+    // let deserialize = (end - output.2) - teardown;
+    // let total = end - now;
+    // let function = total - output.0 - (end - output.2);
+    (output.0, 0u64, 0u64, 0u64, 0u64, 0u64)
+  }).collect()
+}
 
 fn write_stats(name: String, data: Vec<(u64, u64, u64, u64, u64, u64)>) {
   fs::create_dir_all("results/").unwrap();
@@ -259,7 +229,7 @@ fn run_benchmarks(){
   // let hash_res = hash_res[0..].to_vec();
   // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(1);
+  let train_res = train_bench(100);
   let train_res = train_res[0..].to_vec();
   write_stats("train".to_string(), train_res);
 
@@ -267,9 +237,9 @@ fn run_benchmarks(){
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
   // write_stats("hash_baseline".to_string(), hash_baseline_res);
 
-  // let train_baseline_res = train_baseline_bench(100);
-  // let train_baseline_res = train_baseline_res[0..].to_vec();
-  // write_stats("train_baseline".to_string(), train_baseline_res);
+  let train_baseline_res = train_baseline_bench(100);
+  let train_baseline_res = train_baseline_res[0..].to_vec();
+  write_stats("train_baseline".to_string(), train_baseline_res);
 }
 
 // Runs sandboxes with multiple threads to test the sandbox pool.

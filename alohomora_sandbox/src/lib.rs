@@ -16,7 +16,7 @@ pub mod vec;
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
 pub fn sandbox_preamble<'a, T, R: Serialize, F: Fn(T) -> R>(
-    // TODO:                ^^ T should be Swizzlable
+    // TODO:                ^^ T should be Swizzlable?
     functor: F, arg: *mut std::ffi::c_void, len: u32) -> *mut u8 {
     use std::slice;
     use std::mem;
@@ -32,7 +32,6 @@ pub fn sandbox_preamble<'a, T, R: Serialize, F: Fn(T) -> R>(
         let b = Box::from_raw(ptr);
         functor(*b)
     };
-    
 
     // Serialize output.
     let mut ret = bincode::serialize(&ret).unwrap();
@@ -126,22 +125,22 @@ macro_rules! invoke_sandbox {
         let new_inside_ptr = unsafe {
             let fake_old_inside = (*inside_ptr).clone();
 
-            println!("inside (in sandbox) is {:?}", (&*inside_ptr));
-            println!("outside (out of sandbox) is len {:?} cap {:?}", (*outside_ptr).len(), (*outside_ptr).capacity());
+            // println!("inside (in sandbox) is {:?}", (&*inside_ptr));
+            // println!("outside (out of sandbox) is len {:?} cap {:?}", (*outside_ptr).len(), (*outside_ptr).capacity());
 
-            println!("unswizzling it (so changes are reflected in sandbox)");
+            // println!("unswizzling it (so changes are reflected in sandbox)");
 
             let new = ::alohomora_sandbox::swizzle::Swizzleable::unswizzle(outside_ptr, inside_ptr, &fake_old_inside);
             
-            println!("inside is now {:?}", (&*inside_ptr));
+            // println!("inside is now {:?}", (&*inside_ptr));
             new
         };
         
         // Invoke sandbox via C.
-        println!("*entering FUNCTOR");
+        // println!("*entering FUNCTOR2");
         let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, 0) };
 
-        println!("*just finished some macro business");
+        // println!("*just finished some macro business");
         let ret = ret2.result;
 
         // Deserialize output.

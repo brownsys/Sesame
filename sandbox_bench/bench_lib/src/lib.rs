@@ -128,35 +128,39 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
   (0, (), 1)
 }
 
-// #[AlohomoraSandbox()]
+#[AlohomoraSandbox()]
 // pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
-//   // END TIMER (start in bin)
-//   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-//   let now = Instant::now();
-//   // let setup = now - inputs.1;
+pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<f64>, u64) {
+  // END TIMER (start in bin)
+  // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+  let now = Instant::now();
+  // println!("training on vec with size {} and cap {}", inputs.len(), inputs.capacity());
+  // let setup = now - inputs.1;
+  // println!("in the sandbox, the struct is {:?}", inputs);
 
-//   let grades = inputs.0;
-//   let grades: Vec<[f64; 2]> = grades
-//       .into_iter()
-//       .map(|g| [g.0.clone().and_utc().timestamp() as f64, g.1 as f64])
-//       .collect();
-//   let array: Array2<f64> = Array2::from(grades);
-//   let (x, y) = (
-//       array.slice(s![.., 0..1]).to_owned(),
-//       array.column(1).to_owned(),
-//   );
+  let grades = inputs;
+  let grades: Vec<[f64; 2]> = grades
+      .into_iter()
+      .map(|g| [g.0.clone().and_utc().timestamp() as f64, g.1 as f64])
+      .collect();
+  let array: Array2<f64> = Array2::from(grades);
+  let (x, y) = (
+      array.slice(s![.., 0..1]).to_owned(),
+      array.column(1).to_owned(),
+  );
 
-//   let dataset: Dataset<f64, f64, Dim<[usize; 1]>> =
-//       Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
+  let dataset: Dataset<f64, f64, Dim<[usize; 1]>> =
+      Dataset::new(x, y).with_feature_names(vec!["x", "y"]);
 
-//   // Train the model.
-//   let lin_reg = LinearRegression::new();
-//   let model = lin_reg.fit(&dataset).unwrap();
+  // Train the model.
+  let lin_reg = LinearRegression::new();
+  let model = lin_reg.fit(&dataset).unwrap();
 
-//   // START TIMER (end in bin)
-//   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-//   (now.elapsed().as_nanos() as u64, model, 0)
-// }
+  // START TIMER (end in bin)
+  // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+  let a = now.elapsed().as_nanos() as u64;
+  (a, model, 0)
+}
 
 // #[AlohomoraSandbox()]
 // pub fn encrypt_password_with_recipients(inputs: (String, Vec<String>)) -> Result<String, Error> {
