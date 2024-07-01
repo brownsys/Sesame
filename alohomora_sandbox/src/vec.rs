@@ -32,9 +32,7 @@ impl<T: Sized> NonNull<T> {
         }
     }
     pub const unsafe fn new_unchecked(ptr: *mut T) -> Self {
-        unsafe {
-            NonNull { pointer: ptr as _ }
-        }
+        NonNull { pointer: ptr as _ }
     }
     pub const fn new(ptr: *mut T) -> Option<Self> {
         Some(unsafe { Self::new_unchecked(ptr) })

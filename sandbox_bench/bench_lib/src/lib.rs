@@ -70,48 +70,6 @@ pub struct TestStruct {
     ptr_to_buddy: *mut i32,
 }
 
-// #[AlohomoraSandbox()]
-#[no_mangle]
-// #[cfg(target_arch = "wasm32")]
-pub extern "C" fn alloc_in_sandbox(size: usize) -> *mut std::ffi::c_void {
-  println!("allocing w size {:?}", size);
-  // println!("size is {:?}", std::mem::size_of::<SandboxPointer<Parent>>());
-
-  // let mut baby = Box::new(Baby {
-  //   goos_gaad: 0,
-  //   iq: 0,
-  //   height: 0.0,
-  // });
-  // let baby_ptr = Box::into_raw(baby);
-
-  // let mut mom = Box::new(Parent {
-  //   cookouts_held: 0,
-  //   hours_at_work: 0,
-  //   height: 0.0,
-  //   favorite_kid: baby_ptr,
-  // });
-  // let mom_ptr = Box::into_raw(mom);
-
-  // let mut mimi = Box::new(Grandparent {
-  //   cookies_baked: 0,
-  //   pickleball_rank: 0,
-  //   height: 0.0,
-  //   favorite_kid: mom_ptr,
-  // });
-  // let mimi_ptr = Box::into_raw(mimi);
-
-  let b: Box<Vec<(f64, u64)>> = Box::new(Vec::with_capacity(size));
-  let ptr = Box::into_raw(b);
-
-
-  unsafe {
-    println!("vec is now {:?}", *ptr);
-    // println!("vec is now {:?}", *vec_ptr);
-  }
-  
-  return ptr as *mut std::ffi::c_void;
-}
-
 #[AlohomoraSandbox()]
 pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
   // let vec_ptr: *mut Grandparent = inputs as *mut Grandparent;
