@@ -12,12 +12,13 @@ pub mod ptr;
 pub mod swizzle;
 pub mod alloc;
 pub mod vec;
+pub mod copy;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T, R: Serialize, F: Fn(T) -> R>(
-    // TODO:                ^^ T should be Swizzlable?
-    functor: F, arg: *mut std::ffi::c_void, len: u32) -> *mut u8 {
+pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Serialize, F: Fn(T) -> R>(
+    functor: F, arg: *mut std::ffi::c_void, slot: usize) -> *mut u8 {
+        // TODO: slot should probably be removed here-- were alread in the sandbox
     use std::slice;
     use std::mem;
 
@@ -28,8 +29,15 @@ pub fn sandbox_preamble<'a, T, R: Serialize, F: Fn(T) -> R>(
     // Call function.
     let ptr = arg as *mut T;
     
+    // unsafe { 
+    //     println!("preamble -- have ptr {:p} w size {:?}", ptr, std::mem::size_of_val(&*ptr));
+    //     println!("preamble -- have val {:?}", *ptr)
+    // };
+    
     let ret = unsafe { 
         let b = Box::from_raw(ptr);
+        // println!("preamble -- box is  {:?}", b);
+        // println!("preamble -- box value is  {:?}", *b);
         functor(*b)
     };
 
@@ -52,10 +60,10 @@ pub fn sandbox_preamble<'a, T, R: Serialize, F: Fn(T) -> R>(
 // Trait that sandboxed functions should implement.
 pub trait AlohomoraSandbox<'a, 'b, T, R> 
     where 
-        T: Clone + Swizzleable + AllocateableInSandbox,
+        T: Swizzleable,
         R: Serialize + Deserialize<'b>
 {
-    fn invoke(arg: T) -> FinalSandboxOut<R>;
+    fn invoke(arg: <T as Swizzleable>::Unswizzled, sandbox_index: usize) -> FinalSandboxOut<R>;
 }
 // pub trait AlohomoraSandbox2<'a, 'b, T: Serialize + Deserialize<'a>, R: Serialize + Deserialize<'b>> {
 //     fn invoke(arg: T) -> FinalSandboxOut<R>;
@@ -89,6 +97,8 @@ pub struct FinalSandboxOut<R> {
 extern "C" {
     pub fn alloc_mem_in_sandbox(size: usize, sandbox: usize) -> *mut std::ffi::c_void;
     pub fn free_mem_in_sandbox(ptr: *mut std::ffi::c_void, sandbox: usize);
+    pub fn get_lock_on_sandbox() -> usize;
+    pub fn unlock_sandbox(index: usize);
 }
 
 // 1. swizzle it out
@@ -98,47 +108,18 @@ extern "C" {
 // Called by Alohomora (from the application process) to invoke the sandbox.
 #[macro_export]
 macro_rules! invoke_sandbox {
-    ($functor:ident, $arg:ident, $arg_ty:ty) => {
-        // Serialize argument.
-        // let v: Vec<u8> = ::alohomora_sandbox::bincode::serialize(&$arg).unwrap();
-        // let arg = ::alohomora_sandbox::serde_json::to_string(&$arg).unwrap();
-        // let arg = ::std::ffi::CString::new(arg).unwrap();
-        // let input_vec: *mut Vec<(f64, u64)> = $arg as *mut Vec<(f64, u64)>;
-
-        // 1. get lock on a sandbox (TODO: do it for real)
-        let sandbox = 0;
-        // 2. make custom allocator for that sandbox
-        let alloc = ::alohomora_sandbox::alloc::SandboxAllocator::new(sandbox);
-
-        // println!("***the arg is {:?} w type {:?}", $arg, stringify!($arg_ty));
+    ($functor:ident, $arg:ident, $arg_ty:ty, $sandbox_index:ident) => {
         
-        let outside_ptr = (&$arg as *const $arg_ty) as *mut $arg_ty;
-        // ^^ could also put in a box to get ptr but keeping old should be faster
+        println!("macro has sandbox index {:?}", $sandbox_index);
 
-        // 3. use custom allocator to allocate it with same shape as `outside_ptr`
-        let inside_ptr: *mut $arg_ty = unsafe {
-            let p = ::alohomora_sandbox::alloc::AllocateableInSandbox::allocate_in_sandbox(outside_ptr, alloc);
-            p as *mut $arg_ty
-        };
-
-        // 4. swizzle them into the new memory
-        let new_inside_ptr = unsafe {
-            let fake_old_inside = (*inside_ptr).clone();
-
-            // println!("inside (in sandbox) is {:?}", (&*inside_ptr));
-            // println!("outside (out of sandbox) is len {:?} cap {:?}", (*outside_ptr).len(), (*outside_ptr).capacity());
-
-            // println!("unswizzling it (so changes are reflected in sandbox)");
-
-            let new = ::alohomora_sandbox::swizzle::Swizzleable::unswizzle(outside_ptr, inside_ptr, &fake_old_inside);
-            
-            // println!("inside is now {:?}", (&*inside_ptr));
-            new
-        };
+        // `$arg` is already a swizzled 32 bit object for the sandbox, 
+        // so we just make a raw pointer that the preamble can reconstruct to the object
+        let new_inside_ptr = Box::into_raw(Box::new_in($arg, ::alohomora_sandbox::alloc::SandboxAllocator::new($sandbox_index)));
+        unsafe{ println!("inside_ptr is {:?} at {:p} w size {:?}", *new_inside_ptr, new_inside_ptr, std::mem::size_of_val(&*new_inside_ptr)); }
         
         // Invoke sandbox via C.
         // println!("*entering FUNCTOR2");
-        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, 0) };
+        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, $sandbox_index) };
 
         // println!("*just finished some macro business");
         let ret = ret2.result;

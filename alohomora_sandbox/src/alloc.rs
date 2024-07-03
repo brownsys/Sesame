@@ -1,5 +1,7 @@
 use std::{alloc::{AllocError, Allocator}, ptr::{slice_from_raw_parts_mut, NonNull}};
 
+use crate::swizzle::Swizzleable;
+
 #[derive(Debug, Clone)]
 pub struct SandboxAllocator {
     pub sandbox_index: usize, // the index of the sandbox to allocate in
@@ -28,23 +30,27 @@ unsafe impl Allocator for SandboxAllocator {
     unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
         // Free in sandbox memory.
         println!("rust-- trying to deallocate with allocator {:?}, ptr {:?} and layout {:?}", self, ptr, layout);
-        unsafe {
-            crate::free_mem_in_sandbox(ptr.as_ptr() as *mut std::ffi::c_void, self.sandbox_index);
-        }
+        // unsafe {
+        //     crate::free_mem_in_sandbox(ptr.as_ptr() as *mut std::ffi::c_void, self.sandbox_index);
+        // }
     }
 }
 
+/// Trait for types that are able to be allocated in a sandbox as the type `UsingSandboxAllocator`. 
+/// (We use a different type bc they might have different allocator generics like Vec<T, SandboxAllocator> instead of Vec<T>)
 pub trait AllocateableInSandbox {
     type UsingSandboxAllocator;
-    // creates a new allocation in the sandbox using `alloc` with the same structure as `info`
-    unsafe fn allocate_in_sandbox(info: *mut Self, alloc: SandboxAllocator) -> *mut Self::UsingSandboxAllocator;
+    /// Creates a new allocation in the sandbox using `alloc` with the same structure as `info`.
+    fn allocate_in_sandbox(info: &Self, alloc: &SandboxAllocator) -> Self::UsingSandboxAllocator;
+
+    // /// Converts the sandbox allocation `inside` to a raw pointer fully contained in the sandbox for use in the functor.
+    // unsafe fn to_raw_ptr(inside: Self::UsingSandboxAllocator) -> *mut Self;
 }
 
 impl<T> AllocateableInSandbox for Vec<T> {
     type UsingSandboxAllocator = Vec<T, SandboxAllocator>;
-    unsafe fn allocate_in_sandbox(info: *mut Self, alloc: SandboxAllocator) -> *mut Self::UsingSandboxAllocator {
+    fn allocate_in_sandbox(info: &Self, alloc: &SandboxAllocator) -> Self::UsingSandboxAllocator {
         let v = Vec::with_capacity_in((*info).len(), alloc.clone());
-        let b = Box::new_in(v, alloc);
-        Box::into_raw(b)
+        v
     }
 }

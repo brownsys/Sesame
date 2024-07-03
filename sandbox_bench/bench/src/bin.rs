@@ -6,7 +6,7 @@ use std::{fs, thread};
 
 use alohomora::bbox::BBox;
 use alohomora::policy::NoPolicy;
-use alohomora::sandbox::{execute_sandbox, FinalSandboxOut};
+use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, SandboxInstance};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
@@ -153,7 +153,9 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
     type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
-    let output = execute_sandbox::<train, _, _>(grades);
+    let output = SandboxInstance::copy_and_execute::<train,_,_>(grades);
+    // let output = execute_sandbox::<train, _, _>(grades);
+    // let output = BBox::new(0, NoPolicy{});
 
     // END TIMER (start inside hash)
     let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
@@ -229,9 +231,9 @@ fn run_benchmarks(){
   // let hash_res = hash_res[0..].to_vec();
   // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(100);
-  let train_res = train_res[0..].to_vec();
-  write_stats("train".to_string(), train_res);
+  // let train_res = train_bench(100);
+  // let train_res = train_res[0..].to_vec();
+  // write_stats("train".to_string(), train_res);
 
   // let hash_baseline_res = hash_baseline_bench(100);
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
@@ -266,15 +268,25 @@ fn run_benchmarks(){
 
 fn main() {
   // BENCHMARKING
-  run_benchmarks();
-  // TODO:
-  // - why is there no setup that takes a longer amount of time?
-  // - why are we getting more round numbers than expected or similar times
-  // - does a smaller sandbox make this faster?
-  // - does the madvise wipe make it proportionally faster?
+  // run_benchmarks();
 
   // SANDBOX POOL TESTING
   // test_sandbox_pool();
+
+  // IDEAL API:
+  // 1. programmer calls some get lock on sandbox function -> (allocator, some handle for invoking on the sandbox) maybe all in a struct
+  // 2. they use the allocator to allocate some memory
+  // let instance = SandboxInstance::new();
+
+  let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
+  
+  // let output = instance.execute::<train, _, _>(test_grades2.clone());
+  
+  let output2 = SandboxInstance::copy_and_execute::<train2, _, _>(test_grades2);
+
+
+  // let call2 = instance.execute();
+
 
   /*
   let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));

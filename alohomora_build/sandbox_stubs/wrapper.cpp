@@ -16,6 +16,7 @@
 #include <string>
 #include <memory>
 #include <chrono>
+#include <stddef.h>
 #include <unistd.h>
 #include <condition_variable>
 
@@ -81,7 +82,7 @@ void initialize_sandbox_pool() \{
     }
 }
 
-void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index) \{
+void* alloc_mem_in_sandbox(unsigned size, size_t sandbox_index) \{
     if (sandbox_pool.size() == 0) initialize_sandbox_pool();
 
     // printf("invoking alloc in sandbox %d\n", sandbox_index);
@@ -90,12 +91,12 @@ void* alloc_mem_in_sandbox(unsigned size, unsigned sandbox_index) \{
     // auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, size);
     tainted_{name}<char*> result_tainted = sandbox->malloc_in_sandbox<char>(size);
     void* result = result_tainted.UNSAFE_unverified();
-    // printf("cpp: done invoking alloc in sandbox %d, got ptr %p for sz %d\n", sandbox_index, result, size);
+    printf("cpp: done invoking alloc in sandbox %d, got ptr %p for sz %d\n", sandbox_index, result, size);
 
     return result;
 }
 
-void free_mem_in_sandbox(void* ptr, unsigned sandbox_index) \{
+void free_mem_in_sandbox(void* ptr, size_t sandbox_index) \{
     // TODO: need synchronization for these fns
     if (sandbox_pool.size() == 0) initialize_sandbox_pool();
 
@@ -112,10 +113,8 @@ void free_mem_in_sandbox(void* ptr, unsigned sandbox_index) \{
     printf("\tcpp: free complete\n");
 }
 
-{{ for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size) \{
-    auto start = high_resolution_clock::now();
-
+// Get a lock on a sandbox from the pool for memory allocation & use.
+size_t get_lock_on_sandbox() \{
     // Lock the sandbox pool for accessing.
     std::unique_lock<std::mutex> pool_lock(pool_mtx);
 
@@ -138,8 +137,24 @@ sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size) \{
         if (slot == -1) pool_cv.wait(pool_lock);
     }
 
-    // We have a sandbox to use and have locked that, so we can unlock the pool now.
-    pool_lock.unlock();
+    printf("cpp: got lock on sandbox %d\n", slot);
+
+    return slot;
+}
+
+// Unlock a sandbox from the pool.
+void unlock_sandbox(size_t i) \{
+    printf("cpp: unlocking sandbox %d\n", i);
+    std::unique_lock<std::mutex> pool_lock(pool_mtx);  // This might be unneccessary
+    sandbox_pool[i]->sandbox_mtx.unlock();
+
+    // Notify a thread that a sandbox slot has opened up.
+    pool_cv.notify_one();
+}
+
+{{ for sandbox in sandboxes }}
+sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
+    auto start = high_resolution_clock::now();
 
     // Do the actual operations on the sandbox.
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
@@ -167,7 +182,7 @@ sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size) \{
         // tainted_{name}<void*> tainted_arg2 = (tainted_{name}<void*>) tainted_arg;
 
         // Invoke sandbox.
-        tainted_{name}<char*> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
+        tainted_{name}<char*> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, 0);
         // tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg, size);
 
         // START TEARDOWN TIMER HERE
@@ -180,25 +195,22 @@ sandbox_out invoke_sandbox_{sandbox}_c(void* arg, unsigned size) \{
         char* result = (char*) malloc(size2);
         memcpy(result, buffer + 2, size2);
 
-
         // Reset sandbox for next use.
         // sandbox->free_in_sandbox(tainted_arg); // this call might be redundant but I'm a little spooked to remove it
         sandbox->reset_sandbox();
         // sandbox->destroy_sandbox();
         // sandbox->create_sandbox();
 
-    // Unlock the sandbox now that it's been reset.
-    sandbox_pool[slot]->sandbox_mtx.unlock();
-    // Notify a thread that a sandbox slot has opened up.
-    pool_cv.notify_one();
+        // Unlock the sandbox now that it's been reset.
+        // unlock_sandbox(slot);
 
-    // END TEARDOWN TIMER HERE
-    stop = high_resolution_clock::now();
-    duration = duration_cast<nanoseconds>(stop - start);
-    unsigned long long teardown = duration.count();
+        // END TEARDOWN TIMER HERE
+        stop = high_resolution_clock::now();
+        duration = duration_cast<nanoseconds>(stop - start);
+        unsigned long long teardown = duration.count();
 
-    // Return timing data.
-    return sandbox_out \{ result, size2, setup, teardown };
+        // Return timing data.
+        return sandbox_out \{result, size2, setup, teardown};
 }
 
 {{ endfor }}

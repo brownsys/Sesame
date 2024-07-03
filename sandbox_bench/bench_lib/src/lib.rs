@@ -80,6 +80,8 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
     let b = &inputs;
 
     println!("in the sandbox, the struct is {:?}", *b);
+    println!("w len {:?} and cap {:?}", (*b).len(), (*b).capacity());
+    
     // println!("favorite kid is {:?}", *(*b).favorite_kid);
     // println!("their favorite kid is {:?}", *(*(*b).favorite_kid).favorite_kid);
   }
