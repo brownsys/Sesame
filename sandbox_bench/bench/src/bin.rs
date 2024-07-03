@@ -133,7 +133,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   type BBoxGrade = BBox<u64, NoPolicy>;
 
   (1..iters + 1).map(|_i| {
-    let num_grades = 50000;
+    let num_grades = 5000; // 5k for benchmarks
     let mut rng = rand::thread_rng();
     let mut grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
@@ -180,7 +180,7 @@ fn train_baseline_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   // type BBoxGrade = BBox<u64, NoPolicy>;
 
   (1..iters + 1).map(|_i| {
-    let num_grades = 50000;
+    let num_grades = 5000; // 5k for benchmarks
     let mut rng = rand::thread_rng();
     let grades: Vec<(NaiveDateTime, u64)> = (1..num_grades + 1).map(|_j| {
       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
@@ -231,9 +231,9 @@ fn run_benchmarks(){
   // let hash_res = hash_res[0..].to_vec();
   // write_stats("hash".to_string(), hash_res);
 
-  // let train_res = train_bench(100);
-  // let train_res = train_res[0..].to_vec();
-  // write_stats("train".to_string(), train_res);
+  let train_res = train_bench(100);
+  let train_res = train_res[0..].to_vec();
+  write_stats("train".to_string(), train_res);
 
   // let hash_baseline_res = hash_baseline_bench(100);
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
@@ -246,15 +246,16 @@ fn run_benchmarks(){
 
 // Runs sandboxes with multiple threads to test the sandbox pool.
 // fn test_sandbox_pool(){
-//   let NUM_THREADS = 4;
+//   let NUM_THREADS = 100;
 //   let mut threads = vec![];
 
 //   // spawn all the testing threads
 //   for i in 0..NUM_THREADS {
-//       println!("spawning thread {i}");
+//       println!("threading -- spawning thread {i}");
 //       let t = thread::spawn(||{
-//         println!("hello from thread {:?}", thread::current().id());
-//         let hash_res = hash_bench(2);
+//         println!("threading -- hello from thread {:?}", thread::current().id());
+//         let hash_res = train_bench(2);
+//         println!("threading -- thread {:?} is DONE", thread::current().id());
 //       });
 //       threads.push(t);
 //   }
@@ -268,24 +269,10 @@ fn run_benchmarks(){
 
 fn main() {
   // BENCHMARKING
-  // run_benchmarks();
+  run_benchmarks();
 
   // SANDBOX POOL TESTING
   // test_sandbox_pool();
-
-  // IDEAL API:
-  // 1. programmer calls some get lock on sandbox function -> (allocator, some handle for invoking on the sandbox) maybe all in a struct
-  // 2. they use the allocator to allocate some memory
-  // let instance = SandboxInstance::new();
-
-  let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
-  
-  // let output = instance.execute::<train, _, _>(test_grades2.clone());
-  
-  let output2 = SandboxInstance::copy_and_execute::<train2, _, _>(test_grades2);
-
-
-  // let call2 = instance.execute();
 
 
   /*

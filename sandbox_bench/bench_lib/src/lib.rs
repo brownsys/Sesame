@@ -93,6 +93,7 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<f64>, u64) {
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+  // println!("in the sandbox, inputs are {:?}", inputs);
   let now = Instant::now();
   // println!("training on vec with size {} and cap {}", inputs.len(), inputs.capacity());
   // let setup = now - inputs.1;

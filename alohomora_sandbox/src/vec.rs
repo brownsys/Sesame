@@ -45,7 +45,6 @@ impl<T: Debug> Swizzleable for Vec<T, SandboxAllocator> {
         let ptr = (&inside as *const Vec<T, SandboxAllocator>) as *const MyVec<T, SandboxAllocator>;
         let old_inside = (*ptr).clone();
 
-        println!("OLD INSIDE is {:?}", old_inside);
         MyVecUnswizzled {
             buf: RawMyVecUnswizzled{
                 ptr: NonNullUnswizzled{pointer: unswizzle_ptr(old_inside.buf.ptr.pointer as *mut T)},
@@ -71,7 +70,6 @@ impl<T: Debug> Copiable for Vec<T> {
         
         std::ptr::copy((*old_ptr).buf.ptr.pointer, (*new_ptr).buf.ptr.pointer as *mut T, (*new_ptr).buf.cap);
         (*new_ptr).len = (*old_ptr).len;
-        println!("just copied length {:?}", (*old_ptr).len);
     }
 }
 

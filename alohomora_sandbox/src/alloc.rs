@@ -14,7 +14,6 @@ impl SandboxAllocator {
 unsafe impl Allocator for SandboxAllocator {
     fn allocate(&self, layout: std::alloc::Layout) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
         // Allocate memory in sandbox.
-        println!("rust-- trying to allocate with allocator {:?} for layout {:?}", self, layout);
         let raw_ptr = unsafe { crate::alloc_mem_in_sandbox(layout.size(), self.sandbox_index) };
         
         // Convert to fat pointer.
@@ -29,7 +28,7 @@ unsafe impl Allocator for SandboxAllocator {
 
     unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
         // Free in sandbox memory.
-        println!("rust-- trying to deallocate with allocator {:?}, ptr {:?} and layout {:?}", self, ptr, layout);
+
         // unsafe {
         //     crate::free_mem_in_sandbox(ptr.as_ptr() as *mut std::ffi::c_void, self.sandbox_index);
         // }

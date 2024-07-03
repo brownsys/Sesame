@@ -109,19 +109,14 @@ extern "C" {
 #[macro_export]
 macro_rules! invoke_sandbox {
     ($functor:ident, $arg:ident, $arg_ty:ty, $sandbox_index:ident) => {
-        
-        println!("macro has sandbox index {:?}", $sandbox_index);
 
-        // `$arg` is already a swizzled 32 bit object for the sandbox, 
-        // so we just make a raw pointer that the preamble can reconstruct to the object
+        // `$arg` is already a swizzled 32 bit type for the sandbox, 
+        // so we just make a raw pointer that the preamble can reconstruct to the real type
         let new_inside_ptr = Box::into_raw(Box::new_in($arg, ::alohomora_sandbox::alloc::SandboxAllocator::new($sandbox_index)));
-        unsafe{ println!("inside_ptr is {:?} at {:p} w size {:?}", *new_inside_ptr, new_inside_ptr, std::mem::size_of_val(&*new_inside_ptr)); }
         
         // Invoke sandbox via C.
-        // println!("*entering FUNCTOR2");
         let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, $sandbox_index) };
 
-        // println!("*just finished some macro business");
         let ret = ret2.result;
 
         // Deserialize output.

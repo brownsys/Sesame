@@ -67,7 +67,7 @@ struct sandbox_container \{
     std::mutex sandbox_mtx;
 } typedef sandbox_container_t;
 
-const int NUM_SANDBOXES = 2;
+const int NUM_SANDBOXES = 10;
 std::vector<sandbox_container_t*> sandbox_pool;
 
 std::mutex pool_mtx;              // used to protect access to modifying the sandbox pool
@@ -91,13 +91,13 @@ void* alloc_mem_in_sandbox(unsigned size, size_t sandbox_index) \{
     // auto result_tainted = sandbox->invoke_sandbox_function(alloc_in_sandbox, size);
     tainted_{name}<char*> result_tainted = sandbox->malloc_in_sandbox<char>(size);
     void* result = result_tainted.UNSAFE_unverified();
-    printf("cpp: done invoking alloc in sandbox %d, got ptr %p for sz %d\n", sandbox_index, result, size);
+    // printf("cpp: done invoking alloc in sandbox %d, got ptr %p for sz %d\n", sandbox_index, result, size);
 
     return result;
 }
 
 void free_mem_in_sandbox(void* ptr, size_t sandbox_index) \{
-    // TODO: need synchronization for these fns
+    // TODO: need synchronization for these fns -- dont think i do should be handled at a higher level by instances.
     if (sandbox_pool.size() == 0) initialize_sandbox_pool();
 
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
@@ -106,11 +106,11 @@ void free_mem_in_sandbox(void* ptr, size_t sandbox_index) \{
     tainted_{name} <void*> tainted_ptr;
     tainted_ptr.assign_raw_pointer(*sandbox, ptr);
 
-    printf("cpp: trying to invoke free in sandbox %d, for ptr %p\n", sandbox_index, ptr);
+    // printf("cpp: trying to invoke free in sandbox %d, for ptr %p\n", sandbox_index, ptr);
 
     sandbox->free_in_sandbox(tainted_ptr);
 
-    printf("\tcpp: free complete\n");
+    // printf("\tcpp: free complete\n");
 }
 
 // Get a lock on a sandbox from the pool for memory allocation & use.
@@ -137,14 +137,14 @@ size_t get_lock_on_sandbox() \{
         if (slot == -1) pool_cv.wait(pool_lock);
     }
 
-    printf("cpp: got lock on sandbox %d\n", slot);
+    // printf("cpp: got lock on sandbox %d\n", slot);
 
     return slot;
 }
 
 // Unlock a sandbox from the pool.
 void unlock_sandbox(size_t i) \{
-    printf("cpp: unlocking sandbox %d\n", i);
+    // printf("cpp: unlocking sandbox %d\n", i);
     std::unique_lock<std::mutex> pool_lock(pool_mtx);  // This might be unneccessary
     sandbox_pool[i]->sandbox_mtx.unlock();
 

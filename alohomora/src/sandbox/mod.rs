@@ -36,9 +36,7 @@ pub struct SandboxInstance {
 impl SandboxInstance {
     /// Create new sandbox instance. (in reality just get one from the pool)
     pub fn new() -> Self {
-        println!("trhying to get new instance");
         let sandbox_index = unsafe{ ::alohomora_sandbox::get_lock_on_sandbox() };
-        println!("creating new sandbox instance w index {sandbox_index}");
         SandboxInstance { sandbox_index, alloc: SandboxAllocator::new(sandbox_index) }
     }
 
@@ -47,66 +45,73 @@ impl SandboxInstance {
         where
             T: AlohomoraType,
             T::Out: AllocateableInSandbox + Copiable + Swizzleable + Debug,
-            <T::Out as Swizzleable>::Unswizzled: From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really be the same but this is how im representing it
+            <T::Out as Swizzleable>::Unswizzled: 
+                            From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
             <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
             R: Serialize + Deserialize<'b>,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
-        println!("doing box business");
+        // Remove boxes from args.
         let outer_boxed = fold(t).unwrap();
         let (t, p) = outer_boxed.consume();
-        println!("done w box business");
 
-        // 0. get lock on new sandbox
+        // Create a new sandbox instance.
         let instance = SandboxInstance::new();
-        println!("done making sandbox instance");
 
-        // 1. allocate into the sandbox w out bboxes
-        // should return a Vec<T, SandboxAllocator>
+        // Allocate space for the args in that sandbox instance.
         let mut inside = AllocateableInSandbox::allocate_in_sandbox(&t, &instance.alloc);
-        println!("done allocating w inside {:?}, {:p}", inside, &inside);
 
-        // 2. move everything in there
-        // should return a Vec<T> that is now in the sandbox
-        println!("reminder--> t is {:?}", t);
+        // Copy the args into the allocated space.
         unsafe { Copiable::copy(&mut inside, &t) };
-        println!("done copying w inside {:?}", inside);
-        // println!("have vec {:?} at {:p}", inside, &inside);
 
-        // 3. deswizzle all ptrs
-        // Should return a deswizzled?
+        // Unswizzle args for use in the sandbox.
         let final_arg = unsafe { Swizzleable::unswizzle(inside).into()};
-        println!("done deswizzling w inside");
 
-        // 4. pass that into the function
+        // Pass that to the function.
         let ret = S::invoke(final_arg, instance.sandbox_index);
-        println!("done invoking");
         BBox::new(ret, p)
     }
 
-    // TODO: can we run multiple functions in the same sandbox instance? or is that privacy issue
-
     // Executes `S` on variable `t` assuming that `t` is already in sandboxed memory 
     // (i.e. it has been allocated with this `SandboxInstance`'s `SandboxAllocator`).
-    // pub fn execute<'a, 'b, S, T, A, R>(self, t: A::UsingSandboxAllocator) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
+    // pub fn execute<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
     //     where
-    //         A: AllocateableInSandbox + AlohomoraType,
-    //         A::UsingSandboxAllocator: AlohomoraType,
-    //         <<A as AllocateableInSandbox>::UsingSandboxAllocator as AlohomoraType>::Out: Clone + Swizzleable, // TODO: should also be allocatED in sandbox.
+    //         T: AlohomoraType,
+    //         T::Out: AllocateableInSandbox + Copiable + Swizzleable + Debug,
+    //         <T::Out as Swizzleable>::Unswizzled: From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really be the same but this is how im representing it
+    //         <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
     //         R: Serialize + Deserialize<'b>,
-    //         S: AlohomoraSandbox<'a, 'b, <A as AlohomoraType>::Out, R>,
+    //         S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     // {
+    //     println!("doing box business");
     //     let outer_boxed = fold(t).unwrap();
-    //     let (mut t, p) = outer_boxed.consume();
+    //     let (t, p) = outer_boxed.consume();
+    //     println!("done w box business");
 
-    //     // 1. swizzle everything to be 32 bits
-    //     unsafe { Swizzleable::unswizzle(&mut t) };
-    //     let inside = &mut t as *mut <<A as AllocateableInSandbox>::UsingSandboxAllocator as AlohomoraType>::Out;
-    //     let inside = inside as *mut <A as AlohomoraType>::Out;
-    //     let final_arg = unsafe { *inside };
+    //     // 0. get lock on new sandbox
+    //     let instance = SandboxInstance::new();
+    //     println!("done making sandbox instance");
 
-    //     // 2. pass that into the function
-    //     let ret = S::invoke(final_arg, self.sandbox_index);
+    //     // 1. allocate into the sandbox w out bboxes
+    //     // should return a Vec<T, SandboxAllocator>
+    //     let mut inside = AllocateableInSandbox::allocate_in_sandbox(&t, &instance.alloc);
+    //     println!("done allocating w inside {:?}, {:p}", inside, &inside);
+
+    //     // 2. move everything in there
+    //     // should return a Vec<T> that is now in the sandbox
+    //     println!("reminder--> t is {:?}", t);
+    //     unsafe { Copiable::copy(&mut inside, &t) };
+    //     println!("done copying w inside {:?}", inside);
+    //     // println!("have vec {:?} at {:p}", inside, &inside);
+
+    //     // 3. deswizzle all ptrs
+    //     // Should return a deswizzled?
+    //     let final_arg = unsafe { Swizzleable::unswizzle(inside).into()};
+    //     println!("done deswizzling w inside");
+
+    //     // 4. pass that into the function
+    //     let ret = S::invoke(final_arg, instance.sandbox_index);
+    //     println!("done invoking");
     //     BBox::new(ret, p)
     // }
 }
