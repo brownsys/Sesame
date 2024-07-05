@@ -1,6 +1,7 @@
-use std::fmt::Debug;
+use std::{any::Any, fmt::Debug};
 
 use alohomora_sandbox::{alloc::{AllocateableInSandbox, SandboxAllocator}, copy::Copiable, swizzle::Swizzleable, unlock_sandbox};
+use rocket::shield::Policy;
 use serde::{Serialize, Deserialize};
 
 use crate::AlohomoraType;
@@ -30,7 +31,7 @@ pub use alohomora_derive::AlohomoraSandbox;
 
 pub struct SandboxInstance {
     sandbox_index: usize,
-    pub alloc: SandboxAllocator,
+    alloc: SandboxAllocator,
 }
 
 impl SandboxInstance {
@@ -38,6 +39,11 @@ impl SandboxInstance {
     pub fn new() -> Self {
         let sandbox_index = unsafe{ ::alohomora_sandbox::get_lock_on_sandbox() };
         SandboxInstance { sandbox_index, alloc: SandboxAllocator::new(sandbox_index) }
+    }
+
+    /// An allocator to allocate into this instance's sandbox.
+    pub fn alloc(&self) -> SandboxAllocator {
+        self.alloc.clone()
     }
 
     /// Copies `t` into a sandbox and executes the specified function on it.
@@ -72,48 +78,36 @@ impl SandboxInstance {
         BBox::new(ret, p)
     }
 
-    // Executes `S` on variable `t` assuming that `t` is already in sandboxed memory 
-    // (i.e. it has been allocated with this `SandboxInstance`'s `SandboxAllocator`).
-    // pub fn execute<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
-    //     where
-    //         T: AlohomoraType,
-    //         T::Out: AllocateableInSandbox + Copiable + Swizzleable + Debug,
-    //         <T::Out as Swizzleable>::Unswizzled: From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really be the same but this is how im representing it
-    //         <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
-    //         R: Serialize + Deserialize<'b>,
-    //         S: AlohomoraSandbox<'a, 'b, T::Out, R>,
-    // {
-    //     println!("doing box business");
-    //     let outer_boxed = fold(t).unwrap();
-    //     let (t, p) = outer_boxed.consume();
-    //     println!("done w box business");
+    /// Executes `S` on variable `t` assuming that `t` is already in sandboxed memory 
+    /// (i.e. it has been allocated with this `SandboxInstance`'s `SandboxAllocator`).
+    pub fn execute<'a, 'b, S, T, R, P: crate::policy::Policy, A>(self, t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
+        where
+            A: AllocateableInSandbox + Swizzleable,
+            T: AlohomoraType<P, SandboxAllocator>,
+            T::Out: Into<<A as AllocateableInSandbox>::UsingSandboxAllocator>,
+            <A as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable,
+            A::Unswizzled: From<<<A as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>,
+            // <T::Out as Swizzleable>::Unswizzled: From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really be the same but this is how im representing it
+            // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
+            R: Serialize + Deserialize<'b>,
+            S: AlohomoraSandbox<'a, 'b, A, R>,
+    {
+        // 1. remove bboxes.
+        println!("doing box business");
+        let outer_boxed = fold(t).unwrap();
+        let (t, p) = outer_boxed.consume();
+        println!("done w box business");
 
-    //     // 0. get lock on new sandbox
-    //     let instance = SandboxInstance::new();
-    //     println!("done making sandbox instance");
+        // 2. unswizzle data type.
+        let sandbox_alloc: <A as AllocateableInSandbox>::UsingSandboxAllocator = t.into();
+        let final_arg = unsafe { Swizzleable::unswizzle(sandbox_alloc).into() };
+        println!("done deswizzling w inside");
 
-    //     // 1. allocate into the sandbox w out bboxes
-    //     // should return a Vec<T, SandboxAllocator>
-    //     let mut inside = AllocateableInSandbox::allocate_in_sandbox(&t, &instance.alloc);
-    //     println!("done allocating w inside {:?}, {:p}", inside, &inside);
-
-    //     // 2. move everything in there
-    //     // should return a Vec<T> that is now in the sandbox
-    //     println!("reminder--> t is {:?}", t);
-    //     unsafe { Copiable::copy(&mut inside, &t) };
-    //     println!("done copying w inside {:?}", inside);
-    //     // println!("have vec {:?} at {:p}", inside, &inside);
-
-    //     // 3. deswizzle all ptrs
-    //     // Should return a deswizzled?
-    //     let final_arg = unsafe { Swizzleable::unswizzle(inside).into()};
-    //     println!("done deswizzling w inside");
-
-    //     // 4. pass that into the function
-    //     let ret = S::invoke(final_arg, instance.sandbox_index);
-    //     println!("done invoking");
-    //     BBox::new(ret, p)
-    // }
+        // 3. call functor.
+        let ret = S::invoke(final_arg, self.sandbox_index);
+        println!("done invoking");
+        BBox::new(ret, p)
+    }
 }
 
 impl Drop for SandboxInstance {

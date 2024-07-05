@@ -1,16 +1,18 @@
+use std::alloc::Allocator;
+
 use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, Policy, OptionPolicy};
 
 
 // Safe to call from client code because it keeps everything inside a bbox.
-pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
+pub fn fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
     let (v, p) = unsafe_fold(s)?;
     Ok(BBox::new(v, p))
 }
 
 // Does the folding transformation but without the surrounding bbox at the end.
-pub(crate) fn unsafe_fold<S: AlohomoraType>(s: S) -> Result<(S::Out, AnyPolicy), ()> {
+pub(crate) fn unsafe_fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -> Result<(S::Out, AnyPolicy), ()> {
     let e = s.to_enum();
     let composed_policy = match e.policy()? {
         None => AnyPolicy::new(NoPolicy {}),
@@ -58,6 +60,8 @@ mod tests {
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy, Reason};
     use crate::testing::TestPolicy;
 
+    use std::alloc::Global;
+    use std::any::Any;
     use std::collections::{HashSet, HashMap};
     use std::iter::FromIterator;
     use crate::context::UnprotectedContext;
@@ -115,7 +119,7 @@ mod tests {
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl AlohomoraType for BoxedStruct {
         type Out = BoxedStructLite;
-        fn to_enum(self) -> AlohomoraTypeEnum {
+        fn to_enum(self) -> AlohomoraTypeEnum<Global> {
             let hashmap = HashMap::from([
                 (String::from("x"), self.x.to_enum()),
                 (String::from("y"), self.y.to_enum()),
@@ -123,7 +127,7 @@ mod tests {
             ]);
             AlohomoraTypeEnum::Struct(hashmap)
         }
-        fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        fn from_enum(e: AlohomoraTypeEnum<Global>) -> Result<Self::Out, ()> {
             match e {
                 AlohomoraTypeEnum::Struct(mut hashmap) =>
                 Ok(
@@ -195,7 +199,7 @@ mod tests {
             BBox::new(30, policy3),
         ];
 
-        let bbox = super::fold(vec).unwrap();
+        let bbox = super::fold::<AnyPolicy, _, _>(vec).unwrap();
         let bbox = bbox.specialize_policy::<TestPolicy<ACLPolicy>>().unwrap();
         assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
@@ -241,7 +245,7 @@ mod tests {
             BBox::new(30, policy3),
         ];
 
-        let _ = super::fold(vec).unwrap();
+        let _ = super::fold::<AnyPolicy, _, _>(vec).unwrap();
     }
 
     #[test]
@@ -268,7 +272,7 @@ mod tests {
             },
         ];
 
-        let bbox = super::fold(vec).unwrap();
+        let bbox = super::fold::<AnyPolicy, _, _>(vec).unwrap();
         let bbox = bbox.specialize_policy::<TestPolicy<ACLPolicy>>().unwrap();
         assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(bbox.discard_box(), vec![

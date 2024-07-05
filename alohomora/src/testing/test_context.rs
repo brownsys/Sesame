@@ -1,3 +1,5 @@
+use std::alloc::Allocator;
+
 use crate::{AlohomoraType, AlohomoraTypeEnum};
 use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};
@@ -15,11 +17,11 @@ impl<T: Send + 'static> TestContextData<T> {
 impl<T: Send + 'static> AlohomoraType for TestContextData<T> {
     type Out = T;
 
-    fn to_enum(self) -> AlohomoraTypeEnum {
+    fn to_enum(self) -> AlohomoraTypeEnum<std::alloc::Global> {
         AlohomoraTypeEnum::BBox(self.0.into_any())
     }
 
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: AlohomoraTypeEnum<std::alloc::Global>) -> Result<Self::Out, ()> {
         if let AlohomoraTypeEnum::Value(t) = e {
             return match t.downcast() {
                 Ok(t) => Ok(*t),

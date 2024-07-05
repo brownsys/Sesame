@@ -1,5 +1,7 @@
+#![feature(allocator_api)]
 extern crate alohomora;
 extern crate bench_lib;
+
 
 use std::{fs, thread};
 // use std::vec;
@@ -269,11 +271,33 @@ fn run_benchmarks(){
 
 fn main() {
   // BENCHMARKING
-  run_benchmarks();
+  // run_benchmarks();
+
+  // BENCHMARK NOTES:
+  // first compiling NOOPT commit -
+  // for RECREATE - make sure to 
 
   // SANDBOX POOL TESTING
   // test_sandbox_pool();
 
+  let mut test_grades = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), 
+                                                               (BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())),
+                                                               (BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new()))];
+
+  let out: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = SandboxInstance::copy_and_execute::<train, _, _>(test_grades).specialize_policy().unwrap();
+
+  println!("GOT FIRST OUT {:?}", out.discard_box().result);
+
+  let instance = SandboxInstance::new();
+  let mut test_grades2 = Vec::new_in(instance.alloc());
+  test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
+  test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
+  test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
+
+  let out2 = instance.execute::<train, _, _, NoPolicy, _>(test_grades2);
+  let out2: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = out2.specialize_policy().unwrap();
+
+  println!("GOT SECOND OUT {:?}", out2.discard_box().result);
 
   /*
   let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
