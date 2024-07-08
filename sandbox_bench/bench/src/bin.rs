@@ -7,7 +7,7 @@ use std::{fs, thread};
 // use std::vec;
 
 use alohomora::bbox::BBox;
-use alohomora::policy::NoPolicy;
+use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, SandboxInstance};
 
 use alohomora::AlohomoraType;
@@ -155,7 +155,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
     type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
-    let output = SandboxInstance::copy_and_execute::<train,_,_>(grades);
+    let output = SandboxInstance::copy_and_execute::<train,_,_>(grades.clone());
     // let output = execute_sandbox::<train, _, _>(grades);
     // let output = BBox::new(0, NoPolicy{});
 
@@ -167,6 +167,8 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let setup = output.setup;
     let teardown = output.teardown;
     let output = output.result;
+
+    // let a = speedy_fold::<_, _, _>(grades);
 
     // let serialize = output.0 - setup; // output.0 -> time in function
     // let deserialize = (end - output.2) - teardown;
@@ -233,9 +235,12 @@ fn run_benchmarks(){
   // let hash_res = hash_res[0..].to_vec();
   // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(100);
+  let train_res = train_bench(10000);
   let train_res = train_res[0..].to_vec();
   write_stats("train".to_string(), train_res);
+
+  unsafe{ SandboxInstance::split_info(); }
+  // println!("final splits are {:?}", s);
 
   // let hash_baseline_res = hash_baseline_bench(100);
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
@@ -271,7 +276,7 @@ fn run_benchmarks(){
 
 fn main() {
   // BENCHMARKING
-  // run_benchmarks();
+  run_benchmarks();
 
   // BENCHMARK NOTES:
   // first compiling NOOPT commit -
@@ -280,24 +285,24 @@ fn main() {
   // SANDBOX POOL TESTING
   // test_sandbox_pool();
 
-  let mut test_grades = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), 
-                                                               (BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())),
-                                                               (BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new()))];
+  // let mut test_grades = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), 
+  //                                                              (BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())),
+  //                                                              (BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new()))];
 
-  let out: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = SandboxInstance::copy_and_execute::<train, _, _>(test_grades).specialize_policy().unwrap();
+  // let out: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = SandboxInstance::copy_and_execute::<train, _, _>(test_grades).specialize_policy().unwrap();
 
-  println!("GOT FIRST OUT {:?}", out.discard_box().result);
+  // println!("GOT FIRST OUT {:?}", out.discard_box().result);
 
-  let instance = SandboxInstance::new();
-  let mut test_grades2 = Vec::new_in(instance.alloc());
-  test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
-  test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
-  test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
+  // let instance = SandboxInstance::new();
+  // let mut test_grades2 = Vec::new_in(instance.alloc());
+  // test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
+  // test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
+  // test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
 
-  let out2 = instance.execute::<train, _, _, NoPolicy, _>(test_grades2);
-  let out2: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = out2.specialize_policy().unwrap();
+  // let out2 = instance.execute::<train, _, _, _>(test_grades2);
+  // let out2: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = out2.specialize_policy().unwrap();
 
-  println!("GOT SECOND OUT {:?}", out2.discard_box().result);
+  // println!("GOT SECOND OUT {:?}", out2.discard_box().result);
 
   /*
   let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));

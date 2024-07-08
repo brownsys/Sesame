@@ -195,7 +195,7 @@ impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
 impl<S: AlohomoraType, P: Policy, A: Allocator + Clone> AlohomoraType<P, A> for Vec<S, A> {
     type Out = Vec<S::Out, A>;
     fn to_enum(self) -> AlohomoraTypeEnum<A> {
-        let mut result = Vec::new_in((*self.allocator()).clone());
+        let mut result = Vec::with_capacity_in(self.len(), (*self.allocator()).clone());
         for s in self.into_iter() {
             result.push(s.to_enum());
         }
@@ -205,7 +205,7 @@ impl<S: AlohomoraType, P: Policy, A: Allocator + Clone> AlohomoraType<P, A> for 
     fn from_enum(e: AlohomoraTypeEnum<A>) -> Result<Self::Out, ()> {
         match e {
             AlohomoraTypeEnum::Vec(v) => {
-                let mut result = Vec::new_in((*v.allocator()).clone());
+                let mut result = Vec::with_capacity_in(v.len(), (*v.allocator()).clone());
                 for e in v.into_iter() {
                     result.push(S::from_enum(e)?);
                 }

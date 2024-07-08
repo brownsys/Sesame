@@ -1,25 +1,68 @@
 use std::alloc::Allocator;
 
-use crate::AlohomoraType;
+use futures::stream::Any;
+
+use crate::{compose_policies, AlohomoraType};
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, Policy, OptionPolicy};
 
 
 // Safe to call from client code because it keeps everything inside a bbox.
 pub fn fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
     let (v, p) = unsafe_fold(s)?;
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\tfold - unsafe fold took {:?}", end - start);
     Ok(BBox::new(v, p))
 }
 
 // Does the folding transformation but without the surrounding bbox at the end.
 pub(crate) fn unsafe_fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -> Result<(S::Out, AnyPolicy), ()> {
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
     let e = s.to_enum();
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\t\t unsafe fold - to enum took {:?}", end - start);
+
+
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
     let composed_policy = match e.policy()? {
         None => AnyPolicy::new(NoPolicy {}),
         Some(policy) => policy,
     };
-    Ok((S::from_enum(e.remove_bboxes())?, composed_policy))
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\t\t unsafe fold - policy match took {:?}", end - start);
+
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    let rem = e.remove_bboxes();
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\t\t unsafe fold - removing bboxes took {:?}", end - start);
+
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    let res = (S::from_enum(rem)?, composed_policy);
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\t\t unsafe fold - from enum took {:?}", end - start);
+
+    Ok(res)
 }
+
+// // Safe to call from client code because it keeps everything inside a bbox.
+// pub fn speedy_fold<P: Policy, A: Allocator + Clone, T: AlohomoraType + Clone> (s: Vec<(BBox<T1, P>, BBox<T2, P>), A>) -> Result<BBox<<Vec<T, A> as AlohomoraType>::Out, AnyPolicy>, ()> 
+//     where Vec<T, A>: AlohomoraType {
+//     let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+//     let (v, p) = speedy_unsafe_fold::<P, A, _>(s)?;
+//     let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+//     println!("\tspeedy fold - unsafe fold took {:?}", end - start);
+//     Ok(BBox::new(v, p))
+// }
+
+// // Does the folding transformation but without the surrounding bbox at the end.
+// pub(crate) fn speedy_unsafe_fold<P: Policy, A: Allocator + Clone, T: Clone> (s: Vec<BBox<T, P>, A>) -> Result<(<Vec<T, A> as AlohomoraType>::Out, AnyPolicy), ()> 
+//     where Vec<T, A>: AlohomoraType {
+
+//     // fold through the 
+
+//     todo!();
+// }
 
 // Fold bbox from outside vector to inside vector.
 impl<T, P: Policy + Clone> From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> {

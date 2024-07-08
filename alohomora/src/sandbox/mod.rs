@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Debug};
+use std::{any::Any, fmt::Debug, io::Split};
 
 use alohomora_sandbox::{alloc::{AllocateableInSandbox, SandboxAllocator}, copy::Copiable, swizzle::Swizzleable, unlock_sandbox};
 use rocket::shield::Policy;
@@ -8,6 +8,24 @@ use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
+
+#[derive(Debug, Clone)]
+pub struct SplitSet {
+    pub fold: u64,
+    pub create: u64,
+    pub alloc: u64,
+    pub copy: u64,
+    pub unswizzle: u64,
+    pub invoke: u64,
+}
+
+impl SplitSet {
+    pub fn sum(&self) -> u64 {
+        self.fold + self.create + self.alloc + self.copy + self.unswizzle + self.invoke
+    }
+}
+
+pub static mut SPLITS: Vec<SplitSet> = Vec::new();
 
 // Expose alohomora_sandbox API that controls the interface outside sandbox.
 pub use alohomora_sandbox::{AlohomoraSandbox, FinalSandboxOut};
@@ -46,6 +64,42 @@ impl SandboxInstance {
         self.alloc.clone()
     }
 
+    pub fn splits() -> Vec<SplitSet>{
+        unsafe{ SPLITS.clone() }
+    }
+
+    pub unsafe fn split_info() {
+        // get averages
+        let fold_avg = SPLITS.iter().map(|split|{split.fold}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
+        let create_avg = SPLITS.iter().map(|split|{split.create}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
+        let alloc_avg = SPLITS.iter().map(|split|{split.alloc}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
+        let copy_avg = SPLITS.iter().map(|split|{split.copy}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
+        let unswizzle_avg = SPLITS.iter().map(|split|{split.unswizzle}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
+        let invoke_avg = SPLITS.iter().map(|split|{split.invoke}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
+        let total_avg = SPLITS.iter().map(|split|{split.sum()}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
+
+        println!("");
+        println!("----SPLIT INFO on {} runs----", SPLITS.len());
+        println!("fold average: {:?}", fold_avg);
+        println!("create average: {:?}", create_avg);
+        println!("alloc average: {:?}", alloc_avg);
+        println!("copy average: {:?}", copy_avg);
+        println!("unswizzle average: {:?}", unswizzle_avg);
+        println!("invoke average: {:?}", invoke_avg);
+        println!("total average: {:?}", total_avg);
+        println!("");
+
+        println!("total average (no fold): {:?}", total_avg - fold_avg);
+        println!("total average (no fold or invoke): {:?}", total_avg - fold_avg - invoke_avg);
+    }
+
+    fn percentile(vec: &mut Vec<u64>, perc: f64) -> u64 {
+        vec.sort();
+        let i = vec.len() / ((1.0 / perc) as usize);
+        println!("have index {i} for len {:?} and perc {:?}", vec.len(), perc);
+        vec[i]
+    }
+
     /// Copies `t` into a sandbox and executes the specified function on it.
     pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
         where
@@ -57,55 +111,87 @@ impl SandboxInstance {
             R: Serialize + Deserialize<'b>,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Remove boxes from args.
         let outer_boxed = fold(t).unwrap();
         let (t, p) = outer_boxed.consume();
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let fold = end - start;
+        println!("copy&execute - folding took {fold}");
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Create a new sandbox instance.
         let instance = SandboxInstance::new();
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let create = end - start;
+        println!("copy&execute - creating instance took {create}");
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Allocate space for the args in that sandbox instance.
         let mut inside = AllocateableInSandbox::allocate_in_sandbox(&t, &instance.alloc);
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let alloc = end - start;
+        println!("copy&execute - creating instance took {alloc}");
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Copy the args into the allocated space.
         unsafe { Copiable::copy(&mut inside, &t) };
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let copy = end - start;
+        println!("copy&execute - copying took {copy}");
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Unswizzle args for use in the sandbox.
         let final_arg = unsafe { Swizzleable::unswizzle(inside).into()};
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let unswizzle = end - start;
+        println!("copy&execute - unswizzling took {unswizzle}");
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Pass that to the function.
         let ret = S::invoke(final_arg, instance.sandbox_index);
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let invoke = end - start;
+        println!("copy&execute - invoking function took {invoke}");
+
+        unsafe { SPLITS.push(SplitSet { fold, create, alloc, copy, unswizzle, invoke }); }
+
         BBox::new(ret, p)
     }
 
     /// Executes `S` on variable `t` assuming that `t` is already in sandboxed memory 
     /// (i.e. it has been allocated with this `SandboxInstance`'s `SandboxAllocator`).
-    pub fn execute<'a, 'b, S, T, R, P: crate::policy::Policy, A>(self, t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
+    pub fn execute<'a, 'b, S, T, R, A>(self, t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
         where
-            A: AllocateableInSandbox + Swizzleable,
-            T: AlohomoraType<P, SandboxAllocator>,
-            T::Out: Into<<A as AllocateableInSandbox>::UsingSandboxAllocator>,
+                                         
+            T: AlohomoraType<AnyPolicy, SandboxAllocator>,                      //     To ensure `T` is Alohomora type and using a sandbox allocator
+            A: AllocateableInSandbox + Swizzleable,                             // <--
+            T::Out: Into<<A as AllocateableInSandbox>::UsingSandboxAllocator>,  // <-| To ensure `T::Out` uses a sandbox allocator
             <A as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable,
-            A::Unswizzled: From<<<A as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>,
-            // <T::Out as Swizzleable>::Unswizzled: From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really be the same but this is how im representing it
-            // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
+            A::Unswizzled: From<<<A as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // can't remember why we need this
             R: Serialize + Deserialize<'b>,
             S: AlohomoraSandbox<'a, 'b, A, R>,
     {
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // 1. remove bboxes.
-        println!("doing box business");
         let outer_boxed = fold(t).unwrap();
         let (t, p) = outer_boxed.consume();
-        println!("done w box business");
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("execute - folding took {:?}", end - start);
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // 2. unswizzle data type.
         let sandbox_alloc: <A as AllocateableInSandbox>::UsingSandboxAllocator = t.into();
         let final_arg = unsafe { Swizzleable::unswizzle(sandbox_alloc).into() };
-        println!("done deswizzling w inside");
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("execute - unswizzling took {:?}", end - start);
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // 3. call functor.
         let ret = S::invoke(final_arg, self.sandbox_index);
-        println!("done invoking");
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("execute - calling functor took {:?}", end - start);
+
         BBox::new(ret, p)
     }
 }
