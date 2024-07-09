@@ -20,8 +20,15 @@ pub fn new_fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -
     let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
     let (v, p) = Foldable::unwrap(s)?;
     let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    println!("\nnew_fold - unwrap took {:?}", end - start);
-    Ok(BBox::new(v, p))
+    println!("\tnew_fold - unwrap took {:?}", end - start);
+
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    let b = BBox::new(v, p);
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\tnew_fold - boxing took {:?}", end - start);
+
+
+    Ok(b)
 }
 
 // Does the folding transformation but without the surrounding bbox at the end.
@@ -59,12 +66,19 @@ pub(crate) fn unsafe_fold_vec<P: Policy + Clone + 'static, A: Allocator + Clone,
     let new_vec = v.iter().map(|(a, b)|{
         let (v1, p1) = (*a).clone().consume();
         let (v2, p2) = (*b).clone().consume();
-        p.join(AnyPolicy::new(p1)).unwrap();
-        p.join(AnyPolicy::new(p2)).unwrap();
         (v1, v2)
     }).collect::<Vec<(T1, T2)>>();
     let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    println!("\t\t\t actual vec fold took {:?}", end - start);
+    println!("\t\t\t actual vec value fold took {:?}", end - start);
+
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    let _ = v.iter().map(|(a, b)|{
+        p.join(AnyPolicy::new((*a).clone().consume().1));
+        p.join(AnyPolicy::new((*b).clone().consume().1));
+    });
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\t\t\t actual vec policy fold took {:?}", end - start);
+    
     Ok((new_vec, p))
 }
 

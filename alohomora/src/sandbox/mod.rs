@@ -114,12 +114,11 @@ impl SandboxInstance {
     {
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Remove boxes from args.
-        println!("type is {:?}", std::any::type_name::<T>());
-        let outer_boxed: BBox<<T as AlohomoraType<AnyPolicy, std::alloc::Global>>::Out, AnyPolicy> = new_fold(t).unwrap();
+        let outer_boxed = new_fold(t).unwrap();
         let (t, p) = outer_boxed.consume();
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         let fold = end - start;
-        println!("copy&execute - folding took {fold}");
+        println!("copy&execute - folding & consuming took {fold}");
 
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Create a new sandbox instance.
