@@ -4,7 +4,7 @@ use alohomora_sandbox::{alloc::{AllocateableInSandbox, SandboxAllocator}, copy::
 use rocket::shield::Policy;
 use serde::{Serialize, Deserialize};
 
-use crate::AlohomoraType;
+use crate::{fold::new_fold, AlohomoraType, Foldable, SpecializeFoldable};
 use crate::bbox::BBox;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
@@ -90,6 +90,7 @@ impl SandboxInstance {
         println!("");
 
         println!("total average (no fold): {:?}", total_avg - fold_avg);
+        println!("total average (no invoke): {:?}", total_avg - invoke_avg);
         println!("total average (no fold or invoke): {:?}", total_avg - fold_avg - invoke_avg);
     }
 
@@ -113,7 +114,8 @@ impl SandboxInstance {
     {
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Remove boxes from args.
-        let outer_boxed = fold(t).unwrap();
+        println!("type is {:?}", std::any::type_name::<T>());
+        let outer_boxed: BBox<<T as AlohomoraType<AnyPolicy, std::alloc::Global>>::Out, AnyPolicy> = new_fold(t).unwrap();
         let (t, p) = outer_boxed.consume();
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         let fold = end - start;

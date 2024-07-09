@@ -1,4 +1,5 @@
 #![feature(allocator_api)]
+#![feature(specialization)]
 #[macro_use]
 extern crate lazy_static;
 

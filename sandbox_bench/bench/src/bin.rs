@@ -137,7 +137,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   (1..iters + 1).map(|_i| {
     let num_grades = 5000; // 5k for benchmarks
     let mut rng = rand::thread_rng();
-    let mut grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
+    let mut grades: Vec<(BBox<NaiveDateTime, NoPolicy>, BBox<u64, NoPolicy>)> = (1..num_grades + 1).map(|_j| {
       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
       let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
       let submitted_at = BBox::new(submitted_at, NoPolicy {});

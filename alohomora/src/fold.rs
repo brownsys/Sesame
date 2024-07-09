@@ -1,8 +1,8 @@
 use std::alloc::Allocator;
 
-use futures::stream::Any;
+use futures::stream::{Any, Fold};
 
-use crate::{compose_policies, AlohomoraType};
+use crate::{compose_policies, AlohomoraType, Foldable, SpecializeFoldable};
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, Policy, OptionPolicy};
 
@@ -13,6 +13,14 @@ pub fn fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -> Re
     let (v, p) = unsafe_fold(s)?;
     let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
     println!("\tfold - unsafe fold took {:?}", end - start);
+    Ok(BBox::new(v, p))
+}
+
+pub fn new_fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    let (v, p) = Foldable::unwrap(s)?;
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\nnew_fold - unwrap took {:?}", end - start);
     Ok(BBox::new(v, p))
 }
 
@@ -43,6 +51,21 @@ pub(crate) fn unsafe_fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A
     println!("\t\t unsafe fold - from enum took {:?}", end - start);
 
     Ok(res)
+}
+
+pub(crate) fn unsafe_fold_vec<P: Policy + Clone + 'static, A: Allocator + Clone, T1: Clone, T2: Clone>(v: Vec<(BBox<T1, P>, BBox<T2, P>)>) -> Result<(Vec<(T1, T2)>, AnyPolicy), ()> {
+    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    let p = AnyPolicy::new(NoPolicy::new());
+    let new_vec = v.iter().map(|(a, b)|{
+        let (v1, p1) = (*a).clone().consume();
+        let (v2, p2) = (*b).clone().consume();
+        p.join(AnyPolicy::new(p1)).unwrap();
+        p.join(AnyPolicy::new(p2)).unwrap();
+        (v1, v2)
+    }).collect::<Vec<(T1, T2)>>();
+    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+    println!("\t\t\t actual vec fold took {:?}", end - start);
+    Ok((new_vec, p))
 }
 
 // // Safe to call from client code because it keeps everything inside a bbox.

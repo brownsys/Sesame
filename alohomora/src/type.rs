@@ -7,7 +7,8 @@ use alohomora_sandbox::alloc::AllocateableInSandbox;
 use itertools::Itertools;
 
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicy, Policy};
+use crate::fold::{unsafe_fold, unsafe_fold_vec};
+use crate::policy::{self, AnyPolicy, NoPolicy, Policy};
 
 pub fn compose_policies(policy1: Result<Option<AnyPolicy>, ()>, policy2: Result<Option<AnyPolicy>, ()>) -> Result<Option<AnyPolicy>, ()> {
     let policy1 = policy1?;
@@ -89,12 +90,77 @@ impl<A: Allocator + Clone> AlohomoraTypeEnum<A> {
 
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to
 // sandboxes.
-pub trait AlohomoraType<P: Policy = AnyPolicy, A: Allocator = Global> {
+pub trait AlohomoraType<P: Policy = AnyPolicy, A: Allocator + Clone = Global> {
     type Out;     // Unboxed form of struct
     fn to_enum(self) -> AlohomoraTypeEnum<A>;
     fn from_enum(e: AlohomoraTypeEnum<A>) -> Result<Self::Out, ()>;
 }
 
+pub(crate) trait Foldable<P: Policy = AnyPolicy, A: Allocator + Clone = Global>: AlohomoraType<P, A> {
+    fn unwrap(self) -> Result<(Self::Out, AnyPolicy), ()> 
+    where Self: Sized;
+}
+
+pub(crate) trait SpecializeFoldable<P: Policy, A: Allocator + Clone>: AlohomoraType<P, A> {
+    fn specialize_unwrap(self) -> Result<(<Self as AlohomoraType<P, A>>::Out, AnyPolicy), ()> 
+    where Self: Sized;
+}
+
+impl<P: Policy, A: Allocator + Clone, T: AlohomoraType<P, A>>  Foldable<P, A> for T {
+    default fn unwrap(self) -> Result<(T::Out, AnyPolicy), ()> 
+    where Self: Sized {
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let e = self.to_enum();
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("\t\t default unwrap - to enum took {:?}", end - start);
+
+
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let composed_policy = match e.policy()? {
+            None => AnyPolicy::new(NoPolicy {}),
+            Some(policy) => policy,
+        };
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("\t\t default unwrap - policy match took {:?}", end - start);
+
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let rem = e.remove_bboxes();
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("\t\t default unwrap - removing bboxes took {:?}", end - start);
+
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let res = (Self::from_enum(rem)?, composed_policy);
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("\t\t default unwrap - from enum took {:?}", end - start);
+
+        Ok(res)
+    }
+}
+
+impl<P: Policy, A: Allocator + Clone, T: AlohomoraType<P, A> + SpecializeFoldable<P, A>>  Foldable<P, A> for T {
+    fn unwrap(self) -> Result<(Self::Out, AnyPolicy), ()> 
+    where Self: Sized {
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let (a, b) = self.specialize_unwrap().unwrap();
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        println!("\t\t specialized unwrap wrapper took {:?}", end - start);
+        Ok((a, b))
+    }
+}
+
+
+impl<T1: Clone + 'static, T2: Clone + 'static, P: Policy + Clone + 'static> SpecializeFoldable<P, Global> for Vec<(BBox<T1, P>, BBox<T2, P>)> {
+    default fn specialize_unwrap(self) -> Result<(<Self as AlohomoraType<P, Global>>::Out, AnyPolicy), ()> 
+        where Self: Sized {
+        unsafe_fold_vec::<P, Global, T1, T2>(self)
+    }
+}
+
+impl SpecializeFoldable<AnyPolicy, Global> for std::vec::Vec<(crate::bbox::BBox<mysql::chrono::NaiveDateTime, crate::policy::NoPolicy>, crate::bbox::BBox<u64, crate::policy::NoPolicy>)> {
+    fn specialize_unwrap(self) -> Result<(<Self as AlohomoraType<NoPolicy, Global>>::Out, AnyPolicy), ()> {
+        unsafe_fold_vec::<NoPolicy, Global, mysql::chrono::NaiveDateTime, u64>(self)
+    }
+}
 
 // Implement AlohomoraType for various primitives.
 macro_rules! alohomora_type_impl {
