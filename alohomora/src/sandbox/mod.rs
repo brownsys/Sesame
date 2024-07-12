@@ -1,10 +1,9 @@
-use std::{any::Any, fmt::Debug, io::Split};
+use std::fmt::Debug;
 
-use alohomora_sandbox::{alloc::{AllocateableInSandbox, SandboxAllocator}, copy::Copiable, swizzle::Swizzleable, unlock_sandbox};
-use rocket::shield::Policy;
+use alohomora_sandbox::{alloc::{AllocateableInSandbox, SandboxAllocator}, copy::Copiable, copy::Swizzleable, unlock_sandbox};
 use serde::{Serialize, Deserialize};
 
-use crate::{fold::new_fold, AlohomoraType, Foldable, SpecializeFoldable};
+use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
@@ -32,20 +31,6 @@ pub use alohomora_sandbox::{AlohomoraSandbox, FinalSandboxOut};
 
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::AlohomoraSandbox;
-
-
-// Main function for executing sandboxes over BBoxed data.
-// pub fn execute_sandbox<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
-//     where
-//         T: AlohomoraType,
-//         T::Out: Clone + Swizzleable + AllocateableInSandbox, // TODO: might not need clone here
-//         R: Serialize + Deserialize<'b>,
-//         S: AlohomoraSandbox<'a, 'b, T::Out, R>,
-// {
-//     let outer_boxed = fold(t).unwrap();
-//     let (t, p) = outer_boxed.consume();
-//     BBox::new(S::invoke(t, 0), p)
-// }
 
 pub struct SandboxInstance {
     sandbox_index: usize,
@@ -94,12 +79,6 @@ impl SandboxInstance {
         println!("total average (no fold or invoke): {:?}", total_avg - fold_avg - invoke_avg);
     }
 
-    fn percentile(vec: &mut Vec<u64>, perc: f64) -> u64 {
-        vec.sort();
-        let i = vec.len() / ((1.0 / perc) as usize);
-        println!("have index {i} for len {:?} and perc {:?}", vec.len(), perc);
-        vec[i]
-    }
 
     /// Copies `t` into a sandbox and executes the specified function on it.
     pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
@@ -114,7 +93,7 @@ impl SandboxInstance {
     {
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Remove boxes from args.
-        let outer_boxed = new_fold(t).unwrap();
+        let outer_boxed = fold::<AnyPolicy, _, _>(t).unwrap();
         let (t, p) = outer_boxed.consume();
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         let fold = end - start;

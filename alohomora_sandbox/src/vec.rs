@@ -1,6 +1,21 @@
 use std::{alloc::{self, Allocator, Global, Layout}, fmt::Debug, marker::PhantomData, mem, ops::{Deref, DerefMut}, ptr};
-use crate::{alloc::SandboxAllocator, copy::Copiable, ptr::*, swizzle::Swizzleable};
-use ::alohomora_derive::Swizzleable;
+use crate::alloc::SandboxAllocator;
+
+// This is all a toy implementation of the standard library Vec<> (based on the rustonomicon Vec chapter)
+// We use it in `vec_impl` to implement copying and swizzling for real Vec<>s
+
+#[derive(Debug)]
+pub struct MyVec<T, A: Allocator = Global> {
+    pub buf: RawMyVec<T, A>,
+    pub len: usize,
+}
+
+#[derive(Debug)]
+pub struct RawMyVec<T, A: Allocator = Global> {
+    pub ptr: NonNull<T>,
+    pub cap: usize,
+    pub alloc: A,
+}
 
 #[derive(Debug, Copy)]
 pub struct NonNull<T: Sized> {
@@ -11,11 +26,6 @@ impl<T> Clone for NonNull<T> {
     fn clone(&self) -> Self {
         NonNull { pointer: self.pointer }
     }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct NonNullUnswizzled<T> {
-    pub pointer: SandboxPointer<T>,
 }
 
 impl<T: Sized> NonNull<T> {
@@ -39,90 +49,6 @@ impl<T: Sized> NonNull<T> {
     }
 }
 
-impl<T: Debug> Swizzleable for Vec<T, SandboxAllocator> {
-    type Unswizzled = MyVecUnswizzled<T>;
-    unsafe fn unswizzle(inside: Self) -> MyVecUnswizzled<T> {
-        let ptr = (&inside as *const Vec<T, SandboxAllocator>) as *const MyVec<T, SandboxAllocator>;
-        let old_inside = (*ptr).clone();
-
-        MyVecUnswizzled {
-            buf: RawMyVecUnswizzled{
-                ptr: NonNullUnswizzled{pointer: unswizzle_ptr(old_inside.buf.ptr.pointer as *mut T)},
-                cap: old_inside.buf.cap as u32,
-            },
-            len: old_inside.len as u32,
-        }
-    }
-}
-
-impl <T> Swizzleable for Vec<T> {
-    type Unswizzled = MyVecUnswizzled<T>;
-    unsafe fn unswizzle(inside: Self) -> MyVecUnswizzled<T> {
-        // shouldn't ever actually use this bc we should only use sandbox allocated vecs
-        todo!();
-    }
-}
-
-impl<T: Debug> Copiable for Vec<T> {
-    unsafe fn copy(new: &mut Self::UsingSandboxAllocator, old: &Self) {
-        let new_ptr = (new as *mut Vec<T, SandboxAllocator>) as *mut MyVec<T, SandboxAllocator>;
-        let old_ptr = (old as *const Vec<T>) as *const MyVec<T>;
-        
-        std::ptr::copy((*old_ptr).buf.ptr.pointer, (*new_ptr).buf.ptr.pointer as *mut T, (*new_ptr).buf.cap);
-        (*new_ptr).len = (*old_ptr).len;
-    }
-}
-
-
-#[derive(Debug)]
-pub struct RawMyVecUnswizzled<T> {
-    pub ptr: NonNullUnswizzled<T>,
-    pub cap: u32,
-}
-
-pub unsafe fn unswizzle_raw_myvec<T>(myvec: &RawMyVec<T>) -> RawMyVecUnswizzled<T>{
-    let old_ptr = myvec.ptr.pointer;
-    let old_cap = myvec.cap;
-
-    RawMyVecUnswizzled{
-        ptr: NonNullUnswizzled{pointer: unswizzle_ptr(old_ptr as *mut T)},
-        cap: old_cap as u32
-    }
-}
-
-pub unsafe fn unswizzle_myvec<T>(myvec: MyVec<T>) -> MyVecUnswizzled<T> {
-    let old_len = myvec.len;
-    let old_raw = &myvec.buf;
-    MyVecUnswizzled{
-        buf: unswizzle_raw_myvec(old_raw),
-        len: old_len as u32,
-    }
-}
-
-
-// impl<T: Debug> Swizzleable for RawMyVec<T> {
-//     type Unswizzled = RawMyVecUnswizzled<T>;
-//     unsafe fn unswizzle(
-//         outside: *mut Self,
-//         inside: *mut Self::Unswizzled,
-//         old_inside: &Self,
-//     ) -> *mut Self::Unswizzled {
-//         // we need to save the old state of the inside to prevent it from being override with a new memory layout
-//         std::ptr::copy((*outside).ptr.pointer, old_inside.ptr.pointer as *mut T, old_inside.cap);
-//         let inside = inside as *mut Self::Unswizzled;
-//         (*inside).cap = (*outside).cap as u32;  // everything else gets copied from outside to move data
-//         (*inside).ptr.pointer = unswizzle_ptr(old_inside.ptr.clone().as_ptr()); // ptrs get copied from old_inside to preserve data structure
-//         inside as *mut Self::Unswizzled
-//     }
-// }
-
-#[derive(Debug)]
-pub struct RawMyVec<T, A: Allocator = Global> {
-    pub ptr: NonNull<T>,
-    pub cap: usize,
-    pub alloc: A,
-}
-
 impl<T> Clone for RawMyVec<T> {
     fn clone(&self) -> Self {
         RawMyVec { ptr: self.ptr.clone(), cap: self.cap.clone(), alloc: Global }
@@ -133,12 +59,6 @@ impl<T> Clone for RawMyVec<T, SandboxAllocator> {
     fn clone(&self) -> Self {
         RawMyVec { ptr: self.ptr.clone(), cap: self.cap.clone(), alloc: SandboxAllocator::new(10000000) }
     }
-}
-
-#[derive(Debug)]
-pub struct MyVec<T, A: Allocator = Global> {
-    pub buf: RawMyVec<T, A>,
-    pub len: usize,
 }
 
 impl<T> Clone for MyVec<T> {
@@ -152,34 +72,6 @@ impl<T> Clone for MyVec<T, SandboxAllocator> {
         MyVec { buf: self.buf.clone(), len: self.len.clone() }
     }
 }
-
-
-
-#[derive(Debug)]
-pub struct MyVecUnswizzled<T> {
-    pub buf: RawMyVecUnswizzled<T>,
-    pub len: u32,
-}
-
-// impl<T: Debug> Swizzleable for MyVec<T> {
-//     type Unswizzled = MyVecUnswizzled<T>;
-//     unsafe fn unswizzle(outside: *mut Self, inside: *mut Self::Unswizzled, old_inside: &Self) -> *mut Self::Unswizzled {
-//         let inside = inside as *mut Self::Unswizzled;
-//         Swizzleable::unswizzle(&mut (*outside).buf as *mut RawMyVec<T>, &mut (*inside).buf as *mut RawMyVecUnswizzled<T>, &old_inside.buf);
-//         (*inside).len = (*outside).len as u32;
-//         inside
-//     }
-// }
-
-// impl<T> From<Vec<T>> for MyVec<T> {
-//     fn from(value: Vec<T>) -> Self {
-//         let b = Box::new(value);
-//         let ptr = Box::into_raw(b);
-//         let ptr = ptr as *mut MyVec<T>;
-//         let b = unsafe { Box::from_raw(ptr) };
-//         *b
-//     }
-// }
 
 impl<T> From<MyVec<T>> for Vec<T> {
     fn from(value: MyVec<T>) -> Self {

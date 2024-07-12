@@ -1,5 +1,3 @@
-use std::alloc::Allocator;
-
 use crate::{AlohomoraType, AlohomoraTypeEnum};
 use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};

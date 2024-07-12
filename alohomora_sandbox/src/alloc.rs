@@ -1,14 +1,14 @@
 use std::{alloc::{AllocError, Allocator}, ptr::{slice_from_raw_parts_mut, NonNull}};
 
-use crate::swizzle::Swizzleable;
-
 #[derive(Debug, Clone)]
+/// An allocator for getting memory inside a sandbox from our sandbox pool.
 pub struct SandboxAllocator {
-    pub sandbox_index: usize, // the index of the sandbox to allocate in
+    sandbox_index: usize, // the index of the sandbox to allocate in
 }
 
 impl SandboxAllocator {
     pub fn new(sandbox_index: usize) -> Self { SandboxAllocator { sandbox_index } }
+    pub fn index(&self) -> usize { self.sandbox_index }
 }
 
 unsafe impl Allocator for SandboxAllocator {
@@ -26,8 +26,9 @@ unsafe impl Allocator for SandboxAllocator {
         }
     }
 
-    unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
-        // Free in sandbox memory.
+    unsafe fn deallocate(&self, _ptr: std::ptr::NonNull<u8>, _layout: std::alloc::Layout) {
+        // Free in sandbox memory. 
+        // (For now we're doing nothing bc the sandboxed memory will be free when its reset anyway)
 
         // unsafe {
         //     crate::free_mem_in_sandbox(ptr.as_ptr() as *mut std::ffi::c_void, self.sandbox_index);

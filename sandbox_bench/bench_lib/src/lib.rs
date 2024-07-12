@@ -9,9 +9,6 @@ use chrono::Utc;
 use linfa::dataset::Dataset;
 use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
-use myvec::*;
-use teststruct::*;
-use nested::*;
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
 use alohomora_derive::AlohomoraSandbox;
@@ -25,10 +22,6 @@ use std::io::{Read, Write};
 use std::{iter, ptr};
 
 extern crate once_cell;
-
-mod myvec;
-mod teststruct;
-mod nested;
 
 // static mut GLOBAL: u64 = 0;
 
