@@ -14,8 +14,8 @@ pub mod alloc;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Serialize, F: Fn(T) -> R>(
-    functor: F, arg: *mut std::ffi::c_void) -> *mut u8 {
+pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Swizzleable, F: Fn(T) -> R>(
+    functor: F, arg: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
     use std::slice;
     use std::mem;
 
@@ -30,20 +30,24 @@ pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Serialize, F: Fn(T) -> R>(
         functor(*b)
     };
 
+    // Put the output into a box
+    let b = Box::new(ret);
+    Box::into_raw(b)
+
     // Serialize output.
-    let mut ret = bincode::serialize(&ret).unwrap();
-    let size = ret.len() as u16;
-    let size_1 = (size / 100) as u8;
-    let size_2 = (size % 100) as u8;
-    let mut vec2 = Vec::with_capacity(ret.len() + 2);
-    vec2.push(size_1);
-    vec2.push(size_2);
-    for x in ret {
-        vec2.push(x);
-    }
-    let ptttr = vec2.as_mut_ptr();
-    mem::forget(vec2);
-    ptttr
+    // let mut ret = bincode::serialize(&ret).unwrap();
+    // let size = ret.len() as u16;
+    // let size_1 = (size / 100) as u8;
+    // let size_2 = (size % 100) as u8;
+    // let mut vec2 = Vec::with_capacity(ret.len() + 2);
+    // vec2.push(size_1);
+    // vec2.push(size_2);
+    // for x in ret {
+    //     vec2.push(x);
+    // }
+    // let ptttr = vec2.as_mut_ptr();
+    // mem::forget(vec2);
+    // ptttr
 }
 
 // Trait that sandboxed functions should implement.
@@ -88,7 +92,7 @@ extern "C" {
 // Called by Alohomora (from the application process) to invoke the sandbox.
 #[macro_export]
 macro_rules! invoke_sandbox {
-    ($functor:ident, $arg:ident, $arg_ty:ty, $sandbox_index:ident) => {
+    ($functor:ident, $arg:ident, $arg_ty:ty, $ret_ty:ty, $sandbox_index:ident) => {
 
         // `$arg` is already a swizzled 32 bit type for the sandbox, 
         // so we just make a raw pointer for passing through 'C land' 
@@ -97,15 +101,22 @@ macro_rules! invoke_sandbox {
         
         // Invoke sandbox via C.
         let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, $sandbox_index) };
-
         let ret = ret2.result;
 
-        // Deserialize output.
-        let bytes = unsafe {std::slice::from_raw_parts(ret, ret2.size as usize)};
-        let result = ::alohomora_sandbox::bincode::deserialize(bytes).unwrap();
+        // Construct back object from pointer
 
-        // Free memory.
-        unsafe { ::alohomora_sandbox::invoke_free_c(ret) };
+        let b = unsafe{ Box::from_raw(ret as *mut <$ret_ty as ::alohomora_sandbox::copy::Swizzleable>::Unswizzled) };
+        let result_unswizzled = *b;
+
+        // Swizzle it back
+        let result = unsafe { Swizzleable::swizzle(result_unswizzled) };
+
+        // Deserialize output.
+        // let bytes = unsafe {std::slice::from_raw_parts(ret, ret2.size as usize)};
+        // let result = ::alohomora_sandbox::bincode::deserialize(bytes).unwrap();
+
+        // // Free memory.
+        // unsafe { ::alohomora_sandbox::invoke_free_c(ret) };
 
         // Return.
         return ::alohomora_sandbox::FinalSandboxOut { result: result, size: ret2.size, setup: ret2.setup, teardown: ret2.teardown };

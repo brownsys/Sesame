@@ -11,3 +11,4 @@ serde_json = "1.0"
 tinytemplate = "1.1"
 cargo_toml = "0.19.2"
 alohomora_derive = { path = "../alohomora_derive" }
+linfa-linear = "0.7.0"

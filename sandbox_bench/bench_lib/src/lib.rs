@@ -1,9 +1,5 @@
-// use alohomora_derive::AlohomoraSandbox;
-// use age::Recipient;
-// use base64::Engine;
-// use base64::engine::general_purpose::STANDARD as base64;
-// use alohomora_sandbox::alloc_mem_in_sandbox;
 #![feature(allocator_api)]
+use alohomora_sandbox::copy::Swizzleable;
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
 use linfa::dataset::Dataset;
@@ -83,7 +79,7 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 
 #[AlohomoraSandbox()]
 // pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
-pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<f64>, u64) {
+pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (usize, (), usize) {
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   // println!("in the sandbox, inputs are {:?}", inputs);
@@ -113,7 +109,7 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   let a = now.elapsed().as_nanos() as u64;
-  (a, model, 0)
+  (a.try_into().unwrap(), (), 0)
 }
 
 // #[AlohomoraSandbox()]

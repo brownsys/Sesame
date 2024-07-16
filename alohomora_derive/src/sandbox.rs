@@ -70,7 +70,7 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
         #[doc = "Library implementation of AlohomoraSandbox. Do not copy this docstring!"]
         impl<'__a, '__b> alohomora_sandbox::AlohomoraSandbox<'__a, '__b, #arg, #ret> for #function_name {
             fn invoke(arg: <#arg as ::alohomora_sandbox::copy::Swizzleable>::Unswizzled, sandbox_index: usize) -> ::alohomora_sandbox::FinalSandboxOut<#ret> {
-                alohomora_sandbox::invoke_sandbox!(#invoke_sandbox_function_name_c, arg, #arg, sandbox_index);
+                alohomora_sandbox::invoke_sandbox!(#invoke_sandbox_function_name_c, arg, #arg, #ret, sandbox_index);
             }
         }
 

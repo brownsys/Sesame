@@ -3,6 +3,7 @@ extern crate alohomora;
 extern crate bench_lib;
 
 
+use std::convert::TryInto;
 use std::{fs, thread};
 // use std::vec;
 
@@ -154,7 +155,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
-    type Out = FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>;
+    type Out = FinalSandboxOut<(usize, (), usize)>;
     let output = SandboxInstance::copy_and_execute::<train,_,_>(grades.clone());
     // let output = execute_sandbox::<train, _, _>(grades);
     // let output = BBox::new(0, NoPolicy{});
@@ -175,7 +176,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let total = end - now;
     // let function = total - output.0 - (end - output.2);
     let function = output.0;
-    (total, 0, setup, function, teardown, 0) // <--- key for results
+    (total, 0, setup, function.try_into().unwrap(), teardown.try_into().unwrap(), 0) // <--- key for results
   }).collect()
 }
 
@@ -216,7 +217,7 @@ fn train_baseline_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // let deserialize = (end - output.2) - teardown;
     // let total = end - now;
     // let function = total - output.0 - (end - output.2);
-    (output.0, 0u64, 0u64, 0u64, 0u64, 0u64)
+    (output.0.try_into().unwrap(), 0u64, 0u64, 0u64, 0u64, 0u64)
   }).collect()
 }
 
