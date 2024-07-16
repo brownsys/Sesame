@@ -16,10 +16,9 @@ impl<T> SandboxPointer<T> {
 const TOP32: u64 = 0xFFFFFFFF00000000;
 const BOT32: u64 = 0xFFFFFFFF;
 
-// Convert a sandbox pointer to one that will work globally.
-pub fn swizzle_ptr<T, U>(ptr: &SandboxPointer<T>, known_ptr: *mut U) -> *mut T {
-    let known_ptr = known_ptr as *mut std::ffi::c_void;
-    
+/// Convert a sandbox pointer to one that will work globally. 
+/// `known_ptr` just has to be any global pointer that is in sandboxed memory, so we can determine its location.
+pub fn swizzle_ptr<T>(ptr: &SandboxPointer<T>, known_ptr: usize) -> *mut T {
     let example_ptr: u64 = known_ptr as u64;
     let base: u64 = example_ptr & TOP32;
     let swizzled: u64 = (ptr.ptr as u64) + base;

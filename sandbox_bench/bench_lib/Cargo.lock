@@ -55,6 +55,7 @@ dependencies = [
  "alohomora_derive",
  "bincode",
  "cargo_toml",
+ "chrono",
  "serde",
  "serde_json",
  "tinytemplate",

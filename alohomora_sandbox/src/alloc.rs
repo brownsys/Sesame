@@ -35,22 +35,3 @@ unsafe impl Allocator for SandboxAllocator {
         // }
     }
 }
-
-/// Trait for types that are able to be allocated in a sandbox as the type `UsingSandboxAllocator`. 
-/// (We use a different type bc they might have different allocator generics like Vec<T, SandboxAllocator> instead of Vec<T>)
-pub trait AllocateableInSandbox {
-    type UsingSandboxAllocator;
-    /// Creates a new allocation in the sandbox using `alloc` with the same structure as `info`.
-    fn allocate_in_sandbox(info: &Self, alloc: &SandboxAllocator) -> Self::UsingSandboxAllocator;
-
-    // /// Converts the sandbox allocation `inside` to a raw pointer fully contained in the sandbox for use in the functor.
-    // unsafe fn to_raw_ptr(inside: Self::UsingSandboxAllocator) -> *mut Self;
-}
-
-impl<T> AllocateableInSandbox for Vec<T> {
-    type UsingSandboxAllocator = Vec<T, SandboxAllocator>;
-    fn allocate_in_sandbox(info: &Self, alloc: &SandboxAllocator) -> Self::UsingSandboxAllocator {
-        let v = Vec::with_capacity_in((*info).len(), alloc.clone());
-        v
-    }
-}

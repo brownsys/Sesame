@@ -11,3 +11,8 @@ serde_json = "1.0"
 tinytemplate = "1.1"
 cargo_toml = "0.19.2"
 alohomora_derive = { path = "../alohomora_derive" }
+chrono = { version = "0.4.0", features = ["serde"] }
+# mysql = "21.0.2"
+
+# [patch.crates-io]
+# funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

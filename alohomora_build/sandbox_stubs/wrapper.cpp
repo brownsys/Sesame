@@ -130,7 +130,11 @@ size_t get_lock_on_sandbox() \{
 
 // Unlock a specific sandbox from the pool after use.
 void unlock_sandbox(size_t sandbox_index) \{
+    // Reset sandbox for next use.
+    sandbox_pool[sandbox_index]->sandbox.reset_sandbox();
+
     std::unique_lock<std::mutex> pool_lock(pool_mtx);  // This might be unneccessary
+    // Unlock it, so other threads can access.
     sandbox_pool[sandbox_index]->sandbox_mtx.unlock();
 
     // Notify a thread that a sandbox slot has opened up.
@@ -162,20 +166,13 @@ sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
     uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
     start = high_resolution_clock::now();
 
-    // Copy output to our memory.
-    char* result = (char*) malloc(size2);
-    memcpy(result, buffer + 2, size2);
-
-    // Reset sandbox for next use.
-    sandbox->reset_sandbox();
-
     // END TEARDOWN TIMER HERE
     stop = high_resolution_clock::now();
     duration = duration_cast<nanoseconds>(stop - start);
     unsigned long long teardown = duration.count();
 
     // Return timing data.
-    return sandbox_out \{result, size2, setup, teardown};
+    return sandbox_out \{buffer, size2, setup, teardown};
 }
 
 {{ endfor }}

@@ -1,9 +1,5 @@
-// use alohomora_derive::AlohomoraSandbox;
-// use age::Recipient;
-// use base64::Engine;
-// use base64::engine::general_purpose::STANDARD as base64;
-// use alohomora_sandbox::alloc_mem_in_sandbox;
 #![feature(allocator_api)]
+use alohomora_sandbox::ptr::SandboxPointer;
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
 use linfa::dataset::Dataset;
@@ -11,7 +7,8 @@ use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
-use alohomora_derive::AlohomoraSandbox;
+use alohomora_derive::{AlohomoraSandbox, Sandboxable};
+use alohomora_sandbox::Sandboxable;
 use std::convert::TryInto;
 use std::os::raw::c_void;
 use std::ptr::NonNull;
@@ -25,42 +22,61 @@ extern crate once_cell;
 
 // static mut GLOBAL: u64 = 0;
 
-// #[AlohomoraSandbox()]
-// pub fn global_test(input: String) -> u64 {
-//   unsafe {
-//     let x: u64 = GLOBAL;
-//     GLOBAL += 1;
-//     x
-// }
-// }
+#[derive(Debug, Sandboxable)]
+// #[repr(Rust)]
+#[repr(C)]
+pub struct Test {
+  pub a: i32,
+  pub b: usize,
+  pub c: Box<isize>,
+  // pub t: T2,
+  // pub ptr: *mut T,
+  pub s: String,
+  // pub bx: Box<usize>,
+  // pub ptr2: *const Test2,
+}
+
+#[derive(Clone, Debug, Sandboxable)]
+#[repr(C)]
+pub struct Test2 {
+  pub a: usize,
+}
 
 // Sandbox functions.
-// #[AlohomoraSandbox()]
-// pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
-//   // END TIMER (start in bin)
-//   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-//   let now = Instant::now();
-//   // let setup = now - inputs.2;
+#[AlohomoraSandbox()]
+pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
+  // END TIMER (start in bin)
+  // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+  let now = Instant::now();
+  // let setup = now - inputs.2;
 
-//   let mut hasher = Sha256::new();
-//   hasher.update(&inputs.0);
-//   hasher.update(&inputs.1);
-//   let key = format!("{:x}", hasher.clone().finalize());
+  let mut hasher = Sha256::new();
+  hasher.update(&inputs.0);
+  hasher.update(&inputs.1);
+  let key = format!("{:x}", hasher.clone().finalize());
 
-//   // println!("im in the sandbox");
-//   // println!("your hash is {:x}", hasher.finalize());
+  // println!("im in the sandbox");
+  // println!("your hash is {:x}", hasher.finalize());
 
-//   // START TIMER (end in bin)
-//   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-//   (now.elapsed().as_nanos() as u64, key, 0)
-// }
+  // START TIMER (end in bin)
+  // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+  (now.elapsed().as_nanos() as u64, key, 0)
+}
 
-#[derive(Debug)]
-pub struct TestStruct {
-    my_int: u32,
-    my_float: f32,
-    my_float2: f64, 
-    ptr_to_buddy: *mut i32,
+#[AlohomoraSandbox()]
+pub fn stringy(s: Test) -> String {
+  println!("final struct size of {} IN SANDBOX is {:?}", stringify!(Test), std::mem::size_of::<Test>());
+  println!("a is at {:p} w size {}", &s.a, std::mem::size_of_val(&s.a));
+  println!("b is at {:p} w size {}", &s.b, std::mem::size_of_val(&s.b));
+  println!("c is at {:p} w size {}", &s.c, std::mem::size_of_val(&s.c));
+  println!("str is at {:p} w size {}", &s.s, std::mem::size_of_val(&s.s));
+  // println!("hjello i got string {s}");
+  println!("str len is {:?}", s.s.len());
+  println!("hello i got test struct {:?}", s);
+  // unsafe{ println!("w ptr val {:?}", (*s.ptr)); }
+  // unsafe{ println!("w ptr2 val {:?}", (*s.ptr2)); }
+  // unsafe{ println!("w box val {:?}", (*s.bx)); }
+  format!("hello there {:?}, im returning to you", s)
 }
 
 #[AlohomoraSandbox()]
@@ -83,14 +99,14 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 
 #[AlohomoraSandbox()]
 // pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
-pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<f64>, u64) {
+pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
+  // TODO: can't return FittedLinearRegression<f64> here bc 
+  // its actually very complicated and hard to derive `Sandboxable` for
+
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-  // println!("in the sandbox, inputs are {:?}", inputs);
+  // println!("in the sandbox, inputs are {:?}", inputs.len());
   let now = Instant::now();
-  // println!("training on vec with size {} and cap {}", inputs.len(), inputs.capacity());
-  // let setup = now - inputs.1;
-  // println!("in the sandbox, the struct is {:?}", inputs);
 
   let grades = inputs;
   let grades: Vec<[f64; 2]> = grades
@@ -110,10 +126,12 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<
   let lin_reg = LinearRegression::new();
   let model = lin_reg.fit(&dataset).unwrap();
 
+  // println!("i cant optimize out the model bc her eit is {:?}", model);
+
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   let a = now.elapsed().as_nanos() as u64;
-  (a, model, 0)
+  (a.try_into().unwrap(), (), 0)
 }
 
 // #[AlohomoraSandbox()]
