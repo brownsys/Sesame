@@ -81,14 +81,14 @@ impl SandboxInstance {
 
 
     /// Copies `t` into a sandbox and executes the specified function on it.
-    pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
+    pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<R, AnyPolicy>
         where
             T: AlohomoraType,
             T::Out: AllocateableInSandbox + Copiable + Swizzleable + Debug,
             <T::Out as Swizzleable>::Unswizzled: 
                             From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
             <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
-            R: Serialize + Deserialize<'b>,
+            R: Swizzleable,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
@@ -134,14 +134,21 @@ impl SandboxInstance {
         let invoke = end - start;
         println!("copy&execute - invoking function took {invoke}");
 
+        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let ret = unsafe{ Box::from_raw(ret) };
+        let result = unsafe{ Swizzleable::swizzle(*ret) };
+        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        let copy_out = end - start;
+        println!("copy&execute - boxing & copy out took {copy_out}");
+
         unsafe { SPLITS.push(SplitSet { fold, create, alloc, copy, unswizzle, invoke }); }
 
-        BBox::new(ret, p)
+        BBox::new(result, p)
     }
 
     /// Executes `S` on variable `t` assuming that `t` is already in sandboxed memory 
     /// (i.e. it has been allocated with this `SandboxInstance`'s `SandboxAllocator`).
-    pub fn execute<'a, 'b, S, T, R, A>(self, t: T) -> BBox<::alohomora_sandbox::FinalSandboxOut<R>, AnyPolicy>
+    pub fn execute<'a, 'b, S, T, R, A>(self, t: T) -> BBox<R, AnyPolicy>
         where
                                          
             T: AlohomoraType<AnyPolicy, SandboxAllocator>,                      //     To ensure `T` is Alohomora type and using a sandbox allocator
@@ -149,7 +156,7 @@ impl SandboxInstance {
             T::Out: Into<<A as AllocateableInSandbox>::UsingSandboxAllocator>,  // <-| To ensure `T::Out` uses a sandbox allocator
             <A as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable,
             A::Unswizzled: From<<<A as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // can't remember why we need this
-            R: Serialize + Deserialize<'b>,
+            R: Swizzleable,
             S: AlohomoraSandbox<'a, 'b, A, R>,
     {
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
@@ -172,7 +179,10 @@ impl SandboxInstance {
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         println!("execute - calling functor took {:?}", end - start);
 
-        BBox::new(ret, p)
+        let ret = unsafe{ Box::from_raw(ret) };
+        let result = unsafe{ Swizzleable::swizzle(*ret) };
+
+        BBox::new(result, p)
     }
 }
 

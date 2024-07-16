@@ -155,7 +155,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
-    type Out = FinalSandboxOut<(usize, (), usize)>;
+    type Out = (usize, (), usize);
     let output = SandboxInstance::copy_and_execute::<train,_,_>(grades.clone());
     // let output = execute_sandbox::<train, _, _>(grades);
     // let output = BBox::new(0, NoPolicy{});
@@ -165,9 +165,9 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     let output = output.specialize_policy::<NoPolicy>().unwrap();
     let output: Out = output.discard_box();
-    let setup = output.setup;
-    let teardown = output.teardown;
-    let output = output.result;
+    let setup = 0;
+    let teardown = 0;
+    // let output = 0;
 
     // let a = speedy_fold::<_, _, _>(grades);
 
