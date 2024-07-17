@@ -1,5 +1,5 @@
 use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::PhantomData};
-use crate::{alloc::{AllocateableInSandbox, SandboxAllocator}, ptr::*, vec::{MyVec, NonNull, RawMyVec}};
+use crate::{alloc::SandboxAllocator, ptr::*, vec::{MyVec, NonNull, RawMyVec}};
 use chrono::naive::NaiveDateTime;
 
 pub struct BoxUnswizzled<T, A> {

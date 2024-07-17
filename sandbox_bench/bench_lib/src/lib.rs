@@ -30,25 +30,25 @@ extern crate once_cell;
 // }
 
 // Sandbox functions.
-// #[AlohomoraSandbox()]
-// pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
-//   // END TIMER (start in bin)
-//   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-//   let now = Instant::now();
-//   // let setup = now - inputs.2;
+#[AlohomoraSandbox()]
+pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
+  // END TIMER (start in bin)
+  // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+  let now = Instant::now();
+  // let setup = now - inputs.2;
 
-//   let mut hasher = Sha256::new();
-//   hasher.update(&inputs.0);
-//   hasher.update(&inputs.1);
-//   let key = format!("{:x}", hasher.clone().finalize());
+  let mut hasher = Sha256::new();
+  hasher.update(&inputs.0);
+  hasher.update(&inputs.1);
+  let key = format!("{:x}", hasher.clone().finalize());
 
-//   // println!("im in the sandbox");
-//   // println!("your hash is {:x}", hasher.finalize());
+  // println!("im in the sandbox");
+  // println!("your hash is {:x}", hasher.finalize());
 
-//   // START TIMER (end in bin)
-//   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-//   (now.elapsed().as_nanos() as u64, key, 0)
-// }
+  // START TIMER (end in bin)
+  // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
+  (now.elapsed().as_nanos() as u64, key, 0)
+}
 
 #[derive(Debug)]
 pub struct TestStruct {
@@ -112,7 +112,6 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (usize, (), usize) {
   let model = lin_reg.fit(&dataset).unwrap();
 
   println!("i cant optimize out the model bc her eit is {:?}", model);
-  println!("model ptr is {:p}", &model);
 
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;

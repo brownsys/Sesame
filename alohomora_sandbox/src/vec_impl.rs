@@ -1,5 +1,5 @@
 use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::PhantomData};
-use crate::{alloc::{AllocateableInSandbox, SandboxAllocator}, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}};
+use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}};
 use crate::Sandboxable;
 use chrono::naive::NaiveDateTime;
 

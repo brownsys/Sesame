@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use alohomora_sandbox::{alloc::{AllocateableInSandbox, SandboxAllocator}, unlock_sandbox, Sandboxable};
+use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, Sandboxable};
 use serde::{Serialize, Deserialize};
 
 use crate::AlohomoraType;
@@ -111,8 +111,7 @@ impl SandboxInstance {
         println!("copy&execute - creating instance took {create}");
 
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-        // Copy the args into the allocated space.
-        // unsafe { Copiable::copy(&mut inside, &t) };
+        // Move arguments into the sandbox & unswizzle.
         let final_arg = Sandboxable::into_sandbox(t, instance.alloc());
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         let copy_in = end - start;
@@ -126,6 +125,7 @@ impl SandboxInstance {
         println!("copy&execute - invoking function took {invoke}");
 
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
+        // Move returned values out of the sandbox & swizzle.
         let ret_val = unsafe{ Box::leak(Box::from_raw(ret_ptr)) };
         let result = Sandboxable::out_of_sandbox(ret_val, ret_ptr as usize);
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;

@@ -12,12 +12,13 @@ pub mod vec;
 pub mod vec_impl;
 pub mod str_impl;
 pub mod prim_impl;
+pub mod gen_impl;
 pub mod alloc;
 pub mod swizzle;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Swizzleable, F: Fn(T) -> R>(
+pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Sandboxable, F: Fn(T) -> R>(
     functor: F, arg: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
     use std::os::raw::c_void;
     use std::slice;

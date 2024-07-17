@@ -1,5 +1,5 @@
 use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::PhantomData};
-use crate::{alloc::{AllocateableInSandbox, SandboxAllocator}, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}, Sandboxable};
+use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}, Sandboxable};
 use chrono::naive::NaiveDateTime;
 
 
@@ -22,6 +22,7 @@ impl<T: Sandboxable> Sandboxable for Box<T> {
     }
 }
 
+// Derive `Sandboxable` for primitives that won't change in the sandbox.
 macro_rules! derive_sandboxable_identity {
     ($t:ty) => {
         impl Sandboxable for $t {
@@ -32,11 +33,19 @@ macro_rules! derive_sandboxable_identity {
     }
 }
 
-derive_sandboxable_identity!((NaiveDateTime, u64));
-derive_sandboxable_identity!((u64, (), u64));
+derive_sandboxable_identity!(());
+derive_sandboxable_identity!(bool);
 derive_sandboxable_identity!(u8);
 derive_sandboxable_identity!(u16);
 derive_sandboxable_identity!(u32);
+derive_sandboxable_identity!(u64);
+derive_sandboxable_identity!(i8);
+derive_sandboxable_identity!(i16);
+derive_sandboxable_identity!(i32);
+derive_sandboxable_identity!(i64);
+derive_sandboxable_identity!(f32);
+derive_sandboxable_identity!(f64);
+derive_sandboxable_identity!(NaiveDateTime);
 
 impl Sandboxable for usize {
     type InSandboxUnswizzled = u32;
@@ -45,15 +54,5 @@ impl Sandboxable for usize {
     }
     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, _: usize) -> Self {
         inside.clone().try_into().unwrap()
-    }
-}
-
-impl Sandboxable for (usize, (), usize) {
-    type InSandboxUnswizzled = (u32, (), u32);
-    fn into_sandbox(outside: Self, _: SandboxAllocator) -> Self::InSandboxUnswizzled {
-        (outside.0.try_into().unwrap(), (), outside.2.try_into().unwrap())
-    }
-    fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, _: usize) -> Self where Self: Sized {
-        (inside.0.try_into().unwrap(), (), inside.2.try_into().unwrap())
     }
 }
