@@ -1,23 +1,10 @@
-use crate::{copy::Swizzleable, vec_impl::{MyVecUnswizzled, Sandboxable}};
+use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::PhantomData};
+use crate::{alloc::{AllocateableInSandbox, SandboxAllocator}, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}, Sandboxable};
+use chrono::naive::NaiveDateTime;
 
+// Implement for Strings
 pub struct StringUnswizzled {
     vec: MyVecUnswizzled<u8>,
-}
-
-impl Swizzleable for String {
-    type Unswizzled = StringUnswizzled;
-    unsafe fn unswizzle(inside: Self) -> Self::Unswizzled {
-        let inside_vec = inside.as_bytes().to_owned();
-        StringUnswizzled {
-            vec: Swizzleable::unswizzle(inside_vec),
-        }
-    }
-
-    unsafe fn swizzle(inside: Self::Unswizzled) -> Self 
-        where Self: Sized {
-        let inside_vec = Swizzleable::swizzle(inside.vec);
-        String::from_utf8(inside_vec).unwrap()
-    }
 }
 
 impl Sandboxable for String {
