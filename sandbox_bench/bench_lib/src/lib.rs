@@ -1,4 +1,5 @@
 #![feature(allocator_api)]
+use alohomora_sandbox::ptr::SandboxPointer;
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
 use linfa::dataset::Dataset;
@@ -7,6 +8,7 @@ use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
 use alohomora_derive::AlohomoraSandbox;
+use alohomora_sandbox::Sandboxable;
 use std::convert::TryInto;
 use std::os::raw::c_void;
 use std::ptr::NonNull;
@@ -28,6 +30,73 @@ extern crate once_cell;
 //     x
 // }
 // }
+
+#[derive(Debug)]
+pub struct Test {
+  pub a: i32,
+  pub b: usize,
+  pub c: isize,
+  pub t: Test2,
+  pub ptr: *mut Test2,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub struct TestUnswizzled {
+  pub a: i32, 
+  pub b: u32,
+  pub c: i32,
+  pub t: Test2Unswizzled,
+  pub ptr: SandboxPointer<Test2Unswizzled>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Test2 {
+  pub a: usize,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Test2Unswizzled {
+  pub a: u32,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Sandboxable for Test {
+  type InSandboxUnswizzled = TestUnswizzled;
+  fn into_sandbox(outside: Self, alloc: alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
+      TestUnswizzled {
+        a: Sandboxable::into_sandbox(outside.a, alloc.clone()),
+        b: Sandboxable::into_sandbox(outside.b, alloc.clone()),
+        c: Sandboxable::into_sandbox(outside.c, alloc.clone()),
+        t: Sandboxable::into_sandbox(outside.t, alloc.clone()),
+        ptr: Sandboxable::into_sandbox(outside.ptr, alloc.clone()),
+      }
+  }
+  fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
+      Test {
+        a: Sandboxable::out_of_sandbox(&inside.a, any_sandbox_ptr),
+        b: Sandboxable::out_of_sandbox(&inside.b, any_sandbox_ptr),
+        c: Sandboxable::out_of_sandbox(&inside.c, any_sandbox_ptr),
+        t: Sandboxable::out_of_sandbox(&inside.t, any_sandbox_ptr),
+        ptr: Sandboxable::out_of_sandbox(&inside.ptr, any_sandbox_ptr),
+      }
+  }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl Sandboxable for Test2 {
+  type InSandboxUnswizzled = Test2Unswizzled;
+  fn into_sandbox(outside: Self, alloc: alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
+    Test2Unswizzled{
+      a: Sandboxable::into_sandbox(outside.a, alloc),
+    }
+  }
+  fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
+      Test2 {
+        a: Sandboxable::out_of_sandbox(&inside.a, any_sandbox_ptr),
+      }
+  }
+}
+
 
 // Sandbox functions.
 #[AlohomoraSandbox()]
@@ -59,9 +128,11 @@ pub struct TestStruct {
 }
 
 #[AlohomoraSandbox()]
-pub fn stringy(s: String) -> String {
-  println!("hjello i got string {s}");
-  format!("hello there {s}, im returning to you")
+pub fn stringy(s: Test) -> String {
+  // println!("hjello i got string {s}");
+  println!("hello i got test struct {:?}", s);
+  unsafe{ println!("w ptr val {:?}", (*s.ptr)); }
+  format!("hello there {:?}, im returning to you", s)
 }
 
 #[AlohomoraSandbox()]

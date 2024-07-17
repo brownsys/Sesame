@@ -63,8 +63,8 @@ pub trait Sandboxable {
 
     /// Deeply copy `inside` out of sandbox memory.
     /// General approach is in the opposite order of `into_sandbox`:
-    ///     2) swizzle out this type's stack data
-    ///     1) then recursively move everything it points to out of the sandbox
+    ///     1) swizzle out this type's stack data
+    ///     2) then recursively move everything it points to out of the sandbox
     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self;
 }
 

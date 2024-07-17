@@ -91,4 +91,11 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     }
 }
 
-// pub type Error = (Span, &'static str);
+pub type Error = (proc_macro2::Span, &'static str);
+
+pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, Error> {
+    let mut stream = TokenStream::new();
+
+    Ok(stream)
+    // derive the 
+}

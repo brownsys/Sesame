@@ -22,7 +22,31 @@ impl<T: Sandboxable> Sandboxable for Box<T> {
     }
 }
 
-// Derive `Sandboxable` for primitives that won't change in the sandbox.
+impl<T: Sandboxable + Clone> Sandboxable for *mut T {
+    type InSandboxUnswizzled = SandboxPointer<T::InSandboxUnswizzled>;
+    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
+        let new_val = unsafe {
+            Sandboxable::into_sandbox((*outside).clone(), alloc.clone())
+        };
+
+        let b = Box::new_in(new_val, alloc);
+        unswizzle_ptr(Box::into_raw(b))
+    }
+
+    fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
+        // 1. Swizzle pointer to the type
+        let ptr: *mut T::InSandboxUnswizzled = swizzle_ptr(inside, any_sandbox_ptr);
+
+        // 2a. get a reference to the type
+        let b_ref: &T::InSandboxUnswizzled = unsafe{ Box::leak(Box::from_raw(ptr)) };
+        // 2b. take it out of the sandbox recursively
+        let a: T = Sandboxable::out_of_sandbox(b_ref, any_sandbox_ptr);
+        // 2c. convert that object back into a pointer
+        Box::into_raw(Box::new(a))
+    }
+}
+
+// Implement `Sandboxable` for primitives that won't change in the sandbox.
 macro_rules! derive_sandboxable_identity {
     ($t:ty) => {
         impl Sandboxable for $t {
@@ -49,10 +73,12 @@ derive_sandboxable_identity!(NaiveDateTime);
 
 impl Sandboxable for usize {
     type InSandboxUnswizzled = u32;
-    fn into_sandbox(outside: Self, _: SandboxAllocator) -> Self::InSandboxUnswizzled {
-        outside.try_into().unwrap()
-    }
-    fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, _: usize) -> Self {
-        inside.clone().try_into().unwrap()
-    }
+    fn into_sandbox(outside: Self, _: SandboxAllocator) -> u32 { outside.try_into().unwrap() }
+    fn out_of_sandbox(inside: &u32, _: usize) -> Self { inside.clone().try_into().unwrap() }
+}
+
+impl Sandboxable for isize {
+    type InSandboxUnswizzled = i32;
+    fn into_sandbox(outside: Self, _: SandboxAllocator) -> i32 { outside.try_into().unwrap() }
+    fn out_of_sandbox(inside: &i32, _: usize) -> Self { inside.clone().try_into().unwrap() }
 }
