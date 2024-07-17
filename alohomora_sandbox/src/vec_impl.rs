@@ -1,4 +1,4 @@
-use std::{alloc::Global, convert::TryInto, fmt::Debug, marker::PhantomData};
+use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::PhantomData};
 use crate::{alloc::{AllocateableInSandbox, SandboxAllocator}, copy::{Copiable, Swizzleable, SwizzleableIdentity}, ptr::*, vec::{MyVec, NonNull, RawMyVec}};
 use chrono::naive::NaiveDateTime;
 
@@ -60,21 +60,24 @@ fn unswizzle_nonnull<T>(nn: NonNull<T>) -> NonNullUnswizzled<T> {
     NonNullUnswizzled { pointer: unswizzle_ptr(nn.pointer as *mut T) }
 }
 
-fn unswizzle_raw_myvec<T>(myvec: RawMyVec<T>) -> RawMyVecUnswizzled<T> {
+fn unswizzle_raw_myvec<T, A: Allocator>(myvec: RawMyVec<T, A>) -> RawMyVecUnswizzled<T> {
     RawMyVecUnswizzled { 
         ptr: unswizzle_nonnull(myvec.ptr), 
         cap: myvec.cap as u32,
     }
 }
 
-fn unswizzle_myvec<T>(myvec: MyVec<T>) -> MyVecUnswizzled<T> {
+fn unswizzle_myvec<T, A: Allocator>(myvec: MyVec<T, A>) -> MyVecUnswizzled<T> {
     MyVecUnswizzled { buf: unswizzle_raw_myvec(myvec.buf), len: myvec.len as u32 }
 }
 
-impl<T: Sandboxable + Debug> Sandboxable for Vec<T> {
+impl<T: Sandboxable + Debug> Sandboxable for Vec<T> 
+where T::InSandboxUnswizzled: Debug {
     type InSandboxUnswizzled = MyVecUnswizzled<T::InSandboxUnswizzled>;
 
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
+        
+
         // 1. move everything inside to sandbox
         let mut sandbox_vec = Vec::new_in(alloc.clone());
         outside.into_iter().map(|b|{
@@ -83,13 +86,24 @@ impl<T: Sandboxable + Debug> Sandboxable for Vec<T> {
             Sandboxable::into_sandbox(b, alloc.clone())
         }).collect_into(&mut sandbox_vec);
 
+        // println!("sandbox_vec len {:?}", sandbox_vec.len());
+
         // 1b. convert to myvec so we can access private members
         let ptr: *const Vec<T::InSandboxUnswizzled, SandboxAllocator> = &sandbox_vec as *const Vec<T::InSandboxUnswizzled, SandboxAllocator>;
-        let ptr = ptr as *mut MyVec<T::InSandboxUnswizzled, Global>;
+        // unsafe { println!("first ptr {:?} w len {:?}", ptr, (*ptr).len()) };
+        let ptr = ptr as *mut MyVec<T::InSandboxUnswizzled, SandboxAllocator>;
+        // unsafe { println!("second ptr {:?} w len {:?}", ptr, (*ptr).len) };
         let a = unsafe { (*ptr).clone() };
+
+        // unsafe { println!("moved {:?}", *ptr); }
+        // println!("moved post clone {:?}", a);
+
+        // println!("old vec {:p}, new vec ptr {:p}, new len ptr {:p}", &sandbox_vec, &a, &(a.len));
         
         // 2. swizzle our metadata on the stack
-        unswizzle_myvec(a)
+        let b = unswizzle_myvec(a);
+        // println!("now have unswiz {:?}", b);
+        b
     }
 }
 
