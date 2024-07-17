@@ -11,14 +11,26 @@ pub trait Copiable: crate::alloc::AllocateableInSandbox {
 ///   & all data types are converted to their 32 bit equivalents
 pub trait Swizzleable {
     type Unswizzled;
-    /// Swizzles all of `inside`'s 64 bit pointers and converts all data types to their 32 bit equivalents.
+    /// (For going INTO sandboxes) 
+    /// Unswizzles all of `inside`'s 64 bit pointers and converts all data types to their 32 bit equivalents.
     unsafe fn unswizzle(inside: Self) -> Self::Unswizzled;
     
+    /// (For going OUT OF sandboxes) 
+    /// Swizzles all of `inside`'s 32 bit pointers and converts all data types back to their 64 bit equivalents.
+    /// 
     unsafe fn swizzle(inside: Self::Unswizzled) -> Self 
     where Self: Sized {
         todo!();
     }
 }
+
+/// Trait for all types that are swizzleable, but don't need to change when being swizzled.
+/// (i.e. anything with no pointers, references or pointer sized types like `usize`)
+pub trait SwizzleableIdentity {
+    unsafe fn unswizzle(inside: Self) -> Self where Self: Sized{ inside }
+    unsafe fn swizzle(inside: Self) -> Self where Self: Sized{ inside }
+}
+
 
 impl Swizzleable for (u64, (), u64) {
     type Unswizzled = (u64, (), u64);

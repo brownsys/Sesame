@@ -138,7 +138,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   (1..iters + 1).map(|_i| {
     let num_grades = 5000; // 5k for benchmarks
     let mut rng = rand::thread_rng();
-    let mut grades: Vec<(BBox<NaiveDateTime, NoPolicy>, BBox<u64, NoPolicy>)> = (1..num_grades + 1).map(|_j| {
+    let mut grades: Vec<(BBoxTime, BBoxGrade)> = (1..num_grades + 1).map(|_j| {
       let submitted_at: i64 = rng.gen_range(0..1e15 as i64);
       let submitted_at = NaiveDateTime::from_timestamp_nanos(submitted_at).unwrap();
       let submitted_at = BBox::new(submitted_at, NoPolicy {});
@@ -247,9 +247,9 @@ fn run_benchmarks(){
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
   // write_stats("hash_baseline".to_string(), hash_baseline_res);
 
-  let train_baseline_res = train_baseline_bench(100);
-  let train_baseline_res = train_baseline_res[0..].to_vec();
-  write_stats("train_baseline".to_string(), train_baseline_res);
+  // let train_baseline_res = train_baseline_bench(100);
+  // let train_baseline_res = train_baseline_res[0..].to_vec();
+  // write_stats("train_baseline".to_string(), train_baseline_res);
 }
 
 // Runs sandboxes with multiple threads to test the sandbox pool.
