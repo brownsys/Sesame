@@ -92,7 +92,7 @@ impl SandboxInstance {
             // <T::Out as Sandboxable>::InSandboxUnswizzled: 
             //                 From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
             // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
-            R: Swizzleable,
+            R: Sandboxable,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
@@ -134,14 +134,14 @@ impl SandboxInstance {
 
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Pass that to the function.
-        let ret = S::invoke(final_arg, instance.sandbox_index);
+        let ret_ptr = S::invoke(final_arg, instance.sandbox_index);
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         let invoke = end - start;
         println!("copy&execute - invoking function took {invoke}");
 
         let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-        let ret = unsafe{ Box::from_raw(ret) };
-        let result = unsafe{ Swizzleable::swizzle(*ret) };
+        let ret_val = unsafe{ Box::leak(Box::from_raw(ret_ptr)) };
+        let result = Sandboxable::out_of_sandbox(ret_val, ret_ptr as usize);
         let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         let copy_out = end - start;
         println!("copy&execute - boxing & copy out took {copy_out}");

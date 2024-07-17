@@ -7,6 +7,7 @@ use quote::{quote, quote_spanned};
 use syn::{FnArg, Ident, ItemFn, ReturnType};
 // use ::alohomora_sandbox::alloc_mem_in_sandbox;
 
+// TODO: (aportlan) macro still requires return type to be serializeable even tho we don't
 pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     let function_signature = input.sig;
     let function_name = function_signature.ident;

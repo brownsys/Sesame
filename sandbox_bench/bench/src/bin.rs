@@ -13,7 +13,7 @@ use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, SandboxInstance};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
-use bench_lib::{train2, train};
+use bench_lib::{stringy, train, train2};
 
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
@@ -236,9 +236,15 @@ fn run_benchmarks(){
   // let hash_res = hash_res[0..].to_vec();
   // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(10000);
-  let train_res = train_res[0..].to_vec();
-  write_stats("train".to_string(), train_res);
+  // let train_res = train_bench(10000);
+  // let train_res = train_res[0..].to_vec();
+  // write_stats("train".to_string(), train_res);
+  for i in 0..10000 {
+    let s = BBox::new(String::from("HELLO THERE MY BUDDY"), NoPolicy::new());
+    let s_new: BBox<String, NoPolicy> = SandboxInstance::copy_and_execute::<stringy, _, _>(s).specialize_policy().unwrap();
+    println!("returned--{:?}", s_new.discard_box());
+  }
+  
 
   unsafe{ SandboxInstance::split_info(); }
   // println!("final splits are {:?}", s);

@@ -60,6 +60,12 @@ pub struct TestStruct {
 }
 
 #[AlohomoraSandbox()]
+pub fn stringy(s: String) -> String {
+  println!("hjello i got string {s}");
+  format!("hello there {s}, im returning to you")
+}
+
+#[AlohomoraSandbox()]
 pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
   // let vec_ptr: *mut Grandparent = inputs as *mut Grandparent;
   
