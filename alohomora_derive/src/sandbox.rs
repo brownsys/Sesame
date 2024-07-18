@@ -93,13 +93,13 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
 
 pub type Error = (proc_macro2::Span, &'static str);
 
-pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, Error> {
+pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, Error> {
     let mut stream = TokenStream::new();
 
     // Check the macro is being used on a struct
     let struct_data = match input.data.clone() {
         syn::Data::Struct(s) => s,
-        _ => return Err((input.ident.span(), "derive(`Swizzleable`) only works on structs")),
+        _ => return Err((input.ident.span(), "derive(`Sandboxable`) only works on structs")),
     };
 
     let fields = match struct_data.fields.clone() {
@@ -111,7 +111,7 @@ pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
     for field in fields.named.clone() {
         match field.vis {
             syn::Visibility::Public(_) => (),
-            _ => return Err((input.ident.span(), "all fields must be public for `Swizzleable` types")),
+            _ => return Err((field.ident.unwrap_or(input.ident).span(), "all fields must be public for `Sandboxable` types")),
         }
     }
 
@@ -158,9 +158,6 @@ pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
                 #unswizzled_name {
                     #(#field_name2: ::alohomora_sandbox::Sandboxable::into_sandbox(outside.#field_name2, alloc.clone()),)*
                 }
-                // println!("final struct size of {} is {:?}", stringify!(#unswizzled_name), std::mem::size_of::<#unswizzled_name>());
-                // #(println!("{} is at {:p} w size {}", stringify!(#field_name4), &a.#field_name4, std::mem::size_of_val(&a.#field_name4));)*
-                // a
             }
             fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
                 #struct_name {

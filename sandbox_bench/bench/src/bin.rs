@@ -249,7 +249,7 @@ fn run_benchmarks(){
     let t = bench_lib::Test { 
       a: 123456,
       b: 54321,
-      c: -101110,
+      c: Box::new(-101012),
       // t: t2,
       s: String::from("hello there this is a string"),
       // ptr: Box::into_raw(Box::new(t3)),

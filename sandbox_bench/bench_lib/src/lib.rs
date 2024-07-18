@@ -36,7 +36,7 @@ extern crate once_cell;
 pub struct Test {
   pub a: i32,
   pub b: usize,
-  pub c: isize,
+  pub c: Box<isize>,
   // pub t: T2,
   // pub ptr: *mut T,
   pub s: String,

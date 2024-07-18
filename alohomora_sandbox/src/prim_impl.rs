@@ -22,43 +22,6 @@ impl<T: Sandboxable> Sandboxable for Box<T> {
     }
 }
 
-// impl<T: Sandboxable + Clone> Sandboxable for *mut T {
-//     type InSandboxUnswizzled = SandboxPointer<T::InSandboxUnswizzled>;
-//     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
-//         // 1. Recursively move the value this points to into the sandbox
-//         let new_val = unsafe {
-//             Sandboxable::into_sandbox((*outside).clone(), alloc.clone())
-//         };
-//         let b = Box::new_in(new_val, alloc);
-
-//         // 2. Unswizzle the stack ptr to that data
-//         unswizzle_ptr(Box::into_raw(b))
-//     }
-
-//     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
-//         // 1. Swizzle pointer to the type
-//         let ptr: *mut T::InSandboxUnswizzled = swizzle_ptr(inside, any_sandbox_ptr);
-
-//         // 2a. get a reference to the type
-//         let b_ref: &T::InSandboxUnswizzled = unsafe{ Box::leak(Box::from_raw(ptr)) };
-//         // 2b. take it out of the sandbox recursively
-//         let a: T = Sandboxable::out_of_sandbox(b_ref, any_sandbox_ptr);
-//         // 2c. convert that object back into a pointer
-//         Box::into_raw(Box::new(a))
-//     }
-// }
-
-// impl<T: Sandboxable + Clone> Sandboxable for *const T {
-//     type InSandboxUnswizzled = SandboxPointer<T::InSandboxUnswizzled>;
-//     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
-//         Sandboxable::into_sandbox(outside as *mut T, alloc)
-//     }
-//     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
-//         let ptr: *mut T = Sandboxable::out_of_sandbox(inside, any_sandbox_ptr);
-//         ptr as *const T
-//     }
-// }
-
 // Implement `Sandboxable` for primitives that won't change in the sandbox.
 macro_rules! derive_sandboxable_identity {
     ($t:ty) => {
