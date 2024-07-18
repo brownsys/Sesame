@@ -97,6 +97,7 @@ dependencies = [
  "cargo_toml",
  "chrono",
  "linfa-linear 0.7.0",
+ "mysql",
  "serde",
  "serde_json",
  "tinytemplate",

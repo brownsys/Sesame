@@ -9,6 +9,12 @@ macro_rules! sandboxable_tuple_impl {
             $($A: Sandboxable,)* {
             type InSandboxUnswizzled = ($($A::InSandboxUnswizzled,)*);
 
+            fn is_identity() -> bool {
+                let b = ($($A::is_identity() &&)* true);
+                println!("{} has identity val {:?}", stringify!(Self), b);
+                return b;
+            }
+
             fn into_sandbox(outside: Self, alloc: crate::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
                 ($(Sandboxable::into_sandbox(outside.$i, alloc.clone()),)*)
             }

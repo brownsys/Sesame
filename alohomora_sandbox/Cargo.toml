@@ -13,3 +13,7 @@ cargo_toml = "0.19.2"
 alohomora_derive = { path = "../alohomora_derive" }
 linfa-linear = "0.7.0"
 chrono = "0.4.38"
+mysql = "21.0.2"
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

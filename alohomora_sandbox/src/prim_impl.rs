@@ -27,6 +27,7 @@ macro_rules! derive_sandboxable_identity {
     ($t:ty) => {
         impl Sandboxable for $t {
             type InSandboxUnswizzled = $t;
+            fn is_identity() -> bool { true }
             fn into_sandbox(outside: Self, _: SandboxAllocator) -> Self::InSandboxUnswizzled { outside }
             fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, _: usize) -> Self where Self: Sized { inside.clone() }
         }

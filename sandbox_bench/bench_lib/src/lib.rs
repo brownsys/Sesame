@@ -171,7 +171,7 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (usize, (), usize) {
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-  println!("in the sandbox, inputs are {:?}", inputs.len());
+  // println!("in the sandbox, inputs are {:?}", inputs.len());
   let now = Instant::now();
 
   let grades = inputs;

@@ -1,5 +1,6 @@
 #![feature(allocator_api)]
 #![feature(iter_collect_into)]
+#![feature(vec_into_raw_parts)]
 pub extern crate bincode;
 pub extern crate serde;
 pub extern crate serde_json;
@@ -54,6 +55,9 @@ pub trait AlohomoraSandbox<'a, 'b, T, R>
 /// New mega trait that handles copying to/from sandboxes & all swizzling.
 pub trait Sandboxable {
     type InSandboxUnswizzled;
+
+    /// Returns true for a type `T` if and only if `T::InSandboxUnswizzled` is identical to `T`.
+    fn is_identity() -> bool { false }
 
     /// Deeply move object `outside` into sandbox memory & recursively swizzle it.
     /// General approach for this takes two steps: 
