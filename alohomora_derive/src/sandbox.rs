@@ -116,6 +116,8 @@ pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
             }
     }).collect::<Vec<String>>();
 
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+
     let field_name = fields.named.iter().map(|field| &field.ident);
     let field_type = fields.named.iter().map(|field| &field.ty);
     let field_name2 = fields.named.iter().map(|field| &field.ident);
@@ -126,14 +128,14 @@ pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
     let q = quote!{
         #[automatically_derived]
         #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
-        pub struct #unswizzled_name {
+        pub struct #unswizzled_name #impl_generics #where_clause {
             #(pub #field_name: <#field_type as ::alohomora_sandbox::Sandboxable>::InSandboxUnswizzled,)*
         }
 
         #[automatically_derived]
         #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
-        impl ::alohomora_sandbox::Sandboxable for #struct_name {
-            type InSandboxUnswizzled = #unswizzled_name;
+        impl #impl_generics ::alohomora_sandbox::Sandboxable for #struct_name #type_generics #where_clause {
+            type InSandboxUnswizzled = #unswizzled_name #type_generics;
             fn into_sandbox(outside: Self, alloc: ::alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
                 #unswizzled_name {
                     #(#field_name2: ::alohomora_sandbox::Sandboxable::into_sandbox(outside.#field_name2, alloc.clone()),)*
@@ -146,6 +148,8 @@ pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
             }
         }
     };
+
+    println!("{}", q);
 
     stream.extend(q);
     // stream.extend(q2);

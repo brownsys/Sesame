@@ -232,37 +232,37 @@ fn run_benchmarks(){
   // let hash_res = hash_res[0..].to_vec();
   // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(10000);
-  let train_res = train_res[0..].to_vec();
-  write_stats("train".to_string(), train_res);
+  // let train_res = train_bench(10000);
+  // let train_res = train_res[0..].to_vec();
+  // write_stats("train".to_string(), train_res);
 
-  // for i in 0..10000 {
-  //   let t2 = bench_lib::Test2 {
-  //     a: 0xdeadbeef
-  //   };
-  //   let t3 = bench_lib::Test2 {
-  //     a: 0xdeadbee2
-  //   };
-  //   let t = bench_lib::Test { 
-  //     a: 123456,
-  //     b: 54321,
-  //     c: -101110,
-  //     t: t2,
-  //     ptr: Box::into_raw(Box::new(t3)),
-  //   };
+  for i in 0..10000 {
+    let t2 = bench_lib::Test2 {
+      a: 0xdeadbeef
+    };
+    let t3 = bench_lib::Test2 {
+      a: 0xdeadbee2
+    };
+    let t = bench_lib::Test { 
+      a: 123456,
+      b: 54321,
+      c: -101110,
+      t: t2,
+      ptr: Box::into_raw(Box::new(t3)),
+    };
 
-  //   let s = BBox::new(t, NoPolicy::new());
-  //   let s_new: BBox<String, NoPolicy> = SandboxInstance::copy_and_execute::<stringy, _, _>(s).specialize_policy().unwrap();
-  //   println!("returned--{:?}", s_new.discard_box());
-  // }
+    let s = BBox::new(t, NoPolicy::new());
+    let s_new: BBox<String, NoPolicy> = SandboxInstance::copy_and_execute::<stringy, _, _>(s).specialize_policy().unwrap();
+    println!("returned--{:?}", s_new.discard_box());
+  }
   
 
   unsafe{ SandboxInstance::split_info(); }
   // println!("final splits are {:?}", s);
 
-  let hash_baseline_res = hash_baseline_bench(100);
-  let hash_baseline_res = hash_baseline_res[0..].to_vec();
-  write_stats("hash_baseline".to_string(), hash_baseline_res);
+  // let hash_baseline_res = hash_baseline_bench(100);
+  // let hash_baseline_res = hash_baseline_res[0..].to_vec();
+  // write_stats("hash_baseline".to_string(), hash_baseline_res);
 
   // let train_baseline_res = train_baseline_bench(100);
   // let train_baseline_res = train_baseline_res[0..].to_vec();

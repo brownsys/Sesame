@@ -32,12 +32,12 @@ extern crate once_cell;
 // }
 
 #[derive(Debug, Sandboxable)]
-pub struct Test {
+pub struct Test<T: Sandboxable + Clone, T2: Sandboxable> where {
   pub a: i32,
   pub b: usize,
   pub c: isize,
-  pub t: Test2,
-  pub ptr: *mut Test2,
+  pub t: T2,
+  pub ptr: *mut T,
 }
 
 // #[cfg(not(target_arch = "wasm32"))]
@@ -69,7 +69,7 @@ pub struct Test2 {
 // }
 
 // #[cfg(not(target_arch = "wasm32"))]
-// impl Sandboxable for Test {
+// impl<T> Sandboxable for Test<T> {
 //   type InSandboxUnswizzled = TestUnswizzled;
 //   fn into_sandbox(outside: Self, alloc: alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
 //       TestUnswizzled {
@@ -136,7 +136,7 @@ pub struct TestStruct {
 }
 
 #[AlohomoraSandbox()]
-pub fn stringy(s: Test) -> String {
+pub fn stringy(s: Test<Test2, Test2>) -> String {
   // println!("hjello i got string {s}");
   println!("hello i got test struct {:?}", s);
   unsafe{ println!("w ptr val {:?}", (*s.ptr)); }
