@@ -3,7 +3,7 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned};
+use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 use syn::{FnArg, Ident, ItemFn, ReturnType};
 // use ::alohomora_sandbox::alloc_mem_in_sandbox;
 
@@ -95,6 +95,60 @@ pub type Error = (proc_macro2::Span, &'static str);
 
 pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, Error> {
     let mut stream = TokenStream::new();
+
+    let struct_data = match input.data.clone() {
+        syn::Data::Struct(s) => s,
+        _ => return Err((input.ident.span(), "derive(Swizzleable) only works on structs")),
+    };
+
+    let fields = match struct_data.fields.clone() {
+        syn::Fields::Named(f) => f,
+        _ => return Err((input.ident.span(), "no named fields??")),
+    };
+
+    let struct_name = input.ident.clone();
+    let unswizzled_name = Ident::new(&(struct_name.to_string() + "Unswizzled"), struct_name.span());
+    let struct_generics = input.generics.clone().to_token_stream();
+    let struct_generic_names = input.generics.clone().params.into_iter().filter_map(|gp|{
+            match gp {
+                syn::GenericParam::Type(tp) => Some(format!("{}", tp.ident)),
+                _ => None,
+            }
+    }).collect::<Vec<String>>();
+
+    let field_name = fields.named.iter().map(|field| &field.ident);
+    let field_type = fields.named.iter().map(|field| &field.ty);
+    let field_name2 = fields.named.iter().map(|field| &field.ident);
+    let field_type2 = fields.named.iter().map(|field| &field.ty);
+    let field_name3 = fields.named.iter().map(|field| &field.ident);
+    let field_type3 = fields.named.iter().map(|field| &field.ty);
+
+    let q = quote!{
+        #[automatically_derived]
+        #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
+        pub struct #unswizzled_name {
+            #(pub #field_name: <#field_type as ::alohomora_sandbox::Sandboxable>::InSandboxUnswizzled,)*
+        }
+
+        #[automatically_derived]
+        #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
+        impl ::alohomora_sandbox::Sandboxable for #struct_name {
+            type InSandboxUnswizzled = #unswizzled_name;
+            fn into_sandbox(outside: Self, alloc: ::alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
+                #unswizzled_name {
+                    #(#field_name2: ::alohomora_sandbox::Sandboxable::into_sandbox(outside.#field_name2, alloc.clone()),)*
+                }
+            }
+            fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
+                #struct_name {
+                #(#field_name3: ::alohomora_sandbox::Sandboxable::out_of_sandbox(&inside.#field_name3, any_sandbox_ptr),)*
+                }
+            }
+        }
+    };
+
+    stream.extend(q);
+    // stream.extend(q2);
 
     Ok(stream)
     // derive the 
