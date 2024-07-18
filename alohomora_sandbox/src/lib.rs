@@ -48,7 +48,7 @@ pub trait AlohomoraSandbox<'a, 'b, T, R>
         T: Sandboxable,
         R: Sandboxable
 {
-    fn invoke(arg: <T as Sandboxable>::InSandboxUnswizzled, sandbox_index: usize) -> *mut R::InSandboxUnswizzled;
+    fn invoke(arg: T::InSandboxUnswizzled, sandbox_index: usize) -> *mut R::InSandboxUnswizzled;
 }
 
 /// New mega trait that handles copying to/from sandboxes & all swizzling.
@@ -58,7 +58,7 @@ pub trait Sandboxable {
     /// Deeply move object `outside` into sandbox memory & recursively swizzle it.
     /// General approach for this takes two steps: 
     ///     1) recursively move everything this type points to into sandboxed memory
-    ///     2) then swizzle this type's stack data (to be boxed and passed into sandbox)
+    ///     2) then (un)swizzle this type's stack data (to be boxed and passed into sandbox)
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled;
 
     /// Deeply copy `inside` out of sandbox memory.

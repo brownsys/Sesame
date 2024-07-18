@@ -1,0 +1,122 @@
+#[automatically_derived] #[cfg(not(target_arch = "wasm32"))] pub struct
+TestUnswizzled
+{
+    pub a : < i32 as :: alohomora_sandbox :: Sandboxable > ::
+    InSandboxUnswizzled, pub b : < usize as :: alohomora_sandbox ::
+    Sandboxable > :: InSandboxUnswizzled, pub c : < isize as ::
+    alohomora_sandbox :: Sandboxable > :: InSandboxUnswizzled, pub s : <
+    String as :: alohomora_sandbox :: Sandboxable > :: InSandboxUnswizzled,
+} #[automatically_derived] #[cfg(not(target_arch = "wasm32"))] impl ::
+alohomora_sandbox :: Sandboxable for Test
+{
+    type InSandboxUnswizzled = TestUnswizzled ; fn
+    into_sandbox(outside : Self, alloc : :: alohomora_sandbox :: alloc ::
+    SandboxAllocator) -> Self :: InSandboxUnswizzled
+    {
+        let a = TestUnswizzled
+        {
+            a : :: alohomora_sandbox :: Sandboxable ::
+            into_sandbox(outside.a, alloc.clone()), b : :: alohomora_sandbox
+            :: Sandboxable :: into_sandbox(outside.b, alloc.clone()), c : ::
+            alohomora_sandbox :: Sandboxable ::
+            into_sandbox(outside.c, alloc.clone()), s : :: alohomora_sandbox
+            :: Sandboxable :: into_sandbox(outside.s, alloc.clone()),
+        } ; println!
+        ("final struct size of {} is {:?}", stringify! (Test), std :: mem ::
+        size_of :: < TestUnswizzled > ()) ; a
+    } fn
+    out_of_sandbox(inside : & Self :: InSandboxUnswizzled, any_sandbox_ptr :
+    usize) -> Self
+    {
+        Test
+        {
+            a : :: alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.a, any_sandbox_ptr), b : ::
+            alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.b, any_sandbox_ptr), c : ::
+            alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.c, any_sandbox_ptr), s : ::
+            alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.s, any_sandbox_ptr),
+        }
+    }
+}
+#[automatically_derived] #[cfg(not(target_arch = "wasm32"))] pub struct
+TestRUnswizzled
+{
+    pub a : < i32 as :: alohomora_sandbox :: Sandboxable > ::
+    InSandboxUnswizzled, pub b : < usize as :: alohomora_sandbox ::
+    Sandboxable > :: InSandboxUnswizzled, pub c : < isize as ::
+    alohomora_sandbox :: Sandboxable > :: InSandboxUnswizzled, pub t : < Test2
+    as :: alohomora_sandbox :: Sandboxable > :: InSandboxUnswizzled, pub ptr :
+    < * mut Test2 as :: alohomora_sandbox :: Sandboxable > ::
+    InSandboxUnswizzled,
+} #[automatically_derived] #[cfg(not(target_arch = "wasm32"))] impl ::
+alohomora_sandbox :: Sandboxable for TestR
+{
+    type InSandboxUnswizzled = TestRUnswizzled ; fn
+    into_sandbox(outside : Self, alloc : :: alohomora_sandbox :: alloc ::
+    SandboxAllocator) -> Self :: InSandboxUnswizzled
+    {
+        let a = TestRUnswizzled
+        {
+            a : :: alohomora_sandbox :: Sandboxable ::
+            into_sandbox(outside.a, alloc.clone()), b : :: alohomora_sandbox
+            :: Sandboxable :: into_sandbox(outside.b, alloc.clone()), c : ::
+            alohomora_sandbox :: Sandboxable ::
+            into_sandbox(outside.c, alloc.clone()), t : :: alohomora_sandbox
+            :: Sandboxable :: into_sandbox(outside.t, alloc.clone()), ptr : ::
+            alohomora_sandbox :: Sandboxable ::
+            into_sandbox(outside.ptr, alloc.clone()),
+        } ; println!
+        ("final struct size of {} is {:?}", stringify! (TestR), std :: mem ::
+        size_of :: < TestRUnswizzled > ()) ; a
+    } fn
+    out_of_sandbox(inside : & Self :: InSandboxUnswizzled, any_sandbox_ptr :
+    usize) -> Self
+    {
+        TestR
+        {
+            a : :: alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.a, any_sandbox_ptr), b : ::
+            alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.b, any_sandbox_ptr), c : ::
+            alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.c, any_sandbox_ptr), t : ::
+            alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.t, any_sandbox_ptr), ptr : ::
+            alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.ptr, any_sandbox_ptr),
+        }
+    }
+}
+#[automatically_derived] #[cfg(not(target_arch = "wasm32"))] pub struct
+Test2Unswizzled
+{
+    pub a : < usize as :: alohomora_sandbox :: Sandboxable > ::
+    InSandboxUnswizzled,
+} #[automatically_derived] #[cfg(not(target_arch = "wasm32"))] impl ::
+alohomora_sandbox :: Sandboxable for Test2
+{
+    type InSandboxUnswizzled = Test2Unswizzled ; fn
+    into_sandbox(outside : Self, alloc : :: alohomora_sandbox :: alloc ::
+    SandboxAllocator) -> Self :: InSandboxUnswizzled
+    {
+        let a = Test2Unswizzled
+        {
+            a : :: alohomora_sandbox :: Sandboxable ::
+            into_sandbox(outside.a, alloc.clone()),
+        } ; println!
+        ("final struct size of {} is {:?}", stringify! (Test2), std :: mem ::
+        size_of :: < Test2Unswizzled > ()) ; a
+    } fn
+    out_of_sandbox(inside : & Self :: InSandboxUnswizzled, any_sandbox_ptr :
+    usize) -> Self
+    {
+        Test2
+        {
+            a : :: alohomora_sandbox :: Sandboxable ::
+            out_of_sandbox(& inside.a, any_sandbox_ptr),
+        }
+    }
+}

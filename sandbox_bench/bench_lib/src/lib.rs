@@ -32,12 +32,16 @@ extern crate once_cell;
 // }
 
 #[derive(Debug, Sandboxable)]
-pub struct Test<T: Sandboxable + Clone, T2: Sandboxable> where {
+#[repr(C)]
+pub struct Test {
   pub a: i32,
   pub b: usize,
   pub c: isize,
-  pub t: T2,
-  pub ptr: *mut T,
+  // pub t: T2,
+  // pub ptr: *mut T,
+  pub s: String,
+  // pub bx: Box<usize>,
+  // pub ptr2: *const Test2,
 }
 
 // #[cfg(not(target_arch = "wasm32"))]
@@ -49,16 +53,17 @@ pub struct Test<T: Sandboxable + Clone, T2: Sandboxable> where {
 //   pub ptr: <*mut Test2 as Sandboxable>::InSandboxUnswizzled,
 // }
 
-#[derive(Sandboxable)]
-pub struct TestR {
-  pub a: i32,
-  pub b: usize,
-  pub c: isize,
-  pub t: Test2,
-  pub ptr: *mut Test2,
-}
+// #[derive(Sandboxable)]
+// pub struct TestR {
+//   pub a: i32,
+//   pub b: usize,
+//   pub c: isize,
+//   pub t: Test2,
+//   pub ptr: *mut Test2,
+// }
 
 #[derive(Clone, Debug, Sandboxable)]
+#[repr(C)]
 pub struct Test2 {
   pub a: usize,
 }
@@ -127,19 +132,19 @@ pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
   (now.elapsed().as_nanos() as u64, key, 0)
 }
 
-#[derive(Debug)]
-pub struct TestStruct {
-    my_int: u32,
-    my_float: f32,
-    my_float2: f64, 
-    ptr_to_buddy: *mut i32,
-}
-
 #[AlohomoraSandbox()]
-pub fn stringy(s: Test<Test2, Test2>) -> String {
+pub fn stringy(s: Test) -> String {
+  println!("final struct size of {} IN SANDBOX is {:?}", stringify!(Test), std::mem::size_of::<Test>());
+  println!("a is at {:p} w size {}", &s.a, std::mem::size_of_val(&s.a));
+  println!("b is at {:p} w size {}", &s.b, std::mem::size_of_val(&s.b));
+  println!("c is at {:p} w size {}", &s.c, std::mem::size_of_val(&s.c));
+  println!("str is at {:p} w size {}", &s.s, std::mem::size_of_val(&s.s));
   // println!("hjello i got string {s}");
+  println!("str len is {:?}", s.s.len());
   println!("hello i got test struct {:?}", s);
-  unsafe{ println!("w ptr val {:?}", (*s.ptr)); }
+  // unsafe{ println!("w ptr val {:?}", (*s.ptr)); }
+  // unsafe{ println!("w ptr2 val {:?}", (*s.ptr2)); }
+  // unsafe{ println!("w box val {:?}", (*s.bx)); }
   format!("hello there {:?}, im returning to you", s)
 }
 
@@ -168,9 +173,6 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (usize, (), usize) {
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   println!("in the sandbox, inputs are {:?}", inputs.len());
   let now = Instant::now();
-  // println!("training on vec with size {} and cap {}", inputs.len(), inputs.capacity());
-  // let setup = now - inputs.1;
-  // println!("in the sandbox, the struct is {:?}", inputs);
 
   let grades = inputs;
   let grades: Vec<[f64; 2]> = grades

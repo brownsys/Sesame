@@ -9,11 +9,12 @@ where T::InSandboxUnswizzled: Debug {
 
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
         // 1. move everything inside to sandbox
-        let mut sandbox_vec = Vec::new_in(alloc.clone());
+        let mut sandbox_vec = Vec::new_in(alloc.clone()); // TODO: with capacity here
         outside.into_iter().map(|b|{
             Sandboxable::into_sandbox(b, alloc.clone())
         }).collect_into(&mut sandbox_vec);
 
+        // println!("vec is now {:?}", sandbox_vec);
         // 1b. convert to myvec so we can access private members
         let ptr: *const Vec<T::InSandboxUnswizzled, SandboxAllocator> = &sandbox_vec as *const Vec<T::InSandboxUnswizzled, SandboxAllocator>;
         let ptr = ptr as *mut MyVec<T::InSandboxUnswizzled, SandboxAllocator>;

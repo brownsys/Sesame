@@ -4,7 +4,7 @@ extern crate syn;
 
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
-use syn::{FnArg, Ident, ItemFn, ReturnType};
+use syn::{FnArg, Ident, ItemFn, ReturnType, Token};
 // use ::alohomora_sandbox::alloc_mem_in_sandbox;
 
 // TODO: (aportlan) macro still requires return type to be serializeable even tho we don't
@@ -96,9 +96,10 @@ pub type Error = (proc_macro2::Span, &'static str);
 pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, Error> {
     let mut stream = TokenStream::new();
 
+    // Check the macro is being used on a struct
     let struct_data = match input.data.clone() {
         syn::Data::Struct(s) => s,
-        _ => return Err((input.ident.span(), "derive(Swizzleable) only works on structs")),
+        _ => return Err((input.ident.span(), "derive(`Swizzleable`) only works on structs")),
     };
 
     let fields = match struct_data.fields.clone() {
@@ -106,28 +107,45 @@ pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
         _ => return Err((input.ident.span(), "no named fields??")),
     };
 
+    // Check all fields are public
+    for field in fields.named.clone() {
+        match field.vis {
+            syn::Visibility::Public(_) => (),
+            _ => return Err((input.ident.span(), "all fields must be public for `Swizzleable` types")),
+        }
+    }
+
+    // Make sure they're using #[repr(C)]
+    let mut uses_repr_c = false;
+    for attr in input.attrs {
+        // println!("my attrs are {:?}", attr);
+        if format!("{}", attr.to_token_stream()) == format!("#[repr(C)]") {
+            // println!("this attr is reprc");
+            uses_repr_c = true;
+        }
+    }
+    if !uses_repr_c {
+        return Err((input.ident.span(), "structs must use the `#[repr(C)]` attribute to enforce the consistent memory layout needed to implement `Swizzleable`."));
+    }
+
     let struct_name = input.ident.clone();
+    // TODO: (aportlan) should this unswizzled name be more niche? (like with two underscores)
     let unswizzled_name = Ident::new(&(struct_name.to_string() + "Unswizzled"), struct_name.span());
-    let struct_generics = input.generics.clone().to_token_stream();
-    let struct_generic_names = input.generics.clone().params.into_iter().filter_map(|gp|{
-            match gp {
-                syn::GenericParam::Type(tp) => Some(format!("{}", tp.ident)),
-                _ => None,
-            }
-    }).collect::<Vec<String>>();
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
     let field_name = fields.named.iter().map(|field| &field.ident);
     let field_type = fields.named.iter().map(|field| &field.ty);
     let field_name2 = fields.named.iter().map(|field| &field.ident);
-    let field_type2 = fields.named.iter().map(|field| &field.ty);
+    // let field_type2 = fields.named.iter().map(|field| &field.ty);
     let field_name3 = fields.named.iter().map(|field| &field.ident);
-    let field_type3 = fields.named.iter().map(|field| &field.ty);
+    // let field_name4 = fields.named.iter().map(|field| &field.ident);
+    // let field_type3 = fields.named.iter().map(|field| &field.ty);
 
     let q = quote!{
         #[automatically_derived]
         #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
+        #[repr(C)]
         pub struct #unswizzled_name #impl_generics #where_clause {
             #(pub #field_name: <#field_type as ::alohomora_sandbox::Sandboxable>::InSandboxUnswizzled,)*
         }
@@ -140,6 +158,9 @@ pub fn derive_swizzleable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
                 #unswizzled_name {
                     #(#field_name2: ::alohomora_sandbox::Sandboxable::into_sandbox(outside.#field_name2, alloc.clone()),)*
                 }
+                // println!("final struct size of {} is {:?}", stringify!(#unswizzled_name), std::mem::size_of::<#unswizzled_name>());
+                // #(println!("{} is at {:p} w size {}", stringify!(#field_name4), &a.#field_name4, std::mem::size_of_val(&a.#field_name4));)*
+                // a
             }
             fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
                 #struct_name {

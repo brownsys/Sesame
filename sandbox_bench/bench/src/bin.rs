@@ -243,12 +243,18 @@ fn run_benchmarks(){
     let t3 = bench_lib::Test2 {
       a: 0xdeadbee2
     };
+    let t4 = bench_lib::Test2 {
+      a: 0xdeadbee3
+    };
     let t = bench_lib::Test { 
       a: 123456,
       b: 54321,
       c: -101110,
-      t: t2,
-      ptr: Box::into_raw(Box::new(t3)),
+      // t: t2,
+      s: String::from("hello there this is a string"),
+      // ptr: Box::into_raw(Box::new(t3)),
+      // bx: Box::new(1111),
+      // ptr2: Box::into_raw(Box::new(t4)),
     };
 
     let s = BBox::new(t, NoPolicy::new());
