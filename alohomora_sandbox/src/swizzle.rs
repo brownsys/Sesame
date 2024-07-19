@@ -2,6 +2,8 @@ use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::Phan
 use crate::{alloc::SandboxAllocator, ptr::*, vec::{MyVec, NonNull, RawMyVec}};
 use chrono::naive::NaiveDateTime;
 
+// FIXME: these should probably all use #[repr(C)] but it was working just fine without
+// so if any of these break bc of memory representation try that...
 pub struct BoxUnswizzled<T, A> {
     pub ptr: SandboxPointer<T>,
     pub phantom_data: PhantomData<A>

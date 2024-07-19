@@ -34,7 +34,6 @@ impl<P: Policy, A: Allocator + Clone, T: AlohomoraType<P, A>>  Foldable<P, A> fo
     }
 }
 
-// TODO:(aportlan) should be done for generic sandbox allocators too
 // A more optimized version of unwrap for a simple vec of BBoxes.
 impl<T: Clone + 'static, P: Policy + Clone + 'static> Foldable<AnyPolicy, Global> for Vec<BBox<T, P>> {
     fn unsafe_fold(self) -> Result<(<Self as AlohomoraType<P, Global>>::Out, AnyPolicy), ()> 

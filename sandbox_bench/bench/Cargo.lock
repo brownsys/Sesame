@@ -96,8 +96,6 @@ dependencies = [
  "bincode",
  "cargo_toml",
  "chrono",
- "linfa-linear 0.7.0",
- "mysql",
  "serde",
  "serde_json",
  "tinytemplate",
@@ -174,38 +172,6 @@ dependencies = [
  "slog-async",
  "slog-json",
  "slog-term",
- "thiserror",
-]
-
-[[package]]
-name = "argmin"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "897c18cfe995220bdd94a27455e5afedc7c688cbf62ad2be88ce7552452aa1b2"
-dependencies = [
- "anyhow",
- "argmin-math",
- "instant",
- "num-traits",
- "paste",
- "rand 0.8.5",
- "rand_xoshiro",
- "thiserror",
-]
-
-[[package]]
-name = "argmin-math"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8798ca7447753fcb3dd98d9095335b1564812a68c6e7c3d1926e1d5cf094e37"
-dependencies = [
- "anyhow",
- "cfg-if 1.0.0",
- "ndarray",
- "num-complex",
- "num-integer",
- "num-traits",
- "rand 0.8.5",
  "thiserror",
 ]
 
@@ -355,7 +321,7 @@ dependencies = [
  "alohomora_build",
  "bench_lib",
  "chrono",
- "linfa-linear 0.6.1",
+ "linfa-linear",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -370,8 +336,8 @@ dependencies = [
  "alohomora_sandbox",
  "bindgen 0.69.4",
  "chrono",
- "linfa 0.6.1",
- "linfa-linear 0.6.1",
+ "linfa",
+ "linfa-linear",
  "ndarray",
  "once_cell",
  "sha2 0.10.8",
@@ -1852,20 +1818,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "linfa"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cab423110bc374e4cfa915da88952e2c6a4a5a6300ac0a0e68022bff2ace0b3"
-dependencies = [
- "approx 0.4.0",
- "ndarray",
- "num-traits",
- "rand 0.8.5",
- "sprs",
- "thiserror",
-]
-
-[[package]]
 name = "linfa-linalg"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1882,27 +1834,12 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f5f756c6bcf3f80c6ee46d592cd9ec539ce6b5496ad29db90e10c6bb024dfc5"
 dependencies = [
- "argmin 0.4.7",
- "linfa 0.6.1",
+ "argmin",
+ "linfa",
  "linfa-linalg",
  "ndarray",
  "num-traits",
  "serde",
- "thiserror",
-]
-
-[[package]]
-name = "linfa-linear"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6de3901a9283cb0f5403c9d6fc9b4045cef5c98df2ad9efcb13b5875b734e2df"
-dependencies = [
- "argmin 0.8.1",
- "argmin-math",
- "linfa 0.7.0",
- "linfa-linalg",
- "ndarray",
- "num-traits",
  "thiserror",
 ]
 
@@ -2979,15 +2916,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand_xoshiro"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
-dependencies = [
- "rand_core 0.6.4",
-]
-
-[[package]]
 name = "rawpointer"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3621,18 +3549,6 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
-
-[[package]]
-name = "sprs"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88bab60b0a18fb9b3e0c26e92796b3c3a278bf5fa4880f5ad5cc3bdfb843d0b1"
-dependencies = [
- "ndarray",
- "num-complex",
- "num-traits",
- "smallvec",
-]
 
 [[package]]
 name = "stable-pattern"

@@ -104,29 +104,6 @@ fn hash_baseline_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   }).collect()
 }
 
-#[derive(Debug)]
-pub struct Grandparent {
-    pub cookies_baked: u32,
-    pub pickleball_rank: u32,
-    pub height: f64,
-    pub favorite_kid: *mut Parent,
-}
-
-#[derive(Debug, Clone)]
-pub struct Parent {
-    pub cookouts_held: u32,
-    pub hours_at_work: u32,
-    pub height: f64,
-    pub favorite_kid: *mut Baby,
-}
-
-#[derive(Debug, Clone)]
-pub struct Baby {
-    pub goos_gaad: u32,
-    pub iq: u32,
-    pub height: f64,
-}
-
 fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
   type BBoxTime = BBox<NaiveDateTime, NoPolicy>;
   type BBoxGrade = BBox<u64, NoPolicy>;
@@ -151,7 +128,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
-    type Out = (usize, (), usize);
+    type Out = (u64, (), u64);
     let output = SandboxInstance::copy_and_execute::<train,_,_>(grades.clone());
     // let output = execute_sandbox::<train, _, _>(grades);
     // let output = BBox::new(0, NoPolicy{});
@@ -163,13 +140,11 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let output: Out = output.discard_box();
     let setup = 0;
     let teardown = 0;
-    // let output = 0;
-
-    // let a = speedy_fold::<_, _, _>(grades);
 
     // let serialize = output.0 - setup; // output.0 -> time in function
     // let deserialize = (end - output.2) - teardown;
     let total = end - now;
+    // println!("final model is out as {:?}", output.1);
     // let function = total - output.0 - (end - output.2);
     let function = output.0;
     (total, 0, setup, function.try_into().unwrap(), teardown.try_into().unwrap(), 0) // <--- key for results
@@ -236,33 +211,6 @@ fn run_benchmarks(){
   let train_res = train_res[0..].to_vec();
   write_stats("train".to_string(), train_res);
 
-  // for i in 0..10000 {
-  //   let t2 = bench_lib::Test2 {
-  //     a: 0xdeadbeef
-  //   };
-  //   let t3 = bench_lib::Test2 {
-  //     a: 0xdeadbee2
-  //   };
-  //   let t4 = bench_lib::Test2 {
-  //     a: 0xdeadbee3
-  //   };
-  //   let t = bench_lib::Test { 
-  //     a: 123456,
-  //     b: 54321,
-  //     c: Box::new(-101012),
-  //     // t: t2,
-  //     s: String::from("hello there this is a string"),
-  //     // ptr: Box::into_raw(Box::new(t3)),
-  //     // bx: Box::new(1111),
-  //     // ptr2: Box::into_raw(Box::new(t4)),
-  //   };
-
-  //   let s = BBox::new(t, NoPolicy::new());
-  //   let s_new: BBox<String, NoPolicy> = SandboxInstance::copy_and_execute::<stringy, _, _>(s).specialize_policy().unwrap();
-  //   println!("returned--{:?}", s_new.discard_box());
-  // }
-  
-
   unsafe{ SandboxInstance::split_info(); }
   // println!("final splits are {:?}", s);
 
@@ -270,9 +218,9 @@ fn run_benchmarks(){
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
   // write_stats("hash_baseline".to_string(), hash_baseline_res);
 
-  // let train_baseline_res = train_baseline_bench(100);
-  // let train_baseline_res = train_baseline_res[0..].to_vec();
-  // write_stats("train_baseline".to_string(), train_baseline_res);
+  let train_baseline_res = train_baseline_bench(100);
+  let train_baseline_res = train_baseline_res[0..].to_vec();
+  write_stats("train_baseline".to_string(), train_baseline_res);
 }
 
 // Runs sandboxes with multiple threads to test the sandbox pool.

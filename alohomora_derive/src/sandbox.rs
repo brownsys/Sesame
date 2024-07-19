@@ -7,7 +7,6 @@ use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 use syn::{FnArg, Ident, ItemFn, ReturnType, Token};
 // use ::alohomora_sandbox::alloc_mem_in_sandbox;
 
-// TODO: (aportlan) macro still requires return type to be serializeable even tho we don't
 pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     let function_signature = input.sig;
     let function_name = function_signature.ident;
@@ -41,7 +40,7 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     // Find arguments and return types.
     let params: Vec<_> = function_signature.inputs.iter().collect();
     if params.len() != 1 {
-        return quote_spanned!(function_name.span() => compile_error!("Sandbox function must have exactly one Serializable argument"));
+        return quote_spanned!(function_name.span() => compile_error!("Sandbox function must have exactly one Sandboxable argument"));
     }
     let arg = match params[0] {
         FnArg::Receiver(_) => {
@@ -51,7 +50,7 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     };
     let ret = match function_signature.output {
         ReturnType::Default => {
-            return quote_spanned!(function_name.span() => compile_error!("Sandbox function must return a Serializable type"));
+            return quote_spanned!(function_name.span() => compile_error!("Sandbox function must return a Sandboxable type"));
         },
         ReturnType::Type(_, ty) => *ty.clone(),
     };
@@ -99,12 +98,12 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
     // Check the macro is being used on a struct
     let struct_data = match input.data.clone() {
         syn::Data::Struct(s) => s,
-        _ => return Err((input.ident.span(), "derive(`Sandboxable`) only works on structs")),
+        _ => return Err((input.ident.span(), "the `Sandboxable` trait can only be derived for structs")),
     };
 
     let fields = match struct_data.fields.clone() {
         syn::Fields::Named(f) => f,
-        _ => return Err((input.ident.span(), "no named fields??")),
+        _ => return Err((input.ident.span(), "fields must be named")),
     };
 
     // Check all fields are public
@@ -118,18 +117,13 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
     // Make sure they're using #[repr(C)]
     let mut uses_repr_c = false;
     for attr in input.attrs {
-        // println!("my attrs are {:?}", attr);
-        if format!("{}", attr.to_token_stream()) == format!("#[repr(C)]") {
-            // println!("this attr is reprc");
-            uses_repr_c = true;
-        }
+        if format!("{}", attr.to_token_stream()) == format!("#[repr(C)]") { uses_repr_c = true; }
     }
     if !uses_repr_c {
-        return Err((input.ident.span(), "structs must use the `#[repr(C)]` attribute to enforce the consistent memory layout needed to implement `Swizzleable`."));
+        return Err((input.ident.span(), "`Sandboxable` structs must use the `#[repr(C)]` attribute for a consistent memory layout"));
     }
 
     let struct_name = input.ident.clone();
-    // TODO: (aportlan) should this unswizzled name be more niche? (like with two underscores)
     let unswizzled_name = Ident::new(&(struct_name.to_string() + "Unswizzled"), struct_name.span());
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
@@ -137,10 +131,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
     let field_name = fields.named.iter().map(|field| &field.ident);
     let field_type = fields.named.iter().map(|field| &field.ty);
     let field_name2 = fields.named.iter().map(|field| &field.ident);
-    // let field_type2 = fields.named.iter().map(|field| &field.ty);
     let field_name3 = fields.named.iter().map(|field| &field.ident);
-    // let field_name4 = fields.named.iter().map(|field| &field.ident);
-    // let field_type3 = fields.named.iter().map(|field| &field.ty);
 
     let q = quote!{
         #[automatically_derived]
@@ -151,7 +142,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
         }
 
         #[automatically_derived]
-        #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
+        #[cfg(not(target_arch = "wasm32"))]
         impl #impl_generics ::alohomora_sandbox::Sandboxable for #struct_name #type_generics #where_clause {
             type InSandboxUnswizzled = #unswizzled_name #type_generics;
             fn into_sandbox(outside: Self, alloc: ::alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
@@ -167,11 +158,6 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
         }
     };
 
-    println!("{}", q);
-
     stream.extend(q);
-    // stream.extend(q2);
-
     Ok(stream)
-    // derive the 
 }
