@@ -9,9 +9,9 @@ macro_rules! sandboxable_tuple_impl {
             $($A: Sandboxable,)* {
             type InSandboxUnswizzled = ($($A::InSandboxUnswizzled,)*);
 
+            // This tuple will be an identity iff all of its values are identities
             fn is_identity() -> bool {
                 let b = ($($A::is_identity() &&)* true);
-                println!("{} has identity val {:?}", stringify!(Self), b);
                 return b;
             }
 

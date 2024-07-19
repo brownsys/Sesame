@@ -8,25 +8,6 @@ use crate::bbox::BBox;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
 
-#[derive(Debug, Clone)]
-pub struct SplitSet {
-    pub fold: u64,
-    pub create: u64,
-    // pub alloc: u64,
-    pub copy_in: u64,
-    // pub unswizzle: u64,
-    pub invoke: u64,
-    pub copy_out: u64,
-}
-
-impl SplitSet {
-    pub fn sum(&self) -> u64 {
-        self.fold + self.create + self.copy_in + self.invoke + self.copy_out
-    }
-}
-
-pub static mut SPLITS: Vec<SplitSet> = Vec::new();
-
 // Expose alohomora_sandbox API that controls the interface outside sandbox.
 pub use alohomora_sandbox::{AlohomoraSandbox, FinalSandboxOut};
 
@@ -50,40 +31,6 @@ impl SandboxInstance {
         self.alloc.clone()
     }
 
-    pub fn splits() -> Vec<SplitSet>{
-        unsafe{ SPLITS.clone() }
-    }
-
-    pub unsafe fn split_info() {
-        // get averages
-        let fold_avg = SPLITS.iter().map(|split|{split.fold}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        let create_avg = SPLITS.iter().map(|split|{split.create}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        // let alloc_avg = SPLITS.iter().map(|split|{split.alloc}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        let copy_in_avg = SPLITS.iter().map(|split|{split.copy_in}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        // let unswizzle_avg = SPLITS.iter().map(|split|{split.unswizzle}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        let invoke_avg = SPLITS.iter().map(|split|{split.invoke}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        let copy_out_avg = SPLITS.iter().map(|split|{split.copy_out}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        let total_avg = SPLITS.iter().map(|split|{split.sum()}).reduce(|a, b| a + b).unwrap() / (SPLITS.len() as u64);
-        
-
-        println!("");
-        println!("----SPLIT INFO on {} runs----", SPLITS.len());
-        println!("fold average: {:?}", fold_avg);
-        println!("create average: {:?}", create_avg);
-        println!("alloc average: --");
-        println!("copy in average: {:?}", copy_in_avg);
-        println!("unswizzle average: --");
-        println!("invoke average: {:?}", invoke_avg);
-        println!("copy out (& swizzle) average: {:?}", copy_out_avg);
-        println!("total average: {:?}", total_avg);
-        println!("");
-
-        println!("total average (no fold): {:?}", total_avg - fold_avg);
-        println!("total average (no invoke): {:?}", total_avg - invoke_avg);
-        println!("total average (no fold or invoke): {:?}", total_avg - fold_avg - invoke_avg);
-    }
-
-
     /// Copies `t` into a sandbox and executes the specified function on it.
     pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<R, AnyPolicy>
         where
@@ -95,44 +42,22 @@ impl SandboxInstance {
             R: Sandboxable,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
-        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Remove boxes from args.
         let outer_boxed = fold::<AnyPolicy, _, _>(t).unwrap();
         let (t, p) = outer_boxed.consume();
-        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-        let fold = end - start;
-        println!("copy&execute - folding & consuming took {fold}");
 
-        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Create a new sandbox instance.
         let instance = SandboxInstance::new();
-        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-        let create = end - start;
-        println!("copy&execute - creating instance took {create}");
 
-        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Move arguments into the sandbox & unswizzle.
         let final_arg = Sandboxable::into_sandbox(t, instance.alloc());
-        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-        let copy_in = end - start;
-        println!("copy&execute - copying & unswizzling took {copy_in}");
 
-        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Pass that to the function.
         let ret_ptr = S::invoke(final_arg, instance.sandbox_index);
-        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-        let invoke = end - start;
-        println!("copy&execute - invoking function took {invoke}");
 
-        let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
         // Move returned values out of the sandbox & swizzle.
         let ret_val = unsafe{ Box::leak(Box::from_raw(ret_ptr)) };
         let result = Sandboxable::out_of_sandbox(ret_val, ret_ptr as usize);
-        let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-        let copy_out = end - start;
-        println!("copy&execute - boxing & copy out took {copy_out}");
-
-        unsafe { SPLITS.push(SplitSet { fold, create, copy_in, invoke, copy_out }); }
 
         BBox::new(result, p)
     }

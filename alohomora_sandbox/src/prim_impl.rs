@@ -14,8 +14,10 @@ impl<T: Sandboxable> Sandboxable for Box<T> {
 
         // 2. convert to a sandbox box w 32 bit ptr
         let ptr = Box::into_raw(b);
-        let new_b = BoxUnswizzled { ptr: unswizzle_ptr(ptr), phantom_data: PhantomData::<SandboxAllocator> };
-        new_b
+        BoxUnswizzled { 
+            ptr: unswizzle_ptr(ptr), 
+            phantom_data: PhantomData::<SandboxAllocator> 
+        }
     }
 
     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {

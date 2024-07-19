@@ -4,11 +4,7 @@ use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
 
 pub fn fold<P: Policy, A: Allocator + Clone, S: AlohomoraType<P, A>>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
-    let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
     let (v, p) = Foldable::unsafe_fold(s)?;
-    let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    println!("\tnew_fold - unwrap took {:?}", end - start);
-
     Ok(BBox::new(v, p))
 }
 

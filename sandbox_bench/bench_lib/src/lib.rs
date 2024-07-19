@@ -102,7 +102,7 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
   // TODO: can't return FittedLinearRegression<f64> here bc 
   // its actually very complicated and hard to derive `Sandboxable` for
-  
+
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   // println!("in the sandbox, inputs are {:?}", inputs.len());
@@ -126,7 +126,7 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
   let lin_reg = LinearRegression::new();
   let model = lin_reg.fit(&dataset).unwrap();
 
-  println!("i cant optimize out the model bc her eit is {:?}", model);
+  // println!("i cant optimize out the model bc her eit is {:?}", model);
 
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;

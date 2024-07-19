@@ -211,7 +211,7 @@ fn run_benchmarks(){
   let train_res = train_res[0..].to_vec();
   write_stats("train".to_string(), train_res);
 
-  unsafe{ SandboxInstance::split_info(); }
+  // unsafe{ SandboxInstance::split_info(); }
   // println!("final splits are {:?}", s);
 
   // let hash_baseline_res = hash_baseline_bench(100);
