@@ -198,7 +198,7 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> Result<TokenStream, Err
             fn to_enum(self) -> ::alohomora::AlohomoraTypeEnum {
                 let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
                 ::alohomora::AlohomoraTypeEnum::Struct(::std::collections::HashMap::from([
-                    #((String::from(#alohomora_fields_strings), self.#alohomora_fields_idents.to_enum()),)*
+                    #((String::from(#alohomora_fields_strings), <#alohomora_fields_types as AlohomoraType>::to_enum(self.#alohomora_fields_idents)),)*
                     #((String::from(#verbatim_fields_strings), ::alohomora::AlohomoraTypeEnum::Value(Box::new(self.#verbatim_fields_idents))),)*
                 ]))
             }

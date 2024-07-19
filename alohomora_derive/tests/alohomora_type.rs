@@ -56,7 +56,7 @@ fn test_mixed_boxes() {
 
 // Test specifying the output name.
 // Test having containers of nested types.
-#[derive(AlohomoraType<Global>, Clone, PartialEq, Debug)]
+#[derive(AlohomoraType, Clone, PartialEq, Debug)]
 #[alohomora_out_type(name = NestedOut, to_derive = [PartialEq, Debug])]
 pub struct NestedBoxes {
     pub f1: NoBoxes,
