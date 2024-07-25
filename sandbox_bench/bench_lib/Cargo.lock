@@ -194,6 +194,7 @@ dependencies = [
  "linfa-linear",
  "ndarray",
  "once_cell",
+ "serde",
  "sha2",
 ]
 

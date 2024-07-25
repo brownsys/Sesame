@@ -115,6 +115,10 @@ def PlotMergedPercentilesNoBreak(baseline, alohomora):
         b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS]
         a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS]
 
+        print("at percentile " + percentile + "\n");
+        print("\n baseline train is " + str(b[1]) + "\n");
+        print("\n alohomora train is " + str(a[1]) + "\n");
+
         alpha = 1 if percentile == "50" else 0.3
         label_baseline = "Baseline" if percentile == "50" else None
         label_alohomora = "Alohomora" if percentile == "50" else None

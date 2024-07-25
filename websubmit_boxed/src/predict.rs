@@ -11,7 +11,7 @@ use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm, JsonResponse};
-use alohomora::sandbox::execute_sandbox;
+use alohomora::sandbox::SandboxInstance;
 
 use crate::backend::MySqlBackend;
 use crate::policies::{ContextData, MLTrainingPolicy};
@@ -54,7 +54,7 @@ pub(crate) fn train_and_store(
         })
         .collect();
 
-    let new_model = execute_sandbox::<train, _, _>(grades);
+    let new_model = SandboxInstance::copy_and_execute::<train, _, _>(grades);
     let mut model_ref = MODEL.lock().unwrap();
     *model_ref = Some(new_model.specialize_policy().unwrap());
 }

@@ -35,6 +35,8 @@ impl MySqlBackend {
             log,
             "Connecting to MySql DB and initializing schema {}...", dbname
         );
+        // let password = "";
+        // println!("password is `{}`", password);
         let mut db = BBoxConn::new(
             // this is the user and password from the config.toml file
             BBoxOpts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),

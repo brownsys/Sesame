@@ -31,6 +31,7 @@ fn new_logger() -> slog::Logger {
 }
 
 pub fn make_rocket(args: args::Args) -> BBoxRocket<Build> {
+    // println!("args riocets are {:?}", args);
     add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 0usize);
     add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 1usize);
     add_schema_policy::<policies::AnswerAccessPolicy>(String::from("answers"), 2usize);

@@ -9,11 +9,11 @@ use std::{fs, thread};
 
 use alohomora::bbox::BBox;
 use alohomora::policy::{AnyPolicy, NoPolicy};
-use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, SandboxInstance};
+use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, execute_sandbox};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
-use bench_lib::{stringy, train, train2, hash};
+use bench_lib::{train, hash};
 
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
@@ -41,7 +41,9 @@ fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let now = now.timestamp_nanos_opt().unwrap() as u64;
 
     type Out = (u64, String, u64);
-    let output = SandboxInstance::copy_and_execute::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {})));
+    println!("input email is {:?}", email);
+    println!("input secret is {:?}", secret);
+    let output = execute_sandbox::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {})));
     // let output = execute_sandbox::<hash, _, _>(); // TODO (allenaby) why does this work if now doesn't have bbox, because impl Alohomora type for u64?
     
     // END TIMER (start inside hash)
@@ -57,6 +59,7 @@ fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let total = end - now;
     // let function = total - output.0 - (end - output.2);
     let function = output.0;
+    println!("finished iteration {_i}");
     // println!("final hash {}", output.1);
     (total, 0, 0, function, 0, 0) // <--- key for results
   }).collect()
@@ -120,6 +123,8 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
       (submitted_at, grade)
     }).collect();
 
+    println!("running train {_i}");
+
     // START TIMER (end inside train)
     let now = Utc::now();
     let now = now.timestamp_nanos_opt().unwrap() as u64;
@@ -128,8 +133,10 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // let mut test_grades2 = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), (BBox::new(NaiveDateTime::parse_from_str("2010-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(10, NoPolicy::new()))];
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
-    type Out = (u64, (), u64);
-    let output = SandboxInstance::copy_and_execute::<train,_,_>(grades.clone());
+    type Out = (u64, FittedLinearRegression<f64>, u64);
+    // let first = grades.clone()[0..3].to_vec();
+    // println!("first three grades inside are {:?}", first);
+    let output = execute_sandbox::<train,_,_>(grades.clone());
     // let output = execute_sandbox::<train, _, _>(grades);
     // let output = BBox::new(0, NoPolicy{});
 
@@ -138,13 +145,14 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     let output = output.specialize_policy::<NoPolicy>().unwrap();
     let output: Out = output.discard_box();
+    // println!("final out is {:?}", output);
     let setup = 0;
     let teardown = 0;
 
     // let serialize = output.0 - setup; // output.0 -> time in function
     // let deserialize = (end - output.2) - teardown;
     let total = end - now;
-    // println!("final model is out as {:?}", output.1);
+    println!("final model is out as {:?}", output.1);
     // let function = total - output.0 - (end - output.2);
     let function = output.0;
     (total, 0, setup, function.try_into().unwrap(), teardown.try_into().unwrap(), 0) // <--- key for results
@@ -203,11 +211,12 @@ fn write_stats(name: String, data: Vec<(u64, u64, u64, u64, u64, u64)>) {
 
 // Runs hashing and training benchmarks, outputting their results to the 'results/' directory.
 fn run_benchmarks(){
-  // let hash_res = hash_bench(10000);
-  // let hash_res = hash_res[0..].to_vec();
-  // write_stats("hash".to_string(), hash_res);
+  println!("running benches");
+  let hash_res = hash_bench(1000);
+  let hash_res = hash_res[0..].to_vec();
+  write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(10000);
+  let train_res = train_bench(500);
   let train_res = train_res[0..].to_vec();
   write_stats("train".to_string(), train_res);
 
@@ -218,9 +227,9 @@ fn run_benchmarks(){
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
   // write_stats("hash_baseline".to_string(), hash_baseline_res);
 
-  let train_baseline_res = train_baseline_bench(100);
-  let train_baseline_res = train_baseline_res[0..].to_vec();
-  write_stats("train_baseline".to_string(), train_baseline_res);
+  // let train_baseline_res = train_baseline_bench(100);
+  // let train_baseline_res = train_baseline_res[0..].to_vec();
+  // write_stats("train_baseline".to_string(), train_baseline_res);
 }
 
 // Runs sandboxes with multiple threads to test the sandbox pool.
@@ -246,9 +255,27 @@ fn run_benchmarks(){
 //   }
 // }
 
+// fn custom_struct_test() {
+//   let v = vec![
+//     Potato { size: 10, rating: -2 },
+//     Potato { size: 20, rating: 12 },
+//     Potato { size: 40, rating: 40 },
+//     Potato { size: 30, rating: -2 },
+//   ];
+//   let b = BBox::new(v, NoPolicy::new());
+
+//   let res = execute_sandbox::<potato_count, _, _>(b);
+//   let stats = res.specialize_policy::<NoPolicy>().unwrap().discard_box();
+
+//   println!("stats are {:?}", stats);
+// }
+
 fn main() {
   // BENCHMARKING
   run_benchmarks();
+
+  // test that custom structs work okay
+  // custom_struct_test();
 
   // BENCHMARK NOTES:
   // first compiling NOOPT commit -
@@ -256,46 +283,4 @@ fn main() {
 
   // SANDBOX POOL TESTING
   // test_sandbox_pool();
-
-  // let mut test_grades = vec![(BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())), 
-  //                                                              (BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())),
-  //                                                              (BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new()))];
-
-  // let out: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = SandboxInstance::copy_and_execute::<train, _, _>(test_grades).specialize_policy().unwrap();
-
-  // println!("GOT FIRST OUT {:?}", out.discard_box().result);
-
-  // let instance = SandboxInstance::new();
-  // let mut test_grades2 = Vec::new_in(instance.alloc());
-  // test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2015-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
-  // test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2016-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
-  // test_grades2.push((BBox::new(NaiveDateTime::parse_from_str("2017-09-05 23:56:04", "%Y-%m-%d %H:%M:%S").unwrap(), NoPolicy::new()), BBox::new(3, NoPolicy::new())));
-
-  // let out2 = instance.execute::<train, _, _, _>(test_grades2);
-  // let out2: BBox<FinalSandboxOut<(u64, FittedLinearRegression<f64>, u64)>, NoPolicy> = out2.specialize_policy().unwrap();
-
-  // println!("GOT SECOND OUT {:?}", out2.discard_box().result);
-
-  /*
-  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
-  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
-
-  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
-  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
-
-
-  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
-  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
-
-
-  let output = execute_sandbox::<global_test, _, _>(BBox::new(String::from(""), NoPolicy {}));
-  println!("{}", output.specialize_policy::<NoPolicy>().unwrap().discard_box().result);
-  */
-  // let y = 3;
-  // let password = b"Hello world!";
-  // let password = Vec::from(password);
-  // let password = BBox::new(password, NoPolicy {});
-  // let bbox = execute_sandbox::<gen_pub_key, _, _>(password);
-  // let bbox = bbox.specialize_policy::<NoPolicy>().unwrap();
-  // println!("{:#?}", bbox.discard_box().result);
 }

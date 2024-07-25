@@ -1,6 +1,6 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, result};
 
-use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, Sandboxable};
+use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, FastSandboxTransfer, SandboxTransfer};
 use serde::{Serialize, Deserialize};
 
 use crate::AlohomoraType;
@@ -14,10 +14,37 @@ pub use alohomora_sandbox::{AlohomoraSandbox, FinalSandboxOut};
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::AlohomoraSandbox;
 
-pub struct SandboxInstance {
+/// Copies `t` into a sandbox and executes the specified function on it.
+pub fn execute_sandbox<'a, 'b, S, T, R>(t: T) -> BBox<R, AnyPolicy>
+where
+    T: AlohomoraType,
+    T::Out: SandboxTransfer,
+    R: SandboxTransfer,
+    S: AlohomoraSandbox<'a, 'b, T::Out, R>,
+{
+    // Remove boxes from args.
+    let outer_boxed = fold::<AnyPolicy, _, _>(t).unwrap();
+    let (t, p) = outer_boxed.consume();
+
+    // Create a new sandbox instance.
+    let instance = SandboxInstance::new();
+
+    // move the arg into the sandbox and conver it to a ptr
+    let arg_ptr: *mut std::ffi::c_void = SandboxTransfer::into_sandbox(t, instance.alloc());
+
+    // Pass that ptr to the function.
+    let result = S::invoke(arg_ptr, instance.sandbox_index);
+
+    BBox::new(result, p)
+}
+
+// TODO: (aportlan) this struct is pretty redundant now, so could probably be removed
+// and its functionality offloaded to the allocator
+pub(crate) struct SandboxInstance {
     sandbox_index: usize,
     alloc: SandboxAllocator,
 }
+
 
 impl SandboxInstance {
     /// Create new sandbox instance. (in reality just get one from the pool)
@@ -30,76 +57,6 @@ impl SandboxInstance {
     pub fn alloc(&self) -> SandboxAllocator {
         self.alloc.clone()
     }
-
-    /// Copies `t` into a sandbox and executes the specified function on it.
-    pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<R, AnyPolicy>
-        where
-            T: AlohomoraType,
-            T::Out: Sandboxable + Debug,
-            // <T::Out as Sandboxable>::InSandboxUnswizzled: 
-            //                 From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
-            // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
-            R: Sandboxable,
-            S: AlohomoraSandbox<'a, 'b, T::Out, R>,
-    {
-        // Remove boxes from args.
-        let outer_boxed = fold::<AnyPolicy, _, _>(t).unwrap();
-        let (t, p) = outer_boxed.consume();
-
-        // Create a new sandbox instance.
-        let instance = SandboxInstance::new();
-
-        // Move arguments into the sandbox & unswizzle.
-        let final_arg = Sandboxable::into_sandbox(t, instance.alloc());
-
-        // Pass that to the function.
-        let ret_ptr = S::invoke(final_arg, instance.sandbox_index);
-
-        // Move returned values out of the sandbox & swizzle.
-        let ret_val = unsafe{ Box::leak(Box::from_raw(ret_ptr)) };
-        let result = Sandboxable::out_of_sandbox(ret_val, ret_ptr as usize);
-
-        BBox::new(result, p)
-    }
-
-    // Executes `S` on variable `t` assuming that `t` is already in sandboxed memory 
-    // (i.e. it has been allocated with this `SandboxInstance`'s `SandboxAllocator`).
-    // pub fn execute<'a, 'b, S, T, R, A>(self, t: T) -> BBox<R, AnyPolicy>
-    //     where
-                                         
-    //         T: AlohomoraType<AnyPolicy, SandboxAllocator>,                      //     To ensure `T` is Alohomora type and using a sandbox allocator
-    //         A: AllocateableInSandbox + Swizzleable,                             // <--
-    //         T::Out: Into<<A as AllocateableInSandbox>::UsingSandboxAllocator>,  // <-| To ensure `T::Out` uses a sandbox allocator
-    //         <A as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable,
-    //         A::Unswizzled: From<<<A as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // can't remember why we need this
-    //         R: Swizzleable,
-    //         S: AlohomoraSandbox<'a, 'b, A, R>,
-    // {
-    //     let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    //     // 1. remove bboxes.
-    //     let outer_boxed = fold(t).unwrap();
-    //     let (t, p) = outer_boxed.consume();
-    //     let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    //     println!("execute - folding took {:?}", end - start);
-
-    //     let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    //     // 2. unswizzle data type.
-    //     let sandbox_alloc: <A as AllocateableInSandbox>::UsingSandboxAllocator = t.into();
-    //     let final_arg = unsafe { Swizzleable::unswizzle(sandbox_alloc).into() };
-    //     let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    //     println!("execute - unswizzling took {:?}", end - start);
-
-    //     let start = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    //     // 3. call functor.
-    //     let ret = S::invoke(final_arg, self.sandbox_index);
-    //     let end = mysql::chrono::Utc::now().timestamp_nanos_opt().unwrap() as u64;
-    //     println!("execute - calling functor took {:?}", end - start);
-
-    //     let ret = unsafe{ Box::from_raw(ret) };
-    //     let result = unsafe{ Swizzleable::swizzle(*ret) };
-
-    //     BBox::new(result, p)
-    // }
 }
 
 impl Drop for SandboxInstance {

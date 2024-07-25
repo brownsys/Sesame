@@ -63,7 +63,6 @@ impl<T> Clone for RawMyVec<T, SandboxAllocator> {
 
 impl<T> Clone for MyVec<T> {
     fn clone(&self) -> Self {
-        println!("cloning w len {:?}", self.len);
         MyVec { buf: self.buf.clone(), len: self.len.clone() }
     }
 }
