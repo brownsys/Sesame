@@ -24,4 +24,8 @@ crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [package.metadata]
-sandboxes = ["hash", "train", "evaluate_model"]
+sandboxes = [
+    "hash", 
+    "train", 
+    # "evaluate_model"
+]

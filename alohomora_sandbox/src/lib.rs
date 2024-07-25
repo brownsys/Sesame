@@ -19,7 +19,7 @@ pub mod swizzle;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Sandboxable, F: Fn(T) -> R>(
+pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Serialize, F: Fn(T) -> R>(
     functor: F, arg: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
     use std::os::raw::c_void;
     use std::slice;
@@ -36,20 +36,32 @@ pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Sandboxable, F: Fn(T) -> R>(
         functor(*b)
     };
 
-    // Put the output into a box
-    let b = Box::new(ret);
-
-    // Pass on the ptr
-    Box::into_raw(b) as *mut c_void
+    // Serialize output.
+    // println!("ret is {:?}", ret);
+    let mut ret = bincode::serialize(&ret).unwrap();
+    // println!("bincode ret is {:?}", ret);
+    let size = ret.len() as u16;
+    let size_1 = (size / 100) as u8;
+    let size_2 = (size % 100) as u8;
+    let mut vec2 = Vec::with_capacity(ret.len() + 2);
+    vec2.push(size_1);
+    vec2.push(size_2);
+    for x in ret {
+        vec2.push(x);
+    }
+    // println!("in ser w bytes {:?}", vec2);
+    let ptttr = vec2.as_mut_ptr();
+    mem::forget(vec2);
+    ptttr as *mut std::ffi::c_void
 }
 
 // Trait that sandboxed functions should implement.
 pub trait AlohomoraSandbox<'a, 'b, T, R> 
     where 
         T: Sandboxable,
-        R: Sandboxable
+        R: Serialize + Deserialize<'b>
 {
-    fn invoke(arg: T::InSandboxUnswizzled, sandbox_index: usize) -> *mut R::InSandboxUnswizzled;
+    fn invoke(arg: T::InSandboxUnswizzled, sandbox_index: usize) -> R;
 }
 
 /// New mega trait that handles copying to/from sandboxes & all swizzling.
@@ -116,7 +128,15 @@ macro_rules! invoke_sandbox {
         let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, $sandbox_index) };
         let ret = ret2.result;
 
+        // println!("ret 2 {:?}", ret2);
+        // println!("ret {:?}", ret);
+
+        let bytes = unsafe {std::slice::from_raw_parts(ret, ret2.size as usize)};
+        // println!("before deser w bytes {:?}", bytes);
+        let result = ::alohomora_sandbox::bincode::deserialize(bytes).unwrap();
+        // println!("after deser");
+
         // Return.
-        return ret as *mut <$ret_ty as ::alohomora_sandbox::Sandboxable>::InSandboxUnswizzled;
+        return result;
     }
 }

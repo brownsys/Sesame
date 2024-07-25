@@ -1,3 +1,4 @@
+#![feature(allocator_api)]
 // use serde::{Deserialize, Serialize};
 use chrono::naive::NaiveDateTime;
 use sha2::{Sha256, Digest};
@@ -43,8 +44,8 @@ pub fn train(grades: Vec<(NaiveDateTime, u64)>) -> FittedLinearRegression<f64> {
     model
 }
 
-#[AlohomoraSandbox()]
-pub fn evaluate_model(inputs: (String, FittedLinearRegression<f64>)) -> f64 {
-    let time = NaiveDateTime::parse_from_str(inputs.0.as_str(), "%Y-%m-%d %H:%M:%S");
-    inputs.1.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + inputs.1.intercept()
-}
+// #[AlohomoraSandbox()]
+// pub fn evaluate_model(inputs: (String, FittedLinearRegression<f64>)) -> f64 {
+//     let time = NaiveDateTime::parse_from_str(inputs.0.as_str(), "%Y-%m-%d %H:%M:%S");
+//     inputs.1.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + inputs.1.intercept()
+// }

@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, result};
 
 use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, Sandboxable};
 use serde::{Serialize, Deserialize};
@@ -39,7 +39,7 @@ impl SandboxInstance {
             // <T::Out as Sandboxable>::InSandboxUnswizzled: 
             //                 From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
             // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
-            R: Sandboxable,
+            R: Serialize + Deserialize<'b>,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
         // Remove boxes from args.
@@ -53,11 +53,7 @@ impl SandboxInstance {
         let final_arg = Sandboxable::into_sandbox(t, instance.alloc());
 
         // Pass that to the function.
-        let ret_ptr = S::invoke(final_arg, instance.sandbox_index);
-
-        // Move returned values out of the sandbox & swizzle.
-        let ret_val = unsafe{ Box::leak(Box::from_raw(ret_ptr)) };
-        let result = Sandboxable::out_of_sandbox(ret_val, ret_ptr as usize);
+        let result = S::invoke(final_arg, instance.sandbox_index);
 
         BBox::new(result, p)
     }

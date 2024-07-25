@@ -3,10 +3,10 @@
 all: boxed unboxed
 
 boxed:
-	cargo run --release --features "boxed" -- -i alohomora
+	cargo run --release --features "boxed" -- -i alohomora -c sample-config.toml
 
 unboxed:
-	cargo run --release --features "unboxed" -- -i alohomora
+	cargo run --release --features "unboxed" -- -i alohomora -c sample-config.toml
 
 plot:
 	. venv/bin/activate; python3 plotting.py

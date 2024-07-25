@@ -124,6 +124,8 @@ fn register_users(client: &Client, users: &mut Vec<User>) -> Vec<Duration> {
             let response = request.dispatch();
             let elapsed = now.elapsed();
 
+            // println!("response {:?}", response);
+
             let json: serde_json::Value = response.into_json().unwrap();
             let apikey: serde_json::Value = json.get("apikey").unwrap().to_owned();
 

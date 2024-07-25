@@ -166,13 +166,17 @@ sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
     uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
     start = high_resolution_clock::now();
 
+    // Copy output to our memory.
+    char* result = (char*) malloc(size2);
+    memcpy(result, buffer + 2, size2);
+
     // END TEARDOWN TIMER HERE
     stop = high_resolution_clock::now();
     duration = duration_cast<nanoseconds>(stop - start);
     unsigned long long teardown = duration.count();
 
     // Return timing data.
-    return sandbox_out \{buffer, size2, setup, teardown};
+    return sandbox_out \{result, size2, setup, teardown};
 }
 
 {{ endfor }}
