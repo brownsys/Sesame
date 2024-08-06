@@ -5,6 +5,7 @@ use crate::Sandboxable;
 // Implement `Sandboxable` for tuples of `Sandboxable` types.
 macro_rules! sandboxable_tuple_impl {
     ($([$A:tt,$i:tt]),*) => {
+        #[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
         impl<$($A,)*> Sandboxable for ($($A,)*) where 
             $($A: Sandboxable,)* {
             type InSandboxUnswizzled = ($($A::InSandboxUnswizzled,)*);

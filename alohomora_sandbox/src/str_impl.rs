@@ -7,6 +7,7 @@ pub struct StringUnswizzled {
     vec: MyVecUnswizzled<u8>,
 }
 
+#[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
 impl Sandboxable for String {
     type InSandboxUnswizzled = StringUnswizzled;
     fn into_sandbox(outside: Self, alloc: crate::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {

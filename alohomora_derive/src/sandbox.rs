@@ -143,6 +143,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
 
         #[automatically_derived]
         #[cfg(not(target_arch = "wasm32"))]
+        #[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
         impl #impl_generics ::alohomora_sandbox::Sandboxable for #struct_name #type_generics #where_clause {
             type InSandboxUnswizzled = #unswizzled_name #type_generics;
             fn into_sandbox(outside: Self, alloc: ::alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {

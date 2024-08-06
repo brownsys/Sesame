@@ -3,7 +3,7 @@ use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, R
 use chrono::naive::NaiveDateTime;
 
 
-
+#[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
 impl<T: Sandboxable> Sandboxable for Box<T> {
     type InSandboxUnswizzled = BoxUnswizzled<T::InSandboxUnswizzled, SandboxAllocator>; // TODO: is this the right memory layout
 
@@ -28,6 +28,7 @@ impl<T: Sandboxable> Sandboxable for Box<T> {
 // Implement `Sandboxable` for primitives that won't change in the sandbox.
 macro_rules! derive_sandboxable_identity {
     ($t:ty) => {
+        #[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
         impl Sandboxable for $t {
             type InSandboxUnswizzled = $t;
             fn is_identity() -> bool { true }
@@ -51,12 +52,14 @@ derive_sandboxable_identity!(f32);
 derive_sandboxable_identity!(f64);
 derive_sandboxable_identity!(NaiveDateTime);
 
+#[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
 impl Sandboxable for usize {
     type InSandboxUnswizzled = u32;
     fn into_sandbox(outside: Self, _: SandboxAllocator) -> u32 { outside.try_into().unwrap() }
     fn out_of_sandbox(inside: &u32, _: usize) -> Self { inside.clone().try_into().unwrap() }
 }
 
+#[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
 impl Sandboxable for isize {
     type InSandboxUnswizzled = i32;
     fn into_sandbox(outside: Self, _: SandboxAllocator) -> i32 { outside.try_into().unwrap() }

@@ -3,6 +3,8 @@ use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, R
 use crate::Sandboxable;
 use chrono::naive::NaiveDateTime;
 
+#[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
+// TODO: (aportlan) T shouldn't have to be debuggable
 impl<T: Sandboxable + Debug> Sandboxable for Vec<T> 
 where T::InSandboxUnswizzled: Debug {
     type InSandboxUnswizzled = MyVecUnswizzled<T::InSandboxUnswizzled>;
