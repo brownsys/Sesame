@@ -44,7 +44,7 @@ derive_sandboxable_identity!(u8);
 derive_sandboxable_identity!(u16);
 derive_sandboxable_identity!(u32);
 derive_sandboxable_identity!(u64);
-derive_sandboxable_identity!(i8);
+// derive_sandboxable_identity!(i8);
 derive_sandboxable_identity!(i16);
 derive_sandboxable_identity!(i32);
 derive_sandboxable_identity!(i64);

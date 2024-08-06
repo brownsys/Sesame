@@ -1,6 +1,6 @@
 use std::{fmt::Debug, result};
 
-use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, Sandboxable};
+use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, Sandboxable, SuperSandboxable};
 use serde::{Serialize, Deserialize};
 
 use crate::AlohomoraType;
