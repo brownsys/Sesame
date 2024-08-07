@@ -35,7 +35,7 @@ impl SandboxInstance {
     pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<R, AnyPolicy>
         where
             T: AlohomoraType,
-            T::Out: Sandboxable + Debug,
+            T::Out: SuperSandboxable,
             // <T::Out as Sandboxable>::InSandboxUnswizzled: 
             //                 From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
             // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
@@ -49,11 +49,11 @@ impl SandboxInstance {
         // Create a new sandbox instance.
         let instance = SandboxInstance::new();
 
-        // Move arguments into the sandbox & unswizzle.
-        let final_arg = Sandboxable::into_sandbox(t, instance.alloc());
+        // move the arg into the sandbox and conver it to a ptr
+        let arg_ptr: *mut <<T as AlohomoraType<AnyPolicy, std::alloc::Global>>::Out as SuperSandboxable>::PointerRepresentation = SuperSandboxable::into_sandbox(t, instance.alloc());
 
-        // Pass that to the function.
-        let result = S::invoke(final_arg, instance.sandbox_index);
+        // Pass that ptr to the function.
+        let result = S::invoke(arg_ptr, instance.sandbox_index);
 
         BBox::new(result, p)
     }

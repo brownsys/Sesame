@@ -57,6 +57,7 @@ fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let total = end - now;
     // let function = total - output.0 - (end - output.2);
     let function = output.0;
+    println!("finished iteration {_i}");
     // println!("final hash {}", output.1);
     (total, 0, 0, function, 0, 0) // <--- key for results
   }).collect()
@@ -119,6 +120,8 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
       let grade = BBox::new(grade, NoPolicy {});
       (submitted_at, grade)
     }).collect();
+
+    println!("running train {_i}");
 
     // START TIMER (end inside train)
     let now = Utc::now();
@@ -203,11 +206,12 @@ fn write_stats(name: String, data: Vec<(u64, u64, u64, u64, u64, u64)>) {
 
 // Runs hashing and training benchmarks, outputting their results to the 'results/' directory.
 fn run_benchmarks(){
+  println!("running benches");
   // let hash_res = hash_bench(10000);
   // let hash_res = hash_res[0..].to_vec();
   // write_stats("hash".to_string(), hash_res);
 
-  let train_res = train_bench(10000);
+  let train_res = train_bench(500);
   let train_res = train_res[0..].to_vec();
   write_stats("train".to_string(), train_res);
 

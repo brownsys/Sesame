@@ -30,11 +30,12 @@ pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Serialize, F: Fn(T) -> R>(
     use std::mem;
 
     // Convert arg to a pointer of the right type.
-    let ptr = arg as *mut T;
+    let arg_ptr = arg as *mut T;
     
     let ret = unsafe { 
         // Put it into a box so we can get ownership
-        let b = Box::from_raw(ptr);
+        // let b = Box::from_raw(ptr);
+        let arg_val = SuperSandboxable::data_from_ptr(arg_ptr);
         
         // Call the actual function
         functor(*b)
@@ -62,10 +63,10 @@ pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Serialize, F: Fn(T) -> R>(
 // Trait that sandboxed functions should implement.
 pub trait AlohomoraSandbox<'a, 'b, T, R> 
     where 
-        T: Sandboxable,
+        T: SuperSandboxable,
         R: Serialize + Deserialize<'b>
 {
-    fn invoke(arg: T::InSandboxUnswizzled, sandbox_index: usize) -> R;
+    fn invoke(arg: *mut T::PointerRepresentation, sandbox_index: usize) -> R;
 }
 
 /// New mega trait that handles copying to/from sandboxes & all swizzling.
@@ -120,35 +121,34 @@ pub trait SuperSandboxable {
 
 }
 
-impl<T> SuperSandboxable for T
-    where T: Serialize {
-        default type PointerRepresentation = Vec<u8>;
-        default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut Self::PointerRepresentation {
-            println!("serialize version");
-            todo!()
-        }
+// impl<T> SuperSandboxable for T
+//     where T: Serialize {
+//         default type PointerRepresentation = Vec<u8>;
+//         default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut Self::PointerRepresentation {
+//             println!("serialize version");
+//             todo!()
+//         }
 
 
-        default fn data_from_ptr(ptr: *mut Self::PointerRepresentation) -> Self {
-            todo!()
-        }
-        default fn ptr_from_data(data: Self) -> *mut Self::PointerRepresentation {
-            todo!()
-        }
+//         default fn data_from_ptr(ptr: *mut Self::PointerRepresentation) -> Self {
+//             todo!()
+//         }
+//         default fn ptr_from_data(data: Self) -> *mut Self::PointerRepresentation {
+//             todo!()
+//         }
 
-        default fn out_of_sandbox(ptr: *mut Self::PointerRepresentation) -> Self {
-            todo!()
-        }
-}
+//         default fn out_of_sandbox(ptr: *mut Self::PointerRepresentation) -> Self {
+//             todo!()
+//         }
+// }
 
-impl<T: Sandboxable + Serialize> SuperSandboxable for T {
+impl<T: Sandboxable> SuperSandboxable for T {
     type PointerRepresentation = Self;
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut Self::PointerRepresentation {
         let val = Sandboxable::into_sandbox(outside, alloc.clone());
         let b = Box::new_in(val, alloc);
         Box::into_raw(b) as *mut Self::PointerRepresentation
     }
-
 
     fn data_from_ptr(ptr: *mut Self) -> Self {
         // Take value from box
@@ -223,10 +223,11 @@ macro_rules! invoke_sandbox {
         // `$arg` is already a swizzled 32 bit type for the sandbox, 
         // so we just make a raw pointer for passing through 'C land' 
         // then the preamble can reconstruct the real type back in Rust
-        let new_inside_ptr = Box::into_raw(Box::new_in($arg, ::alohomora_sandbox::alloc::SandboxAllocator::new($sandbox_index)));
+        // let new_inside_ptr = Box::into_raw(Box::new_in($arg, ::alohomora_sandbox::alloc::SandboxAllocator::new($sandbox_index)));
+        // ^^the line above is now already done by the SuperSandboxable::into_sandbox()
         
         // Invoke sandbox via C.
-        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor(new_inside_ptr as *mut std::ffi::c_void, $sandbox_index) };
+        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
         let ret = ret2.result;
 
         // println!("ret 2 {:?}", ret2);

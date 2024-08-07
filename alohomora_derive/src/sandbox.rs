@@ -69,7 +69,7 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
         #[cfg(not(target_arch = "wasm32"))]
         #[doc = "Library implementation of AlohomoraSandbox. Do not copy this docstring!"]
         impl<'__a, '__b> alohomora_sandbox::AlohomoraSandbox<'__a, '__b, #arg, #ret> for #function_name {
-            fn invoke(arg: <#arg as ::alohomora_sandbox::Sandboxable>::InSandboxUnswizzled, sandbox_index: usize) -> #ret {
+            fn invoke(arg: *mut <#arg as ::alohomora_sandbox::SuperSandboxable>::PointerRepresentation, sandbox_index: usize) -> #ret {
                 alohomora_sandbox::invoke_sandbox!(#invoke_sandbox_function_name_c, arg, #arg, #ret, sandbox_index);
             }
         }
