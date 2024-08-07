@@ -7,8 +7,6 @@ pub extern crate bincode;
 pub extern crate serde;
 pub extern crate serde_json;
 
-use std::any::Any;
-
 use alloc::SandboxAllocator;
 use serde::{Serialize, Deserialize};
 
@@ -23,22 +21,22 @@ pub mod swizzle;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: std::fmt::Debug, R: Serialize, F: Fn(T) -> R>(
+pub fn sandbox_preamble<'a, T: SuperSandboxable<PointerRepresentation = P>, P, R: Serialize, F: Fn(T) -> R>(
     functor: F, arg: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
     use std::os::raw::c_void;
     use std::slice;
     use std::mem;
 
     // Convert arg to a pointer of the right type.
-    let arg_ptr = arg as *mut T;
+    let arg_ptr = arg as *mut P;
     
     let ret = unsafe { 
         // Put it into a box so we can get ownership
         // let b = Box::from_raw(ptr);
-        let arg_val = SuperSandboxable::data_from_ptr(arg_ptr);
+        let arg_val: T = SuperSandboxable::data_from_ptr(arg_ptr);
         
         // Call the actual function
-        functor(*b)
+        functor(arg_val)
     };
 
     // Serialize output.

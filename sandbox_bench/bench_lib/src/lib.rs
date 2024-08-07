@@ -12,7 +12,6 @@ use alohomora_sandbox::Sandboxable;
 use std::convert::TryInto;
 use std::os::raw::c_void;
 use std::ptr::NonNull;
-// use std::str::FromStr;
 use std::time::{Duration, Instant};
 
 use std::io::{Read, Write};
@@ -21,10 +20,8 @@ use std::{iter, ptr};
 extern crate once_cell;
 
 // static mut GLOBAL: u64 = 0;
-
-#[derive(Debug, Sandboxable)]
-// #[repr(Rust)]
 #[repr(C)]
+#[derive(Debug, Sandboxable)]
 pub struct Test {
   pub a: i32,
   pub b: usize,
@@ -36,8 +33,8 @@ pub struct Test {
   // pub ptr2: *const Test2,
 }
 
-#[derive(Clone, Debug, Sandboxable)]
 #[repr(C)]
+#[derive(Clone, Debug, Sandboxable)]
 pub struct Test2 {
   pub a: usize,
 }

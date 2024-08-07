@@ -141,6 +141,20 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
             #(pub #field_name: <#field_type as ::alohomora_sandbox::Sandboxable>::InSandboxUnswizzled,)*
         }
 
+
+        // But we still need AN implementation when it's not wasm so the compiler trusts
+        // were gonna have one at runtime.
+        #[cfg(target_arch = "wasm32")]
+        impl #impl_generics ::alohomora_sandbox::Sandboxable for #struct_name #type_generics #where_clause {
+            type InSandboxUnswizzled = Self;
+            fn into_sandbox(outside: Self, alloc: ::alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
+                todo!();
+            }
+            fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
+                todo!();
+            }
+        }
+
         #[automatically_derived]
         #[cfg(not(target_arch = "wasm32"))]
         #[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
