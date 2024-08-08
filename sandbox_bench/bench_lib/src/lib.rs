@@ -20,24 +20,24 @@ use std::{iter, ptr};
 extern crate once_cell;
 
 // static mut GLOBAL: u64 = 0;
-#[repr(C)]
-#[derive(Debug, Sandboxable)]
-pub struct Test {
-  pub a: i32,
-  pub b: usize,
-  pub c: Box<isize>,
-  // pub t: T2,
-  // pub ptr: *mut T,
-  pub s: String,
-  // pub bx: Box<usize>,
-  // pub ptr2: *const Test2,
-}
+// #[repr(C)]
+// #[derive(Debug, Sandboxable)]
+// pub struct Test {
+//   pub a: i32,
+//   pub b: usize,
+//   pub c: Box<isize>,
+//   // pub t: T2,
+//   // pub ptr: *mut T,
+//   pub s: String,
+//   // pub bx: Box<usize>,
+//   // pub ptr2: *const Test2,
+// }
 
-#[repr(C)]
-#[derive(Clone, Debug, Sandboxable)]
-pub struct Test2 {
-  pub a: usize,
-}
+// #[repr(C)]
+// #[derive(Clone, Debug, Serialize, Deserialize, Sandboxable)]
+// pub struct Test2 {
+//   pub a: usize,
+// }
 
 // Sandbox functions.
 #[AlohomoraSandbox()]
@@ -60,21 +60,21 @@ pub fn hash(inputs: (String, String, u64)) -> (u64, String, u64) {
   (now.elapsed().as_nanos() as u64, key, 0)
 }
 
-#[AlohomoraSandbox()]
-pub fn stringy(s: Test) -> String {
-  println!("final struct size of {} IN SANDBOX is {:?}", stringify!(Test), std::mem::size_of::<Test>());
-  println!("a is at {:p} w size {}", &s.a, std::mem::size_of_val(&s.a));
-  println!("b is at {:p} w size {}", &s.b, std::mem::size_of_val(&s.b));
-  println!("c is at {:p} w size {}", &s.c, std::mem::size_of_val(&s.c));
-  println!("str is at {:p} w size {}", &s.s, std::mem::size_of_val(&s.s));
-  // println!("hjello i got string {s}");
-  println!("str len is {:?}", s.s.len());
-  println!("hello i got test struct {:?}", s);
-  // unsafe{ println!("w ptr val {:?}", (*s.ptr)); }
-  // unsafe{ println!("w ptr2 val {:?}", (*s.ptr2)); }
-  // unsafe{ println!("w box val {:?}", (*s.bx)); }
-  format!("hello there {:?}, im returning to you", s)
-}
+// #[AlohomoraSandbox()]
+// pub fn stringy(s: Test) -> String {
+//   println!("final struct size of {} IN SANDBOX is {:?}", stringify!(Test), std::mem::size_of::<Test>());
+//   println!("a is at {:p} w size {}", &s.a, std::mem::size_of_val(&s.a));
+//   println!("b is at {:p} w size {}", &s.b, std::mem::size_of_val(&s.b));
+//   println!("c is at {:p} w size {}", &s.c, std::mem::size_of_val(&s.c));
+//   println!("str is at {:p} w size {}", &s.s, std::mem::size_of_val(&s.s));
+//   // println!("hjello i got string {s}");
+//   println!("str len is {:?}", s.s.len());
+//   println!("hello i got test struct {:?}", s);
+//   // unsafe{ println!("w ptr val {:?}", (*s.ptr)); }
+//   // unsafe{ println!("w ptr2 val {:?}", (*s.ptr2)); }
+//   // unsafe{ println!("w box val {:?}", (*s.bx)); }
+//   format!("hello there {:?}, im returning to you", s)
+// }
 
 #[AlohomoraSandbox()]
 pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
@@ -102,7 +102,7 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
-  // println!("in the sandbox, inputs are {:?}", inputs.len());
+  println!("in the sandbox, inputs are {:?}", inputs.len());
   let now = Instant::now();
 
   let grades = inputs;

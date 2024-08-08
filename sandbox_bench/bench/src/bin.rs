@@ -13,7 +13,7 @@ use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, SandboxInstance};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
-use bench_lib::{stringy, train, train2, hash};
+use bench_lib::{train, train2, hash};
 
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
@@ -222,9 +222,9 @@ fn run_benchmarks(){
   // let hash_baseline_res = hash_baseline_res[0..].to_vec();
   // write_stats("hash_baseline".to_string(), hash_baseline_res);
 
-  let train_baseline_res = train_baseline_bench(100);
-  let train_baseline_res = train_baseline_res[0..].to_vec();
-  write_stats("train_baseline".to_string(), train_baseline_res);
+  // let train_baseline_res = train_baseline_bench(100);
+  // let train_baseline_res = train_baseline_res[0..].to_vec();
+  // write_stats("train_baseline".to_string(), train_baseline_res);
 }
 
 // Runs sandboxes with multiple threads to test the sandbox pool.

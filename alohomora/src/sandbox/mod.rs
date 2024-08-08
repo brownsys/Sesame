@@ -50,7 +50,7 @@ impl SandboxInstance {
         let instance = SandboxInstance::new();
 
         // move the arg into the sandbox and conver it to a ptr
-        let arg_ptr: *mut <<T as AlohomoraType<AnyPolicy, std::alloc::Global>>::Out as SuperSandboxable>::PointerRepresentation = SuperSandboxable::into_sandbox(t, instance.alloc());
+        let arg_ptr: *mut std::ffi::c_void = SuperSandboxable::into_sandbox(t, instance.alloc());
 
         // Pass that ptr to the function.
         let result = S::invoke(arg_ptr, instance.sandbox_index);

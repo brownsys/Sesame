@@ -30,7 +30,7 @@ sandboxes = [
   "hash",
   "train",
   "train2",
-  "stringy"
+  # "stringy"
   # "alloc_in_sandbox",
   # "transfer_arg"
 ]

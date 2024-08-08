@@ -7,6 +7,8 @@ pub extern crate bincode;
 pub extern crate serde;
 pub extern crate serde_json;
 
+use std::{convert::TryInto, fmt::Debug};
+
 use alloc::SandboxAllocator;
 use serde::{Serialize, Deserialize};
 
@@ -21,16 +23,16 @@ pub mod swizzle;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: SuperSandboxable<PointerRepresentation = P>, P, R: Serialize, F: Fn(T) -> R>(
-    functor: F, arg: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
-    use std::os::raw::c_void;
+pub fn sandbox_preamble<'a, T: SuperSandboxable, R: Serialize, F: Fn(T) -> R>(
+    functor: F, arg_ptr: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
+    // use std::os::raw::c_void;
     use std::slice;
     use std::mem;
 
     // Convert arg to a pointer of the right type.
-    let arg_ptr = arg as *mut P;
+    // let arg_ptr = arg as *mut c_void;
     
-    let ret = unsafe { 
+    let ret = unsafe {
         // Put it into a box so we can get ownership
         // let b = Box::from_raw(ptr);
         let arg_val: T = SuperSandboxable::data_from_ptr(arg_ptr);
@@ -64,7 +66,7 @@ pub trait AlohomoraSandbox<'a, 'b, T, R>
         T: SuperSandboxable,
         R: Serialize + Deserialize<'b>
 {
-    fn invoke(arg: *mut T::PointerRepresentation, sandbox_index: usize) -> R;
+    fn invoke(arg: *mut std::ffi::c_void, sandbox_index: usize) -> R;
 }
 
 /// New mega trait that handles copying to/from sandboxes & all swizzling.
@@ -90,19 +92,18 @@ pub trait Sandboxable {
 /// New super (even more mega) trait for both fast (`Sandboxable`) & slow (`Serializable`) path sandbox types
 pub trait SuperSandboxable {
     /// the representation this points to in ptr form
-    type PointerRepresentation; 
     // so for serializing, it'll point to a vec of u8
     // for 
     
-    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut Self::PointerRepresentation;
+    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void;
     //                                                      FIXME:    ^^thinking this should be c_void could be mistake
 
     // all run IN THE SANDBOX (so will automatically use the `InSandboxUnswizzled` version of the data)
     // just by virtue of being in the sandbox
-    fn data_from_ptr(ptr: *mut Self::PointerRepresentation) -> Self;
-    fn ptr_from_data(data: Self) -> *mut Self::PointerRepresentation;
+    fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self;
+    fn ptr_from_data(data: Self) -> *mut std::ffi::c_void;
 
-    fn out_of_sandbox(ptr: *mut Self::PointerRepresentation) -> Self;
+    fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self;
     
     //        [application]       ||   [sandbox]
     //                            ||
@@ -119,48 +120,71 @@ pub trait SuperSandboxable {
 
 }
 
-// impl<T> SuperSandboxable for T
-//     where T: Serialize {
-//         default type PointerRepresentation = Vec<u8>;
-//         default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut Self::PointerRepresentation {
-//             println!("serialize version");
-//             todo!()
-//         }
+impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
+        default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
+            println!("serialize into_sandbox");
 
+            // need to serialize into the sandbox
+            let v: Vec<u8> = bincode::serialize(&outside).unwrap();
 
-//         default fn data_from_ptr(ptr: *mut Self::PointerRepresentation) -> Self {
-//             todo!()
-//         }
-//         default fn ptr_from_data(data: Self) -> *mut Self::PointerRepresentation {
-//             todo!()
-//         }
+            println!("external bytes {:?}", v.len());
 
-//         default fn out_of_sandbox(ptr: *mut Self::PointerRepresentation) -> Self {
-//             todo!()
-//         }
-// }
+            let mut vec_in = Vec::with_capacity_in(v.len(), alloc.clone());
+            for c in v {
+                vec_in.push(c);
+            }
 
-impl<T: Sandboxable> SuperSandboxable for T {
-    type PointerRepresentation = Self;
-    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut Self::PointerRepresentation {
+            println!("internal bytes {:?}", vec_in.len());
+
+            let (ptr, len, _) = vec_in.into_raw_parts();
+            let tup: (*mut u8, u64) = (ptr, len as u64);
+            let b = Box::new_in(tup, alloc);
+            Box::into_raw(b) as *mut std::ffi::c_void
+        }
+
+        default fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
+            println!("serialize data_from ptr");
+            println!("serialize data_from for type {}", std::any::type_name::<Self>());
+            let real_ptr = ptr as *mut (*mut u8, u64);
+            let (ptr, len) = unsafe{ *Box::from_raw(real_ptr) };
+            let bytes = unsafe { std::slice::from_raw_parts(ptr, len.try_into().unwrap()) };
+            let val: Self = bincode::deserialize(&bytes).unwrap();
+            // println!("val is {:?}", val);
+            val
+        }
+        default fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
+            todo!()
+        }
+
+        default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
+            todo!()
+        }
+}
+
+impl<'a, T: Sandboxable + Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
+    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
+        println!("sandboxable version");
         let val = Sandboxable::into_sandbox(outside, alloc.clone());
         let b = Box::new_in(val, alloc);
-        Box::into_raw(b) as *mut Self::PointerRepresentation
+        Box::into_raw(b) as *mut std::ffi::c_void
     }
 
-    fn data_from_ptr(ptr: *mut Self) -> Self {
+    fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
         // Take value from box
+        println!("sandbox data_from for type {}", std::any::type_name::<Self>());
         unsafe{ *Box::from_raw(ptr as *mut T) }
     }
-    fn ptr_from_data(data: Self) -> *mut Self {
+    fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
         // Put the output into a box
+        todo!();
         let b = Box::new(data);
 
         // Pass on the ptr
-        Box::into_raw(b)
+        Box::into_raw(b) as *mut std::ffi::c_void
     }
 
-    fn out_of_sandbox(ptr: *mut Self::PointerRepresentation) -> Self {
+    fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
+        todo!();
         // Move returned values out of the sandbox & swizzle.
         let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as Sandboxable>::InSandboxUnswizzled)) };
         let result = Sandboxable::out_of_sandbox(ret_val, ptr as usize);
