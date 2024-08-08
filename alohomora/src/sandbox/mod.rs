@@ -39,7 +39,7 @@ impl SandboxInstance {
             // <T::Out as Sandboxable>::InSandboxUnswizzled: 
             //                 From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
             // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
-            R: Serialize + Deserialize<'b>,
+            R: SuperSandboxable,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
         // Remove boxes from args.

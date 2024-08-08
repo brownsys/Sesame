@@ -128,7 +128,7 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   let a = now.elapsed().as_nanos() as u64;
-  (a.try_into().unwrap(), (), 0)
+  (a.try_into().unwrap(), (), 13001)
 }
 
 // #[AlohomoraSandbox()]

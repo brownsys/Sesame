@@ -23,7 +23,7 @@ pub mod swizzle;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: SuperSandboxable, R: Serialize, F: Fn(T) -> R>(
+pub fn sandbox_preamble<'a, T: SuperSandboxable, R: SuperSandboxable, F: Fn(T) -> R>(
     functor: F, arg_ptr: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
     // use std::os::raw::c_void;
     use std::slice;
@@ -41,30 +41,20 @@ pub fn sandbox_preamble<'a, T: SuperSandboxable, R: Serialize, F: Fn(T) -> R>(
         functor(arg_val)
     };
 
+    // println!("ret in preamble is {:?}", ret);
+
     // Serialize output.
     // println!("ret is {:?}", ret);
-    let mut ret = bincode::serialize(&ret).unwrap();
-    // println!("bincode ret is {:?}", ret);
-    let size = ret.len() as u16;
-    let size_1 = (size / 100) as u8;
-    let size_2 = (size % 100) as u8;
-    let mut vec2 = Vec::with_capacity(ret.len() + 2);
-    vec2.push(size_1);
-    vec2.push(size_2);
-    for x in ret {
-        vec2.push(x);
-    }
-    // println!("in ser w bytes {:?}", vec2);
-    let ptttr = vec2.as_mut_ptr();
-    mem::forget(vec2);
-    ptttr as *mut std::ffi::c_void
+    let p = SuperSandboxable::ptr_from_data(ret);
+    println!("ptr in preamble is {:p}", p);
+    p
 }
 
 // Trait that sandboxed functions should implement.
 pub trait AlohomoraSandbox<'a, 'b, T, R> 
     where 
         T: SuperSandboxable,
-        R: Serialize + Deserialize<'b>
+        R: SuperSandboxable
 {
     fn invoke(arg: *mut std::ffi::c_void, sandbox_index: usize) -> R;
 }
@@ -164,7 +154,16 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
 
         default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
             println!("initial out_of_sandbox {:p}", ptr);
-            todo!()
+            let real_ptr = ptr as *mut (*mut u8, u64);
+            let b = unsafe { Box::from_raw(real_ptr) };
+            
+            let tup = *b;
+            let (ptr, len) = tup;
+            let bytes = unsafe { std::slice::from_raw_parts(ptr, len.try_into().unwrap()) };
+            let val: Self = bincode::deserialize(&bytes).unwrap();
+
+            println!("final val {:?}", val);
+            val
         }
 }
 
@@ -183,18 +182,25 @@ impl<'a, T: Sandboxable + Serialize + Deserialize<'a> + Debug> SuperSandboxable 
     }
     fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
         // Put the output into a box
-        todo!();
+        // todo!();
+        println!("sandboxable ptr_from_data");
+        println!("data is {:?}", data);
         let b = Box::new(data);
 
         // Pass on the ptr
-        Box::into_raw(b) as *mut std::ffi::c_void
+        let p = Box::into_raw(b) as *mut std::ffi::c_void;
+        println!("ptr is {:p}", p);
+        p
     }
 
     fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
-        todo!();
+        // todo!();
+        println!("sandboxable out_of_sandbox");
+        println!("ptr is {:p}", ptr);
         // Move returned values out of the sandbox & swizzle.
         let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as Sandboxable>::InSandboxUnswizzled)) };
         let result = Sandboxable::out_of_sandbox(ret_val, ptr as usize);
+        println!("final val is {:?}", result);
         result
     }
 }
@@ -222,6 +228,7 @@ extern "C" {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[repr(C)]
+#[derive(Debug)]
 pub struct sandbox_out {
     pub result: *mut u8,
     pub size: u32,
@@ -256,16 +263,17 @@ macro_rules! invoke_sandbox {
         // ^^the line above is now already done by the SuperSandboxable::into_sandbox()
         
         // Invoke sandbox via C.
-        let ret2: ::alohomora_sandbox::sandbox_out = unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
-        let ret = ret2.result;
+        let ret2: ::alohomora_sandbox::sandbox_out = 
+            unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
 
-        // println!("ret 2 {:?}", ret2);
-        // println!("ret {:?}", ret);
+        let ret = ret2.result; // the result struct isn't used so we can modify it
 
-        let bytes = unsafe {std::slice::from_raw_parts(ret, ret2.size as usize)};
-        // println!("before deser w bytes {:?}", bytes);
-        let result = ::alohomora_sandbox::bincode::deserialize(bytes).unwrap();
-        // println!("after deser");
+        println!("ret 2 {:?}", ret2);
+        println!("ret {:?}", ret);
+
+        let result: $ret_ty = 
+            <$ret_ty as ::alohomora_sandbox::SuperSandboxable>
+                ::out_of_sandbox(ret as *mut std::ffi::c_void);
 
         // Return.
         return result;
