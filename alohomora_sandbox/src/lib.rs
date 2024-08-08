@@ -7,15 +7,15 @@ pub extern crate bincode;
 pub extern crate serde;
 pub extern crate serde_json;
 
-use std::{convert::TryInto, fmt::Debug};
+use std::{convert::TryInto, fmt::Debug, mem};
 
 use alloc::SandboxAllocator;
 use serde::{Serialize, Deserialize};
 
 pub mod ptr;
 pub mod vec;
-pub mod vec_impl;
-pub mod str_impl;
+// pub mod vec_impl;
+// pub mod str_impl;
 pub mod prim_impl;
 pub mod gen_impl;
 pub mod alloc;
@@ -122,41 +122,48 @@ pub trait SuperSandboxable {
 
 impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
         default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
-            println!("serialize into_sandbox");
-
             // need to serialize into the sandbox
             let v: Vec<u8> = bincode::serialize(&outside).unwrap();
-
-            println!("external bytes {:?}", v.len());
 
             let mut vec_in = Vec::with_capacity_in(v.len(), alloc.clone());
             for c in v {
                 vec_in.push(c);
             }
-
-            println!("internal bytes {:?}", vec_in.len());
-
             let (ptr, len, _) = vec_in.into_raw_parts();
+            
+            // the *mut will be 4B instead of 8B in the sandbox
+            // but thats okay bc the alignment is 8B from the u64 so the extra 4B of padding will be added automatically
             let tup: (*mut u8, u64) = (ptr, len as u64);
             let b = Box::new_in(tup, alloc);
             Box::into_raw(b) as *mut std::ffi::c_void
         }
 
         default fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
-            println!("serialize data_from ptr");
-            println!("serialize data_from for type {}", std::any::type_name::<Self>());
             let real_ptr = ptr as *mut (*mut u8, u64);
-            let (ptr, len) = unsafe{ *Box::from_raw(real_ptr) };
+            let b = unsafe { Box::from_raw(real_ptr) };
+            
+            let tup = *b;
+            let (ptr, len) = tup;
             let bytes = unsafe { std::slice::from_raw_parts(ptr, len.try_into().unwrap()) };
             let val: Self = bincode::deserialize(&bytes).unwrap();
-            // println!("val is {:?}", val);
             val
         }
         default fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
-            todo!()
+            println!("serialize ptr from data");
+
+            // need to serialize into the sandbox
+            let v: Vec<u8> = bincode::serialize(&data).unwrap();
+
+            let (ptr, len, _) = v.into_raw_parts();
+            let tup: (*mut u8, u64) = (ptr, len as u64);
+            let b = Box::new(tup);
+            let p = Box::into_raw(b) as *mut std::ffi::c_void;
+            println!("final ptr_from_data {:p}", p);
+            p
         }
 
         default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
+            println!("initial out_of_sandbox {:p}", ptr);
             todo!()
         }
 }
