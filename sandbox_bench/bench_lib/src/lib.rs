@@ -96,7 +96,7 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 
 #[AlohomoraSandbox()]
 // pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
-pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
+pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<f64>, u64) {
   // TODO: can't return FittedLinearRegression<f64> here bc 
   // its actually very complicated and hard to derive `Sandboxable` for
 
@@ -128,7 +128,7 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
   // START TIMER (end in bin)
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   let a = now.elapsed().as_nanos() as u64;
-  (a.try_into().unwrap(), (), 13001)
+  (a.try_into().unwrap(), model, 13001)
 }
 
 // #[AlohomoraSandbox()]
