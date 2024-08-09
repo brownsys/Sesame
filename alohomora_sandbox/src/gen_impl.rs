@@ -27,6 +27,6 @@ macro_rules! sandboxable_tuple_impl {
 }
 sandboxable_tuple_impl!([T1, 0]);
 sandboxable_tuple_impl!([T1, 0], [T2, 1]);
-sandboxable_tuple_impl!([T1, 0], [T2, 1], [T3, 2]);
+// sandboxable_tuple_impl!([T1, 0], [T2, 1], [T3, 2]);
 sandboxable_tuple_impl!([T1, 0], [T2, 1], [T3, 2], [T4, 3]);
 sandboxable_tuple_impl!([T1, 0], [T2, 1], [T3, 2], [T4, 3], [T5, 4]);

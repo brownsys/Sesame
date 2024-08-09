@@ -10,6 +10,7 @@ pub extern crate serde_json;
 use std::{convert::TryInto, fmt::Debug, mem};
 
 use alloc::SandboxAllocator;
+use ptr::{swizzle_ptr, SandboxPointer};
 use serde::{Serialize, Deserialize};
 
 pub mod ptr;
@@ -146,7 +147,11 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
 
             let (ptr, len, _) = v.into_raw_parts();
             let tup: (*mut u8, u64) = (ptr, len as u64);
+            println!("have tup {:?}", tup);
+            println!("size of tup {:?}", std::mem::size_of_val(&tup));
             let b = Box::new(tup);
+            println!("have box {:?}", b);
+            println!("size of box {:?}", std::mem::size_of_val(&b));
             let p = Box::into_raw(b) as *mut std::ffi::c_void;
             println!("final ptr_from_data {:p}", p);
             p
@@ -154,12 +159,20 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
 
         default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
             println!("initial out_of_sandbox {:p}", ptr);
-            let real_ptr = ptr as *mut (*mut u8, u64);
-            let b = unsafe { Box::from_raw(real_ptr) };
+            let real_ptr = ptr as *mut (u32, u64);
+            let b = unsafe { Box::leak(Box::from_raw(real_ptr)) };
+
+            println!("have box {:?}", b);
+            println!("size of box {:?}", std::mem::size_of_val(&b));
             
             let tup = *b;
-            let (ptr, len) = tup;
-            let bytes = unsafe { std::slice::from_raw_parts(ptr, len.try_into().unwrap()) };
+            println!("have tup {:?}", tup);
+            println!("size of tup {:?}", std::mem::size_of_val(&tup));
+            let (ptr_unswiz, len) = tup;
+            
+            // TODO: swizzz
+            let ptr_swiz: *mut u8 = swizzle_ptr(&SandboxPointer::new(ptr_unswiz), ptr as usize);
+            let bytes = unsafe { std::slice::from_raw_parts(ptr_swiz as *const u8, len.try_into().unwrap()) };
             let val: Self = bincode::deserialize(&bytes).unwrap();
 
             println!("final val {:?}", val);
