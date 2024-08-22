@@ -148,7 +148,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     // let serialize = output.0 - setup; // output.0 -> time in function
     // let deserialize = (end - output.2) - teardown;
     let total = end - now;
-    // println!("final model is out as {:?}", output.1);
+    println!("final model is out as {:?}", output.1);
     // let function = total - output.0 - (end - output.2);
     let function = output.0;
     (total, 0, setup, function.try_into().unwrap(), teardown.try_into().unwrap(), 0) // <--- key for results

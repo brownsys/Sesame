@@ -7,7 +7,7 @@ pub extern crate bincode;
 pub extern crate serde;
 pub extern crate serde_json;
 
-use std::{convert::TryInto, fmt::Debug, mem};
+use std::{convert::TryInto, fmt::Debug};
 
 use alloc::SandboxAllocator;
 use ptr::{swizzle_ptr, SandboxPointer};
@@ -15,9 +15,8 @@ use serde::{Serialize, Deserialize};
 
 pub mod ptr;
 pub mod vec;
-// TODO: (aportlan) uncomment these two lines to use fast vec transfer again
-// pub mod vec_impl;
-// pub mod str_impl;
+pub mod vec_impl;
+pub mod str_impl;
 pub mod prim_impl;
 pub mod gen_impl;
 pub mod alloc;
@@ -27,7 +26,6 @@ pub mod swizzle;
 #[cfg(target_arch = "wasm32")]
 pub fn sandbox_preamble<'a, T: SandboxTransfer, R: SandboxTransfer, F: Fn(T) -> R>(
     functor: F, arg_ptr: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
-    // use std::os::raw::c_void;
     use std::slice;
     use std::mem;
 
@@ -35,18 +33,13 @@ pub fn sandbox_preamble<'a, T: SandboxTransfer, R: SandboxTransfer, F: Fn(T) -> 
     // let arg_ptr = arg as *mut c_void;
     
     let ret = unsafe {
-        // Put it into a box so we can get ownership
-        // let b = Box::from_raw(ptr);
         let arg_val: T = SandboxTransfer::data_from_ptr(arg_ptr);
         
         // Call the actual function
         functor(arg_val)
     };
 
-    // println!("ret in preamble is {:?}", ret);
-
     // Serialize output.
-    // println!("ret is {:?}", ret);
     let p = SandboxTransfer::ptr_from_data(ret);
     println!("ptr in preamble is {:p}", p);
     p
@@ -61,8 +54,11 @@ pub trait AlohomoraSandbox<'a, 'b, T, R>
     fn invoke(arg: *mut std::ffi::c_void, sandbox_index: usize) -> R;
 }
 
-/// New mega trait that handles copying to/from sandboxes & all swizzling.
+/// Trait for directly copying to & from sandboxed memory without the need for serialization.
+/// This is typically significantly faster.
 pub trait FastSandboxTransfer {
+    /// An equivalent struct with the memory layout our WASM sandbox will expect for `Self`.
+    /// (i.e. 32b with unswizzled pointers)
     type InSandboxUnswizzled;
 
     /// Returns true for a type `T` if and only if `T::InSandboxUnswizzled` is identical to `T`.
@@ -81,26 +77,29 @@ pub trait FastSandboxTransfer {
     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self;
 }
 
-/// Trait for 
+/// Trait for transferring data into & out of Alohomora Sandboxes. 
+/// Automatically implemented for all types satisfying `serde::Serialize + serde::Deserialize` or `FastSandboxTransfer`.
+/// Deriving `FastSandboxTransfer` for custom structs will likely increase performance.
 pub trait SandboxTransfer {
     // Function that converts a type to 32 bits, moves it fully into the sandbox,
     // and returns a pointer to it.
-    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void;
-    //                                                      FIXME:    ^^thinking this should be c_void could be mistake
+    fn into_sandbox(data: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void;
 
-    // all run IN THE SANDBOX (so will automatically use the `InSandboxUnswizzled` version of the data)
-    // just by virtue of being in the sandbox
+    // Function that takes a pointer to a 32 bit sandbox type, 
+    // recursively unswizzles & converts it to 64 bits, and returns the 64 type.
+    fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self;
 
-    // Converts
+
+    // Runs in sandboxes to reconstruct a 32 bit version of `Self` from a pointer.
     fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self;
+    // Runs in sandboxes to convert a 32 bit version of `Self` to a pointer.
     fn ptr_from_data(data: Self) -> *mut std::ffi::c_void;
 
-    fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self;
     
     //        [APPLICATION]         ||    [SANDBOX]
     //                              ||
-    //   *data* -> into_sandbox() --------> *ptr*
-    //    [64b]                     ||        |
+    // *data* --> into_sandbox() ---------> *ptr*
+    //  [64b]                       ||        |
     //                              ||  data_from_ptr()
     //                              ||        |
     //                              ||     *data* [32b] <-> operate on in sandbox
@@ -109,115 +108,102 @@ pub trait SandboxTransfer {
     //                              ||        |
     // *data* <- out_of_sandbox() <-------- *ptr*
     //  [64b]                       ||
-
 }
 
-impl<'a, T: Serialize + Deserialize<'a> + Debug> SandboxTransfer for T {
-        default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
-            // need to serialize into the sandbox
+impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
+        default fn into_sandbox(data: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
+            // Serialize `data` into bytes
             println!("into sandbox serialize path");
-            let v: Vec<u8> = bincode::serialize(&outside).unwrap();
+            let v: Vec<u8> = bincode::serialize(&data).unwrap();
 
+            // Move those bytes into the sandbox
             let mut vec_in = Vec::with_capacity_in(v.len(), alloc.clone());
             for c in v {
                 vec_in.push(c);
             }
             let (ptr, len, _) = vec_in.into_raw_parts();
             
-            // the *mut will be 4B instead of 8B in the sandbox
-            // but thats okay bc the alignment is 8B from the u64 so the extra 4B of padding will be added automatically
+            // Create custom fat ptr to store the addr & len of the serialized Vec
             let tup: (*mut u8, u64) = (ptr, len as u64);
-            let b = Box::new_in(tup, alloc);
-            Box::into_raw(b) as *mut std::ffi::c_void
+            // NOTE: the *mut will be 4B instead of 8B in the sandbox
+            //       but thats okay bc the alignment is 8B from the u64 so the extra 4B of padding will be added automatically
+            // TODO: (aportlan) actually is this undefined behavior in rust?
+            Box::into_raw(Box::new_in(tup, alloc)) as *mut std::ffi::c_void
         }
 
         default fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
             println!("data_from_ptr serialize path");
+            // Get addr & len of serialized vec
             let real_ptr = ptr as *mut (*mut u8, u64);
-            let b = unsafe { Box::from_raw(real_ptr) };
-            
-            let tup = *b;
-            let (ptr, len) = tup;
+            let (ptr, len) = unsafe { *Box::from_raw(real_ptr) };
+
+            // Rebuild slice from that addr & len
             let bytes = unsafe { std::slice::from_raw_parts(ptr, len.try_into().unwrap()) };
-            let val: Self = bincode::deserialize(&bytes).unwrap();
-            val
+
+            // Deserialize
+            bincode::deserialize(&bytes).unwrap()
         }
         default fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
             println!("serialize ptr from data");
 
-            // need to serialize into the sandbox
+            // Serialize `data` into bytes
             let v: Vec<u8> = bincode::serialize(&data).unwrap();
 
+            // Store the addr & len of those bytes in a box
             let (ptr, len, _) = v.into_raw_parts();
             let tup: (*mut u8, u64) = (ptr, len as u64);
-            // println!("have tup {:?}", tup);
-            // println!("size of tup {:?}", std::mem::size_of_val(&tup));
-            let b = Box::new(tup);
-            // println!("have box {:?}", b);
-            // println!("size of box {:?}", std::mem::size_of_val(&b));
-            let p = Box::into_raw(b) as *mut std::ffi::c_void;
-            println!("\tfinal ptr_from_data {:p}", p);
-            p
+
+            Box::into_raw(Box::new(tup)) as *mut std::ffi::c_void
         }
 
         default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
             println!("initial out_of_sandbox {:p}", ptr);
             let real_ptr = ptr as *mut (u32, u64);
             let b = unsafe { Box::leak(Box::from_raw(real_ptr)) };
-
-            // println!("have box {:?}", b);
-            // println!("size of box {:?}", std::mem::size_of_val(&b));
+            let (ptr_unswiz, len) = *b;
             
-            let tup = *b;
-            // println!("have tup {:?}", tup);
-            // println!("size of tup {:?}", std::mem::size_of_val(&tup));
-            let (ptr_unswiz, len) = tup;
-            
-            // TODO: swizzz
+            // Swizzle the ptr to the serialized bytes 
+            // (since it was written in the sandbox it's unswizzled & 32b)
             let ptr_swiz: *mut u8 = swizzle_ptr(&SandboxPointer::new(ptr_unswiz), ptr as usize);
+            
+            // Reconstruct bytes slice from ptr & len
             let bytes = unsafe { std::slice::from_raw_parts(ptr_swiz as *const u8, len.try_into().unwrap()) };
-            let val: Self = bincode::deserialize(&bytes).unwrap();
-
-            println!("\tfinal val {:?}", val);
-            val
+            
+            bincode::deserialize(&bytes).unwrap()
         }
 }
 
-impl<'a, T: FastSandboxTransfer + Serialize + Deserialize<'a> + Debug> SandboxTransfer for T {
+impl<'a, T: FastSandboxTransfer + Serialize + Deserialize<'a>> SandboxTransfer for T {
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
         println!("sandboxable version");
+        // Move the value into sandboxed memory
         let val = FastSandboxTransfer::into_sandbox(outside, alloc.clone());
-        let b = Box::new_in(val, alloc);
-        Box::into_raw(b) as *mut std::ffi::c_void
+
+        // Put it into a box in the sandbox for passing as pointer
+        Box::into_raw(Box::new_in(val, alloc)) as *mut std::ffi::c_void
     }
 
     fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
-        // Take value from box
         println!("sandbox data_from for type {}", std::any::type_name::<Self>());
+
+        // Take value from box
         unsafe{ *Box::from_raw(ptr as *mut T) }
     }
     fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
-        // Put the output into a box
-        // todo!();
         println!("sandboxable ptr_from_data");
-        println!("\tdata is {:?}", data);
-        let b = Box::new(data);
 
-        // Pass on the ptr
-        let p = Box::into_raw(b) as *mut std::ffi::c_void;
-        println!("\tptr is {:p}", p);
-        p
+        // Put value into box
+        Box::into_raw(Box::new(data)) as *mut std::ffi::c_void
     }
 
     fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
-        // todo!();
         println!("sandboxable out_of_sandbox");
-        println!("\tptr is {:p}", ptr);
-        // Move returned values out of the sandbox & swizzle.
+        
+        // Reconstruct the 32 bit type from a Box pointer
         let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as FastSandboxTransfer>::InSandboxUnswizzled)) };
-        let result = FastSandboxTransfer::out_of_sandbox(ret_val, ptr as usize);
-        println!("\tfinal val is {:?}", result);
-        result
+
+        // Move returned values out of the sandbox & swizzle
+        FastSandboxTransfer::out_of_sandbox(ret_val, ptr as usize)
     }
 }
 
@@ -230,6 +216,7 @@ extern "C" {
 #[cfg(not(target_arch = "wasm32"))]
 #[repr(C)]
 #[derive(Debug)]
+// TODO: (aportlan) we only use the result now, so can remove this struct
 pub struct sandbox_out {
     pub result: *mut u8,
     pub size: u32,
