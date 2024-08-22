@@ -9,7 +9,7 @@ use std::{fs, thread};
 
 use alohomora::bbox::BBox;
 use alohomora::policy::{AnyPolicy, NoPolicy};
-use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, SandboxInstance};
+use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, execute_sandbox};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
@@ -41,7 +41,7 @@ fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let now = now.timestamp_nanos_opt().unwrap() as u64;
 
     type Out = (u64, String, u64);
-    let output = SandboxInstance::copy_and_execute::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {})));
+    let output = execute_sandbox::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {})));
     // let output = execute_sandbox::<hash, _, _>(); // TODO (allenaby) why does this work if now doesn't have bbox, because impl Alohomora type for u64?
     
     // END TIMER (start inside hash)
@@ -132,7 +132,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
     type Out = (u64, FittedLinearRegression<f64>, u64);
-    let output = SandboxInstance::copy_and_execute::<train,_,_>(grades.clone());
+    let output = execute_sandbox::<train,_,_>(grades.clone());
     // let output = execute_sandbox::<train, _, _>(grades);
     // let output = BBox::new(0, NoPolicy{});
 

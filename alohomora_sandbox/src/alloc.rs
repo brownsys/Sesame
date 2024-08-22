@@ -7,7 +7,6 @@ pub struct SandboxAllocator {
 }
 
 impl SandboxAllocator {
-    // TODO: (aportlan) should be private
     pub fn new(sandbox_index: usize) -> Self { SandboxAllocator { sandbox_index } }
     pub fn index(&self) -> usize { self.sandbox_index }
 }
