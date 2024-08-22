@@ -2,29 +2,6 @@ use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::Phan
 use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}, FastSandboxTransfer};
 use chrono::naive::NaiveDateTime;
 
-
-#[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
-impl<T: FastSandboxTransfer> FastSandboxTransfer for Box<T> {
-    type InSandboxUnswizzled = BoxUnswizzled<T::InSandboxUnswizzled, SandboxAllocator>; // TODO: is this the right memory layout
-
-    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
-        // 1. move boxed value into the sandbox portion of memory
-        let new_val = FastSandboxTransfer::into_sandbox(*outside, alloc.clone());
-        let b = Box::new_in(new_val, alloc);
-
-        // 2. convert to a sandbox box w 32 bit ptr
-        let ptr = Box::into_raw(b);
-        BoxUnswizzled { 
-            ptr: unswizzle_ptr(ptr), 
-            phantom_data: PhantomData::<SandboxAllocator> 
-        }
-    }
-
-    fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
-        todo!();
-    }
-}
-
 // Implement `FastSandboxTransfer` for primitives that won't change in the sandbox.
 macro_rules! derive_sandboxable_identity {
     ($t:ty) => {

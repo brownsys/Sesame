@@ -1,8 +1,63 @@
 use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::PhantomData};
-use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}};
-use crate::FastSandboxTransfer;
+use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}, FastSandboxTransfer};
 use chrono::naive::NaiveDateTime;
 
+// Implement `FastSandboxTransfer` for tuples of `FastSandboxTransfer` types.
+macro_rules! sandboxable_tuple_impl {
+    ($([$A:tt,$i:tt]),*) => {
+        #[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
+        impl<$($A,)*> FastSandboxTransfer for ($($A,)*) where 
+            $($A: FastSandboxTransfer,)* {
+            type InSandboxUnswizzled = ($($A::InSandboxUnswizzled,)*);
+
+            // This tuple will be an identity iff all of its values are identities
+            fn is_identity() -> bool {
+                let b = ($($A::is_identity() &&)* true);
+                return b;
+            }
+
+            fn into_sandbox(outside: Self, alloc: crate::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
+                ($(FastSandboxTransfer::into_sandbox(outside.$i, alloc.clone()),)*)
+            }
+            fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
+                ($(FastSandboxTransfer::out_of_sandbox(&inside.$i, any_sandbox_ptr),)*)
+            }
+        }
+    };
+}
+sandboxable_tuple_impl!([T1, 0]);
+sandboxable_tuple_impl!([T1, 0], [T2, 1]);
+sandboxable_tuple_impl!([T1, 0], [T2, 1], [T3, 2]);
+sandboxable_tuple_impl!([T1, 0], [T2, 1], [T3, 2], [T4, 3]);
+sandboxable_tuple_impl!([T1, 0], [T2, 1], [T3, 2], [T4, 3], [T5, 4]);
+
+
+
+// Implement `FastSandboxTransfer` for boxes of `FastSandboxTransfer` types.
+#[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
+impl<T: FastSandboxTransfer> FastSandboxTransfer for Box<T> {
+    type InSandboxUnswizzled = BoxUnswizzled<T::InSandboxUnswizzled, SandboxAllocator>; // TODO: is this the right memory layout
+
+    fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
+        // 1. move boxed value into the sandbox portion of memory
+        let new_val = FastSandboxTransfer::into_sandbox(*outside, alloc.clone());
+        let b = Box::new_in(new_val, alloc);
+
+        // 2. convert to a sandbox box w 32 bit ptr
+        let ptr = Box::into_raw(b);
+        BoxUnswizzled { 
+            ptr: unswizzle_ptr(ptr), 
+            phantom_data: PhantomData::<SandboxAllocator> 
+        }
+    }
+
+    fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
+        // TODO: (aportlan) should probably get around to doing this at some point
+        todo!();
+    }
+}
+
+// Implement `FastSandboxTransfer` for vecs of `FastSandboxTransfer` types.
 #[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
 // TODO: (aportlan) T shouldn't have to be debuggable
 impl<T: FastSandboxTransfer + Debug> FastSandboxTransfer for Vec<T> 

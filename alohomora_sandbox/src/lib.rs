@@ -15,12 +15,9 @@ use serde::{Serialize, Deserialize};
 
 pub mod ptr;
 pub mod vec;
-pub mod vec_impl;
-pub mod str_impl;
-pub mod prim_impl;
-pub mod gen_impl;
 pub mod alloc;
 pub mod swizzle;
+pub mod transfer;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
