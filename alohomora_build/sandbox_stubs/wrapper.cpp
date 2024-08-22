@@ -142,7 +142,7 @@ void unlock_sandbox(size_t sandbox_index) \{
 }
 
 {{ for sandbox in sandboxes }}
-sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
+char* invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
     auto start = high_resolution_clock::now();
 
     // Get the sandbox
@@ -176,7 +176,7 @@ sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
     unsigned long long teardown = duration.count();
 
     // Return timing data.
-    return sandbox_out \{buffer, size2, setup, teardown};
+    return buffer;
 }
 
 {{ endfor }}

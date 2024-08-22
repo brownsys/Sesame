@@ -210,17 +210,6 @@ extern "C" {
     pub fn invoke_free_c(arg1: *mut u8);
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[repr(C)]
-#[derive(Debug)]
-// TODO: (aportlan) we only use the result now, so can remove this struct
-pub struct sandbox_out {
-    pub result: *mut u8,
-    pub size: u32,
-    pub setup: ::std::os::raw::c_ulonglong,
-    pub teardown: ::std::os::raw::c_ulonglong,
-}
-
 pub struct FinalSandboxOut<R> {
     pub result: R,
     pub size: u32,
@@ -248,10 +237,10 @@ macro_rules! invoke_sandbox {
         // ^^the line above is now already done by the SandboxTransfer::into_sandbox()
         
         // Invoke sandbox via C.
-        let ret2: ::alohomora_sandbox::sandbox_out = 
+        let ret2: *mut u8 = 
             unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
 
-        let ret = ret2.result; // the result struct isn't used so we can modify it
+        let ret = ret2; // the result struct isn't used so we can modify it
 
         println!("ret 2 {:?}", ret2);
         println!("ret {:?}", ret);

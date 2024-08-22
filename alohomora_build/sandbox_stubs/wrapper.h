@@ -11,15 +11,8 @@ struct __attribute__ ((packed)) SizedSliceC \{
   unsigned int size;
 };
 
-struct sandbox_out \{ 
-    char* result; 
-    unsigned size;
-    unsigned long long setup; 
-    unsigned long long teardown; 
-};
-
 {{- for sandbox in sandboxes }}
-struct sandbox_out invoke_sandbox_{sandbox}_c(void* arg, size_t slot);
+char* invoke_sandbox_{sandbox}_c(void* arg, size_t slot);
 {{- endfor }}
 
 void* alloc_mem_in_sandbox(unsigned size, size_t sandbox_index);
