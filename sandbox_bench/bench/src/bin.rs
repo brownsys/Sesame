@@ -13,7 +13,7 @@ use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, execute_sandbox};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
-use bench_lib::{train, train2, hash};
+use bench_lib::{train, train2, hash, Potato, PotatoStats, potato_count};
 
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
@@ -253,7 +253,20 @@ fn run_benchmarks(){
 
 fn main() {
   // BENCHMARKING
-  run_benchmarks();
+  // run_benchmarks();
+
+  let v = vec![
+    Potato { size: 10, rating: -2 },
+    Potato { size: 20, rating: 12 },
+    Potato { size: 40, rating: 40 },
+    Potato { size: 30, rating: -2 },
+  ];
+  let b = BBox::new(v, NoPolicy::new());
+
+  let res = execute_sandbox::<potato_count, _, _>(b);
+  let stats = res.specialize_policy::<NoPolicy>().unwrap().discard_box();
+
+  println!("stats are {:?}", stats);
 
   // BENCHMARK NOTES:
   // first compiling NOOPT commit -

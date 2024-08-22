@@ -154,7 +154,7 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
         }
 
         default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
-            println!("initial out_of_sandbox {:p}", ptr);
+            println!("serialize out_of_sandbox {:p}", ptr);
             let real_ptr = ptr as *mut (u32, u64);
             let b = unsafe { Box::leak(Box::from_raw(real_ptr)) };
             let (ptr_unswiz, len) = *b;

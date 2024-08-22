@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 use alohomora_derive::{AlohomoraSandbox, FastSandboxTransfer};
 use alohomora_sandbox::FastSandboxTransfer;
 use std::convert::TryInto;
+use serde::{Serialize, Deserialize};
 use std::os::raw::c_void;
 use std::ptr::NonNull;
 use std::time::{Duration, Instant};
@@ -18,6 +19,7 @@ use std::io::{Read, Write};
 use std::{iter, ptr};
 
 extern crate once_cell;
+// extern crate serde;
 
 // static mut GLOBAL: u64 = 0;
 // #[repr(C)]
@@ -129,6 +131,34 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<
   // let end = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   let a = now.elapsed().as_nanos() as u64;
   (a.try_into().unwrap(), model, 13001)
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Potato {
+  pub size: u8,
+  pub rating: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PotatoStats {
+  pub count: usize,
+  pub avg_rating: f32,
+  pub total_rating: isize,
+  pub total_size: usize,
+}
+
+#[AlohomoraSandbox()]
+pub fn potato_count(potatoes: Vec<Potato>) -> PotatoStats {
+  let mut count = 0;
+  let mut total_rating: isize = 0;
+  let mut total_size = 0;
+  let v = potatoes.iter().map(|p|{
+    count += 1;
+    total_rating += p.rating as isize;
+    total_size += p.size as usize;
+  }).collect::<Vec<_>>();
+
+  PotatoStats { count, avg_rating: (total_rating / count as isize) as f32, total_rating, total_size }
 }
 
 // #[AlohomoraSandbox()]
