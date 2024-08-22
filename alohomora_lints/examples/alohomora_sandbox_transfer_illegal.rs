@@ -1,5 +1,5 @@
 extern crate alohomora;
-use alohomora_sandbox::Sandboxable;
+use alohomora_sandbox::FastSandboxTransfer;
 
 #[derive(Debug)]
 pub struct Example {
@@ -8,7 +8,7 @@ pub struct Example {
     pub s: String,
 }
 
-impl Sandboxable for Example {
+impl FastSandboxTransfer for Example {
     type InSandboxUnswizzled = Example;
     fn into_sandbox(outside: Self, _: alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
         println!("{:?}", outside);

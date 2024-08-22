@@ -36,7 +36,7 @@ dylint_linting::dylint_library!();
 // List all lints, make each lint its own mod.
 mod alohomora_sandbox;
 mod alohomora_type;
-mod alohomora_sandboxable;
+mod alohomora_sandbox_transfer;
 
 // Register all lints.
 #[allow(clippy::no_mangle_with_rust_abi)]
@@ -45,5 +45,5 @@ pub fn register_lints(sess: &rustc_session::Session, lint_store: &mut rustc_lint
     dylint_linting::init_config(sess);
     alohomora_sandbox::AlohomoraSandbox::register(lint_store);
     alohomora_type::AlohomoraType::register(lint_store);
-    alohomora_sandboxable::AlohomoraSandboxable::register(lint_store);
+    alohomora_sandbox_transfer::AlohomoraSandboxable::register(lint_store);
 }
