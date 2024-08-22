@@ -141,7 +141,7 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     let output = output.specialize_policy::<NoPolicy>().unwrap();
     let output: Out = output.discard_box();
-    println!("final out is {:?}", output);
+    // println!("final out is {:?}", output);
     let setup = 0;
     let teardown = 0;
 

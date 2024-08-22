@@ -114,6 +114,7 @@ pub trait SuperSandboxable {
 impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
         default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
             // need to serialize into the sandbox
+            println!("into sandbox serialize path");
             let v: Vec<u8> = bincode::serialize(&outside).unwrap();
 
             let mut vec_in = Vec::with_capacity_in(v.len(), alloc.clone());
@@ -130,6 +131,7 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
         }
 
         default fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
+            println!("data_from_ptr serialize path");
             let real_ptr = ptr as *mut (*mut u8, u64);
             let b = unsafe { Box::from_raw(real_ptr) };
             
@@ -147,13 +149,13 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
 
             let (ptr, len, _) = v.into_raw_parts();
             let tup: (*mut u8, u64) = (ptr, len as u64);
-            println!("have tup {:?}", tup);
-            println!("size of tup {:?}", std::mem::size_of_val(&tup));
+            // println!("have tup {:?}", tup);
+            // println!("size of tup {:?}", std::mem::size_of_val(&tup));
             let b = Box::new(tup);
-            println!("have box {:?}", b);
-            println!("size of box {:?}", std::mem::size_of_val(&b));
+            // println!("have box {:?}", b);
+            // println!("size of box {:?}", std::mem::size_of_val(&b));
             let p = Box::into_raw(b) as *mut std::ffi::c_void;
-            println!("final ptr_from_data {:p}", p);
+            println!("\tfinal ptr_from_data {:p}", p);
             p
         }
 
@@ -162,12 +164,12 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
             let real_ptr = ptr as *mut (u32, u64);
             let b = unsafe { Box::leak(Box::from_raw(real_ptr)) };
 
-            println!("have box {:?}", b);
-            println!("size of box {:?}", std::mem::size_of_val(&b));
+            // println!("have box {:?}", b);
+            // println!("size of box {:?}", std::mem::size_of_val(&b));
             
             let tup = *b;
-            println!("have tup {:?}", tup);
-            println!("size of tup {:?}", std::mem::size_of_val(&tup));
+            // println!("have tup {:?}", tup);
+            // println!("size of tup {:?}", std::mem::size_of_val(&tup));
             let (ptr_unswiz, len) = tup;
             
             // TODO: swizzz
@@ -175,7 +177,7 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
             let bytes = unsafe { std::slice::from_raw_parts(ptr_swiz as *const u8, len.try_into().unwrap()) };
             let val: Self = bincode::deserialize(&bytes).unwrap();
 
-            println!("final val {:?}", val);
+            println!("\tfinal val {:?}", val);
             val
         }
 }
@@ -197,23 +199,23 @@ impl<'a, T: Sandboxable + Serialize + Deserialize<'a> + Debug> SuperSandboxable 
         // Put the output into a box
         // todo!();
         println!("sandboxable ptr_from_data");
-        println!("data is {:?}", data);
+        println!("\tdata is {:?}", data);
         let b = Box::new(data);
 
         // Pass on the ptr
         let p = Box::into_raw(b) as *mut std::ffi::c_void;
-        println!("ptr is {:p}", p);
+        println!("\tptr is {:p}", p);
         p
     }
 
     fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
         // todo!();
         println!("sandboxable out_of_sandbox");
-        println!("ptr is {:p}", ptr);
+        println!("\tptr is {:p}", ptr);
         // Move returned values out of the sandbox & swizzle.
         let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as Sandboxable>::InSandboxUnswizzled)) };
         let result = Sandboxable::out_of_sandbox(ret_val, ptr as usize);
-        println!("final val is {:?}", result);
+        println!("\tfinal val is {:?}", result);
         result
     }
 }
