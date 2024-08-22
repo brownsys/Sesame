@@ -142,6 +142,8 @@ pub struct Potato {
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, FastSandboxTransfer, Debug)]
+// bc of specialization, you have to derive the serialization trait too
+// could maybe fix this, but it doesn't seem easy, and its not much of an issue
 pub struct PotatoStats {
   pub count: usize,
   pub avg_rating: f32,
