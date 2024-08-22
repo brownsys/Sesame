@@ -26,20 +26,16 @@ pub fn sandbox_preamble<'a, T: SandboxTransfer, R: SandboxTransfer, F: Fn(T) -> 
     use std::slice;
     use std::mem;
 
-    // Convert arg to a pointer of the right type.
-    // let arg_ptr = arg as *mut c_void;
-    
     let ret = unsafe {
+        // Reconstruct actual data from ffi pointer
         let arg_val: T = SandboxTransfer::data_from_ptr(arg_ptr);
         
         // Call the actual function
         functor(arg_val)
     };
 
-    // Serialize output.
-    let p = SandboxTransfer::ptr_from_data(ret);
-    println!("ptr in preamble is {:p}", p);
-    p
+    // Convert output into pointer for passing back through ffi
+    SandboxTransfer::ptr_from_data(ret)
 }
 
 // Trait that sandboxed functions should implement.
@@ -110,7 +106,7 @@ pub trait SandboxTransfer {
 impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
         default fn into_sandbox(data: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
             // Serialize `data` into bytes
-            println!("into sandbox serialize path");
+            println!("serialize into sandbox for type {}", std::any::type_name::<Self>());
             let v: Vec<u8> = bincode::serialize(&data).unwrap();
 
             // Move those bytes into the sandbox
@@ -129,7 +125,7 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
         }
 
         default fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
-            println!("data_from_ptr serialize path");
+            println!("serialize data_from_ptr for type {}", std::any::type_name::<Self>());
             // Get addr & len of serialized vec
             let real_ptr = ptr as *mut (*mut u8, u64);
             let (ptr, len) = unsafe { *Box::from_raw(real_ptr) };
@@ -141,7 +137,7 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
             bincode::deserialize(&bytes).unwrap()
         }
         default fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
-            println!("serialize ptr from data");
+            println!("serialize ptr from data for type {}", std::any::type_name::<Self>());
 
             // Serialize `data` into bytes
             let v: Vec<u8> = bincode::serialize(&data).unwrap();
@@ -154,7 +150,7 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
         }
 
         default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
-            println!("serialize out_of_sandbox {:p}", ptr);
+            println!("serialize out_of_sandbox for type {}", std::any::type_name::<Self>());
             let real_ptr = ptr as *mut (u32, u64);
             let b = unsafe { Box::leak(Box::from_raw(real_ptr)) };
             let (ptr_unswiz, len) = *b;
@@ -172,7 +168,7 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
 
 impl<'a, T: FastSandboxTransfer + Serialize + Deserialize<'a>> SandboxTransfer for T {
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
-        println!("sandboxable version");
+        println!("sandbox into_sandbox for type {}", std::any::type_name::<Self>());
         // Move the value into sandboxed memory
         let val = FastSandboxTransfer::into_sandbox(outside, alloc.clone());
 
@@ -187,14 +183,14 @@ impl<'a, T: FastSandboxTransfer + Serialize + Deserialize<'a>> SandboxTransfer f
         unsafe{ *Box::from_raw(ptr as *mut T) }
     }
     fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
-        println!("sandboxable ptr_from_data");
+        println!("sandbox ptr_from_data for type {}", std::any::type_name::<Self>());
 
         // Put value into box
         Box::into_raw(Box::new(data)) as *mut std::ffi::c_void
     }
 
     fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
-        println!("sandboxable out_of_sandbox");
+        println!("sandbox out_of_sandbox for type {}", std::any::type_name::<Self>());
         
         // Reconstruct the 32 bit type from a Box pointer
         let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as FastSandboxTransfer>::InSandboxUnswizzled)) };
@@ -229,22 +225,10 @@ extern "C" {
 #[macro_export]
 macro_rules! invoke_sandbox {
     ($functor:ident, $arg:ident, $arg_ty:ty, $ret_ty:ty, $sandbox_index:ident) => {
-
-        // `$arg` is already a swizzled 32 bit type for the sandbox, 
-        // so we just make a raw pointer for passing through 'C land' 
-        // then the preamble can reconstruct the real type back in Rust
-        // let new_inside_ptr = Box::into_raw(Box::new_in($arg, ::alohomora_sandbox::alloc::SandboxAllocator::new($sandbox_index)));
-        // ^^the line above is now already done by the SandboxTransfer::into_sandbox()
-        
         // Invoke sandbox via C.
-        let ret2: *mut u8 = 
-            unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
+        let ret: *mut u8 = unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
 
-        let ret = ret2; // the result struct isn't used so we can modify it
-
-        println!("ret 2 {:?}", ret2);
-        println!("ret {:?}", ret);
-
+        // Move returned pointer out of sandbox to get final result
         let result: $ret_ty = 
             <$ret_ty as ::alohomora_sandbox::SandboxTransfer>
                 ::out_of_sandbox(ret as *mut std::ffi::c_void);

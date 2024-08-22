@@ -133,13 +133,15 @@ pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<
   (a.try_into().unwrap(), model, 13001)
 }
 
-#[derive(Serialize, Deserialize)]
+#[repr(C)]
+#[derive(Serialize, Deserialize, FastSandboxTransfer)]
 pub struct Potato {
   pub size: u8,
   pub rating: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[repr(C)]
+#[derive(Serialize, Deserialize, FastSandboxTransfer, Debug)]
 pub struct PotatoStats {
   pub count: usize,
   pub avg_rating: f32,
