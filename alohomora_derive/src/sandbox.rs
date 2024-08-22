@@ -40,7 +40,7 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     // Find arguments and return types.
     let params: Vec<_> = function_signature.inputs.iter().collect();
     if params.len() != 1 {
-        return quote_spanned!(function_name.span() => compile_error!("Sandbox function must have exactly one Sandboxable argument"));
+        return quote_spanned!(function_name.span() => compile_error!("Sandbox function must have exactly one `SandboxTransfer` argument"));
     }
     let arg = match params[0] {
         FnArg::Receiver(_) => {
@@ -50,7 +50,7 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     };
     let ret = match function_signature.output {
         ReturnType::Default => {
-            return quote_spanned!(function_name.span() => compile_error!("Sandbox function must return a Sandboxable type"));
+            return quote_spanned!(function_name.span() => compile_error!("Sandbox function must return a `SandboxTransfer` type"));
         },
         ReturnType::Type(_, ty) => *ty.clone(),
     };
@@ -98,7 +98,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
     // Check the macro is being used on a struct
     let struct_data = match input.data.clone() {
         syn::Data::Struct(s) => s,
-        _ => return Err((input.ident.span(), "the `Sandboxable` trait can only be derived for structs")),
+        _ => return Err((input.ident.span(), "the `FastSandboxTransfer` trait can only be derived for structs")),
     };
 
     let fields = match struct_data.fields.clone() {
@@ -110,7 +110,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
     for field in fields.named.clone() {
         match field.vis {
             syn::Visibility::Public(_) => (),
-            _ => return Err((field.ident.unwrap_or(input.ident).span(), "all fields must be public for `Sandboxable` types")),
+            _ => return Err((field.ident.unwrap_or(input.ident).span(), "all fields must be public for `FastSandboxTransfer` types")),
         }
     }
 
@@ -120,7 +120,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
         if format!("{}", attr.to_token_stream()) == format!("#[repr(C)]") { uses_repr_c = true; }
     }
     if !uses_repr_c {
-        return Err((input.ident.span(), "`Sandboxable` structs must use the `#[repr(C)]` attribute for a consistent memory layout"));
+        return Err((input.ident.span(), "`FastSandboxTransfer` structs must use the `#[repr(C)]` attribute for a consistent memory layout"));
     }
 
     let struct_name = input.ident.clone();
@@ -138,7 +138,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
         #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
         #[repr(C)]
         pub struct #unswizzled_name #impl_generics #where_clause {
-            #(pub #field_name: <#field_type as ::alohomora_sandbox::Sandboxable>::InSandboxUnswizzled,)*
+            #(pub #field_name: <#field_type as ::alohomora_sandbox::FastSandboxTransfer>::InSandboxUnswizzled,)*
         }
 
 
@@ -146,7 +146,7 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
         // were gonna have one at runtime.
         #[automatically_derived]
         #[cfg(target_arch = "wasm32")]
-        impl #impl_generics ::alohomora_sandbox::Sandboxable for #struct_name #type_generics #where_clause {
+        impl #impl_generics ::alohomora_sandbox::FastSandboxTransfer for #struct_name #type_generics #where_clause {
             type InSandboxUnswizzled = Self;
             fn into_sandbox(outside: Self, alloc: ::alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
                 todo!();
@@ -158,17 +158,17 @@ pub fn derive_sandboxable_impl(input: syn::DeriveInput) -> Result<TokenStream, E
 
         #[automatically_derived]
         #[cfg(not(target_arch = "wasm32"))]
-        #[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
-        impl #impl_generics ::alohomora_sandbox::Sandboxable for #struct_name #type_generics #where_clause {
+        #[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
+        impl #impl_generics ::alohomora_sandbox::FastSandboxTransfer for #struct_name #type_generics #where_clause {
             type InSandboxUnswizzled = #unswizzled_name #type_generics;
             fn into_sandbox(outside: Self, alloc: ::alohomora_sandbox::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
                 #unswizzled_name {
-                    #(#field_name2: ::alohomora_sandbox::Sandboxable::into_sandbox(outside.#field_name2, alloc.clone()),)*
+                    #(#field_name2: ::alohomora_sandbox::FastSandboxTransfer::into_sandbox(outside.#field_name2, alloc.clone()),)*
                 }
             }
             fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
                 #struct_name {
-                #(#field_name3: ::alohomora_sandbox::Sandboxable::out_of_sandbox(&inside.#field_name3, any_sandbox_ptr),)*
+                #(#field_name3: ::alohomora_sandbox::FastSandboxTransfer::out_of_sandbox(&inside.#field_name3, any_sandbox_ptr),)*
                 }
             }
         }

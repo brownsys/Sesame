@@ -1,6 +1,6 @@
 use std::{fmt::Debug, result};
 
-use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, Sandboxable, SuperSandboxable};
+use alohomora_sandbox::{alloc::SandboxAllocator, unlock_sandbox, FastSandboxTransfer, SandboxTransfer};
 use serde::{Serialize, Deserialize};
 
 use crate::AlohomoraType;
@@ -35,11 +35,8 @@ impl SandboxInstance {
     pub fn copy_and_execute<'a, 'b, S, T, R>(t: T) -> BBox<R, AnyPolicy>
         where
             T: AlohomoraType,
-            T::Out: SuperSandboxable,
-            // <T::Out as Sandboxable>::InSandboxUnswizzled: 
-            //                 From<<<T::Out as AllocateableInSandbox>::UsingSandboxAllocator as Swizzleable>::Unswizzled>, // they shoudl really just be the same but this is how im representing it
-            // <T::Out as AllocateableInSandbox>::UsingSandboxAllocator: Swizzleable + Clone + Debug,
-            R: SuperSandboxable,
+            T::Out: SandboxTransfer,
+            R: SandboxTransfer,
             S: AlohomoraSandbox<'a, 'b, T::Out, R>,
     {
         // Remove boxes from args.
@@ -50,7 +47,7 @@ impl SandboxInstance {
         let instance = SandboxInstance::new();
 
         // move the arg into the sandbox and conver it to a ptr
-        let arg_ptr: *mut std::ffi::c_void = SuperSandboxable::into_sandbox(t, instance.alloc());
+        let arg_ptr: *mut std::ffi::c_void = SandboxTransfer::into_sandbox(t, instance.alloc());
 
         // Pass that ptr to the function.
         let result = S::invoke(arg_ptr, instance.sandbox_index);

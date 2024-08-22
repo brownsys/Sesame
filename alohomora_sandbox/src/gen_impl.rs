@@ -1,13 +1,13 @@
 use std::any;
 
-use crate::Sandboxable;
+use crate::FastSandboxTransfer;
 
-// Implement `Sandboxable` for tuples of `Sandboxable` types.
+// Implement `FastSandboxTransfer` for tuples of `FastSandboxTransfer` types.
 macro_rules! sandboxable_tuple_impl {
     ($([$A:tt,$i:tt]),*) => {
-        #[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
-        impl<$($A,)*> Sandboxable for ($($A,)*) where 
-            $($A: Sandboxable,)* {
+        #[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
+        impl<$($A,)*> FastSandboxTransfer for ($($A,)*) where 
+            $($A: FastSandboxTransfer,)* {
             type InSandboxUnswizzled = ($($A::InSandboxUnswizzled,)*);
 
             // This tuple will be an identity iff all of its values are identities
@@ -17,10 +17,10 @@ macro_rules! sandboxable_tuple_impl {
             }
 
             fn into_sandbox(outside: Self, alloc: crate::alloc::SandboxAllocator) -> Self::InSandboxUnswizzled {
-                ($(Sandboxable::into_sandbox(outside.$i, alloc.clone()),)*)
+                ($(FastSandboxTransfer::into_sandbox(outside.$i, alloc.clone()),)*)
             }
             fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self {
-                ($(Sandboxable::out_of_sandbox(&inside.$i, any_sandbox_ptr),)*)
+                ($(FastSandboxTransfer::out_of_sandbox(&inside.$i, any_sandbox_ptr),)*)
             }
         }
     };

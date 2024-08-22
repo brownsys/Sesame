@@ -30,4 +30,4 @@ mod r#type;
 pub use r#type::*;
 
 #[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::{AlohomoraType, Sandboxable};
+pub use alohomora_derive::{AlohomoraType, FastSandboxTransfer};

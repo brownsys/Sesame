@@ -7,8 +7,8 @@ use linfa::prelude::*;
 use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
 use sha2::{Digest, Sha256};
-use alohomora_derive::{AlohomoraSandbox, Sandboxable};
-use alohomora_sandbox::Sandboxable;
+use alohomora_derive::{AlohomoraSandbox, FastSandboxTransfer};
+use alohomora_sandbox::FastSandboxTransfer;
 use std::convert::TryInto;
 use std::os::raw::c_void;
 use std::ptr::NonNull;
@@ -21,7 +21,7 @@ extern crate once_cell;
 
 // static mut GLOBAL: u64 = 0;
 // #[repr(C)]
-// #[derive(Debug, Sandboxable)]
+// #[derive(Debug, FastSandboxTransfer)]
 // pub struct Test {
 //   pub a: i32,
 //   pub b: usize,
@@ -34,7 +34,7 @@ extern crate once_cell;
 // }
 
 // #[repr(C)]
-// #[derive(Clone, Debug, Serialize, Deserialize, Sandboxable)]
+// #[derive(Clone, Debug, Serialize, Deserialize, FastSandboxTransfer)]
 // pub struct Test2 {
 //   pub a: usize,
 // }
@@ -98,7 +98,7 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 // pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
 pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<f64>, u64) {
   // TODO: can't return FittedLinearRegression<f64> here bc 
-  // its actually very complicated and hard to derive `Sandboxable` for
+  // its actually very complicated and hard to derive `FastSandboxTransfer` for
 
   // END TIMER (start in bin)
   // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;

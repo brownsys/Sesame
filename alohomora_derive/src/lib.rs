@@ -98,7 +98,7 @@ pub fn AlohomoraSandbox(_args: TokenStream, input: TokenStream) -> TokenStream {
     result
 }
 
-#[proc_macro_derive(Sandboxable)]
+#[proc_macro_derive(FastSandboxTransfer)]
 pub fn derive_sandboxable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match sandbox::derive_sandboxable_impl(input) {

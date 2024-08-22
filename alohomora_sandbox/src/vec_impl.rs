@@ -1,11 +1,11 @@
 use std::{alloc::{Allocator, Global}, convert::TryInto, fmt::Debug, marker::PhantomData};
 use crate::{alloc::SandboxAllocator, ptr::*, swizzle::*, vec::{MyVec, NonNull, RawMyVec}};
-use crate::Sandboxable;
+use crate::FastSandboxTransfer;
 use chrono::naive::NaiveDateTime;
 
-#[doc = "Library implementation of Sandboxable. Do not copy this docstring!"]
+#[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
 // TODO: (aportlan) T shouldn't have to be debuggable
-impl<T: Sandboxable + Debug> Sandboxable for Vec<T> 
+impl<T: FastSandboxTransfer + Debug> FastSandboxTransfer for Vec<T> 
 where T::InSandboxUnswizzled: Debug {
     type InSandboxUnswizzled = MyVecUnswizzled<T::InSandboxUnswizzled>;
 
@@ -35,7 +35,7 @@ where T::InSandboxUnswizzled: Debug {
             // Slow map strategy for if we do have to unswizzle `T`
             let mut sandbox_vec = Vec::with_capacity_in(outside.len(), alloc.clone());
             outside.into_iter().map(|b|{
-                Sandboxable::into_sandbox(b, alloc.clone())
+                FastSandboxTransfer::into_sandbox(b, alloc.clone())
             }).collect_into(&mut sandbox_vec);
 
             sandbox_vec
@@ -61,7 +61,7 @@ where T::InSandboxUnswizzled: Debug {
         // 1. recursively bring all items out of the sandbox 
         // TODO: (aportlan) could implement opt here too for copying out
         v.iter().map(|u| {
-            Sandboxable::out_of_sandbox(u, sandbox_ptr)
+            FastSandboxTransfer::out_of_sandbox(u, sandbox_ptr)
         }).collect::<Vec<T>>()
     }
 }

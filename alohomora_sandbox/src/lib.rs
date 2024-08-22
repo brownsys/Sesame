@@ -15,6 +15,7 @@ use serde::{Serialize, Deserialize};
 
 pub mod ptr;
 pub mod vec;
+// TODO: (aportlan) uncomment these two lines to use fast vec transfer again
 // pub mod vec_impl;
 // pub mod str_impl;
 pub mod prim_impl;
@@ -24,7 +25,7 @@ pub mod swizzle;
 
 // Used inside the sandbox for serializing/deserializing arguments and results.
 #[cfg(target_arch = "wasm32")]
-pub fn sandbox_preamble<'a, T: SuperSandboxable, R: SuperSandboxable, F: Fn(T) -> R>(
+pub fn sandbox_preamble<'a, T: SandboxTransfer, R: SandboxTransfer, F: Fn(T) -> R>(
     functor: F, arg_ptr: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
     // use std::os::raw::c_void;
     use std::slice;
@@ -36,7 +37,7 @@ pub fn sandbox_preamble<'a, T: SuperSandboxable, R: SuperSandboxable, F: Fn(T) -
     let ret = unsafe {
         // Put it into a box so we can get ownership
         // let b = Box::from_raw(ptr);
-        let arg_val: T = SuperSandboxable::data_from_ptr(arg_ptr);
+        let arg_val: T = SandboxTransfer::data_from_ptr(arg_ptr);
         
         // Call the actual function
         functor(arg_val)
@@ -46,7 +47,7 @@ pub fn sandbox_preamble<'a, T: SuperSandboxable, R: SuperSandboxable, F: Fn(T) -
 
     // Serialize output.
     // println!("ret is {:?}", ret);
-    let p = SuperSandboxable::ptr_from_data(ret);
+    let p = SandboxTransfer::ptr_from_data(ret);
     println!("ptr in preamble is {:p}", p);
     p
 }
@@ -54,14 +55,14 @@ pub fn sandbox_preamble<'a, T: SuperSandboxable, R: SuperSandboxable, F: Fn(T) -
 // Trait that sandboxed functions should implement.
 pub trait AlohomoraSandbox<'a, 'b, T, R> 
     where 
-        T: SuperSandboxable,
-        R: SuperSandboxable
+        T: SandboxTransfer,
+        R: SandboxTransfer
 {
     fn invoke(arg: *mut std::ffi::c_void, sandbox_index: usize) -> R;
 }
 
 /// New mega trait that handles copying to/from sandboxes & all swizzling.
-pub trait Sandboxable {
+pub trait FastSandboxTransfer {
     type InSandboxUnswizzled;
 
     /// Returns true for a type `T` if and only if `T::InSandboxUnswizzled` is identical to `T`.
@@ -80,38 +81,38 @@ pub trait Sandboxable {
     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, any_sandbox_ptr: usize) -> Self;
 }
 
-/// New super (even more mega) trait for both fast (`Sandboxable`) & slow (`Serializable`) path sandbox types
-pub trait SuperSandboxable {
-    /// the representation this points to in ptr form
-    // so for serializing, it'll point to a vec of u8
-    // for 
-    
+/// Trait for 
+pub trait SandboxTransfer {
+    // Function that converts a type to 32 bits, moves it fully into the sandbox,
+    // and returns a pointer to it.
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void;
     //                                                      FIXME:    ^^thinking this should be c_void could be mistake
 
     // all run IN THE SANDBOX (so will automatically use the `InSandboxUnswizzled` version of the data)
     // just by virtue of being in the sandbox
+
+    // Converts
     fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self;
     fn ptr_from_data(data: Self) -> *mut std::ffi::c_void;
 
     fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self;
     
-    //        [application]       ||   [sandbox]
-    //                            ||
-    //   *data* -> into_sandbox -------> *ptr*
-    //    (64B)                   ||       |
-    //                            ||  data_from_ptr
-    //                            ||       |
-    //                            ||    *data* (32B) <-> operate on in sandbox
-    //                            ||       |
-    //                            ||  ptr_from_data
-    //                            ||       |
-    // *data* <- out_of_sandbox <------- *ptr*
-    //  (64B)                     ||
+    //        [APPLICATION]         ||    [SANDBOX]
+    //                              ||
+    //   *data* -> into_sandbox() --------> *ptr*
+    //    [64b]                     ||        |
+    //                              ||  data_from_ptr()
+    //                              ||        |
+    //                              ||     *data* [32b] <-> operate on in sandbox
+    //                              ||        |
+    //                              ||  ptr_from_data()
+    //                              ||        |
+    // *data* <- out_of_sandbox() <-------- *ptr*
+    //  [64b]                       ||
 
 }
 
-impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
+impl<'a, T: Serialize + Deserialize<'a> + Debug> SandboxTransfer for T {
         default fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
             // need to serialize into the sandbox
             println!("into sandbox serialize path");
@@ -182,10 +183,10 @@ impl<'a, T: Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
         }
 }
 
-impl<'a, T: Sandboxable + Serialize + Deserialize<'a> + Debug> SuperSandboxable for T {
+impl<'a, T: FastSandboxTransfer + Serialize + Deserialize<'a> + Debug> SandboxTransfer for T {
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
         println!("sandboxable version");
-        let val = Sandboxable::into_sandbox(outside, alloc.clone());
+        let val = FastSandboxTransfer::into_sandbox(outside, alloc.clone());
         let b = Box::new_in(val, alloc);
         Box::into_raw(b) as *mut std::ffi::c_void
     }
@@ -213,27 +214,12 @@ impl<'a, T: Sandboxable + Serialize + Deserialize<'a> + Debug> SuperSandboxable 
         println!("sandboxable out_of_sandbox");
         println!("\tptr is {:p}", ptr);
         // Move returned values out of the sandbox & swizzle.
-        let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as Sandboxable>::InSandboxUnswizzled)) };
-        let result = Sandboxable::out_of_sandbox(ret_val, ptr as usize);
+        let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as FastSandboxTransfer>::InSandboxUnswizzled)) };
+        let result = FastSandboxTransfer::out_of_sandbox(ret_val, ptr as usize);
         println!("\tfinal val is {:?}", result);
         result
     }
 }
-
-// fn process<T>(item: T)
-// where
-//     T: Serialize, // Ensure T can use the slow method
-// {
-//     // Check if T also implements the fast method
-//     if let Some(sandboxable) = (&item as &dyn Any).downcast_ref::<dyn Sandboxable>() {
-//         let p = Sandboxable::into_sandbox(sandboxable, SandboxAllocator::new(0));
-//         // sandboxable.process_fast();
-//         println!("sandboxabled");
-//     } else {
-//         let s = serde_json::to_string(&item).unwrap();
-//         println!("serialized w {}", s);
-//     }
-// }
 
 // This should be generated by a macro.
 #[cfg(not(target_arch = "wasm32"))]
@@ -275,7 +261,7 @@ macro_rules! invoke_sandbox {
         // so we just make a raw pointer for passing through 'C land' 
         // then the preamble can reconstruct the real type back in Rust
         // let new_inside_ptr = Box::into_raw(Box::new_in($arg, ::alohomora_sandbox::alloc::SandboxAllocator::new($sandbox_index)));
-        // ^^the line above is now already done by the SuperSandboxable::into_sandbox()
+        // ^^the line above is now already done by the SandboxTransfer::into_sandbox()
         
         // Invoke sandbox via C.
         let ret2: ::alohomora_sandbox::sandbox_out = 
@@ -287,7 +273,7 @@ macro_rules! invoke_sandbox {
         println!("ret {:?}", ret);
 
         let result: $ret_ty = 
-            <$ret_ty as ::alohomora_sandbox::SuperSandboxable>
+            <$ret_ty as ::alohomora_sandbox::SandboxTransfer>
                 ::out_of_sandbox(ret as *mut std::ffi::c_void);
 
         // Return.
