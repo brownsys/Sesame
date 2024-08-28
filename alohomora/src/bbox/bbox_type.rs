@@ -21,7 +21,7 @@ pin_project! {
     #[derive(Debug, PartialEq)]
     pub struct BBox<T, P: Policy> {
         #[pin]
-        t: T,
+        t: Box<T>,
         p: P,
     }
 }
@@ -40,15 +40,15 @@ impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
 // This API moves/consumes the data and policy, or operates on them as refs.
 impl<T, P: Policy> BBox<T, P> {
     pub fn new(t: T, p: P) -> Self {
-        Self { t, p }
+        Self { t: Box::new(t), p }
     }
 
     // Consumes the bboxes extracting data and policy (private usable only in crate).
     pub(crate) fn consume(self) -> (T, P) {
-        (self.t, self.p)
+        (*self.t, self.p)
     }
     pub(crate) fn data(&self) -> &T {
-        &self.t
+        &*self.t
     }
 
     // Into a reference.
@@ -63,7 +63,7 @@ impl<T, P: Policy> BBox<T, P> {
         P: Into<P2>,
     {
         BBox {
-            t: self.t.into(),
+            t: Box::new((*self.t).into()),
             p: self.p.into(),
         }
     }
@@ -72,7 +72,7 @@ impl<T, P: Policy> BBox<T, P> {
         T: From<F>,
     {
         BBox {
-            t: T::from(value.t),
+            t: Box::new(T::from(*value.t)),
             p: value.p,
         }
     }
@@ -92,7 +92,7 @@ impl<T, P: Policy> BBox<T, P> {
         let context = UnprotectedContext::from(context);
         if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(&self.t, arg_out))
+            Ok(functor(&*self.t, arg_out))
         } else {
             Err(())
         }
@@ -107,7 +107,7 @@ impl<T, P: Policy> BBox<T, P> {
         let context = UnprotectedContext::from(context);
         if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(self.t, arg_out))
+            Ok(functor(*self.t, arg_out))
         } else {
             Err(())
         }
@@ -116,11 +116,11 @@ impl<T, P: Policy> BBox<T, P> {
     // Privacy critical regions
     pub fn pcr<'a, C, O, F: FnOnce(&'a T, &'a P, C) -> O>(&'a self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
         let functor = functor.get_functor();
-        functor(&self.t, &self.p, arg)
+        functor(&*self.t, &self.p, arg)
     }
     pub fn into_pcr<C, O, F: FnOnce(T, P, C) -> O>(self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
         let functor = functor.get_functor();
-        functor(self.t, self.p, arg)
+        functor(*self.t, self.p, arg)
     }
 
     // Privacy pure regions.
@@ -130,21 +130,21 @@ impl<T, P: Policy> BBox<T, P> {
     }
     pub fn into_ppr<O, F: FnOnce(T) -> O>(self, functor: PrivacyPureRegion<F>) -> BBox<O, P> {
         let functor = functor.get_functor();
-        BBox::new(functor(self.t), self.p)
+        BBox::new(functor(*self.t), self.p)
     }
 }
 
 // Can clone a ref policy to own it.
 impl<'a, T, P: Policy + Clone> BBox<T, RefPolicy<'a, P>> {
     pub fn to_owned_policy(self) -> BBox<T, P> {
-        BBox::new(self.t, self.p.policy().clone())
+        BBox::new(*self.t, self.p.policy().clone())
     }
 }
 
 // Can clone a ref to own it.
 impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
     pub fn to_owned(&self) -> BBox<T::Owned, P> {
-        BBox::new(self.t.to_owned(), self.p.policy().clone())
+        BBox::new((*self.t).to_owned(), self.p.policy().clone())
     }
 }
 
@@ -191,16 +191,18 @@ impl<T> BBox<T, AnyPolicy> {
 // NoPolicy can be discarded, logged, etc
 impl<T> BBox<T, NoPolicy> {
     pub fn discard_box(self) -> T {
-        self.t
+        *self.t
     }
 }
 
 // Same but for RefPolicy<NoPolicy>
 impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
     pub fn discard_box(self) -> &'a T {
-        self.t
+        *self.t
     }
 }
+
+// Transpose
 impl<T, E, P: Policy> BBox<Result<T, E>, P> {
     pub fn transpose(self) -> Result<BBox<T, P>, E> {
         let (t, p) = self.consume();
