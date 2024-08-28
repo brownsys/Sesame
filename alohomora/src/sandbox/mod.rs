@@ -27,15 +27,12 @@ where
     let (t, p) = outer_boxed.consume();
 
     // Create a new sandbox instance.
-    println!("alohomora: created instance");
     let instance = SandboxInstance::new();
 
     // move the arg into the sandbox and conver it to a ptr
-    println!("alohomora: into sandbox");
     let arg_ptr: *mut std::ffi::c_void = SandboxTransfer::into_sandbox(t, instance.alloc());
 
     // Pass that ptr to the function.
-    println!("alohomora: invoke");
     let result = S::invoke(arg_ptr, instance.sandbox_index);
 
     BBox::new(result, p)

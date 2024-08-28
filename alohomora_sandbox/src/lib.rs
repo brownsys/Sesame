@@ -27,15 +27,12 @@ pub fn sandbox_preamble<'a, T: SandboxTransfer, R: SandboxTransfer, F: Fn(T) -> 
     use std::mem;
 
     let ret = unsafe {
-        println!("in sandbox preamble");
         // Reconstruct actual data from ffi pointer
         let arg_val: T = SandboxTransfer::data_from_ptr(arg_ptr);
         
-        println!("calling functor");
         // Call the actual function
         functor(arg_val)
     };
-    println!("done with functor");
 
     // Convert output into pointer for passing back through ffi
     SandboxTransfer::ptr_from_data(ret)
@@ -109,7 +106,6 @@ pub trait SandboxTransfer {
 impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
         default fn into_sandbox(data: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
             // Serialize `data` into bytes
-            println!("serialize into sandbox for type {}", std::any::type_name::<Self>());
             let v: Vec<u8> = bincode::serialize(&data).unwrap();
 
             // Move those bytes into the sandbox
@@ -128,7 +124,6 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
         }
 
         default fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
-            println!("serialize data_from_ptr for type {}", std::any::type_name::<Self>());
             // Get addr & len of serialized vec
             let real_ptr = ptr as *mut (*mut u8, u64);
             let (ptr, len) = unsafe { *Box::from_raw(real_ptr) };
@@ -140,8 +135,6 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
             bincode::deserialize(&bytes).unwrap()
         }
         default fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
-            println!("serialize ptr from data for type {}", std::any::type_name::<Self>());
-
             // Serialize `data` into bytes
             let v: Vec<u8> = bincode::serialize(&data).unwrap();
 
@@ -153,7 +146,6 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
         }
 
         default fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
-            println!("serialize out_of_sandbox for type {}", std::any::type_name::<Self>());
             let real_ptr = ptr as *mut (u32, u64);
             let b = unsafe { Box::leak(Box::from_raw(real_ptr)) };
             let (ptr_unswiz, len) = *b;
@@ -171,32 +163,23 @@ impl<'a, T: Serialize + Deserialize<'a> > SandboxTransfer for T {
 
 impl<'a, T: FastSandboxTransfer + Serialize + Deserialize<'a>> SandboxTransfer for T {
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> *mut std::ffi::c_void {
-        println!("sandbox into_sandbox for type {}", std::any::type_name::<Self>());
         // Move the value into sandboxed memory
         let val = FastSandboxTransfer::into_sandbox(outside, alloc.clone());
-
-        println!("\t into sandbox BOXING TIME");
 
         // Put it into a box in the sandbox for passing as pointer
         Box::into_raw(Box::new_in(val, alloc)) as *mut std::ffi::c_void
     }
 
     fn data_from_ptr(ptr: *mut std::ffi::c_void) -> Self {
-        println!("sandbox data_from for type {}", std::any::type_name::<Self>());
-
         // Take value from box
         unsafe{ *Box::from_raw(ptr as *mut T) }
     }
     fn ptr_from_data(data: Self) -> *mut std::ffi::c_void {
-        println!("sandbox ptr_from_data for type {}", std::any::type_name::<Self>());
-
         // Put value into box
         Box::into_raw(Box::new(data)) as *mut std::ffi::c_void
     }
 
     fn out_of_sandbox(ptr: *mut std::ffi::c_void) -> Self {
-        println!("sandbox out_of_sandbox for type {}", std::any::type_name::<Self>());
-        
         // Reconstruct the 32 bit type from a Box pointer
         let ret_val = unsafe{ Box::leak(Box::from_raw(ptr as *mut <Self as FastSandboxTransfer>::InSandboxUnswizzled)) };
 
@@ -231,13 +214,7 @@ extern "C" {
 macro_rules! invoke_sandbox {
     ($functor:ident, $arg:ident, $arg_ty:ty, $ret_ty:ty, $sandbox_index:ident) => {
         // Invoke sandbox via C.
-        println!("calling c to call preamble");
-        println!("functor is {}", stringify!($functor));
-        println!("args are {} and {}", stringify!($arg), stringify!($sandbox_index));
-        let ptr = $arg as *mut std::ffi::c_void;
-        let index = $sandbox_index;
-        println!("arg vals are {:p} and {}", ptr, index);
-        let ret: *mut u8 = unsafe { $functor(ptr, index) };
+        let ret: *mut u8 = unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
 
         // Move returned pointer out of sandbox to get final result
         let result: $ret_ty = 

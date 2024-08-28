@@ -13,7 +13,7 @@ use alohomora::sandbox::{AlohomoraSandbox, FinalSandboxOut, execute_sandbox};
 
 use alohomora::AlohomoraType;
 // use bench_lib::{hash, train};
-use bench_lib::{train, train2, hash, Potato, PotatoStats, potato_count};
+use bench_lib::{train, hash};
 
 use chrono::naive::NaiveDateTime;
 use chrono::Utc;
@@ -41,6 +41,8 @@ fn hash_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
     let now = now.timestamp_nanos_opt().unwrap() as u64;
 
     type Out = (u64, String, u64);
+    println!("input email is {:?}", email);
+    println!("input secret is {:?}", secret);
     let output = execute_sandbox::<hash, _, _>((email, secret, BBox::new(now, NoPolicy {})));
     // let output = execute_sandbox::<hash, _, _>(); // TODO (allenaby) why does this work if now doesn't have bbox, because impl Alohomora type for u64?
     
@@ -132,6 +134,8 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64)> {
 
     // let bbox = BBox::new(mimi_ptr, NoPolicy::new());
     type Out = (u64, FittedLinearRegression<f64>, u64);
+    // let first = grades.clone()[0..3].to_vec();
+    // println!("first three grades inside are {:?}", first);
     let output = execute_sandbox::<train,_,_>(grades.clone());
     // let output = execute_sandbox::<train, _, _>(grades);
     // let output = BBox::new(0, NoPolicy{});
@@ -208,9 +212,9 @@ fn write_stats(name: String, data: Vec<(u64, u64, u64, u64, u64, u64)>) {
 // Runs hashing and training benchmarks, outputting their results to the 'results/' directory.
 fn run_benchmarks(){
   println!("running benches");
-  // let hash_res = hash_bench(10000);
-  // let hash_res = hash_res[0..].to_vec();
-  // write_stats("hash".to_string(), hash_res);
+  let hash_res = hash_bench(1000);
+  let hash_res = hash_res[0..].to_vec();
+  write_stats("hash".to_string(), hash_res);
 
   let train_res = train_bench(500);
   let train_res = train_res[0..].to_vec();
@@ -251,20 +255,20 @@ fn run_benchmarks(){
 //   }
 // }
 
-fn custom_struct_test() {
-  let v = vec![
-    Potato { size: 10, rating: -2 },
-    Potato { size: 20, rating: 12 },
-    Potato { size: 40, rating: 40 },
-    Potato { size: 30, rating: -2 },
-  ];
-  let b = BBox::new(v, NoPolicy::new());
+// fn custom_struct_test() {
+//   let v = vec![
+//     Potato { size: 10, rating: -2 },
+//     Potato { size: 20, rating: 12 },
+//     Potato { size: 40, rating: 40 },
+//     Potato { size: 30, rating: -2 },
+//   ];
+//   let b = BBox::new(v, NoPolicy::new());
 
-  let res = execute_sandbox::<potato_count, _, _>(b);
-  let stats = res.specialize_policy::<NoPolicy>().unwrap().discard_box();
+//   let res = execute_sandbox::<potato_count, _, _>(b);
+//   let stats = res.specialize_policy::<NoPolicy>().unwrap().discard_box();
 
-  println!("stats are {:?}", stats);
-}
+//   println!("stats are {:?}", stats);
+// }
 
 fn main() {
   // BENCHMARKING

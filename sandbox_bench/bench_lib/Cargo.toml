@@ -30,8 +30,7 @@ path = "src/lib.rs"
 sandboxes = [
   "hash",
   "train",
-  "train2",
-  "potato_count"
+  # "potato_count"
   # "stringy"
   # "alloc_in_sandbox",
   # "transfer_arg"
