@@ -65,6 +65,7 @@ where T::InSandboxUnswizzled: Debug {
     type InSandboxUnswizzled = MyVecUnswizzled<T::InSandboxUnswizzled>;
 
     fn into_sandbox(outside: Self, alloc: SandboxAllocator) -> Self::InSandboxUnswizzled {
+        println!("fastsandboxtransfer into_sandbox for type {}", std::any::type_name::<Self>());
         // 1. Move everything in the vector into the sandbox
         let sandbox_vec = if T::is_identity() {
             // Fast memcpy method for if we don't have to unswizzle `T`
@@ -106,6 +107,7 @@ where T::InSandboxUnswizzled: Debug {
     }
 
     fn out_of_sandbox(inside: &Self::InSandboxUnswizzled, sandbox_ptr: usize) -> Self where Self: Sized {
+        println!("fastsandboxtransfer out of sandbox for type {}", std::any::type_name::<Self>());
         // 2. swizzle our metadata on the stack
         let new_stack = swizzle_myvec(inside, sandbox_ptr);
         

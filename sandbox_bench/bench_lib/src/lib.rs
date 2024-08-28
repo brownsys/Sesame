@@ -99,11 +99,6 @@ pub fn train2(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, (), u64) {
 #[AlohomoraSandbox()]
 // pub fn train(inputs: (Vec<(NaiveDateTime, u64)>, u64)) -> (u64, FittedLinearRegression<f64>, u64) {
 pub fn train(inputs: Vec<(NaiveDateTime, u64)>) -> (u64, FittedLinearRegression<f64>, u64) {
-  // TODO: can't return FittedLinearRegression<f64> here bc 
-  // its actually very complicated and hard to derive `FastSandboxTransfer` for
-
-  // END TIMER (start in bin)
-  // let start = Utc::now().timestamp_nanos_opt().unwrap() as u64;
   println!("in the sandbox, inputs are {:?}", inputs.len());
   let now = Instant::now();
 

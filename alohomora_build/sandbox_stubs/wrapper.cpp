@@ -143,15 +143,17 @@ void unlock_sandbox(size_t sandbox_index) \{
 
 {{ for sandbox in sandboxes }}
 char* invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
-    auto start = high_resolution_clock::now();
+    printf("in c wrapper invoke()\n");
+    fflush(stdout);
+    // auto start = high_resolution_clock::now();
 
     // Get the sandbox
     rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
 
     // END SETUP TIMER HERE
-    auto stop = high_resolution_clock::now();
-    auto duration = duration_cast<nanoseconds>(stop - start);
-    unsigned long long setup = duration.count();
+    // auto stop = high_resolution_clock::now();
+    // auto duration = duration_cast<nanoseconds>(stop - start);
+    // unsigned long long setup = duration.count();
 
     // Swizzle arg ptr into the sandbox
     char* arg2 = (char*)arg;             // `assign_raw_pointer` only works with char*s so we have to cast it first
@@ -159,21 +161,22 @@ char* invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
     tainted_arg.assign_raw_pointer(*sandbox, arg2);
 
     // Invoke sandbox.
+    printf("in c wrapper gonna call preamble\n");
     tainted_{name}<char*> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg);
-
+    printf("in c wrapper done calling preamble\n");
     // START TEARDOWN TIMER HERE
     char* buffer = tainted_result.INTERNAL_unverified_safe();
-    uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
-    start = high_resolution_clock::now();
+    // uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
+    // start = high_resolution_clock::now();
 
     // Copy output to our memory.
     // char* result = (char*) malloc(size2);
     // memcpy(result, buffer + 2, size2);
 
     // END TEARDOWN TIMER HERE
-    stop = high_resolution_clock::now();
-    duration = duration_cast<nanoseconds>(stop - start);
-    unsigned long long teardown = duration.count();
+    // stop = high_resolution_clock::now();
+    // duration = duration_cast<nanoseconds>(stop - start);
+    // unsigned long long teardown = duration.count();
 
     // Return timing data.
     return buffer;

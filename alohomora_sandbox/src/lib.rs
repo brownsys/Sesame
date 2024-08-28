@@ -27,12 +27,15 @@ pub fn sandbox_preamble<'a, T: SandboxTransfer, R: SandboxTransfer, F: Fn(T) -> 
     use std::mem;
 
     let ret = unsafe {
+        println!("in sandbox preamble");
         // Reconstruct actual data from ffi pointer
         let arg_val: T = SandboxTransfer::data_from_ptr(arg_ptr);
         
+        println!("calling functor");
         // Call the actual function
         functor(arg_val)
     };
+    println!("done with functor");
 
     // Convert output into pointer for passing back through ffi
     SandboxTransfer::ptr_from_data(ret)
@@ -172,6 +175,8 @@ impl<'a, T: FastSandboxTransfer + Serialize + Deserialize<'a>> SandboxTransfer f
         // Move the value into sandboxed memory
         let val = FastSandboxTransfer::into_sandbox(outside, alloc.clone());
 
+        println!("\t into sandbox BOXING TIME");
+
         // Put it into a box in the sandbox for passing as pointer
         Box::into_raw(Box::new_in(val, alloc)) as *mut std::ffi::c_void
     }
@@ -226,7 +231,13 @@ extern "C" {
 macro_rules! invoke_sandbox {
     ($functor:ident, $arg:ident, $arg_ty:ty, $ret_ty:ty, $sandbox_index:ident) => {
         // Invoke sandbox via C.
-        let ret: *mut u8 = unsafe { $functor($arg as *mut std::ffi::c_void, $sandbox_index) };
+        println!("calling c to call preamble");
+        println!("functor is {}", stringify!($functor));
+        println!("args are {} and {}", stringify!($arg), stringify!($sandbox_index));
+        let ptr = $arg as *mut std::ffi::c_void;
+        let index = $sandbox_index;
+        println!("arg vals are {:p} and {}", ptr, index);
+        let ret: *mut u8 = unsafe { $functor(ptr, index) };
 
         // Move returned pointer out of sandbox to get final result
         let result: $ret_ty = 
