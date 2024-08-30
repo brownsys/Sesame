@@ -1,3 +1,7 @@
-pub fn external_add(left: usize, right: usize) -> usize {
-    left + right
+pub fn some_other_fn() {
+    println!("I'm another function"); 
+}
+
+pub fn external_math(left: u8, right: u8) -> u8 {
+    2 * left + right
 }

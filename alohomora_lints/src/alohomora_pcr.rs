@@ -249,15 +249,24 @@ fn get_mir_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let mut hcx = StableHashingContext::new(tcx.sess, tcx.untracked());
     let mut hasher = StableHasher::new();
 
+    if !Path::exists("./pcr/".as_ref()) {
+        fs::create_dir("./pcr/").unwrap();
+    }
+    let fn_info_path = format!("./pcr/{:?}", def_id);
+
     for function_info in functions.iter() {
-        let body = function_info
-            .instance()
-            .unwrap()
+        let instance = function_info.instance().unwrap();
+        let def_id = instance.def_id(); 
+        let hash = tcx.def_path_hash(def_id); 
+        println!("checking function info for {:?} @ {:?}", def_id, hash); 
+
+        let body: rustc_middle::mir::Body = instance
             .subst_mir_and_normalize_erasing_regions(
                 tcx,
                 ParamEnv::reveal_all(),
                 tcx.instance_mir(function_info.instance().unwrap().def).to_owned(),
             );
+        fs::write(fn_info_path.as_str(), format!("{:?}\n{:#?}\n\n", def_id, body)).unwrap();
         body.hash_stable(&mut hcx, &mut hasher);
     }
 
