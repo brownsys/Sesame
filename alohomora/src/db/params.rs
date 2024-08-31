@@ -46,6 +46,18 @@ impl BBoxParams {
             }
         }
     }
+
+    pub(super) fn to_reason<'a>(self) -> Vec<mysql::Value> {
+        match self {
+            BBoxParams::Empty => Vec::new(),
+            BBoxParams::Positional(v) => v.into_iter()
+                .map(|either| match either {
+                    EitherBBox::Value(value) => value,
+                    EitherBBox::BBox(bbox) => bbox.consume().0,
+                })
+                .collect(),
+        }
+    }
 }
 
 // Can make Params from empty and Vec.

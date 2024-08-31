@@ -7,11 +7,13 @@ use std::task::Poll;
 use either::Either;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
-use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason};
+use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason, CloneableAny};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
 
 use pin_project_lite::pin_project;
+use crate::AlohomoraType;
+use crate::fold::fold;
 
 // Privacy Container type.
 pin_project! {
@@ -78,30 +80,32 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Unbox with policy checks.
-    pub fn unbox<'a, D: ContextData, C, O, F: FnOnce(&'a T, C) -> O>(
+    pub fn unbox<'a, D: ContextData, C: Clone + AlohomoraType, O, F: FnOnce(&'a T, C::Out) -> O>(
         &'a self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
         arg: C
-    ) -> Result<O, ()> {
+    ) -> Result<O, ()> where C::Out: CloneableAny + Clone {
+        let arg_out = fold(arg.clone()).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context, Reason::Custom) {
+        if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(&self.t, arg))
+            Ok(functor(&self.t, arg_out))
         } else {
             Err(())
         }
     }
-    pub fn into_unbox<D: ContextData, C, O, F: FnOnce(T, C) -> O>(
+    pub fn into_unbox<D: ContextData, C: Clone + AlohomoraType, O, F: FnOnce(T, C::Out) -> O>(
         self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
         arg: C
-    ) -> Result<O, ()> {
+    ) -> Result<O, ()> where C::Out: CloneableAny + Clone {
+        let arg_out = fold(arg).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context, Reason::Custom) {
+        if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(self.t, arg))
+            Ok(functor(self.t, arg_out))
         } else {
             Err(())
         }

@@ -1,15 +1,42 @@
+use std::any::Any;
+use std::boxed::Box;
 use crate::context::UnprotectedContext;
 use crate::policy::AnyPolicy;
 
+pub trait CloneableAny : Any {
+    fn any_clone(&self) -> Box<dyn CloneableAny>;
+    fn cast(&self) -> &dyn Any;
+}
+impl<A: Clone + 'static> CloneableAny for A {
+    fn any_clone(&self) -> Box<dyn CloneableAny> {
+        Box::new(self.clone())
+    }
+    fn cast(&self) -> &dyn Any {
+        self
+    }
+}
+
 // Enum describing why/where the policy check is invoked.
-#[derive(Clone, Debug)]
 pub enum Reason<'i> {
-    DB(&'i str /*, &'i BBoxParams */),  // The statement (with ?)
-    TemplateRender(&'i str),            // Template name/path.
-    Cookie(&'i str),                    // Cookie name.
-    Redirect(&'i str),                  // Redirect path (before substitution).
-    Response,                           // Returning a response.
-    Custom,                             // Custom operation (via unbox(..)).
+    DB(&'i str, Vec<mysql::Value>),  // The statement (with ?)
+    TemplateRender(&'i str),             // Template name/path.
+    Cookie(&'i str),                     // Cookie name.
+    Redirect(&'i str),                   // Redirect path (before substitution).
+    Response,                            // Returning a response.
+    Custom(Box<dyn CloneableAny>),                     // Custom operation (via unbox(..)).
+}
+
+impl<'i> Clone for Reason<'i> {
+    fn clone(&self) -> Self {
+        match self {
+            Reason::DB(query, params) => Reason::DB(query, params.clone()),
+            Reason::TemplateRender(template_name) => Reason::TemplateRender(template_name),
+            Reason::Cookie(cookie_name) => Reason::Cookie(cookie_name),
+            Reason::Redirect(path) => Reason::Redirect(path),
+            Reason::Response => Reason::Response,
+            Reason::Custom(b) => Reason::Custom((*b).any_clone()),
+        }
+    }
 }
 
 // Public facing Policy traits.
