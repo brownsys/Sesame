@@ -151,8 +151,7 @@ impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
 // Up casting to std::any::Any and AnyPolicy.
 impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
     pub fn into_any(self) -> BBox<Box<dyn Any>, AnyPolicy> {
-        BBox::new(Box::new(self.t),
-                  AnyPolicy::new(self.p))
+        BBox::new(self.t, AnyPolicy::new(self.p))
     }
 }
 
@@ -217,7 +216,7 @@ impl<T, P: Policy> BBox<Option<T>, P> {
     }
 }
 
-impl<'a, T: Future, P: Policy + Clone> Future for BBox<T, P> {
+impl<'a, T: Future + Unpin, P: Policy + Clone> Future for BBox<T, P> {
     type Output = BBox<T::Output, P>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
@@ -283,7 +282,7 @@ mod tests {
     #[test]
     fn test_box() {
         let bbox = BBox::new(10u64, NoPolicy {});
-        assert_eq!(bbox.t, 10u64);
+        assert_eq!(bbox.t, Box::new(10u64));
         assert_eq!(bbox.discard_box(), 10u64);
     }
 
