@@ -51,7 +51,7 @@ impl Policy for ChatAccessPolicy {
     }
 
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
-        if let Reason::DB(_) = reason {
+        if let Reason::DB(_, _) = reason {
             return true;
         }
     

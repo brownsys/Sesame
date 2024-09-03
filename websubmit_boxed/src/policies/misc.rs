@@ -19,7 +19,7 @@ impl Policy for QueryableOnly {
 
     fn check(&self, _context: &UnprotectedContext, reason: Reason) -> bool {
         match reason {
-            Reason::DB(query) => query.starts_with("SELECT"),
+            Reason::DB(query, _) => query.starts_with("SELECT"),
             _ => false,
         }
     }

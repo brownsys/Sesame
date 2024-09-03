@@ -258,7 +258,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Clone, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     struct ExamplePolicy {
         pub attr: String,
     }
