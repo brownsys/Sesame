@@ -9,7 +9,7 @@ use std::time::Instant;
 fn main() {
     // Make vector of 1,000,000 random numbers
     let mut rng = rand::thread_rng();
-    let random_numbers: Vec<usize> = (0..10000000)
+    let random_numbers: Vec<usize> = (0..1000000)
         .map(|_| rng.gen_range(0..10000000))
         .collect();
 
