@@ -31,21 +31,21 @@ impl SchemaPolicy for SamplePolicy {
 fn schema_policy_registration_test() {
     let policy = alohomora::policy::get_schema_policies(String::from("my_table"), 3, &vec![]);
     assert_eq!(policy.name(), String::from("AnyPolicy(SamplePolicy)"));
-    assert!(policy.check(&UnprotectedContext::test(()), Reason::Custom));
+    assert!(policy.check(&UnprotectedContext::test(()), Reason::Custom(Box::new(()))));
     assert!(policy.is::<SamplePolicy>());
     let policy: SamplePolicy = policy.specialize().unwrap();
     assert_eq!(policy.name(), String::from("SamplePolicy"));
 
     let policy = alohomora::policy::get_schema_policies(String::from("my_table"), 2, &vec![]);
     assert_eq!(policy.name(), String::from("AnyPolicy(NoPolicy)"));
-    assert!(policy.check(&UnprotectedContext::test(()), Reason::Custom));
+    assert!(policy.check(&UnprotectedContext::test(()), Reason::Custom(Box::new(()))));
     assert!(policy.is::<NoPolicy>());
     let policy: NoPolicy = policy.specialize().unwrap();
     assert_eq!(policy.name(), String::from("NoPolicy"));
 
     let policy = alohomora::policy::get_schema_policies(String::from("table"), 3, &vec![]);
     assert_eq!(policy.name(), String::from("AnyPolicy(NoPolicy)"));
-    assert!(policy.check(&UnprotectedContext::test(()), Reason::Custom));
+    assert!(policy.check(&UnprotectedContext::test(()), Reason::Custom(Box::new(()))));
     assert!(policy.is::<NoPolicy>());
     let policy: NoPolicy = policy.specialize().unwrap();
     assert_eq!(policy.name(), String::from("NoPolicy"));

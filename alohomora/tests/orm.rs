@@ -28,6 +28,9 @@ impl ORMPolicy for MyPolicy {
     fn from_result(result: &QueryResult) -> Self {
         MyPolicy { name: result.try_get("", "name").unwrap() }
     }
+    fn empty() -> Self {
+        MyPolicy { name: String::from("") }
+    }
 }
 
 mod grade {

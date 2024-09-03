@@ -23,7 +23,7 @@ pub enum Reason<'i> {
     Cookie(&'i str),                     // Cookie name.
     Redirect(&'i str),                   // Redirect path (before substitution).
     Response,                            // Returning a response.
-    Custom(Box<dyn CloneableAny>),                     // Custom operation (via unbox(..)).
+    Custom(Box<dyn CloneableAny>),       // Custom operation (via unbox(..)).
 }
 
 impl<'i> Clone for Reason<'i> {
@@ -166,14 +166,14 @@ mod tests {
             
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));
-        assert!(combined_pol.check(&alice, Reason::Custom));
-        assert!(specialized.check(&alice, Reason::Custom));
+        assert!(combined_pol.check(&alice, Reason::Custom(Box::new(()))));
+        assert!(specialized.check(&alice, Reason::Custom(Box::new(()))));
 
         // and correct users are disallowed access
         let admin1 = UnprotectedContext::test(String::from(&admin1));
         let admin2 = UnprotectedContext::test(String::from(&admin2));
-        assert!(!combined_pol.check(&admin1, Reason::Custom));
-        assert!(!combined_pol.check(&admin2, Reason::Custom));
+        assert!(!combined_pol.check(&admin1, Reason::Custom(Box::new(()))));
+        assert!(!combined_pol.check(&admin2, Reason::Custom(Box::new(()))));
         
         println!("Final policy on aggregate of mixed policies: {}", combined_pol.name());
     }
@@ -210,18 +210,18 @@ mod tests {
             
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));
-        assert!(combined_pol1.check(&alice, Reason::Custom));
-        assert!(combined_pol2.check(&alice, Reason::Custom));
+        assert!(combined_pol1.check(&alice, Reason::Custom(Box::new(()))));
+        assert!(combined_pol2.check(&alice, Reason::Custom(Box::new(()))));
 
         // and correct users are disallowed access
         let admin1 = UnprotectedContext::test(String::from(&admin1));
         let admin2 = UnprotectedContext::test(String::from(&admin2));
 
-        assert!(!combined_pol1.check(&admin1, Reason::Custom));
-        assert!(!combined_pol2.check(&admin1, Reason::Custom));
+        assert!(!combined_pol1.check(&admin1, Reason::Custom(Box::new(()))));
+        assert!(!combined_pol2.check(&admin1, Reason::Custom(Box::new(()))));
 
-        assert!(!combined_pol1.check(&admin2, Reason::Custom));
-        assert!(!combined_pol2.check(&admin2, Reason::Custom));
+        assert!(!combined_pol1.check(&admin2, Reason::Custom(Box::new(()))));
+        assert!(!combined_pol2.check(&admin2, Reason::Custom(Box::new(()))));
         
         println!("Final policy from mixed policies: {}", combined_pol1.name());
         println!("Final policy from mixed policies: {}", combined_pol2.name());
