@@ -42,15 +42,20 @@ declare_alohomora_lint! {
     /// Warns if PrivacyCriticalRegions have invalid signatures. 
     /// 
     /// ### Why is this bad?
-    /// Closures in PrivacyCriticalRegions must be signed to indicate they have been 
-    /// reviewed and do not pose privacy risks. 
+    /// Closures in PrivacyCriticalRegions must be signed 
+    /// to indicate they have been reviewed for unintended leakage 
+    /// and for correct use of the application Context. 
     /// 
-    /// An invalidated signature indicates that the closure or a function
-    /// the closure calls has changed since the last signature.
+    /// An invalidated signature indicates that the closure, 
+    /// a local-crate function the closure calls, 
+    /// or a dependency of the closure
+    /// has changed.
     /// 
     /// ### Known problems
-    /// Functions from external crates called within the PCR are not included in the hash of the closure, 
-    /// so changes in an external crate will not invalidate the signature. 
+    /// Signatures allow small changes to closures, 
+    /// e.g., adding whitespace or comments, 
+    /// but will be invalidated by larger changes 
+    /// that are semantically equivalent. 
     /// 
     /// ### Example
     /// ```rust
@@ -141,7 +146,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                         cx,
                         ALOHOMORA_PCR,
                         expr.span,
-                        "\x1b[93mbadly-signed privacy-critical region, might be a source of privacy-related bugs\x1b[0m",
+                        "\x1b[93minvalid signature on privacy-critical region, might be a source of privacy-related bugs\x1b[0m",
                         None,
                         help_msg.as_str()
                     );
