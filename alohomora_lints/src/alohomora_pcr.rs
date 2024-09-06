@@ -31,7 +31,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::collections::HashSet;
-//use std::time::{SystemTime, UNIX_EPOCH};
+use syn::{self, parse_str};
+use quote::ToTokens; 
 
 use scrutils::Collector;
 use scrutils::compute_deps_for_body; 
@@ -287,7 +288,8 @@ fn get_pcr_hashes<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> (String, Str
                             .source_map()
                             .span_to_snippet(body.span)
                             .unwrap();
-        src.push(src_snippet); 
+        let normalized_snippet = normalize_source(src_snippet).unwrap(); 
+        src.push(normalized_snippet); 
 
         deps.extend(compute_deps_for_body(body, tcx).into_iter());
     }
@@ -352,6 +354,21 @@ fn check_identity(target_plaintext: &String, identity: &(String, String)) -> Res
         }
         Err(err) => Err(err.to_string()),
     }
+}
+
+/// Given a String source code snippet, parses it to Exprs and Items, 
+/// and returns as a String for hashing
+fn normalize_source(code: String) -> Result<String, String> {
+    if let Ok(expr) = parse_str::<syn::Expr>(code.as_str()) {
+        let cleaned = expr.into_token_stream().to_string(); 
+        return Ok(cleaned);
+    }
+
+    if let Ok(item) = parse_str::<syn::Item>(code.as_str()) {
+        let cleaned = item.into_token_stream().to_string(); 
+        return Ok(cleaned);
+    }
+    Err("failed to parse".to_string())
 }
 
 fn get_github_keys(username: &String) -> String {

@@ -34,14 +34,17 @@ if_chain = "1.0.2"
 reqwest = { version = "0.12.2", features = ["blocking"] }
 scrutils = { path = "../../scrutinizer/scrutils" }
 # TODO change scrutils dep to git = "https://github.com/artemagvanian/scrutinizer.git"
+syn = { version = "2.0.58", features = ["full"]}
+quote = "1.0.37"
+proc-macro2 = "1.0.86"
 
 [dev-dependencies]
 dylint_testing = "=2.5.0"
 alohomora = { path = "../alohomora" }
 alohomora_sandbox = { path = "../alohomora_sandbox" }
 
-[patch.crates-io]
-funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
-
 [package.metadata.rust-analyzer]
 rustc_private = true
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
