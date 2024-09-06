@@ -7,7 +7,7 @@ members = [
     "dependency",
     "fn_calls_legal",
     "rec_change_illegal",
-    "false_positives", 
+    "avoid_false_positives", 
 ]
 
 [patch.crates-io]

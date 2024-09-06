@@ -21,6 +21,8 @@ use rustc_middle::ty::{subst::InternalSubsts, Instance, ParamEnv, TyCtxt};
 
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
 use rustc_query_system::ich::StableHashingContext;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 use base64::{engine::general_purpose, Engine as _};
 use if_chain::if_chain;
@@ -28,9 +30,12 @@ use if_chain::if_chain;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::collections::HashSet;
 //use std::time::{SystemTime, UNIX_EPOCH};
 
 use scrutils::Collector;
+use scrutils::compute_deps_for_body; 
+use scrutils::compute_dep_strings_for_crates;
 
 declare_alohomora_lint! {
     /// ### What it does
@@ -41,7 +46,7 @@ declare_alohomora_lint! {
     /// reviewed and do not pose privacy risks. 
     /// 
     /// An invalidated signature indicates that the closure or a function
-    /// the closure calls has changed since the last signature. 
+    /// the closure calls has changed since the last signature.
     /// 
     /// ### Known problems
     /// Functions from external crates called within the PCR are not included in the hash of the closure, 
@@ -64,7 +69,7 @@ declare_alohomora_lint! {
 }
 
 fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Expr<'_>) {
-    let fn_path: Vec<Symbol> = vec![
+    let target_fn_path: Vec<Symbol> = vec![
         sym!(alohomora),
         sym!(pcr),
         sym!(PrivacyCriticalRegion),
@@ -72,7 +77,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
     ];
 
     if let ExprKind::Call(maybe_path, args) = &expr.kind {
-        if is_fn_call(cx, maybe_path, fn_path) {
+        if is_fn_call(cx, maybe_path, target_fn_path) {
             assert!(args.len() == 4); // 4 args to constructor of PrivacyCriticalRegion
             if let ExprKind::Closure(closure) = args[0].kind {
                 let closure_body = cx.tcx.hir().body(closure.body);
@@ -83,40 +88,53 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     .span_to_snippet(closure_body.value.span)
                     .unwrap();
                 let cargo_lock_hash = get_cargo_lock_hash(cx.tcx); 
-                let pcr_hash = get_mir_hash(cx.tcx, closure);
-
+                let (correct_src_hash, correct_mir_hash) = get_pcr_hashes(cx.tcx, closure);
+                
                 //These args to PrivacyCriticalRegion::new will be of type Signature
-                let author = extract_from_signature_struct(&args[1].kind);
-                let fn_reviewer = extract_from_signature_struct(&args[2].kind);
-                let dependency_reviewer = extract_from_signature_struct(&args[3].kind);
+                let (author_id, author_full_signature ) = extract_from_signature_struct(&args[1].kind);
+                let (fn_reviewer_id, fn_reviewer_full_signature ) = extract_from_signature_struct(&args[2].kind);
+                let dep_reviewer = extract_from_signature_struct(&args[3].kind);
 
-                let author_id_check = check_identity(&pcr_hash, &author);
-                let fn_reviewer_id_check = check_identity(&pcr_hash, &fn_reviewer);
-                let dependency_reviewer_id_check = check_identity(&cargo_lock_hash, &dependency_reviewer);
+                let fn_loc = cx
+                    .tcx
+                    .hir()
+                    .def_path(closure.def_id) 
+                    .to_filename_friendly_no_crate(); 
+
+                let (author_src_signature, author_mir_signature) = author_full_signature
+                                                            .split_once("#")
+                                                            .ok_or(format!("sign pcr @ {} with sign_pcr.sh", fn_loc)).unwrap(); 
+
+                let (fn_reviewer_src_signature, fn_reviewer_mir_signature) : (&str, &str) = fn_reviewer_full_signature
+                                                            .split_once("#")
+                                                            .ok_or(format!("sign pcr @ {} with sign_pcr.sh", fn_loc)).unwrap(); 
+
+                let author_id_src_check = check_identity(&correct_src_hash, &(author_id.clone(), author_src_signature.to_string()));
+                let author_id_mir_check = check_identity(&correct_mir_hash, &(author_id, author_mir_signature.to_string()));
+                println!("author src {:?}", author_id_src_check); 
+                println!("author mir {:?}", author_id_mir_check);
+                let author_id_check = author_id_src_check.or(author_id_mir_check); 
+               
+
+                let fn_reviewer_id_src_check = check_identity(&correct_src_hash, &(fn_reviewer_id.clone(), fn_reviewer_src_signature.to_string()));
+                let fn_reviewer_id_mir_check = check_identity(&correct_src_hash, &(fn_reviewer_id, fn_reviewer_mir_signature.to_string()));
+                let fn_reviewer_id_check = fn_reviewer_id_src_check.or(fn_reviewer_id_mir_check); 
+
+                let dep_reviewer_id_check = check_identity(&cargo_lock_hash, &dep_reviewer);
 
                 if author_id_check.is_err() 
                     || fn_reviewer_id_check.is_err()
-                    || dependency_reviewer_id_check.is_err() {
+                    || dep_reviewer_id_check.is_err() {
 
                     let mut help_msg = String::new();
-                    push_id_error(&mut help_msg, "Cargo.lock reviewer", &dependency_reviewer_id_check);
+                    push_id_error(&mut help_msg, "Cargo.lock reviewer", &dep_reviewer_id_check);
                     push_id_error(&mut help_msg, "author", &author_id_check);
                     push_id_error(&mut help_msg, "closure reviewer", &fn_reviewer_id_check);
-
-                    let fn_loc = cx
-                            .tcx
-                            .hir()
-                            .def_path(closure.def_id) 
-                            .to_filename_friendly_no_crate(); 
 
                     if !Path::exists("./pcr/".as_ref()) {
                         fs::create_dir("./pcr/").unwrap();
                     }
-                    if dependency_reviewer_id_check.is_err(){
-                        //let _timestamp = SystemTime::now()
-                        //    .duration_since(UNIX_EPOCH)
-                        //    .unwrap()
-                        //    .as_millis();
+                    if dep_reviewer_id_check.is_err(){
                         let cargo_lock_file_name = format!("./pcr/Cargo.lock_hash"); // _{}", timestamp);
                         help_msg.push_str(
                             format!("written the hash of Cargo.lock into the file for signing: {}\n",
@@ -126,14 +144,17 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     } 
                     if author_id_check.is_err() || fn_reviewer_id_check.is_err() {
                         let pcr_file_name = format!("./pcr/{}.rs", fn_loc);
-                        let hash_file_name = format!("./pcr/{}_hash.rs", fn_loc);
+                        let src_hash_file_name = format!("./pcr/{}_src_hash.rs", fn_loc);
+                        let mir_hash_file_name = format!("./pcr/{}_mir_hash.rs", fn_loc);
                         help_msg.push_str(
                             format!(
-                                "written the hash of privacy-critical region into the file for signing: {}\n",
-                                hash_file_name
+                                "written the hash of privacy-critical region into the files for signing: {} {}\n",
+                                src_hash_file_name, 
+                                mir_hash_file_name
                             ).as_str());
                         fs::write(pcr_file_name, pcr_src).unwrap();
-                        fs::write(hash_file_name, pcr_hash).unwrap();
+                        fs::write(src_hash_file_name, correct_src_hash).unwrap();
+                        fs::write(mir_hash_file_name, correct_mir_hash).unwrap();
                     }
                     span_lint_and_help(
                         cx,
@@ -151,7 +172,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
     }
 }
 
-// Returns true if the given Expression is of ExprKind::Path & path resolves to given fn_pat
+/// Returns true if the given Expression is of ExprKind::Path & path resolves to given fn_pat
 fn is_fn_call(cx: &rustc_lint::LateContext, maybe_path: &Expr, fn_path: Vec<Symbol>) -> bool {
     if_chain!{
         if let ExprKind::Path(ref qpath) = maybe_path.kind;
@@ -164,7 +185,7 @@ fn is_fn_call(cx: &rustc_lint::LateContext, maybe_path: &Expr, fn_path: Vec<Symb
     }
 }
 
-// Given an ExprKind that may be a Signature struct, returns fields (username, signature)
+/// Given an ExprKind that may be a Signature struct, returns fields (username, signature)
 fn extract_from_signature_struct(maybe_struct: &ExprKind) -> (String, String) {
     if let ExprKind::Struct(_, fields, _) = maybe_struct {
         assert!(fields.len() == 2);
@@ -195,7 +216,7 @@ fn extract_from_signature_struct(maybe_struct: &ExprKind) -> (String, String) {
     }
 }
 
-// Recursively finds the path to the innermost Cargo.lock file
+/// Recursively finds the path to the innermost Cargo.lock file
 fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> { 
     let cargo_lock_path = directory.join("Cargo.lock");
     if cargo_lock_path.is_file() {
@@ -211,9 +232,8 @@ fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> {
     }
 }
 
-/* Given the lint pass's TyCtxt, 
-    returns the StableHash of the contents of the Cargo.lock of the cwd 
-*/
+/// Given the lint pass's TyCtxt, 
+///   returns the StableHash of the contents of the Cargo.lock of the cwd 
 fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
     let cwd = std::env::current_dir().unwrap(); 
     let toml_path = get_cargo_lock(cwd).unwrap(); 
@@ -229,11 +249,12 @@ fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
     toml_hash
 }  
 
-// Given a Closure, returns the StableHash of its MIR Body as a String
-fn get_mir_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
+/// Given a Closure, returns a tuple of the hash of the source code and a StableHash of its MIR. 
+fn get_pcr_hashes<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> (String, String) {
     let def_id: rustc_hir::def_id::DefId = closure.def_id.to_def_id();
 
-    let instance = Instance::resolve(
+    // instance of the parent signed closure to pass to Collector
+    let instance = Instance::resolve( 
         tcx,
         ParamEnv::reveal_all(),
         def_id,
@@ -247,35 +268,51 @@ fn get_mir_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let functions = storage.all();
 
     let mut hcx = StableHashingContext::new(tcx.sess, tcx.untracked());
-    let mut hasher = StableHasher::new();
-
-    if !Path::exists("./pcr/".as_ref()) {
-        fs::create_dir("./pcr/").unwrap();
-    }
-    let fn_info_path = format!("./pcr/{:?}", def_id);
+    let mut mir_hasher = StableHasher::new();   
+    let mut src = vec![]; 
+    let mut deps = HashSet::new(); 
 
     for function_info in functions.iter() {
         let instance = function_info.instance().unwrap();
-        let def_id = instance.def_id(); 
-        let hash = tcx.def_path_hash(def_id); 
-        println!("checking function info for {:?} @ {:?}", def_id, hash); 
-
+        //let def_id = instance.def_id();
         let body: rustc_middle::mir::Body = instance
             .subst_mir_and_normalize_erasing_regions(
                 tcx,
                 ParamEnv::reveal_all(),
                 tcx.instance_mir(function_info.instance().unwrap().def).to_owned(),
             );
-        fs::write(fn_info_path.as_str(), format!("{:?}\n{:#?}\n\n", def_id, body)).unwrap();
-        body.hash_stable(&mut hcx, &mut hasher);
-    }
+        body.hash_stable(&mut hcx, &mut mir_hasher);
 
-    let hash_tuple: (u64, u64) = hasher.finalize();
-    let mir_hash = format!("{:x} {:x}", hash_tuple.0, hash_tuple.1);
-    mir_hash
+        let src_snippet = tcx.sess
+                            .source_map()
+                            .span_to_snippet(body.span)
+                            .unwrap();
+        src.push(src_snippet); 
+
+        deps.extend(compute_deps_for_body(body, tcx).into_iter());
+    }
+    // goal here is to bind to deps to MIR hash
+    //TODO this is currently adding all the dependencies, not just the local ones, 
+    // which should be false_positives v0.1.0 and dependency v0.2.0 for `pcr_examples/false_positives`
+    let non_local_deps = deps.into_iter()
+        .filter(|dep| dep.clone() != tcx.crate_name(rustc_span::def_id::LOCAL_CRATE).to_string())
+        .collect(); 
+    let dep_strings = compute_dep_strings_for_crates(&non_local_deps);
+    println!("dep_strings: {:#?}", dep_strings); 
+    dep_strings.iter().for_each(|dep_string| dep_string.hash_stable(&mut hcx, &mut mir_hasher));
+    let mir_hash_tuple: (u64, u64) = mir_hasher.finalize();
+    let mir_hash = format!("{:x} {:x}", mir_hash_tuple.0, mir_hash_tuple.1);
+
+    let mut src_hasher = DefaultHasher::new();
+    src.sort_unstable(); 
+    src.into_iter().for_each(|snippet| snippet.hash(&mut src_hasher));
+    dep_strings.into_iter().for_each(|dep_string| dep_string.hash(&mut src_hasher));
+    let src_hash: String = src_hasher.finish().to_string(); 
+
+    (src_hash, mir_hash)
 }
 
-fn check_identity(pcr: &String, identity: &(String, String)) -> Result<(), String> {
+fn check_identity(target_plaintext: &String, identity: &(String, String)) -> Result<(), String> {
     let (username, signature) = identity;
     let keys = get_github_keys(username)
         .lines()
@@ -291,7 +328,7 @@ fn check_identity(pcr: &String, identity: &(String, String)) -> Result<(), Strin
 
     fs::write("/tmp/allowed_signers", keys).map_err(|err| err.to_string())?;
     fs::write("/tmp/signature", decoded_signature).map_err(|err| err.to_string())?;
-    fs::write("/tmp/plaintext", pcr).map_err(|err| err.to_string())?;
+    fs::write("/tmp/plaintext", target_plaintext).map_err(|err| err.to_string())?;
 
     let command_str = format!("/usr/bin/ssh-keygen -Y verify -f /tmp/allowed_signers -I {}@github.com -n file -s /tmp/signature < /tmp/plaintext", username);
 

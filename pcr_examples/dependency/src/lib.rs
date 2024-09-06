@@ -3,5 +3,6 @@ pub fn some_other_fn() {
 }
 
 pub fn external_math(left: u8, right: u8) -> u8 {
+    println!("leaking :("); 
     2 * left + right
 }

@@ -1,1 +1,0 @@
-{ call_external_math(x, x) }

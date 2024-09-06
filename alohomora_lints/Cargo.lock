@@ -1165,7 +1165,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "fluid-let",
  "log",
- "rustc_utils",
+ "rustc_utils 0.6.0-nightly-2023-04-12 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
 ]
 
@@ -3431,6 +3431,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustc_utils"
+version = "0.6.0-nightly-2023-04-12"
+source = "git+https://github.com/KinanBab/rustc_plugin.git?branch=main#2ee40b343d70df051dd4860d431d2f2e4deac8bb"
+dependencies = [
+ "anyhow",
+ "cfg-if 1.0.0",
+ "intervaltree",
+ "log",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3539,7 +3550,7 @@ dependencies = [
  "polonius-engine",
  "regex",
  "rustc-hash",
- "rustc_utils",
+ "rustc_utils 0.6.0-nightly-2023-04-12 (git+https://github.com/KinanBab/rustc_plugin.git?branch=main)",
  "serde",
  "serde_json",
  "toml",
