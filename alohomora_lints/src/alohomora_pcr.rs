@@ -34,9 +34,8 @@ use std::collections::HashSet;
 use syn::{self, parse_str};
 use quote::ToTokens; 
 
-use scrutils::Collector;
-use scrutils::compute_deps_for_body; 
-use scrutils::compute_dep_strings_for_crates;
+use scrutils::{Collector, FunctionInfo, 
+    compute_deps_for_body, compute_dep_strings_for_crates}; 
 
 declare_alohomora_lint! {
     /// ### What it does
@@ -167,7 +166,7 @@ fn is_fn_call(cx: &rustc_lint::LateContext, maybe_path: &Expr, fn_path: Vec<Symb
     }
 }
 
-/// Given an ExprKind that may be a Signature struct, returns fields (username, signature)
+/// Given an ExprKind that should be a Signature struct, returns fields (username, signature)
 fn extract_from_signature_struct(maybe_struct: &ExprKind) -> (String, String) {
     if let ExprKind::Struct(_, fields, _) = maybe_struct {
         assert!(fields.len() == 2);
@@ -235,7 +234,7 @@ fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
 fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let def_id: rustc_hir::def_id::DefId = closure.def_id.to_def_id();
 
-    // instance of the parent signed closure to pass to Collector
+    // Instance of the parent signed closure to pass to Collector
     let instance = Instance::resolve( 
         tcx,
         ParamEnv::reveal_all(),
@@ -253,8 +252,13 @@ fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let mut deps = HashSet::new(); 
 
     for function_info in functions.iter() {
-        let instance = function_info.instance().unwrap();
-        //let def_id = instance.def_id();
+        let instance = match function_info {
+            FunctionInfo::WithBody { instance, .. } => 
+                instance.to_owned(),
+            FunctionInfo::WithoutBody { def_id, .. } => 
+                panic!("this PCR contains an unresolvable item at {:?}", tcx.def_path_debug_str(*def_id)),
+        }; 
+    
         let body: rustc_middle::mir::Body = instance
             .subst_mir_and_normalize_erasing_regions(
                 tcx,
@@ -273,7 +277,8 @@ fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     }
     // goal here is to bind to deps to MIR hash
     let non_local_deps = deps.into_iter()
-        .filter(|dep| dep.clone() != tcx.crate_name(rustc_span::def_id::LOCAL_CRATE).to_string())
+        .filter(|dep| 
+            dep.clone() != tcx.crate_name(rustc_span::def_id::LOCAL_CRATE).to_string())
         .collect(); 
     let dep_strings = compute_dep_strings_for_crates(&non_local_deps);
 
