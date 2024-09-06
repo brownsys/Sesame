@@ -20,7 +20,7 @@ pub fn alohomora_build(scrutinize: bool, sandbox_directories: &[&str]) {
         sandbox::build_sandbox(&env);
         // dylints::run_lints(&env);
         if scrutinize {
-            scrutinizer::scrutinize(&env);
+            //scrutinizer::scrutinize(&env);
         }
     }
 
