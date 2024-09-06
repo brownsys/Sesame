@@ -16,6 +16,7 @@ base64 -i "$2.sig" -o "$2.sig.base"
 ssh-keygen -Y sign -f $1 -n file $3
 base64 -i "$3.sig" -o "$3.sig.base"
 
+dest="${prefix}_SIGNATURE"
 # Merge the two signatures into one file with the name "foo_signature"
-echo "Wrote Sesame PCR signature to {}"
-echo "$(cat "$2.sig.base")#$(cat "$3.sig.base")" > "${prefix}_SIGNATURE"
+echo "Wrote Sesame PCR signature to $dest"
+echo "$(cat "$2.sig.base")#$(cat "$3.sig.base")" > $dest
