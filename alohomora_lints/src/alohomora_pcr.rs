@@ -89,11 +89,11 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     .span_to_snippet(closure_body.value.span)
                     .unwrap();
                 let cargo_lock_hash = get_cargo_lock_hash(cx.tcx); 
-                let (correct_src_hash, correct_mir_hash) = get_pcr_hashes(cx.tcx, closure);
+                let correct_src_hash= get_pcr_hash(cx.tcx, closure);
                 
                 //These args to PrivacyCriticalRegion::new will be of type Signature
-                let (author_id, author_full_signature ) = extract_from_signature_struct(&args[1].kind);
-                let (fn_reviewer_id, fn_reviewer_full_signature ) = extract_from_signature_struct(&args[2].kind);
+                let (author_id, author_src_signature ) = extract_from_signature_struct(&args[1].kind);
+                let (fn_reviewer_id, fn_reviewer_src_signature ) = extract_from_signature_struct(&args[2].kind);
                 let dep_reviewer = extract_from_signature_struct(&args[3].kind);
 
                 let fn_loc = cx
@@ -102,24 +102,8 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     .def_path(closure.def_id) 
                     .to_filename_friendly_no_crate(); 
 
-                let (author_src_signature, author_mir_signature) = author_full_signature
-                                                            .split_once("#")
-                                                            .ok_or(format!("sign pcr @ {} with sign_pcr.sh", fn_loc)).unwrap(); 
-
-                let (fn_reviewer_src_signature, fn_reviewer_mir_signature) : (&str, &str) = fn_reviewer_full_signature
-                                                            .split_once("#")
-                                                            .ok_or(format!("sign pcr @ {} with sign_pcr.sh", fn_loc)).unwrap(); 
-
-                let author_id_src_check = check_identity(&correct_src_hash, &(author_id.clone(), author_src_signature.to_string()));
-                let author_id_mir_check = check_identity(&correct_mir_hash, &(author_id, author_mir_signature.to_string()));
-                println!("author src {:?}", author_id_src_check); 
-                println!("author mir {:?}", author_id_mir_check);
-                let author_id_check = author_id_src_check.or(author_id_mir_check); 
-               
-
-                let fn_reviewer_id_src_check = check_identity(&correct_src_hash, &(fn_reviewer_id.clone(), fn_reviewer_src_signature.to_string()));
-                let fn_reviewer_id_mir_check = check_identity(&correct_src_hash, &(fn_reviewer_id, fn_reviewer_mir_signature.to_string()));
-                let fn_reviewer_id_check = fn_reviewer_id_src_check.or(fn_reviewer_id_mir_check); 
+                let author_id_check = check_identity(&correct_src_hash, &(author_id, author_src_signature));               
+                let fn_reviewer_id_check = check_identity(&correct_src_hash, &(fn_reviewer_id.clone(), fn_reviewer_src_signature.to_string()));
 
                 let dep_reviewer_id_check = check_identity(&cargo_lock_hash, &dep_reviewer);
 
@@ -146,16 +130,13 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     if author_id_check.is_err() || fn_reviewer_id_check.is_err() {
                         let pcr_file_name = format!("./pcr/{}.rs", fn_loc);
                         let src_hash_file_name = format!("./pcr/{}_src_hash.rs", fn_loc);
-                        let mir_hash_file_name = format!("./pcr/{}_mir_hash.rs", fn_loc);
                         help_msg.push_str(
                             format!(
-                                "written the hash of privacy-critical region into the files for signing: {} {}\n",
+                                "written the hash of privacy-critical region into the files for signing: {}\n",
                                 src_hash_file_name, 
-                                mir_hash_file_name
                             ).as_str());
                         fs::write(pcr_file_name, pcr_src).unwrap();
                         fs::write(src_hash_file_name, correct_src_hash).unwrap();
-                        fs::write(mir_hash_file_name, correct_mir_hash).unwrap();
                     }
                     span_lint_and_help(
                         cx,
@@ -250,8 +231,8 @@ fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
     toml_hash
 }  
 
-/// Given a Closure, returns a tuple of the hash of the source code and a StableHash of its MIR. 
-fn get_pcr_hashes<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> (String, String) {
+/// Given a Closure, returns a hash of the source code
+fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let def_id: rustc_hir::def_id::DefId = closure.def_id.to_def_id();
 
     // instance of the parent signed closure to pass to Collector
@@ -267,9 +248,7 @@ fn get_pcr_hashes<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> (String, Str
     let collector = Collector::collect(instance, tcx, true);
     let storage = collector.get_function_info_storage();
     let functions = storage.all();
-
-    let mut hcx = StableHashingContext::new(tcx.sess, tcx.untracked());
-    let mut mir_hasher = StableHasher::new();   
+ 
     let mut src = vec![]; 
     let mut deps = HashSet::new(); 
 
@@ -282,7 +261,6 @@ fn get_pcr_hashes<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> (String, Str
                 ParamEnv::reveal_all(),
                 tcx.instance_mir(function_info.instance().unwrap().def).to_owned(),
             );
-        body.hash_stable(&mut hcx, &mut mir_hasher);
 
         let src_snippet = tcx.sess
                             .source_map()
@@ -294,16 +272,10 @@ fn get_pcr_hashes<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> (String, Str
         deps.extend(compute_deps_for_body(body, tcx).into_iter());
     }
     // goal here is to bind to deps to MIR hash
-    //TODO this is currently adding all the dependencies, not just the local ones, 
-    // which should be false_positives v0.1.0 and dependency v0.2.0 for `pcr_examples/false_positives`
     let non_local_deps = deps.into_iter()
         .filter(|dep| dep.clone() != tcx.crate_name(rustc_span::def_id::LOCAL_CRATE).to_string())
         .collect(); 
     let dep_strings = compute_dep_strings_for_crates(&non_local_deps);
-    println!("dep_strings: {:#?}", dep_strings); 
-    dep_strings.iter().for_each(|dep_string| dep_string.hash_stable(&mut hcx, &mut mir_hasher));
-    let mir_hash_tuple: (u64, u64) = mir_hasher.finalize();
-    let mir_hash = format!("{:x} {:x}", mir_hash_tuple.0, mir_hash_tuple.1);
 
     let mut src_hasher = DefaultHasher::new();
     src.sort_unstable(); 
@@ -311,7 +283,7 @@ fn get_pcr_hashes<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> (String, Str
     dep_strings.into_iter().for_each(|dep_string| dep_string.hash(&mut src_hasher));
     let src_hash: String = src_hasher.finish().to_string(); 
 
-    (src_hash, mir_hash)
+    src_hash
 }
 
 fn check_identity(target_plaintext: &String, identity: &(String, String)) -> Result<(), String> {
