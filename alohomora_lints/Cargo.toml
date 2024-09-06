@@ -32,7 +32,7 @@ clippy_utils = { git = "https://github.com/artemagvanian/rust-clippy-nightly-202
 dylint_linting = "=2.5.0"
 if_chain = "1.0.2"
 reqwest = { version = "0.12.2", features = ["blocking"] }
-scrutils = { path = "../../alohomora-sign/scrutinizer/scrutils" }
+scrutils = { path = "../../scrutinizer/scrutils" }
 # TODO change scrutils dep to git = "https://github.com/artemagvanian/scrutinizer.git"
 
 [dev-dependencies]
