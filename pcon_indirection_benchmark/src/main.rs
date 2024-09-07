@@ -4,11 +4,13 @@ use alohomora::bbox::{BBox, DirectBBox};
 use alohomora::policy::NoPolicy;
 use alohomora::pure::PrivacyPureRegion;
 use rand::Rng;
+use rand::prelude::SliceRandom;
 use std::time::Instant;
+
 
 fn direct_bbox_vec() -> Vec<DirectBBox<u32, NoPolicy>> {
     let mut bbox_vector = vec![];
-    for n in 0..100000000 {
+    for n in 0..10000000 {
         let bbox = DirectBBox::new(n, NoPolicy {});
         bbox_vector.push(bbox);
     }
@@ -16,17 +18,21 @@ fn direct_bbox_vec() -> Vec<DirectBBox<u32, NoPolicy>> {
 }
 
 fn bbox_vec() -> Vec<BBox<u32, NoPolicy>> {
+    //let mut v = vec![];
     let mut bbox_vector = vec![];
-    for n in 0..100000000 {
+    for n in 0..10000000 {
         let bbox = BBox::new(n, NoPolicy {});
         bbox_vector.push(bbox);
+        //for i in 0..25 {
+           //v.push(Box::new(n+i));
+        //}
     }
     bbox_vector
 }
 
 fn random_index_vec() -> Vec<usize> {
     let mut rng = rand::thread_rng();
-    (0..100000000).map(|_| rng.gen_range(0..100000000)).collect()
+    (0..10000000).map(|_| rng.gen_range(0..10000000)).collect()
 }
 
 fn indirect_random() {
@@ -47,6 +53,7 @@ fn indirect_random() {
 
     // Stop timer and print elapsed time
     let duration = start.elapsed();
+    println!("{}", sum);
     println!("Random Indirect PCon accesses time: {:?}", duration);
     
     // Start timer before the second loop
@@ -69,6 +76,7 @@ fn indirect_sequential() {
 
     // Stop timer and print elapsed time
     let duration = start.elapsed();
+    println!("{}", sum);
     println!("Sequential Indirect PCon accesses time: {:?}", duration);
 }
 
@@ -90,6 +98,7 @@ fn direct_random() {
 
     // Stop timer and print elapsed time
     let duration = start.elapsed();
+    println!("{}", sum);
     println!("Random Direct PCon accesses time: {:?}", duration);
 }
 
@@ -109,6 +118,7 @@ fn direct_sequential() {
 
     // Stop timer and print elapsed time
     let duration = start.elapsed();
+    println!("{}", sum);
     println!("Sequential Direct PCon accesses time: {:?}", duration);
 }
 
