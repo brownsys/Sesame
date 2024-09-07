@@ -30,6 +30,12 @@ impl<T: Send + 'static> AlohomoraType for TestContextData<T> {
     }
 }
 
+impl<T: Clone> Clone for TestContextData<T> {
+    fn clone(&self) -> Self {
+        TestContextData(self.0.clone())
+    }
+}
+
 #[rocket::async_trait]
 impl<'a, 'r, T: Send + 'static> FromBBoxRequest<'a, 'r> for TestContextData<T> {
     type BBoxError = ();
