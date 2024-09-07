@@ -137,7 +137,7 @@ impl<T, P: Policy> BBox<T, P> {
 // Can clone a ref policy to own it.
 impl<'a, T, P: Policy + Clone> BBox<T, RefPolicy<'a, P>> {
     pub fn to_owned_policy(self) -> BBox<T, P> {
-        BBox::new(*self.t, self.p.policy().clone())
+        BBox { t: self.t, p: self.p.policy().clone() }
     }
 }
 
