@@ -35,7 +35,6 @@ extern "C" \{
 
 {{for sandbox in sandboxes }}
 char* {sandbox}_sandbox(const char*);  // Calls the sandbox function (inside sandbox)
-void {sandbox}_sandbox_free(char*);  // Frees allocated data (inside sandbox)
 {{endfor}}
 
 #ifdef __cplusplus
@@ -54,114 +53,134 @@ using namespace std::chrono;
 // Define base type for {name}
 RLBOX_DEFINE_BASE_TYPES_FOR({name}, wasm2c);
 
-// std::unique_ptr<rlbox_sandbox_{name}> sandbox = nullptr;
+// Sandbox pool.
+#define NUM_SANDBOXES 10
 
-struct sandbox_container \{
-    rlbox_sandbox_{name} sandbox;
-    std::mutex sandbox_mtx;
-} typedef sandbox_container_t;
-
-const int NUM_SANDBOXES = 10;
-std::vector<sandbox_container_t*> sandbox_pool;
-
-std::mutex pool_mtx;              // used to protect access to modifying the sandbox pool
-std::condition_variable pool_cv;  // used to notify threads when a sandbox is available
-
-// Initializes the sandbox containers and create sandboxes within each.
-void initialize_sandbox_pool() \{
-    for (int i = 0; i < NUM_SANDBOXES; i++) \{
-        sandbox_container_t* ptr = new sandbox_container_t;
-        sandbox_pool.push_back(ptr);
-        sandbox_pool[i]->sandbox.create_sandbox();
+class SandboxPool \{
+  public:
+    // Create sandboxes on initialization.
+    SandboxPool() : pool_(), mtxs_(), mtx_(), cv_() \{
+        for (auto &sandbox : this->pool_) \{
+          sandbox.create_sandbox();
+        }
     }
-}
+
+    // Get sandbox at index (should have acquired lock first).
+    rlbox_sandbox_{name}& GetSandbox(size_t index) \{
+      return this->pool_[index];
+    }
+
+    // Get a lock on some sandbox.
+    size_t Lock() \{
+        // Lock the sandbox pool for accessing
+        std::unique_lock<std::mutex> lock(this->mtx_);
+
+        // Repeat until a sandbox is free.
+        while (true) \{
+            // Find a free sandbox for the thread to use
+            for (size_t i = 0; i < NUM_SANDBOXES; i++) \{
+                if (this->mtxs_[i].try_lock()) \{
+                  return i;
+                }
+            }
+
+            // Wait on condition variable.
+            this->cv_.wait(lock);
+        }
+    }
+
+    // Release the sandbox.
+    void Unlock(size_t index) \{
+        // Reset sandbox for next use.
+        this->pool_[index].reset_sandbox();
+
+        // Lock the sandbox pool for accessing
+        this->mtxs_[index].unlock();
+
+        // Notify a thread that a sandbox slot has opened up.
+        this->cv_.notify_one();
+    }
+
+  private:
+    // Sandbox pool (already initialized in the constructor).
+    std::array<rlbox_sandbox_{name}, NUM_SANDBOXES> pool_;
+    // Mutexes for each sandbox in the pool.
+    std::array<std::mutex, NUM_SANDBOXES> mtxs_;
+    // used to protect access to modifying the sandbox pool.
+    std::mutex mtx_;
+    // used to notify threads when a sandbox is available.
+    std::condition_variable cv_;
+};
+
+// The sandbox pool
+SandboxPool sandbox_pool; // SandboxPool::SandboxPool();
 
 // Allocates `size` bytes of memory in the sandbox specified by `sandbox_index`.
-void* alloc_mem_in_sandbox(unsigned size, size_t sandbox_index) \{
-    if (sandbox_pool.size() == 0) initialize_sandbox_pool();
-    rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
+void* alloc_mem_in_sandbox(size_t size, size_t sandbox_index) \{
+    rlbox_sandbox_{name}& sandbox = sandbox_pool.GetSandbox(sandbox_index);
 
     // Call malloc in sandbox
-    tainted_{name}<char*> result_tainted = sandbox->malloc_in_sandbox<char>(size);
+    tainted_{name}<char*> result_tainted = sandbox.malloc_in_sandbox<char>(size);
 
-    // Swizzle returned pointer
+    // Swizzle returned pointer -> pointer is in correct 64 bit arch.
     void* result = result_tainted.UNSAFE_unverified();
     return result;
 }
 
 // Frees the memory pointed to by `ptr` the sandbox specified by `sandbox_index`.
 void free_mem_in_sandbox(void* ptr, size_t sandbox_index) \{
-    if (sandbox_pool.size() == 0) initialize_sandbox_pool();
-    rlbox_sandbox_{name}* sandbox = &sandbox_pool[sandbox_index]->sandbox;
+    rlbox_sandbox_{name}& sandbox = sandbox_pool.GetSandbox(sandbox_index);
 
     // Unswizzle ptr to be inside the sandbox
     tainted_{name} <void*> tainted_ptr;
-    tainted_ptr.assign_raw_pointer(*sandbox, ptr);
+    tainted_ptr.assign_raw_pointer(sandbox, ptr);
 
-    sandbox->free_in_sandbox(tainted_ptr);
+    sandbox.free_in_sandbox(tainted_ptr);
 }
 
-// Get a lock on a sandbox from the pool for memory allocation & use.
+// Transform addresses from host machine addresses (usually 64bits) to sandbox
+// addresses (32 bits with a different offset) and back.
+uint32_t get_sandbox_pointer(void* ptr, size_t sandbox_index) \{
+    rlbox_sandbox_{name}& sandbox = sandbox_pool.GetSandbox(sandbox_index);
+    return sandbox.get_sandboxed_pointer<void*>(ptr);
+}
+void* get_unsandboxed_pointer(uint32_t ptr, size_t sandbox_index) \{
+    rlbox_sandbox_{name}& sandbox = sandbox_pool.GetSandbox(sandbox_index);
+    return sandbox.get_unsandboxed_pointer<void*>(ptr);
+}
+
+// Locking and unlocking sandboxes in sandbox pool.
 size_t get_lock_on_sandbox() \{
-    // Lock the sandbox pool for accessing
-    std::unique_lock<std::mutex> pool_lock(pool_mtx);
-
-    // Initialize the pool if it hasn't been
-    if (sandbox_pool.size() == 0) \{
-        initialize_sandbox_pool();
-    }
-    assert(sandbox_pool.size() == NUM_SANDBOXES);
-
-    // Find a free sandbox for the thread to use
-    int slot = -1;
-    while (slot == -1) \{
-        // Loop through all slots in the pool to see if any are available
-        for (int i = 0; i < sandbox_pool.size() && slot == -1; i++) \{
-            bool found = sandbox_pool[i]->sandbox_mtx.try_lock();
-            if (found) slot = i;
-        }
-
-        // If none are, wait to be notified that one is done being used
-        if (slot == -1) pool_cv.wait(pool_lock);
-    }
-
-    return slot;
+    return sandbox_pool.Lock();
 }
-
-// Unlock a specific sandbox from the pool after use.
 void unlock_sandbox(size_t sandbox_index) \{
-    // Reset sandbox for next use.
-    sandbox_pool[sandbox_index]->sandbox.reset_sandbox();
-
-    std::unique_lock<std::mutex> pool_lock(pool_mtx);  // This might be unneccessary
-    // Unlock it, so other threads can access.
-    sandbox_pool[sandbox_index]->sandbox_mtx.unlock();
-
-    // Notify a thread that a sandbox slot has opened up.
-    pool_cv.notify_one();
+    sandbox_pool.Unlock(sandbox_index);
 }
+
 
 {{ for sandbox in sandboxes }}
-char* invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
+void* invoke_sandbox_{sandbox}_c(void* arg, size_t sandbox_index) \{
     // auto start = high_resolution_clock::now();
 
     // Get the sandbox
-    rlbox_sandbox_{name}* sandbox = &sandbox_pool[slot]->sandbox;
+    rlbox_sandbox_{name}& sandbox = sandbox_pool.GetSandbox(sandbox_index);
 
     // END SETUP TIMER HERE
     // auto stop = high_resolution_clock::now();
     // auto duration = duration_cast<nanoseconds>(stop - start);
     // unsigned long long setup = duration.count();
 
-    // Swizzle arg ptr into the sandbox
-    char* arg2 = (char*)arg;             // `assign_raw_pointer` only works with char*s so we have to cast it first
+    // Unswizzle the argument ptr into the sandbox
+    char* char_arg = reinterpret_cast<char*>(arg);
     tainted_{name} <char*> tainted_arg;
-    tainted_arg.assign_raw_pointer(*sandbox, arg2);
+    tainted_arg.assign_raw_pointer(sandbox, char_arg);
 
     // Invoke sandbox.
-    tainted_{name}<char*> tainted_result = sandbox->invoke_sandbox_function({sandbox}_sandbox, tainted_arg);
-    // START TEARDOWN TIMER HERE
+    tainted_{name}<char*> tainted_result = sandbox.invoke_sandbox_function({sandbox}_sandbox, tainted_arg);
+
+    // Swizzle returned result.
     char* buffer = tainted_result.INTERNAL_unverified_safe();
+
     // uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
     // start = high_resolution_clock::now();
 
@@ -175,11 +194,6 @@ char* invoke_sandbox_{sandbox}_c(void* arg, size_t slot) \{
     // unsigned long long teardown = duration.count();
 
     // Return timing data.
-    return buffer;
+    return reinterpret_cast<void*>(buffer);
 }
-
 {{ endfor }}
-
-void invoke_free_c(char* buffer) \{
-  free(buffer);
-}
