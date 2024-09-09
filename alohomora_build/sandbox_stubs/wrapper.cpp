@@ -160,15 +160,8 @@ void unlock_sandbox(size_t sandbox_index) \{
 
 {{ for sandbox in sandboxes }}
 void* invoke_sandbox_{sandbox}_c(void* arg, size_t sandbox_index) \{
-    // auto start = high_resolution_clock::now();
-
     // Get the sandbox
     rlbox_sandbox_{name}& sandbox = sandbox_pool.GetSandbox(sandbox_index);
-
-    // END SETUP TIMER HERE
-    // auto stop = high_resolution_clock::now();
-    // auto duration = duration_cast<nanoseconds>(stop - start);
-    // unsigned long long setup = duration.count();
 
     // Unswizzle the argument ptr into the sandbox
     char* char_arg = reinterpret_cast<char*>(arg);
@@ -180,18 +173,6 @@ void* invoke_sandbox_{sandbox}_c(void* arg, size_t sandbox_index) \{
 
     // Swizzle returned result.
     char* buffer = tainted_result.INTERNAL_unverified_safe();
-
-    // uint16_t size2 = (((uint16_t)(uint8_t) buffer[0]) * 100) + ((uint16_t)(uint8_t) buffer[1]);
-    // start = high_resolution_clock::now();
-
-    // Copy output to our memory.
-    // char* result = (char*) malloc(size2);
-    // memcpy(result, buffer + 2, size2);
-
-    // END TEARDOWN TIMER HERE
-    // stop = high_resolution_clock::now();
-    // duration = duration_cast<nanoseconds>(stop - start);
-    // unsigned long long teardown = duration.count();
 
     // Return timing data.
     return reinterpret_cast<void*>(buffer);

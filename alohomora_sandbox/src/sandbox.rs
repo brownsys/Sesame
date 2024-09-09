@@ -1,6 +1,8 @@
+use std::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::SandboxInstance;
 use crate::SandboxableType;
+use crate::SandboxOut;
 
 /// Trait that sandboxed functions should implement.
 /// Do not implement directly, instead decorate the sandbox fn with #[crate::fast_transfer::AlohomoraSandbox()].
@@ -23,24 +25,58 @@ pub trait AlohomoraSandbox<T: SandboxableType, R: SandboxableType> {
     ///    deserialization.
     /// 5. Cleaning up the sandbox for future reuse.
     #[cfg(not(target_arch = "wasm32"))]
-    fn sandbox_entrypoint(arg: T) -> R {
+    fn sandbox_entrypoint(arg: T) -> SandboxOut<R> {
         // Lock a sandbox and create an allocator for it.
+        #[cfg(feature = "sandbox_timing")]
+        let timer = Instant::now();
         let sandbox = SandboxInstance::new();
+        #[cfg(feature = "sandbox_timing")]
+        let timing_setup = timer.elapsed();
 
         // fast_transfer the arg into the sandbox, including any required unswizzling.
+        #[cfg(feature = "sandbox_timing")]
+        let timer = Instant::now();
         let arg_ptr: *mut std::ffi::c_void = SandboxableType::into_sandbox(arg, sandbox);
+        #[cfg(feature = "sandbox_timing")]
+        let timing_serialize = timer.elapsed();
 
         // Call the sandbox FFI function passing it the arg located in the sandbox.
+        #[cfg(feature = "sandbox_timing")]
+        let timer = Instant::now();
         let return_ptr = Self::ffi(arg_ptr, sandbox.index());
+        #[cfg(feature = "sandbox_timing")]
+        let timing_ffi = timer.elapsed();
 
         // Transfer the return value back to the application, including any required swizzling.
-        let result = R::out_of_sandbox(return_ptr, sandbox);
+        #[cfg(feature = "sandbox_timing")]
+        let timer = Instant::now();
+        let result: SandboxOut<R> = SandboxableType::out_of_sandbox(return_ptr, sandbox);
+        #[cfg(feature = "sandbox_timing")]
+        let timing_deserialize = timer.elapsed();
 
         // Release sandbox.
+        #[cfg(feature = "sandbox_timing")]
+        let timer = Instant::now();
         sandbox.release();
+        #[cfg(feature = "sandbox_timing")]
+        let timing_teardown = timer.elapsed();
 
         // Return result.
-        result
+        #[cfg(feature = "sandbox_timing")]
+        return SandboxOut {
+            total: Default::default(),
+            function: result.function,
+            setup: timing_setup,
+            teardown: timing_teardown,
+            serialize: timing_serialize + result.serialize,
+            deserialize: timing_deserialize + result.deserialize,
+            ffi: timing_ffi,
+            fold: Default::default(),
+            ret: result.ret,
+        };
+
+        #[cfg(not(feature = "sandbox_timing"))]
+        return result;
     }
 
     /// Entry point within the sandbox.
@@ -53,12 +89,34 @@ pub trait AlohomoraSandbox<T: SandboxableType, R: SandboxableType> {
     #[cfg(target_arch = "wasm32")]
     fn sandbox_preamble(arg: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
         // Reconstruct actual data from ffi pointer
+        #[cfg(feature = "sandbox_timing")]
+        let timer = Instant::now();
         let arg: T = SandboxableType::data_from_ptr(arg);
+        #[cfg(feature = "sandbox_timing")]
+        let timing_serialize = timer.elapsed();
 
         // Call the actual function
+        #[cfg(feature = "sandbox_timing")]
+        let timer = Instant::now();
         let ret: R = Self::function(arg);
+        #[cfg(feature = "sandbox_timing")]
+        let timing_function = timer.elapsed();
 
         // Convert output into pointer for passing back through ffi
-        SandboxableType::ptr_from_data(ret)
+        #[cfg(feature = "sandbox_timing")]
+        return SandboxableType::ptr_from_data(SandboxOut {
+            total: Default::default(),
+            function: timing_function,
+            setup: Default::default(),
+            teardown: Default::default(),
+            serialize: timing_serialize,
+            deserialize: Default::default(),
+            ffi: Default::default(),
+            fold: Default::default(),
+            ret: ret,
+        });
+
+        #[cfg(not(feature = "sandbox_timing"))]
+        return SandboxableType::ptr_from_data(ret);
     }
 }
