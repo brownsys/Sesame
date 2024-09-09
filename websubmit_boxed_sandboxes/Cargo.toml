@@ -26,6 +26,9 @@ path = "src/lib.rs"
 [package.metadata]
 sandboxes = [
     "hash", 
-    "train", 
-    # "evaluate_model"
+    "train"
 ]
+
+[features]
+default = []
+sandbox_timing = ["alohomora_sandbox/sandbox_timing"]

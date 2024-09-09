@@ -47,46 +47,48 @@ def ParseWebsubmitFiles(dir):
 
 
 def CalcAvgs(data):
-    marks = ["Total", "Serialize", "Setup", "Function", "Teardown", "Deserialize"]
+    averages = []
+    marks = ["Total", "Serialize", "Setup", "Function", "Teardown", "Deserialize", "Fold"]
     for (endpoint, bench) in data.items():
-        print("Endpoint: ", endpoint)
+        print(endpoint)
         times = np.array(bench)
         times = np.mean(times, axis=0)
-        times = times / 1000
+        averages.append((endpoint, times))
         for _ in range(len(times)):
-            print(marks[_], " ", times[_])
+            print("  ", marks[_], "\t\t", times[_], "micro")
+        print("")
+
+    return averages
 
 
 def PlotBenchmarks(data):
     x = []
-    y1 = []
-    y2 = []
-    y3 = []
-    y4 = []
-    y5 = []
-    # y6 = []
+    serde = []
+    setup_teardown = []
+    func = []
+    fold = []
     for (endpoint, times) in data:
         x.append(endpoint)
-        y1.append(times[1])
-        y2.append(times[2])
-        y3.append(times[3])
-        y4.append(times[4])
-        y5.append(times[5])
-        # y6.append(times[5])
-    y1 = np.array(y1)
-    y2 = np.array(y2)
-    y3 = np.array(y3)
-    y4 = np.array(y4)
-    y5 = np.array(y5)
-    plt.bar(x, y2)
-    plt.bar(x, y1, bottom=y2)
-    plt.bar(x, y3, bottom=y1+y2)
-    plt.bar(x, y4, bottom=y1+y2+y3)
-    plt.bar(x, y5, bottom=y1+y2+y3+y4)
+        serde.append(times[1] + times[5])
+        setup_teardown.append(times[2] + times[4])
+        func.append(times[3])
+        fold.append(times[6])
+
+    serde = np.array(serde)
+    setup_teardown = np.array(setup_teardown)
+    func = np.array(func)
+    fold = np.array(fold)
+
+    plt.rc('font', size=14)
+    figure = plt.gcf().set_size_inches(8, 6)
+    plt.bar(x, setup_teardown)
+    plt.bar(x, serde, bottom=setup_teardown)
+    plt.bar(x, fold, bottom=setup_teardown+serde)
+    plt.bar(x, func, bottom=setup_teardown+serde+fold)
     plt.xlabel('Endpoints')
-    plt.ylabel('Time (ns)')
-    plt.legend(["Setup", "Serialize", "Function", "Teardown", "Deserialize"])
-    plt.savefig("benchmarks.png", bbox_inches="tight", pad_inches=0.01)
+    plt.ylabel('Time (micro)')
+    plt.legend(["Setup/Teardown", "Serde", "Fold", "Function"], fontsize=14)
+    plt.savefig("benchmarks.png", bbox_inches="tight", pad_inches=0.5, dpi = 100)
 
 
 # Main.
@@ -94,5 +96,5 @@ if __name__ == "__main__":
     InitializeMatplotLib()
 
     benches = ParseWebsubmitFiles("results")
-    CalcAvgs(benches)
-    # PlotBenchmarks(avgs)
+    avgs = CalcAvgs(benches)
+    PlotBenchmarks(avgs)

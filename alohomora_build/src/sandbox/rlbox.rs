@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::process::Command;
 use std::fs::metadata;
 
@@ -37,6 +38,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
     let rlbox_wasm2c_sandbox_path = format!("{}/{}", env.out_directory, "rlbox_wasm2c_sandbox");
 
     // Check if rlbox_wasm2c_sandbox was already cloned.
+    warn!("\x1b[96mnote: \x1b[97mrlbox_wasm2c_sandbox directory is '{}'\x1b[0m", rlbox_wasm2c_sandbox_path);
     match metadata(rlbox_wasm2c_sandbox_path.clone()) {
         Ok(metadata) => {
             if metadata.is_dir() {
@@ -68,12 +70,14 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
             }
 
             // Configure CMake (Once).
-            let status = Command::new("cmake")
+            let output = Command::new("cmake")
                 .current_dir(&rlbox_wasm2c_sandbox_path)
                 .args(["-S", ".",  "-B", "./build", "-DCMAKE_BUILD_TYPE=Release"])
-                .status()
+                .output()
                 .expect("\x1b[91merror: \x1b[97mFailed to configure cmake for rlbox_was2mc_sandbox.\x1b[0m");
-            if !status.success() {
+            if !output.status.success() {
+                std::io::stdout().write_all(&output.stdout).unwrap();
+                std::io::stderr().write_all(&output.stderr).unwrap();
                 panic!("\x1b[91merror: \x1b[97mFailed to configure cmake for rlbox_was2mc_sandbox.\x1b[0m");
             }
         }
@@ -82,12 +86,14 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(env: &Env) -> RLBoxConfiguration {
     // Repo is cloned, and cmake is configured.
     // Build with cmake.
     warn!("\x1b[96mnote: \x1b[97mBuilding rlbox....\x1b[0m");
-    let status = Command::new("cmake")
+    let output = Command::new("cmake")
         .current_dir(&rlbox_wasm2c_sandbox_path)
         .args(["--build", "./build", "--target", "all"])
-        .status()
+        .output()
         .expect("\x1b[91merror: \x1b[97mFailed to build with cmake for rlbox_was2mc_sandbox.\x1b[0m");
-    if !status.success() {
+    if !output.status.success() {
+        std::io::stdout().write_all(&output.stdout).unwrap();
+        std::io::stderr().write_all(&output.stderr).unwrap();
         panic!("\x1b[91merror: \x1b[97mFailed to build with cmake for rlbox_was2mc_sandbox.\x1b[0m");
     }
 
