@@ -113,7 +113,7 @@ class SandboxPool \{
 };
 
 // The sandbox pool
-SandboxPool sandbox_pool; // SandboxPool::SandboxPool();
+SandboxPool sandbox_pool;
 
 // Allocates `size` bytes of memory in the sandbox specified by `sandbox_index`.
 void* alloc_mem_in_sandbox(size_t size, size_t sandbox_index) \{

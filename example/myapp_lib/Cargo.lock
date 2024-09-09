@@ -711,7 +711,6 @@ dependencies = [
  "alohomora_sandbox",
  "bindgen",
  "serde",
- "serde_json",
 ]
 
 [[package]]

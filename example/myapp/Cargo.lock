@@ -1922,8 +1922,6 @@ dependencies = [
  "alohomora",
  "alohomora_build",
  "myapp_lib",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1935,7 +1933,6 @@ dependencies = [
  "alohomora_sandbox",
  "bindgen 0.69.4",
  "serde",
- "serde_json",
 ]
 
 [[package]]

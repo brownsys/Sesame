@@ -1,10 +1,17 @@
-use alohomora_derive::AlohomoraSandbox;
+use alohomora_derive::{AlohomoraSandbox, FastTransfer};
 
 use serde::{Serialize, Deserialize};
 
 // Argument type for sandboxes.
 #[derive(Serialize, Deserialize)]
 pub struct Numbers {
+    pub a: u32,
+    pub b: u32,
+}
+
+#[repr(C)]
+#[derive(Serialize, Deserialize, FastTransfer)]
+pub struct NumbersFast {
     pub a: u32,
     pub b: u32,
 }
@@ -16,7 +23,7 @@ pub fn add_numbers(n: Numbers) -> u32 {
 }
 
 #[AlohomoraSandbox()]
-pub fn mult_numbers(n: Numbers) -> u32 {
+pub fn mult_numbers(n: NumbersFast) -> u32 {
   n.a * n.b
 }
 

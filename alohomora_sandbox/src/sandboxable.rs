@@ -2,7 +2,7 @@ use std::ops::Deref;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::{FastSandboxTransfer, SandboxInstance};
+use crate::{FastTransfer, SandboxInstance};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::pointers::{ApplicationPtr, SandboxPtr};
@@ -30,18 +30,27 @@ pub trait SandboxableType {
     #[cfg(target_arch = "wasm32")]
     fn ptr_from_data(data: Self) -> *mut std::ffi::c_void;
 
-    //        [APPLICATION]         ||    [SANDBOX]
-    //                              ||
-    // *data* --> into_sandbox() ---------> *ptr*
-    //  [64b]                       ||        |
-    //                              ||  data_from_ptr()
-    //                              ||        |
-    //                              ||     *data* [32b] <-> operate on in sandbox
-    //                              ||        |
-    //                              ||  ptr_from_data()
-    //                              ||        |
-    // *data* <- out_of_sandbox() <-------- *ptr*
-    //  [64b]                       ||
+    //        [APPLICATION]             ||                       [SANDBOX]
+    //   ============================   ||   ===================================================
+    //     arg compatible with [64b]    ||
+    //   ptr1[64b] = into_sandbox(arg)  ||
+    //           ptr1[64b]   ---- auto-unswizz by rlbox -->      ptr1[32b]
+    //                                  ||
+    //                                  ||                arg = data_from_ptr(ptr1)
+    //                                  ||                arg compatible with [32b]
+    //                                  ||
+    //                                  ||              ptr2[32b] = ptr_from_data(ret)
+    //           ptr2[64b]   <--- auto-swizz by rlbox ---        ptr2[32b]
+    //                                  ||
+    //    ret <- out_of_sandbox(ptr2)   ||
+    //     ret compatible with [64b]    ||
+    //
+    // into_sandbox(arg) is responsible for unswizzling what's inside arg, so that *ptr1 is [32b].
+    // Only the top-level pointer ptr1 is [64b].
+    //
+    // out_of_sandbox(ptr2) is responsible for swizzling what's inside ret, so that ret is [64b].
+    // While the top-level pointer ptr2 is [64b], it points to data in [32b].
+    //
 }
 
 
@@ -76,7 +85,9 @@ impl<T: Serialize + DeserializeOwned> SandboxableType for T {
         let ptr = SandboxPtr::new(ptr).swizzle(sandbox).ptr();
 
         // Reconstruct vec from ptr len and capacity.
-        let vec = unsafe { Vec::from_raw_parts_in(ptr, len as usize, cap as usize, sandbox) };
+        let vec = unsafe {
+            Vec::from_raw_parts_in(ptr, len as usize, cap as usize, sandbox)
+        };
         bincode::deserialize(&vec).unwrap()
     }
 
@@ -106,16 +117,16 @@ impl<T: Serialize + DeserializeOwned> SandboxableType for T {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-type TypeInSandbox<T> = <T as FastSandboxTransfer>::TypeInSandbox;
+type TypeInSandbox<T> = <T as FastTransfer>::TypeInSandbox;
 
-/// Specialize SandboxableType implementation for types that also implement FastSandboxTransfer
+/// Specialize SandboxableType implementation for types that also implement FastTransfer
 /// Requires nightly `specialization` feature.
 /// Relies on deep copying the data to/from sandbox and swizzling/unswizzling all nested pointers.
-impl<T: FastSandboxTransfer + Serialize + DeserializeOwned> SandboxableType for T {
+impl<T: FastTransfer + Serialize + DeserializeOwned> SandboxableType for T {
     #[cfg(not(target_arch = "wasm32"))]
     fn into_sandbox(outside: Self, sandbox: SandboxInstance) -> *mut std::ffi::c_void {
         // (Deep) copy the value into sandboxed memory
-        let val: TypeInSandbox<T> = FastSandboxTransfer::into_sandbox(outside, sandbox);
+        let val: TypeInSandbox<T> = FastTransfer::into_sandbox(outside, sandbox);
 
         // Put it into a box in the sandbox for passing as pointer
         Box::into_raw(Box::new_in(val, sandbox)) as *mut std::ffi::c_void
@@ -125,10 +136,10 @@ impl<T: FastSandboxTransfer + Serialize + DeserializeOwned> SandboxableType for 
     fn out_of_sandbox(ptr: *mut std::ffi::c_void, sandbox: SandboxInstance) -> Self {
         // Reconstruct the 32 bit type from a Box pointer
         let ptr: *mut TypeInSandbox<T> = ptr as *mut TypeInSandbox<T>;
-        let ret: Box<TypeInSandbox<T>, _> = unsafe { Box::from_raw_in(ptr, sandbox) };
+        let ret: Box<TypeInSandbox<T>, SandboxInstance> = unsafe { Box::from_raw_in(ptr, sandbox) };
 
         // Move returned values out of the sandbox & swizzle
-        FastSandboxTransfer::out_of_sandbox(ret.deref(), sandbox)
+        FastTransfer::out_of_sandbox(ret.deref(), sandbox)
     }
 
     #[cfg(target_arch = "wasm32")]

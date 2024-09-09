@@ -10,7 +10,7 @@ extern "C" {
 }
 
 /// Logical representation of a pointer in the host application architecture, usually 64 bits.
-#[repr(C)]
+#[repr(transparent)]
 pub struct ApplicationPtr<T> {
     ptr: *mut T,
 }
@@ -29,7 +29,7 @@ impl<T> ApplicationPtr<T> {
 }
 
 /// Logical representation of a pointer in the sandbox architecture, 32 bits (with some offset).
-#[repr(C)]
+#[repr(transparent)]
 pub struct SandboxPtr<T> {
     ptr: u32,
     data: PhantomData<T>

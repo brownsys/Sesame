@@ -27,7 +27,7 @@ pub trait AlohomoraSandbox<T: SandboxableType, R: SandboxableType> {
         // Lock a sandbox and create an allocator for it.
         let sandbox = SandboxInstance::new();
 
-        // transfer the arg into the sandbox, including any required unswizzling.
+        // fast_transfer the arg into the sandbox, including any required unswizzling.
         let arg_ptr: *mut std::ffi::c_void = SandboxableType::into_sandbox(arg, sandbox);
 
         // Call the sandbox FFI function passing it the arg located in the sandbox.

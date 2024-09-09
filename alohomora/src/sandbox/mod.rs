@@ -6,10 +6,10 @@ use crate::fold::fold;
 use crate::policy::AnyPolicy;
 
 // Expose alohomora_sandbox API that controls the interface outside sandbox.
-pub use alohomora_sandbox::{AlohomoraSandbox, SandboxableType, FastSandboxTransfer};
+pub use alohomora_sandbox::{AlohomoraSandbox, SandboxableType, FastTransfer, IdentityFastTransfer};
 
 #[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::AlohomoraSandbox;
+pub use alohomora_derive::{AlohomoraSandbox, FastTransfer};
 
 /// Copies `t` into a sandbox and executes the specified function on it,
 /// and copies the result value and returns it.
@@ -21,7 +21,7 @@ where
     S: AlohomoraSandbox<T::Out, R>,
 {
     // Remove boxes from args.
-    let outer_boxed = fold::<AnyPolicy, _, _>(t).unwrap();
+    let outer_boxed = fold(t).unwrap();
     let (t, p) = outer_boxed.consume();
 
     // Invoke sandbox.

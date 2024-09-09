@@ -1,5 +1,4 @@
 #![feature(box_into_inner)]
-#![feature(allocator_api)]
 #![feature(specialization)]
 #[macro_use]
 extern crate lazy_static;
@@ -31,4 +30,4 @@ mod r#type;
 pub use r#type::*;
 
 #[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::{AlohomoraType, FastSandboxTransfer};
+pub use alohomora_derive::{AlohomoraType};

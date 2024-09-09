@@ -47,7 +47,6 @@ dependencies = [
  "cargo_toml",
  "chrono",
  "serde",
- "serde_json",
  "tinytemplate",
 ]
 
