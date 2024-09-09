@@ -211,7 +211,7 @@ pub(crate) fn composed_answers(
         })
         .collect();
 
-    let outer_box_answers = fold::<AnswerAccessPolicy, _, _>(answers)
+    let outer_box_answers = fold(answers)
         .unwrap()
         .specialize_policy::<AnswerAccessPolicy>()
         .unwrap();
@@ -271,7 +271,7 @@ pub(crate) fn answers_for_discussion_leaders(
         })
         .collect();
 
-    let outer_box_answers = fold::<AnswerAccessPolicy, _, _>(answers)
+    let outer_box_answers = fold(answers)
         .unwrap()
         .specialize_policy::<AnswerAccessPolicy>()
         .unwrap();

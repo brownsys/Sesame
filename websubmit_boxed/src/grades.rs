@@ -49,7 +49,7 @@ pub(crate) fn grades(
         })
         .collect();
 
-    let outer_box_answers: BBox<Vec<crate::questions::LectureAnswerOut>, AnswerAccessPolicy> = fold::<AnswerAccessPolicy, _, _>(answers)
+    let outer_box_answers: BBox<Vec<crate::questions::LectureAnswerOut>, AnswerAccessPolicy> = fold(answers)
         .unwrap()
         .specialize_policy::<AnswerAccessPolicy>()
         .unwrap();

@@ -19,7 +19,7 @@ use alohomora::rocket::{
     post, BBoxCookie, BBoxCookieJar, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome,
     FromBBoxForm, FromBBoxRequest, JsonResponse, OutputBBoxValue, ResponseBBoxJson,
 };
-use alohomora::sandbox::SandboxInstance;
+use alohomora::sandbox::execute_sandbox;
 use alohomora::unbox::unbox;
 
 use crate::backend::MySqlBackend;
@@ -138,7 +138,7 @@ pub(crate) fn generate(
         .collect();
 
     // generate an API key from email address
-    let hash = SandboxInstance::copy_and_execute::<hash, _, _>((data.email.clone(), config.secret.clone()));
+    let hash = execute_sandbox::<hash, _, _>((data.email.clone(), config.secret.clone()));
 
     // Check if request corresponds to admin or manager.
     let is_manager = data.email.ppr(PrivacyPureRegion::new(|email| {
