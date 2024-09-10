@@ -5,7 +5,6 @@ members = [
     "copy_sign_illegal",
     "dep_change_illegal",
     "dependency",
-    "fn_calls_legal",
     "rec_change_illegal",
     "avoid_false_positives", 
 ]

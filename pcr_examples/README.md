@@ -1,14 +1,15 @@
 # Examples of Privacy Critical Region Signing
 
+Enter an example directory, e.g., avoid_false_positives/, then run `cargo dylint --lib alohomora_lints`.
+
 ## Overview of cases
+`avoid_false_positives`
 
-`fn_calls_legal`
-
-A PCR with valid author and function reviewer signatures on the hash of the closure MIR + dependency reviewer signature on the hash of the Cargo.lock. 
+Adding whitespace or comments won't invalidate a signature.
 
 `blank_sign_illegal`
 
-Blank signatures will fail. 
+Blank signatures in any field will fail.
 
 `copy_sign_illegal`
 
@@ -18,20 +19,12 @@ Copying a function review signature to the dependency review signature field wil
 
 `dep_change_illegal`
 
-After signing the Cargo.lock of a crate, changing dependencies (as indicated by version change) will fail.
+Changing dependencies that are used in the closure will cause all signatures to fail. Dependency changes are indicated by version bumps. In this example, bumping `dependency` from 0.1.0 -> 0.2.0 causes the signatures to fail.
 
 `rec_change_illegal`
 
-Changing a function (imported from a different module in the same crate) that is called in the signed closure will fail. 
+Changing an in-crate function that is transitively called in the signed closure will fail. In this example, function `third::grandchild` has a breaking change.
 
-TODO: `const_change_illegal`
+KNOWN BUG: `const_change_illegal`
 
 Changing the values of a constant or static should invalidate the signature, but currently does not.
-
-## Verifying Signatures
-
-TODO: do we need to generate facts? list command here
-
-```cargo dylint --all```
-
-## TODO: Turn these into examples and then into tests.

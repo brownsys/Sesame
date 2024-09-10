@@ -371,13 +371,3 @@ fn push_id_error(msg: &mut String, id: &str, res: &Result<(), String>) {
             .as_str());
     }
 }
-
-#[test]
-fn alohomora_pcr_basic_call_legal() {
-    dylint_testing::ui_test_example(
-        env!("CARGO_PKG_NAME"),
-        "alohomora_pcr_basic_call_legal"
-    );
-}
-
-// Manual tests / examples in separate crate

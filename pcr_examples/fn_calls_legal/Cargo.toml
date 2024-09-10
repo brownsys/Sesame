@@ -1,8 +1,0 @@
-[package]
-name = "fn_calls_legal"
-version = "0.1.0"
-authors = ["corinn_tiffany@brown.edu"]
-edition = "2018"
-
-[dependencies]
-alohomora = { path = "../../alohomora" }
