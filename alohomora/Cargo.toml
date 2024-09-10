@@ -52,7 +52,7 @@ version = "3.5.5"
 features = ["dir_source"]
 
 [features]
-default = ["derive", "orm"]
+default = ["derive"]
 derive = ["alohomora_derive"]
 orm = ["sea-orm"]
 sandbox_timing = ["alohomora_sandbox/sandbox_timing"]
