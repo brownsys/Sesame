@@ -25,6 +25,15 @@ path = "examples/alohomora_sandbox_illegal.rs"
 name = "alohomora_sandbox_legal"
 path = "examples/alohomora_sandbox_legal.rs"
 
+[[example]]
+name = "alohomora_sandbox_transfer_legal"
+path = "examples/alohomora_sandbox_transfer_legal.rs"
+
+[[example]]
+name = "alohomora_sandbox_transfer_illegal"
+path = "examples/alohomora_sandbox_transfer_illegal.rs"
+
+
 [dependencies]
 base64 = "0.22.0"
 paste = "1.0"
@@ -41,7 +50,7 @@ proc-macro2 = "1.0.86"
 
 [dev-dependencies]
 dylint_testing = "=2.5.0"
-alohomora = { path = "../alohomora" }
+alohomora = { path = "../alohomora", default-features = false, features = ["derive"] }
 alohomora_sandbox = { path = "../alohomora_sandbox" }
 
 [package.metadata.rust-analyzer]

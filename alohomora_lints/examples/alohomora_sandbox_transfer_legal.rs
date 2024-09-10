@@ -1,9 +1,9 @@
 extern crate alohomora;
 
-use alohomora::FastSandboxTransfer;
+use alohomora::sandbox::FastTransfer;
 
 #[repr(C)]
-#[derive(FastSandboxTransfer)]
+#[derive(FastTransfer)]
 pub struct Example {
     pub a: u32,
     pub b: u64,

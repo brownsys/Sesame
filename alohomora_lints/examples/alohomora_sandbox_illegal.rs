@@ -7,11 +7,15 @@ pub fn example(a: u32) -> u32 {
 }
 
 pub struct Example {}
-impl<'a, 'b> AlohomoraSandbox<'a, 'b, u32, u32> for Example {
-  fn invoke(a: *mut std::ffi::c_void, _: usize) -> u32 {
-    let a = unsafe { *Box::from_raw(a as *mut u32)} ;
-    println!("{}", a);
-    example(a)
+impl AlohomoraSandbox<u32, u32> for Example {
+  /// The actual sandbox function.
+  #[cfg(target_arch = "wasm32")]
+  fn function(arg: u32) -> u32 { arg }
+
+  /// The FFI function responsible for invoking this sandbox.
+  #[cfg(not(target_arch = "wasm32"))]
+  fn ffi(arg: *mut std::ffi::c_void, sandbox: usize) -> *mut std::ffi::c_void {
+    0 as *mut std::ffi::c_void
   }
 }
 

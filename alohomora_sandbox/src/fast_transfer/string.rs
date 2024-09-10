@@ -7,7 +7,7 @@ pub struct SandboxedString {
     vec: SandboxedVec,
 }
 
-#[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
+#[doc = "Library implementation of FastTransfer. Do not copy this docstring!"]
 impl FastTransfer for String {
     #[cfg(not(target_arch = "wasm32"))]
     type TypeInSandbox = SandboxedString;

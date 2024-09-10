@@ -1,11 +1,11 @@
-error: [93mmanual implementation of FastSandboxTransfer trait[0m
+error: [93mmanual implementation of FastTransfer trait[0m
   --> $DIR/alohomora_sandbox_transfer_illegal.rs:11:1
    |
-LL | impl FastSandboxTransfer for Example {
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+LL | impl FastTransfer for Example {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
-   = help: use `#[derive(FastSandboxTransfer)]` instead
-   = note: `#[deny(alohomora_sandboxable)]` on by default
+   = help: use `#[derive(FastTransfer)]` instead
+   = note: `#[deny(alohomora_sandbox_transfer)]` on by default
 
 error: aborting due to previous error
 

@@ -8,19 +8,19 @@ use crate::pointers::{ApplicationPtr, SandboxPtr};
 // Alignment is fine since all fields are 4bytes and thus 4bytes aligned on both
 // 32bit and 64bit archs.
 pub struct SandboxedVec {
-    pub buf: SandboxedRawVec,
-    pub len: u32,
+    pub(self) buf: SandboxedRawVec,
+    pub(self) len: u32,
 }
 
 struct SandboxedRawVec {
-    pub ptr: SandboxedNonNull,
-    pub cap: u32,
+    pub(self) ptr: SandboxedNonNull,
+    pub(self) cap: u32,
     // pub alloc: Global,   // 0-byte
 }
 
 #[repr(transparent)]
 struct SandboxedNonNull {
-    pub pointer: u32,
+    pub(self) pointer: u32,
 }
 
 /// FastTransfer for vectors containing complex swizzled types.

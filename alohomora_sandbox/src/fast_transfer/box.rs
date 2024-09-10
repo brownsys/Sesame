@@ -11,7 +11,7 @@ pub struct SandboxedBox {
 }
 
 // Implement `FastTransfer` for boxes of `FastTransfer` types.
-#[doc = "Library implementation of FastSandboxTransfer. Do not copy this docstring!"]
+#[doc = "Library implementation of FastTransfer. Do not copy this docstring!"]
 impl<T: FastTransfer> FastTransfer for Box<T> {
     #[cfg(not(target_arch = "wasm32"))]
     type TypeInSandbox = SandboxedBox;
