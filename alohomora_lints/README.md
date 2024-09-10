@@ -6,8 +6,8 @@ various assumptions Alohomora makes.
 ## Dependencies
 Developers must manually install and `cargo-dylint` `rust-link` in order to use lints.
 ```bash
-cargo install cargo-dylint --version 2.5.0
-cargo install dylint-link --version 2.5.0
+cargo install cargo-dylint --version 2.5.0 --locked
+cargo install dylint-link --version 2.5.0 --locked
 ```
 
 ## Adding a new lint

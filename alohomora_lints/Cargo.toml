@@ -33,6 +33,13 @@ path = "examples/alohomora_sandbox_transfer_legal.rs"
 name = "alohomora_sandbox_transfer_illegal"
 path = "examples/alohomora_sandbox_transfer_illegal.rs"
 
+[[example]]
+name = "alohomora_pcr_legal"
+path = "examples/alohomora_pcr_legal.rs"
+
+[[example]]
+name = "alohomora_pcr_illegal"
+path = "examples/alohomora_pcr_illegal.rs"
 
 [dependencies]
 base64 = "0.22.0"

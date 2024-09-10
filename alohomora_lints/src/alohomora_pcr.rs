@@ -314,11 +314,11 @@ fn check_identity(target_plaintext: &String, identity: &(String, String)) -> Res
     fs::write("/tmp/signature", decoded_signature).map_err(|err| err.to_string())?;
     fs::write("/tmp/plaintext", target_plaintext).map_err(|err| err.to_string())?;
 
-    let command_str = format!("/usr/bin/ssh-keygen -Y verify -f /tmp/allowed_signers -I {}@github.com -n file -s /tmp/signature < /tmp/plaintext", username);
-
-    let mut command = Command::new("zsh");
-    command.args(["-c", command_str.as_str()]);
-    let output = command.output();
+    let github_url = format!("{}@github.com", username);
+    let output = Command::new("/usr/bin/ssh-keygen")
+        .args(["-Y", "verify", "-f", "/tmp/allowed_signers", "-I", &github_url, "-n", "file", "-s", "/tmp/signature"])
+        .stdin(fs::File::open("/tmp/plaintext").map_err(|err| err.to_string())?)
+        .output();
 
     fs::remove_file("/tmp/allowed_signers").map_err(|err| err.to_string())?;
     fs::remove_file("/tmp/signature").map_err(|err| err.to_string())?;
@@ -370,4 +370,20 @@ fn push_id_error(msg: &mut String, id: &str, res: &Result<(), String>) {
             )
             .as_str());
     }
+}
+
+#[test]
+fn pcr_legal() {
+    dylint_testing::ui_test_example(
+        env!("CARGO_PKG_NAME"),
+        "alohomora_pcr_legal"
+    );
+}
+
+#[test]
+fn pcr_illegal() {
+    dylint_testing::ui_test_example(
+        env!("CARGO_PKG_NAME"),
+        "alohomora_pcr_illegal"
+    );
 }

@@ -1,0 +1,21 @@
+error: [93minvalid signature on privacy-critical region, might be a source of privacy-related bugs[0m
+  --> $DIR/alohomora_pcr_illegal.rs:5:16
+   |
+LL |       let _pcr = PrivacyCriticalRegion::new(
+   |  ________________^
+LL | |         |x: u8| {
+LL | |             x + child(x)
+LL | |         },
+...  |
+LL | |         }
+LL | |     );
+   | |_____^
+   |
+   = help: could not verify author's signature: Signature verification failed: incorrect signature
+           could not verify closure reviewer's signature: Signature verification failed: incorrect signature
+           written the hash of privacy-critical region into the files for signing: ./pcr/main-{closure#0}_src_hash.rs
+           
+   = note: `-D alohomora-pcr` implied by `-D warnings`
+
+error: aborting due to previous error
+
