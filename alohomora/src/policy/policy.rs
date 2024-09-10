@@ -1,29 +1,60 @@
+use std::any::Any;
+use std::boxed::Box;
 use crate::context::UnprotectedContext;
 use crate::policy::AnyPolicy;
 
+pub trait CloneableAny : Any {
+    fn any_clone(&self) -> Box<dyn CloneableAny>;
+    fn cast(&self) -> &dyn Any;
+}
+impl<A: Clone + 'static> CloneableAny for A {
+    fn any_clone(&self) -> Box<dyn CloneableAny> {
+        Box::new(self.clone())
+    }
+    fn cast(&self) -> &dyn Any {
+        self
+    }
+}
+
 // Enum describing why/where the policy check is invoked.
-#[derive(Clone, Debug)]
 pub enum Reason<'i> {
-    DB(&'i str /*, &'i BBoxParams */),  // The statement (with ?)
-    TemplateRender(&'i str),            // Template name/path.
-    Cookie(&'i str),                    // Cookie name.
-    Redirect(&'i str),                  // Redirect path (before substitution).
-    Response,                           // Returning a response.
-    Custom,                             // Custom operation (via unbox(..)).
+    DB(&'i str, Vec<mysql::Value>),  // The statement (with ?)
+    TemplateRender(&'i str),             // Template name/path.
+    Cookie(&'i str),                     // Cookie name.
+    Redirect(&'i str),                   // Redirect path (before substitution).
+    Response,                            // Returning a response.
+    Custom(Box<dyn CloneableAny>),       // Custom operation (via unbox(..)).
+}
+
+impl<'i> Clone for Reason<'i> {
+    fn clone(&self) -> Self {
+        match self {
+            Reason::DB(query, params) => Reason::DB(query, params.clone()),
+            Reason::TemplateRender(template_name) => Reason::TemplateRender(template_name),
+            Reason::Cookie(cookie_name) => Reason::Cookie(cookie_name),
+            Reason::Redirect(path) => Reason::Redirect(path),
+            Reason::Response => Reason::Response,
+            Reason::Custom(b) => Reason::Custom((*b).any_clone()),
+        }
+    }
 }
 
 // Public facing Policy traits.
-pub trait Policy {
+pub trait Policy : Send + Sync {
     fn name(&self) -> String;
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
     // TODO(babman): Stream line join, find way to make join combine inside AndPolicy instead of stacking!
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()>;
     fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized;
+    // for casting to any policy.
+    fn into_any(self) -> AnyPolicy where Self: Sized {
+        panic!("unreachable code");
+    }
 }
 
 // Schema policies can be constructed from DB rows.
 pub trait SchemaPolicy: Policy {
-    fn from_row(row: &Vec<mysql::Value>) -> Self
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized;
 }
@@ -42,7 +73,7 @@ pub trait FrontendPolicy: Policy + Send {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashSet};
+    use std::collections::HashSet;
     use crate::context::UnprotectedContext;
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, Reason};
 
@@ -135,14 +166,14 @@ mod tests {
             
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));
-        assert!(combined_pol.check(&alice, Reason::Custom));
-        assert!(specialized.check(&alice, Reason::Custom));
+        assert!(combined_pol.check(&alice, Reason::Custom(Box::new(()))));
+        assert!(specialized.check(&alice, Reason::Custom(Box::new(()))));
 
         // and correct users are disallowed access
         let admin1 = UnprotectedContext::test(String::from(&admin1));
         let admin2 = UnprotectedContext::test(String::from(&admin2));
-        assert!(!combined_pol.check(&admin1, Reason::Custom));
-        assert!(!combined_pol.check(&admin2, Reason::Custom));
+        assert!(!combined_pol.check(&admin1, Reason::Custom(Box::new(()))));
+        assert!(!combined_pol.check(&admin2, Reason::Custom(Box::new(()))));
         
         println!("Final policy on aggregate of mixed policies: {}", combined_pol.name());
     }
@@ -179,18 +210,18 @@ mod tests {
             
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));
-        assert!(combined_pol1.check(&alice, Reason::Custom));
-        assert!(combined_pol2.check(&alice, Reason::Custom));
+        assert!(combined_pol1.check(&alice, Reason::Custom(Box::new(()))));
+        assert!(combined_pol2.check(&alice, Reason::Custom(Box::new(()))));
 
         // and correct users are disallowed access
         let admin1 = UnprotectedContext::test(String::from(&admin1));
         let admin2 = UnprotectedContext::test(String::from(&admin2));
 
-        assert!(!combined_pol1.check(&admin1, Reason::Custom));
-        assert!(!combined_pol2.check(&admin1, Reason::Custom));
+        assert!(!combined_pol1.check(&admin1, Reason::Custom(Box::new(()))));
+        assert!(!combined_pol2.check(&admin1, Reason::Custom(Box::new(()))));
 
-        assert!(!combined_pol1.check(&admin2, Reason::Custom));
-        assert!(!combined_pol2.check(&admin2, Reason::Custom));
+        assert!(!combined_pol1.check(&admin2, Reason::Custom(Box::new(()))));
+        assert!(!combined_pol2.check(&admin2, Reason::Custom(Box::new(()))));
         
         println!("Final policy from mixed policies: {}", combined_pol1.name());
         println!("Final policy from mixed policies: {}", combined_pol2.name());

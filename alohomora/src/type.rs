@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::any::Any;
 use std::hash::Hash;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 use itertools::Itertools;
 
 use crate::bbox::BBox;
@@ -61,7 +62,8 @@ impl AlohomoraTypeEnum {
                 vec
                     .into_iter()
                     .map(|e| e.remove_bboxes())
-                    .collect()),
+                    .collect()
+            ),
             AlohomoraTypeEnum::Struct(hashmap) => AlohomoraTypeEnum::Struct(
                 hashmap
                     .into_iter()
@@ -70,16 +72,26 @@ impl AlohomoraTypeEnum {
             ),
         }
     }
+
+    // Coerces self into the given type provided it is a Value(...) of that type.
+    pub fn coerce<T: 'static>(self) -> Result<T, ()> {
+        match self {
+            AlohomoraTypeEnum::Value(v) => match v.downcast() {
+                Ok(t) => Ok(*t),
+                Err(_) => Err(()),
+            },
+            _ => Err(()),
+        }
+    }
 }
 
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to
 // sandboxes.
-pub trait AlohomoraType<P: Policy = AnyPolicy> {
+pub trait AlohomoraType {
     type Out;     // Unboxed form of struct
     fn to_enum(self) -> AlohomoraTypeEnum;
     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()>;
 }
-
 
 // Implement AlohomoraType for various primitives.
 macro_rules! alohomora_type_impl {
@@ -87,7 +99,7 @@ macro_rules! alohomora_type_impl {
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
         impl AlohomoraType for $T {
             type Out = $T;
-            fn to_enum(self) -> AlohomoraTypeEnum {
+            fn to_enum(self) -> AlohomoraTypeEnum{
                 AlohomoraTypeEnum::Value(Box::new(self))
             }
             fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
@@ -154,7 +166,6 @@ impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
     }
 }
 
-// Implement AlohomoraType for containers of AlohomoraTypes
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<S: AlohomoraType> AlohomoraType for Vec<S> {
     type Out = Vec<S::Out>;
@@ -164,7 +175,7 @@ impl<S: AlohomoraType> AlohomoraType for Vec<S> {
     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
         match e {
             AlohomoraTypeEnum::Vec(v) => {
-                let mut result = Vec::new();
+                let mut result = Vec::with_capacity(v.len());
                 for e in v.into_iter() {
                     result.push(S::from_enum(e)?);
                 }
@@ -197,6 +208,21 @@ impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for Hash
                 }
                 Ok(result)
             }
+            _ => Err(()),
+        }
+    }
+}
+
+
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl AlohomoraType for () {
+    type Out = ();
+    fn to_enum(self) -> AlohomoraTypeEnum {
+        AlohomoraTypeEnum::Value(Box::new(()))
+    }
+    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        match e {
+            AlohomoraTypeEnum::Value(_) => Ok(()),
             _ => Err(()),
         }
     }
@@ -293,3 +319,22 @@ alohomora_type_tuple_impl!(
     [K, 10],
     [L, 11]
 );
+
+// Implement AlohomoraType for Arc<Mutex<T>>
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl<T: AlohomoraType> AlohomoraType for Arc<Mutex<T>> {
+    type Out = Arc<Mutex<T::Out>>;
+    fn to_enum(self) -> AlohomoraTypeEnum {
+        let t = Arc::into_inner(self).unwrap().into_inner().unwrap();
+        AlohomoraTypeEnum::Vec(vec![t.to_enum()])
+    }
+    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        match e {
+            AlohomoraTypeEnum::Vec(mut v) => {
+                let t = v.pop().unwrap();
+                Ok(Arc::new(Mutex::new(T::from_enum(t)?)))
+            }
+            _ => Err(()),
+        }
+    }
+}

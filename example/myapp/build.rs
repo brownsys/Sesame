@@ -1,5 +1,5 @@
 use alohomora_build::alohomora_build;
 
 fn main() {
-    alohomora_build(true, &["../myapp_lib"]);
+    alohomora_build(false, &["../myapp_lib"]);
 }

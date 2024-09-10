@@ -1,0 +1,22 @@
+# short class ID (human readable)
+class = "CSCI 2390"
+# MySQL database user
+db_user = "root"
+# MySQL database password
+db_password = ""
+# list email addresses whose API keys get admin access
+admins = ["malte@cs.brown.edu"]
+# list email addresses whose API keys get manager access
+managers = ["malte@cs.brown.edu"]
+# list email addresses who should receive notification emails
+staff = ["malte@cs.brown.edu"]
+# custom template directory
+template_dir = "websubmit-boxed/templates"
+# custom resource directory (e.g., for images, CSS, JS)
+resource_dir = "/tmp/websubmit-boxed"
+# a secret that will be hashed into user's API keys to make them unforgeable
+secret = "SECRET"
+# whether to send emails (set to false for development)
+send_emails = false
+# whether to reset the db (set to false for production)
+prime = false

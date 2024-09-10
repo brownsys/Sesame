@@ -1,0 +1,34 @@
+[package]
+name = "websubmit_boxed_sandboxes"
+version = "0.1.0"
+authors = ["Kinan Dak Albab <kinan.bab.14@gmail.com>"]
+edition = "2018"
+build = "build.rs"
+
+[dependencies]
+chrono = { version = "0.4.0", features = ["serde"] }
+linfa = "0.6.1"
+linfa-linear = "0.6.1"
+ndarray = "0.15.6"
+sha2 = "0.10.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+alohomora_derive = { path = "../alohomora_derive" }
+alohomora_sandbox = { path = "../alohomora_sandbox" }
+
+[build-dependencies]
+alohomora_build = { path = "../alohomora_build" }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[package.metadata]
+sandboxes = [
+    "hash", 
+    "train"
+]
+
+[features]
+default = []
+sandbox_timing = ["alohomora_sandbox/sandbox_timing"]

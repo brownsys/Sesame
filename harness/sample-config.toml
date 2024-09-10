@@ -1,0 +1,22 @@
+# short class ID (human readable)
+class = "CSCI 2390"
+# MySQL database user
+db_user = "root"
+# MySQL database password
+db_password = ""
+# list email addresses whose API keys get admin access
+admins = ["artem@brown.edu"]
+# list email addresses whose API keys get manager access
+managers = ["artem@brown.edu"]
+# list email addresses who should receive notification emails
+staff = ["artem@brown.edu"]
+# custom template directory
+template_dir = "harness/templates"
+# custom resource directory (e.g., for images, CSS, JS)
+resource_dir = "/tmp/harness"
+# a secret that will be hashed into user's API keys to make them unforgeable
+secret = "SECRET"
+# whether to send emails (set to false for development)
+send_emails = false
+# whether to reset the db (set to false for production)
+prime = true

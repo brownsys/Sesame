@@ -245,13 +245,13 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
       let mut _errors = ::rocket::form::prelude::Errors::new();
 
       // initialize.
-      let opts = ::rocket::form::prelude::Options::Lenient;
-      #(let mut #query_idents = #query_casted_types::bbox_init(opts);)*
+      let _opts = ::rocket::form::prelude::Options::Lenient;
+      #(let mut #query_idents = #query_casted_types::bbox_init(_opts);)*
 
       // push.
-      for field in _request.query_fields() {
-        match field.name.key_lossy().as_str() {
-          #(#query_strings => #query_casted_types::bbox_push_value(&mut #query_idents, field.shift(), _request),)*
+      for _field in _request.query_fields() {
+        match _field.name.key_lossy().as_str() {
+          #(#query_strings => #query_casted_types::bbox_push_value(&mut #query_idents, _field.shift(), _request),)*
           _ => {},
         }
       }
@@ -272,6 +272,15 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
       #(let #query_idents = #query_idents.unwrap();)*
     };
 
+    // If the function is async, we should await on the result.
+    let res_await = if sig.asyncness.is_some() {
+        quote! {
+            let _res = _res.await;
+        }
+    } else {
+        quote! {}
+    };
+
     quote! {
       #[allow(non_camel_case_types)]
       pub struct #fn_name {}
@@ -290,10 +299,13 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
           #post_data
 
           // invoke with result.
-          let res = #fn_call;
+          let _res = #fn_call;
+
+          // await on response if handler is async.
+          #res_await
 
           // done!
-          ::alohomora::rocket::BBoxResponseOutcome::from(_request, res)
+          ::alohomora::rocket::BBoxResponseOutcome::from(_request, _res)
         }
 
         pub fn info() -> ::alohomora::rocket::BBoxRouteInfo {

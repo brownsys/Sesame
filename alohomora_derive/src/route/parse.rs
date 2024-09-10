@@ -1,5 +1,4 @@
 extern crate proc_macro2;
-extern crate rocket;
 extern crate syn;
 
 use std::marker::PhantomData;
@@ -10,7 +9,7 @@ use proc_macro2::{Ident, Span};
 use syn::parse::{Parse, ParseStream};
 use syn::{parse_str, Lit, Token};
 
-use rocket::http::uri::Origin;
+use rocket_http::uri::Origin;
 
 // A parameter of the form <IDENTIFIER>.
 fn is_dynamic_parameter(s: &str) -> bool {
@@ -35,12 +34,14 @@ fn parse_parameter(s: &str) -> Option<String> {
 enum Method {
     Post,
     Get,
+    Delete,
 }
 impl Method {
     pub fn from_string(method: &str) -> Option<Self> {
         match method {
             "POST" => Some(Method::Post),
             "GET" => Some(Method::Get),
+            "DELETE" => Some(Method::Delete),
             _ => None,
         }
     }
@@ -48,6 +49,7 @@ impl Method {
         match self {
             Method::Post => Ident::new("Post", Span::call_site()),
             Method::Get => Ident::new("Get", Span::call_site()),
+            Method::Delete => Ident::new("Delete", Span::call_site()),
         }
     }
 }

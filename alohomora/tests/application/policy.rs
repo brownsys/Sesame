@@ -35,7 +35,7 @@ impl Policy for ACLPolicy {
     }
 }
 impl SchemaPolicy for ACLPolicy {
-    fn from_row(row: &Vec<Value>) -> Self where Self: Sized {
+    fn from_row(table_name: &str, row: &Vec<Value>) -> Self where Self: Sized { 
         ACLPolicy {
             users: HashSet::from([
                 String::from("admin"),
@@ -54,7 +54,7 @@ impl Policy for AuthenticationCookiePolicy {
     fn check(&self, _: &UnprotectedContext, reason: Reason) -> bool {
         match reason {
             Reason::Cookie(name) => name == "user",
-            Reason::DB(query) => query.starts_with("SELECT"),
+            Reason::DB(query, _) => query.starts_with("SELECT"),
             _ => false,
         }
     }
@@ -82,7 +82,7 @@ impl Policy for WritePolicy {
     }
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         match reason {
-            Reason::DB(stmt) => {
+            Reason::DB(stmt, _) => {
                 if stmt.starts_with("INSERT") {
                     type ContextDataOut = <ContextData as AlohomoraType>::Out;
                     let r: &ContextDataOut = context.downcast_ref().unwrap();

@@ -1,3 +1,5 @@
+#![feature(box_into_inner)]
+#![feature(specialization)]
 #[macro_use]
 extern crate lazy_static;
 
@@ -10,13 +12,16 @@ extern crate alohomora_sandbox;
 pub mod bbox;
 pub mod context;
 pub mod db;
+
+#[cfg(feature = "orm")]
+pub mod orm;
+
 pub mod policy;
 pub mod rocket;
 pub mod sandbox;
 pub mod testing;
 pub mod fold;
 pub mod pcr;
-
 pub mod pure;
 pub mod unbox;
 

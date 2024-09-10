@@ -46,6 +46,18 @@ impl BBoxParams {
             }
         }
     }
+
+    pub(super) fn to_reason<'a>(self) -> Vec<mysql::Value> {
+        match self {
+            BBoxParams::Empty => Vec::new(),
+            BBoxParams::Positional(v) => v.into_iter()
+                .map(|either| match either {
+                    EitherBBox::Value(value) => value,
+                    EitherBBox::BBox(bbox) => bbox.consume().0,
+                })
+                .collect(),
+        }
+    }
 }
 
 // Can make Params from empty and Vec.
@@ -177,6 +189,7 @@ into_params_impl!(
 
 #[cfg(test)]
 mod tests {
+    use std::boxed::Box;
     use mysql::Params;
     use mysql::prelude::FromValue;
     use crate::bbox::{BBox, EitherBBox};
@@ -209,7 +222,7 @@ mod tests {
         }
 
         // Test unboxing.
-        let params = params.transform(Context::test(()), Reason::Custom).unwrap();
+        let params = params.transform(Context::test(()), Reason::Custom(Box::new(()))).unwrap();
         assert!(matches!(&params, Params::Positional(v) if v.len() == 4));
         if let Params::Positional(vec) = &params {
             assert_eq!(mysql::from_value::<String>(vec[0].clone()), "kinan");

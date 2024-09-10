@@ -1,6 +1,8 @@
 use std::env;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use rocket::http::{ContentType, Status};
+use rocket_cors::{AllowedOrigins, CorsOptions};
 use rocket_dyn_templates::Template;
 use alohomora::rocket::BBoxRocket;
 use alohomora::test_route;
@@ -67,11 +69,26 @@ fn test_end_to_end_application() {
         }
     });
 
+    // Test setting up cores.
+    let cors = CorsOptions::default()
+        .allowed_origins(AllowedOrigins::all())
+        .allowed_methods(
+            ["Get", "Post", "Put", "Delete", "Options"]
+                .iter()
+                .map(|s| FromStr::from_str(s).unwrap())
+                .collect(),
+        )
+        .allow_credentials(true)
+        .to_cors()
+        .expect("Failed to setup cors configuration.");
+
     // Create a rocket instance and mount route.
     env::set_var("ROCKET_template_dir", "tests/application");
     let rocket = BBoxRocket::build()
         .attach(template)
         .manage(Arc::new(Mutex::new(db)))
+        .attach(cors.clone())
+        .mount("/", alohomora::rocket::catch_all_options_routes())
         .mount("/", vec![
             test_route!(Get, "/login/<user>", login),
             test_route!(Post, "/submit", post_grade),

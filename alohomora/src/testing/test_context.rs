@@ -4,7 +4,9 @@ use crate::context::{Context, UnprotectedContext};
 use crate::policy::NoPolicy;
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 
+#[derive(Clone)]
 pub struct TestContextData<T: 'static>(BBox<T, NoPolicy>);
+
 impl<T: Send + 'static> TestContextData<T> {
     pub fn new(t: T) -> Self {
         Self(BBox::new(t, NoPolicy {}))

@@ -47,6 +47,15 @@ impl BBoxRocket<rocket::Build> {
             frontend: self.frontend.mount(base, routes),
         }
     }
+    pub fn register<'a, B, C>(self, base: B, catchers: C) -> Self
+        where B: TryInto<rocket::http::uri::Origin<'a>> + Clone + std::fmt::Display,
+              B::Error: std::fmt::Display,
+              C: Into<Vec<rocket::Catcher>>
+    {
+        BBoxRocket {
+            frontend: self.frontend.register(base, catchers),
+        }
+    }
 }
 
 // Can turn a single BBoxRoute into a vector using into().

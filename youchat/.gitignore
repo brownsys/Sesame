@@ -1,0 +1,11 @@
+#default cargo
+/target
+
+#i hate .ds_stores
+.DS_Store
+
+#from alohamora repo
+**/*.rs.bk
+*.local.*
+.idea
+/diff

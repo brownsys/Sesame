@@ -1,10 +1,13 @@
 extern crate futures;
 
 use futures::future::BoxFuture;
+use rocket::http::ContentType;
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use std::option::Option;
 use std::result::Result;
+use rocket_firebase_auth::{BearerToken, FirebaseAuth, FirebaseToken};
+use std::convert::TryFrom;
 
 use crate::bbox::BBox;
 use crate::policy::{FrontendPolicy, Policy};
@@ -22,6 +25,10 @@ pub struct BBoxRequest<'a, 'r> {
 impl<'a, 'r> BBoxRequest<'a, 'r> {
     pub fn new(request: &'a rocket::Request<'r>) -> Self {
         BBoxRequest { request }
+    }
+
+    pub fn content_type(&self) -> Option<&ContentType> {
+        self.request.content_type()
     }
 
     pub(crate) fn get_request(&self) -> &'a rocket::Request<'r> {
@@ -43,6 +50,22 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
 
     pub fn cookies(&self) -> BBoxCookieJar<'a, 'r> {
         BBoxCookieJar::new(self.request.cookies(), self.request)
+    }
+
+    pub fn headers(&self) -> BBoxHeaderMap<'a, 'r> {
+        BBoxHeaderMap::new(self.request, self.request.headers())
+    }
+
+    pub async fn firebase_token<P: FrontendPolicy>(&self, firebase_auth: &FirebaseAuth)
+    -> Option<BBox<FirebaseToken, P>> {
+        let header = self.request.headers().get_one("Authorization")?;
+        match BearerToken::try_from(header) {
+            Err(_) => None,
+            Ok(token) => match firebase_auth.verify(token.as_str()).await {
+                Err(_) => None,
+                Ok(token) => Some(BBox::new(token, P::from_request(self.request))),
+            },
+        }
     }
 
     // Use this to retrieve (boxed) guards, e.g. ApiKey struct with BBoxes inside.
@@ -184,6 +207,8 @@ impl_param_via_fromstr!(
 // Implement FromBBoxParam for a few other types that rocket controls safely
 // outside application reach.
 use std::path::PathBuf;
+use rocket::data::Outcome;
+use crate::rocket::BBoxHeaderMap;
 
 impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;
@@ -218,6 +243,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for () {
     }
 }
 
+/*
 #[rocket::async_trait]
 impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<IpAddr, P> {
     type BBoxError = std::convert::Infallible;
@@ -240,6 +266,25 @@ impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<SocketAddr, P> 
         match request.remote() {
             Some(addr) => BBoxRequestOutcome::Success(addr),
             None => BBoxRequestOutcome::Forward(()),
+        }
+    }
+}
+*/
+
+// TODO(babman): look at technical debt issue on github.
+#[rocket::async_trait]
+impl<'a, 'r, T: rocket::request::FromRequest<'a>, P: Policy + FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<T, P> {
+    type BBoxError = ();
+    async fn from_bbox_request(
+        request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+        match <T as rocket::request::FromRequest>::from_request(request.get_request()).await {
+            rocket::request::Outcome::Success(t) => BBoxRequestOutcome::Success(BBox::new(t, P::from_request(request.get_request()))),
+            rocket::request::Outcome::Forward(()) => BBoxRequestOutcome::Forward(()),
+            rocket::request::Outcome::Failure((status, error)) => {
+                println!("Error {} {:?}", status, error);
+                BBoxRequestOutcome::Failure((status, ()))
+            },
         }
     }
 }

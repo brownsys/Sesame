@@ -7,6 +7,7 @@ use crate::db::{BBoxValue, BBoxFromValue};
 pub use mysql::prelude::ColumnIndex as BBoxColumnIndex;
 
 // A result row.
+#[derive(Clone)]
 pub struct BBoxRow {
     row: mysql::Row,
     raw: Vec<mysql::Value>,

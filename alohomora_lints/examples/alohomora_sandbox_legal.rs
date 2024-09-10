@@ -1,3 +1,4 @@
+#![feature(allocator_api)]
 extern crate alohomora;
 extern crate alohomora_sandbox;
 

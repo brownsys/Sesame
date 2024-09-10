@@ -37,8 +37,8 @@ impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
 }
 
 impl<P: 'static + Policy + SchemaPolicy + Clone> SchemaPolicy for TestPolicy<P> {
-    fn from_row(row: &Vec<mysql::Value>) -> Self {
-        TestPolicy { p: P::from_row(row) }
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
+        TestPolicy { p: P::from_row(table_name, row) }
     }
 }
 impl<P: 'static + Policy + FrontendPolicy + Clone> FrontendPolicy for TestPolicy<P> {
@@ -63,18 +63,6 @@ impl<P: 'static + Policy + Clone> From<P> for TestPolicy<P> {
 impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
     pub fn discard_box(self) -> T {
         self.consume().0
-    }
-}
-impl<T: Debug, P: 'static + Policy + Clone> Debug for BBox<T, TestPolicy<P>> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Box(")?;
-        self.data().fmt(f)?;
-        f.write_char(')')
-    }
-}
-impl<T: PartialEq, P: 'static + Policy + PartialEq + Clone> PartialEq for BBox<T, TestPolicy<P>> {
-    fn eq(&self, other: &Self) -> bool {
-        self.data().eq(other.data())
     }
 }
 impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}

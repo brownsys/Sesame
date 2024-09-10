@@ -42,9 +42,9 @@ extern crate small_ctor;
 pub use small_ctor::ctor as register;
 pub fn add_schema_policy<T: SchemaPolicy + Clone + 'static>(table_name: String, column: usize) {
     let mut map = SCHEMA_POLICIES.write().unwrap();
-    map.entry((table_name, column))
+    map.entry((table_name.clone(), column))
         .or_default()
-        .push(Box::new(|row: &Vec<mysql::Value>| {
-            AnyPolicy::new(T::from_row(row))
+        .push(Box::new(move |row: &Vec<mysql::Value>| {
+            AnyPolicy::new(T::from_row(&table_name, row))
         }));
 }

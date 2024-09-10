@@ -6,11 +6,9 @@ edition = "2018"
 build = "build.rs"
 
 [dependencies]
-# These should be alohomora dependencies?
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 alohomora_derive = { path = "../../alohomora_derive" }
-alohomora_sandbox = { path = "../../alohomora_sandbox" }
+alohomora_sandbox = { path = "../../alohomora_sandbox" } #, features = ["sandbox_timing"] }
 
 [build-dependencies]
 bindgen = "0.69.1"
@@ -23,5 +21,6 @@ path = "src/lib.rs"
 [package.metadata]
 sandboxes = [
   "add_numbers",
-  "mult_numbers",
+  "div_numbers",
+  "mult_numbers"
 ]

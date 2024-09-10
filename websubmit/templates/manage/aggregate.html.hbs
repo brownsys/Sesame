@@ -1,0 +1,17 @@
+{{#*inline "page"}}
+    <h1>Aggregate grades per user:</h1>
+
+    <table>
+        <tr>
+            <th>Category</th>
+            <th>Average grade</th>
+        </tr>
+        {{#each aggregate}}
+            <tr>
+                <td>{{{ this.property }}}</td>
+                <td>{{{ this.average }}}</td>
+            </tr>
+        {{/each}}
+    </table>
+{{/inline}}
+{{~> (parent)~}}

@@ -37,6 +37,7 @@ dylint_linting::dylint_library!();
 mod alohomora_pcr; 
 mod alohomora_sandbox;
 mod alohomora_type;
+mod alohomora_sandbox_transfer;
 
 // Register all lints.
 #[allow(clippy::no_mangle_with_rust_abi)]
@@ -46,4 +47,5 @@ pub fn register_lints(sess: &rustc_session::Session, lint_store: &mut rustc_lint
     alohomora_pcr::AlohomoraPcr::register(lint_store); 
     alohomora_sandbox::AlohomoraSandbox::register(lint_store);
     alohomora_type::AlohomoraType::register(lint_store);
+    alohomora_sandbox_transfer::AlohomoraSandboxable::register(lint_store);
 }

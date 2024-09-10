@@ -1,0 +1,19 @@
+{{#*inline "page"}}
+    <h1>Lecture {{{ lec_id }}} questions:</h1>
+
+    <form action="/questions/{{{ lec_id }}}" method="post" accept-charset="utf-8">
+      {{#each questions}}
+      <label>{{{ this.prompt }}}:
+        <p>
+        <textarea name="answers.{{{ this.id }}}" rows="10" cols="80"
+         {{#if this.answer}}
+         {{else}} placeholder="Write something here."
+         {{/if}}>{{{ this.answer }}}</textarea>
+        </p>
+      </label>
+      {{/each}}
+
+      <input type="submit" value="Submit">
+    </form>
+{{/inline}}
+{{~> (parent)~}}

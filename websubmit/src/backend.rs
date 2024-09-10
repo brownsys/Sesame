@@ -1,8 +1,11 @@
 use mysql::prelude::*;
 use mysql::Opts;
-pub use mysql::Value;
 use mysql::*;
 use std::collections::HashMap;
+
+pub use mysql::Value;
+
+use slog::{o, warn};
 
 pub struct MySqlBackend {
     pub handle: mysql::Conn,
@@ -27,12 +30,12 @@ impl MySqlBackend {
             Some(l) => l,
         };
 
-        let schema = std::fs::read_to_string("websubmit/src/schema.sql")?;
+        let schema = std::fs::read_to_string("src/schema.sql")?;
 
-        debug!(
-            log,
-            "Connecting to MySql DB and initializing schema {}...", dbname
-        );
+        // debug!(
+        //     log,
+        //     "Connecting to MySql DB and initializing schema {}...", dbname
+        // );
         let mut db = mysql::Conn::new(
             Opts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
         )
@@ -45,14 +48,6 @@ impl MySqlBackend {
             db.query_drop(format!("CREATE DATABASE {};", dbname))
                 .unwrap();
             db.query_drop(format!("USE {};", dbname)).unwrap();
-            db = mysql::Conn::new(
-                Opts::from_url(&format!(
-                    "mysql://{}:{}@127.0.0.1/{}",
-                    user, password, dbname
-                ))
-                .unwrap(),
-            )
-            .unwrap();
             for line in schema.lines() {
                 if line.starts_with("--") || line.is_empty() {
                     continue;
@@ -111,7 +106,7 @@ impl MySqlBackend {
                         let vals: Vec<Value> = rowvals.iter().map(|v| v.clone().into()).collect();
                         rows.push(vals);
                     }
-                    debug!(self.log, "executed query {}, got {} rows", sql, rows.len());
+                    // debug!(self.log, "executed query {}, got {} rows", sql, rows.len());
                     return rows;
                 }
             }
@@ -127,7 +122,7 @@ impl MySqlBackend {
             table,
             vals.iter().map(|_| "?").collect::<Vec<&str>>().join(",")
         );
-        debug!(self.log, "executed insert query {} for row {:?}", q, vals);
+        // debug!(self.log, "executed insert query {} for row {:?}", q, vals);
         while let Err(e) = self.handle.exec_drop(q.clone(), vals.clone()) {
             warn!(
                 self.log,

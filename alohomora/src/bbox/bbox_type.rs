@@ -1,17 +1,29 @@
 use std::{fmt::{Debug, Formatter}, any::Any};
 use std::fmt::Write;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Poll;
 
 use either::Either;
+use mysql::chrono;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
-use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason};
+use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason, CloneableAny};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
 
+use pin_project_lite::pin_project;
+use crate::AlohomoraType;
+use crate::fold::fold;
+
 // Privacy Container type.
-pub struct BBox<T, P: Policy> {
-    t: T,
-    p: P,
+pin_project! {
+    #[derive(Debug, PartialEq)]
+    pub struct BBox<T, P: Policy> {
+        #[pin]
+        t: T,
+        p: P,
+    }
 }
 
 // BBox is cloneable if what is inside is cloneable.
@@ -70,30 +82,32 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Unbox with policy checks.
-    pub fn unbox<'a, D: ContextData, C, O, F: FnOnce(&'a T, C) -> O>(
+    pub fn unbox<'a, D: ContextData, C: Clone + AlohomoraType, O, F: FnOnce(&'a T, C::Out) -> O>(
         &'a self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
         arg: C
-    ) -> Result<O, ()> {
+    ) -> Result<O, ()> where C::Out: CloneableAny + Clone {
+        let arg_out = fold(arg.clone()).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context, Reason::Custom) {
+        if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(&self.t, arg))
+            Ok(functor(&self.t, arg_out))
         } else {
             Err(())
         }
     }
-    pub fn into_unbox<D: ContextData, C, O, F: FnOnce(T, C) -> O>(
+    pub fn into_unbox<D: ContextData, C: Clone + AlohomoraType, O, F: FnOnce(T, C::Out) -> O>(
         self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
         arg: C
-    ) -> Result<O, ()> {
+    ) -> Result<O, ()> where C::Out: CloneableAny + Clone {
+        let arg_out = fold(arg).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context, Reason::Custom) {
+        if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(self.t, arg))
+            Ok(functor(self.t, arg_out))
         } else {
             Err(())
         }
@@ -121,16 +135,16 @@ impl<T, P: Policy> BBox<T, P> {
 }
 
 // Can clone a ref policy to own it.
-impl<'a, T, P: Policy + Clone> BBox<&'a T, RefPolicy<'a, P>> where T: ?Sized {
-    pub fn to_owned_policy(&self) -> BBox<&'a T, P> {
+impl<'a, T, P: Policy + Clone> BBox<T, RefPolicy<'a, P>> {
+    pub fn to_owned_policy(self) -> BBox<T, P> {
         BBox::new(self.t, self.p.policy().clone())
     }
 }
 
 // Can clone a ref to own it.
-impl<'r, T: Clone, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
-    pub fn to_owned(&self) -> BBox<T, P> {
-        BBox::new(self.t.clone(), self.p.policy().clone())
+impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
+    pub fn to_owned(&self) -> BBox<T::Owned, P> {
+        BBox::new(self.t.to_owned(), self.p.policy().clone())
     }
 }
 
@@ -180,18 +194,6 @@ impl<T> BBox<T, NoPolicy> {
         self.t
     }
 }
-impl<T: Debug> Debug for BBox<T, NoPolicy> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Box(")?;
-        self.t.fmt(f)?;
-        f.write_char(')')
-    }
-}
-impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
-    fn eq(&self, other: &Self) -> bool {
-        self.t.eq(&other.t)
-    }
-}
 
 // Same but for RefPolicy<NoPolicy>
 impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
@@ -199,16 +201,52 @@ impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
         self.t
     }
 }
-impl<'a, T: Debug> Debug for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Box(")?;
-        self.t.fmt(f)?;
-        f.write_char(')')
+impl<T, E, P: Policy> BBox<Result<T, E>, P> {
+    pub fn transpose(self) -> Result<BBox<T, P>, E> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(t?, p))
     }
 }
-impl<'a, T: PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, NoPolicy>> {
-    fn eq(&self, other: &Self) -> bool {
-        self.t.eq(&other.t)
+
+impl<T, P: Policy> BBox<Option<T>, P> {
+    pub fn transpose(self) -> Option<BBox<T, P>> {
+        let (t, p) = self.consume();
+        Some(BBox::new(t?, p))
+    }
+}
+
+impl<'a, T: Future, P: Policy + Clone> Future for BBox<T, P> {
+    type Output = BBox<T::Output, P>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        match this.t.poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(t) => Poll::Ready(BBox::new(t, this.p.clone())),
+        }
+    }
+}
+
+impl<T: Default, P: Policy + Default> Default for BBox<T, P> {
+    fn default() -> Self {
+        BBox::new(T::default(), P::default())
+    }
+}
+
+// For datetime.
+use chrono::{NaiveDateTime, NaiveDate, NaiveTime, ParseResult};
+impl<P: Policy> BBox<String, P> {
+    pub fn into_date_time(self, fmt: &str) -> ParseResult<BBox<NaiveDateTime, P>> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(NaiveDateTime::parse_from_str(&t, fmt)?, p))
+    }
+    pub fn into_date(self, fmt: &str) -> ParseResult<BBox<NaiveDate, P>> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(NaiveDate::parse_from_str(&t, fmt)?, p))
+    }
+    pub fn into_time(self, fmt: &str) -> ParseResult<BBox<NaiveTime, P>> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(NaiveTime::parse_from_str(&t, fmt)?, p))
     }
 }
 
@@ -220,7 +258,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Clone, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     struct ExamplePolicy {
         pub attr: String,
     }

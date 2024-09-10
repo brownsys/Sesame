@@ -16,7 +16,9 @@ all: {env.package_directory}/lib{name}_sandbox.so
 
 # Step 3: generating .o files.
 {name}.wasm.o: {name}.wasm.c {name}.wasm.h wasi_rt.aux.c
-	$(CC) -O3 -fPIC -c $(WASI_RUNTIME_FILES) $(patsubst %, -I%, $(RLBOX_INCLUDE)) {name}.wasm.c wasi_rt.aux.c
+	$(CC) -DALLOW_SANDBOX_PRINTING -O3 -fPIC -c $(WASI_RUNTIME_FILES) $(patsubst %, -I%, $(RLBOX_INCLUDE)) {name}.wasm.c wasi_rt.aux.c
+	# To dissallow printing; use below instead
+	# $(CC) -O3 -fPIC -c $(WASI_RUNTIME_FILES) $(patsubst %, -I%, $(RLBOX_INCLUDE)) {name}.wasm.c wasi_rt.aux.c
 
 # Step 4: linking our RLBox wrapper functions with our library of functions and RLBox into a shared library
 {env.package_directory}/lib{name}_sandbox.so: {name}.wasm.o wrapper.cpp wrapper.h

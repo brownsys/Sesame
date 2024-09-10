@@ -1,0 +1,5 @@
+db_user = "root"
+db_password = ""
+template_dir = "templates"
+#change to false sometime
+prime = true

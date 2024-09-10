@@ -11,9 +11,7 @@ name = "bin"
 path = "src/bin.rs"
 
 [dependencies]
-alohomora = { path = "../../alohomora" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+alohomora = { path = "../../alohomora/", default_features = false, features = ["derive"] } #, "sandbox_timing"] }
 myapp_lib = { path = "../myapp_lib" }
 
 [build-dependencies]

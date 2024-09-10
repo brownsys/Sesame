@@ -12,12 +12,16 @@ proc-macro = true
 attribute-derive = "0.8.1"
 proc-macro2 = "1.0.58"
 quote = "1.0.27"
-rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+rocket_http = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 serde = "1.0"
 syn = { version = "2.0.16", features = [ "full" ] }
 
 [dev-dependencies]
-alohomora = { version = "0.1.0", path = "../alohomora" }
+alohomora = { version = "0.1.0", path = "../alohomora", default-features = false, features = [] }
 mysql = "21.0.2"
 erased-serde = "0.3.25"
-serde_json = "1.0.68"
+serde_json = "1.0"
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

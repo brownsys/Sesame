@@ -6,6 +6,9 @@ pub struct RefPolicy<'a, P: Policy + ?Sized> {
     policy: &'a P,
 }
 
+unsafe impl<'a, P: Policy + ?Sized> Send for RefPolicy<'a, P> {}
+unsafe impl<'a, P: Policy + ?Sized> Sync for RefPolicy<'a, P> {}
+
 impl<'a, P: Policy + ?Sized> RefPolicy<'a, P> {
     pub fn new(policy: &'a P) -> Self {
         RefPolicy { policy }

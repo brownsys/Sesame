@@ -6,11 +6,24 @@ use crate::env::Env;
 pub fn build_library_wasm(env: &Env) -> String {
     warn!("\x1b[96mnote: \x1b[97mBuilding WASM package....\x1b[0m");
 
+    // Find all the features we are compiled with.
+    let features: String = std::env::vars().filter_map(
+      |(var, _)| {
+          if var.starts_with("CARGO_FEATURE_") {
+            let feature = &var["CARGO_FEATURE_".len()..];
+            Some(feature.to_lowercase())
+          } else {
+            None
+          }
+      }).collect::<Vec<String>>().join(",");
+    warn!("\x1b[96mnote: \x1b[97mUsing features '{}'....\x1b[0m", features);
+
     let output = Command::new(&env.cargo)
         .arg("+nightly-2023-10-06")
         .arg("build")
         .arg("--release")
         .arg("--lib")
+        .args(["--features", &features])
         .args(["-Z", "build-std=std,panic_abort"])
         .args(["--target", "wasm32-rlbox.json"])
         .args(["--target-dir", &format!("{}/{}", env.package_directory, "wasm_target")])

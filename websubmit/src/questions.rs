@@ -3,19 +3,23 @@ use crate::apikey::ApiKey;
 use crate::backend::{MySqlBackend, Value};
 use crate::config::Config;
 use crate::email;
+
 use chrono::naive::NaiveDateTime;
 use chrono::Local;
+
 use mysql::from_value;
+
+use rocket::http::Status;
 use rocket::form::{Form, FromForm};
 use rocket::response::Redirect;
 use rocket::State;
+use rocket::{get, post};
 use rocket_dyn_templates::Template;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-//pub(crate) enum LectureQuestionFormError {
-//   Invalid,
-//}
+use serde::Serialize;
 
 #[derive(Debug, FromForm)]
 pub(crate) struct LectureQuestionSubmission {
@@ -37,18 +41,19 @@ pub(crate) struct LectureQuestionsContext {
 }
 
 #[derive(Serialize)]
-struct LectureAnswer {
-    id: u64,
-    user: String,
-    answer: String,
-    time: Option<NaiveDateTime>,
+pub struct LectureAnswer {
+    pub id: u64,
+    pub user: String,
+    pub answer: String,
+    pub time: String,
+    pub grade: u64,
 }
 
 #[derive(Serialize)]
-struct LectureAnswersContext {
-    lec_id: u8,
-    answers: Vec<LectureAnswer>,
-    parent: &'static str,
+pub struct LectureAnswersContext {
+    pub lec_id: u8,
+    pub answers: Vec<LectureAnswer>,
+    pub parent: &'static str,
 }
 
 #[derive(Serialize)]
@@ -99,7 +104,7 @@ pub(crate) fn leclist(
         .collect();
 
     let ctx = LectureListContext {
-        admin: admin,
+        admin,
         lectures: lecs,
         parent: "layout",
     };
@@ -117,26 +122,72 @@ pub(crate) fn answers(
     let key: Value = (num as u64).into();
     let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
     drop(bg);
+
     let answers: Vec<_> = res
         .into_iter()
         .map(|r| LectureAnswer {
             id: from_value(r[2].clone()),
             user: from_value(r[0].clone()),
             answer: from_value(r[3].clone()),
-            time: if let Value::Time(..) = r[4] {
-                Some(from_value::<NaiveDateTime>(r[4].clone()))
-            } else {
-                None
-            },
+            time: from_value::<NaiveDateTime>(r[4].clone())
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            grade: from_value(r[5].clone()),
         })
         .collect();
 
     let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: answers,
+        answers,
         parent: "layout",
     };
     Template::render("answers", &ctx)
+}
+
+#[get("/discussion_leaders/<num>")]
+pub(crate) fn answers_for_discussion_leaders(
+    num: u8,
+    apikey: ApiKey,
+    backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Result<Template, Status> {
+    let key: Value = (num as u64).into();
+
+    let is_discussion_leader = {
+        let mut bg = backend.lock().unwrap();
+        let vec = bg.prep_exec(
+            "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
+            vec![key.clone(), apikey.user.into()],
+        );
+        vec.len() > 0
+    };
+
+    if !is_discussion_leader {
+        return Err(Status::Unauthorized);
+    }
+
+    let mut bg = backend.lock().unwrap();
+    let res = bg.prep_exec("SELECT * FROM answers WHERE lec = ?", vec![key]);
+    drop(bg);
+
+    let answers: Vec<_> = res
+        .into_iter()
+        .map(|r| LectureAnswer {
+            id: from_value(r[2].clone()),
+            user: from_value(r[0].clone()),
+            answer: from_value(r[3].clone()),
+            time: from_value::<NaiveDateTime>(r[4].clone())
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string(),
+            grade: from_value(r[5].clone()),
+        })
+        .collect();
+
+    let ctx = LectureAnswersContext {
+        lec_id: num,
+        answers,
+        parent: "layout",
+    };
+    Ok(Template::render("answers", &ctx))
 }
 
 #[get("/<num>")]
@@ -169,9 +220,9 @@ pub(crate) fn questions(
             let id: u64 = from_value(r[1].clone());
             let answer = answers.get(&id).map(|s| s.to_owned());
             LectureQuestion {
-                id: id,
+                id,
                 prompt: from_value(r[2].clone()),
-                answer: answer,
+                answer,
             }
         })
         .collect();
@@ -204,19 +255,21 @@ pub(crate) fn questions_submit(
             (*id).into(),
             answer.clone().into(),
             ts.clone(),
+            mysql::Value::Int(0)
         ];
         bg.replace("answers", rec);
     }
 
-    let answer_log = format!(
-        "{}",
-        data.answers
-            .iter()
-            .map(|(i, t)| format!("Question {}:\n{}", i, t))
-            .collect::<Vec<_>>()
-            .join("\n-----\n")
-    );
     if config.send_emails {
+        let answer_log = format!(
+            "{}",
+            data.answers
+                .iter()
+                .map(|(i, t)| format!("Question {}:\n{}", i, t))
+                .collect::<Vec<_>>()
+                .join("\n-----\n")
+        );
+        
         let recipients = if num < 90 {
             config.staff.clone()
         } else {

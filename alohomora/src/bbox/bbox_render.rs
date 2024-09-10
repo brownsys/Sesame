@@ -34,7 +34,7 @@ impl<'a> Renderable<'a> {
                 if bbox.policy().check(context, Reason::TemplateRender(template)) {
                     FValue::serialize(*bbox.data())
                 } else {
-                    Err(figment::Error::from(String::from("Policy check failed")))
+                    Err(figment::Error::from(format!("Policy check failed {}", bbox.policy().name())))
                 }
             }
             Renderable::Serialize(obj) => FValue::serialize(obj),
