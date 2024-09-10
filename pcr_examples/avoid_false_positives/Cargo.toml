@@ -1,12 +1,9 @@
-cargo-features = ["profile-rustflags"]
-
 [package]
 name = "avoid_false_positives"
 version = "0.1.0"
-authors = [""]
+authors = ["corinn_tiffany@brown.edu"]
 edition = "2018"
 
 [dependencies]
 alohomora = { path = "../../alohomora" }
 dependency = { path = "../dependency" }
-#serde = { version = "=1.0.196", features = ["derive"] } 

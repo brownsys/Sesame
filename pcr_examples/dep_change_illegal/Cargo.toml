@@ -1,16 +1,9 @@
-cargo-features = ["profile-rustflags"]
-
 [package]
 name = "dep_change_illegal"
 version = "0.1.0"
-authors = [""]
+authors = ["corinn_tiffany@brown.edu"]
 edition = "2018"
 
 [dependencies]
 alohomora = { path = "../../alohomora" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 dependency = { path = "../dependency" }
-
-[build-dependencies]
-alohomora_build = { path = "../../alohomora_build" }

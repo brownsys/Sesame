@@ -1,8 +1,8 @@
 use alohomora::pcr::{PrivacyCriticalRegion, Signature}; 
-use dependency::external_add; 
+use dependency::external_math; 
 
 fn main() {
-    let _pcr = PrivacyCriticalRegion::new(|x: usize| { format!("still private: {}", external_add(x, x)) },
+    let _pcr = PrivacyCriticalRegion::new(|x: u8| { format!("still private: {}", external_math(x, x)) },
         Signature {username: "corinnt", 
             signature: "LS0tLS1CRUdJTiBTU0ggU0lHTkFUVVJFLS0tLS0KVTFOSVUwbEhBQUFBQVFBQUFETUFBQUFMYzNOb0xXVmtNalUxTVRrQUFBQWd6dGJjeE9zVzlOL09Fd2c3Y3BKZ3dUQnFMNgpGazI2ZVB2Rm1ZaXpRRjM1VUFBQUFFWm1sc1pRQUFBQUFBQUFBR2MyaGhOVEV5QUFBQVV3QUFBQXR6YzJndFpXUXlOVFV4Ck9RQUFBRURTZUx0ditzbkY1dVcvQW53aUhCNXFYVVpkYzhuQkd1aUZNZlJYWXRnZlN0WU5KdFYyc1ptSGZKMHpGbkUzNVIKME5GUnpoYkg3MW4xbXYrcDhuKzk4SgotLS0tLUVORCBTU0ggU0lHTkFUVVJFLS0tLS0K"}, 
         Signature {username: "corinnt", 

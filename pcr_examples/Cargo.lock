@@ -64,16 +64,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alohomora_build"
-version = "0.1.0"
-dependencies = [
- "cargo_toml",
- "serde",
- "serde_json",
- "tinytemplate",
-]
-
-[[package]]
 name = "alohomora_derive"
 version = "0.1.0"
 dependencies = [
@@ -359,9 +349,6 @@ name = "blank_sign_illegal"
 version = "0.1.0"
 dependencies = [
  "alohomora",
- "alohomora_build",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -627,9 +614,6 @@ name = "const_change_illegal"
 version = "0.1.0"
 dependencies = [
  "alohomora",
- "alohomora_build",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -654,9 +638,6 @@ name = "copy_sign_illegal"
 version = "0.1.0"
 dependencies = [
  "alohomora",
- "alohomora_build",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -733,18 +714,12 @@ name = "dep_change_illegal"
 version = "0.1.0"
 dependencies = [
  "alohomora",
- "alohomora_build",
  "dependency",
- "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "dependency"
 version = "0.1.0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "derive-where"
@@ -984,9 +959,6 @@ name = "fn_calls_legal"
 version = "0.1.0"
 dependencies = [
  "alohomora",
- "alohomora_build",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -2601,9 +2573,6 @@ name = "rec_change_illegal"
 version = "0.1.0"
 dependencies = [
  "alohomora",
- "alohomora_build",
- "serde",
- "serde_json",
 ]
 
 [[package]]

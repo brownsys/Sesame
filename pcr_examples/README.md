@@ -27,3 +27,11 @@ Changing a function (imported from a different module in the same crate) that is
 TODO: `const_change_illegal`
 
 Changing the values of a constant or static should invalidate the signature, but currently does not.
+
+## Verifying Signatures
+
+TODO: do we need to generate facts? list command here
+
+```cargo dylint --all```
+
+## TODO: Turn these into examples and then into tests.

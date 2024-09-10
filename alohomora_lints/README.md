@@ -37,13 +37,8 @@ declare_alohomora_lint!(
 ```
 
 For each declared lint, the mod must contain a `check_*` method from the [LateLintPass](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint/trait.LateLintPass.html) trait, excluding the `*mut self` argument. 
-To implement the trait, which has this signature: `check_expr(&mut self, _: &LateContext<'tcx>, _: &'tcx Expr<'tcx>)`, 
-the mod would contain the following:
-```rust
-fn check_expr(cx: &LateContext<'_>, expr: &'_ rustc_hir::Expr<'_>) {
-    // ...
-}
-```
+You should choose the `check_<...>` function that meets your lint's requirements.
+For example, if your trait is best suited for [`check_expr(&mut Self, &LateContext<'a>, &'a Expr<'a>`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint/trait.LateLintPass.html#method.check_expr), then you must implement a `check_expr(&LateContext<'a>, &'a Expr<'a>)` in your mod, and then use `check_expr(a: &rustc_lint::LateContext<'a>, b: &'a rustc_hir::Expr<'a>)` as the last argument to `declare_alohomora_lint!`.
 
 ### Lint registration
 
