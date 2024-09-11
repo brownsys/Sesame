@@ -15,7 +15,7 @@ impl<T: Into<mysql::Value>, P: Policy + Clone + 'static> BBoxParam for BBox<T, P
 
 impl<T: Into<mysql::Value>> BBoxParam for T {
     fn get(self) -> EitherBBox<mysql::Value, AnyPolicy> {
-        EitherBBox::Value(self.into())
+        EitherBBox::<mysql::Value, AnyPolicy>::Value(self.into())
     }
 }
 

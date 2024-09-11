@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use itertools::Itertools;
 
-use crate::bbox::BBox;
+use crate::bbox::{BBox};
 use crate::policy::{AnyPolicy, Policy};
 
 pub fn compose_policies(policy1: Result<Option<AnyPolicy>, ()>, policy2: Result<Option<AnyPolicy>, ()>) -> Result<Option<AnyPolicy>, ()> {

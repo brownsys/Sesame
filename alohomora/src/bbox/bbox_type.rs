@@ -3,6 +3,7 @@ use std::fmt::Write;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
+use std::marker::PhantomData;
 
 use either::Either;
 use mysql::chrono;
@@ -21,8 +22,75 @@ pin_project! {
     #[derive(Debug, PartialEq)]
     pub struct BBox<T, P: Policy> {
         #[pin]
-        t: Box<T>,
+        fb: FakeBox<T>,
         p: P,
+    }
+}
+
+const secret: usize = 2238711266;
+
+#[derive(Debug)]
+struct FakeBox<T> {
+    ptr: usize,
+    _marker: PhantomData<T>
+}
+
+// BBox is cloneable if what is inside is cloneable.
+impl<T: Clone> Clone for FakeBox<T> {
+    fn clone(&self) -> Self {
+        unsafe {
+            FakeBox::new(self.get().clone())
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for FakeBox<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
+impl<'a, T: Future + Unpin> Future for FakeBox<T> {
+    type Output = T::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        let inner_future: &mut T = unsafe { self.get_unchecked_mut().get_mut() };
+        Pin::new(inner_future).poll(cx)
+    }
+}
+
+impl<T> Drop for FakeBox<T> {
+    fn drop(&mut self) {
+        if self.ptr != 0 {
+            drop(unsafe { Box::from_raw((self.ptr ^ secret) as *mut T) });
+        }
+    }
+}
+
+impl<T> FakeBox<T> {
+    pub fn new(t: T) -> Self {
+        let t = Box::new(t);
+        let ptr: *mut T = Box::into_raw(t);
+        let ptr: usize = ptr as usize;
+        let ptr: usize = ptr ^ secret;
+        Self { ptr: ptr, _marker: PhantomData}
+    }
+
+    pub fn get(&self) -> &T {
+        unsafe { &*((self.ptr ^ secret) as *mut T) }
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        unsafe {&mut *((self.ptr ^ secret) as *mut T) }
+    }
+
+    pub fn mov(mut self) -> T {
+        let t: T = unsafe {
+            // Convert the pointer back to a Box<T>, which gives ownership of the value
+            *Box::from_raw((self.ptr ^ secret) as *mut T)
+        };
+        self.ptr = 0;
+        t
     }
 }
 
@@ -30,7 +98,7 @@ pin_project! {
 impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
     fn clone(&self) -> Self {
         BBox {
-            t: self.t.clone(),
+            fb: self.fb.clone(),
             p: self.p.clone(),
         }
     }
@@ -40,20 +108,20 @@ impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
 // This API moves/consumes the data and policy, or operates on them as refs.
 impl<T, P: Policy> BBox<T, P> {
     pub fn new(t: T, p: P) -> Self {
-        Self { t: Box::new(t), p }
+        Self { fb: FakeBox::new(t), p }
     }
 
     // Consumes the bboxes extracting data and policy (private usable only in crate).
     pub(crate) fn consume(self) -> (T, P) {
-        (*self.t, self.p)
+        (self.fb.mov(), self.p)
     }
     pub(crate) fn data(&self) -> &T {
-        &*self.t
+        self.fb.get()
     }
 
     // Into a reference.
     pub fn as_ref(&self) -> BBox<&T, RefPolicy<P>> {
-        BBox::new(&self.t, RefPolicy::new(&self.p))
+        BBox::new(self.fb.get(), RefPolicy::new(&self.p))
     }
 
     // Into and from but without the traits (to avoid specialization issues).
@@ -63,7 +131,7 @@ impl<T, P: Policy> BBox<T, P> {
         P: Into<P2>,
     {
         BBox {
-            t: Box::new((*self.t).into()),
+            fb: FakeBox::new((self.fb.mov()).into()),
             p: self.p.into(),
         }
     }
@@ -72,7 +140,7 @@ impl<T, P: Policy> BBox<T, P> {
         T: From<F>,
     {
         BBox {
-            t: Box::new(T::from(*value.t)),
+            fb: FakeBox::new(T::from(value.fb.mov())),
             p: value.p,
         }
     }
@@ -92,7 +160,7 @@ impl<T, P: Policy> BBox<T, P> {
         let context = UnprotectedContext::from(context);
         if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(&*self.t, arg_out))
+            Ok(functor(self.fb.get(), arg_out))
         } else {
             Err(())
         }
@@ -107,7 +175,7 @@ impl<T, P: Policy> BBox<T, P> {
         let context = UnprotectedContext::from(context);
         if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
             let functor = functor.get_functor();
-            Ok(functor(*self.t, arg_out))
+            Ok(functor(self.fb.mov(), arg_out))
         } else {
             Err(())
         }
@@ -116,42 +184,42 @@ impl<T, P: Policy> BBox<T, P> {
     // Privacy critical regions
     pub fn pcr<'a, C, O, F: FnOnce(&'a T, &'a P, C) -> O>(&'a self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
         let functor = functor.get_functor();
-        functor(&*self.t, &self.p, arg)
+        functor(self.fb.get(), &self.p, arg)
     }
     pub fn into_pcr<C, O, F: FnOnce(T, P, C) -> O>(self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
         let functor = functor.get_functor();
-        functor(*self.t, self.p, arg)
+        functor(self.fb.mov(), self.p, arg)
     }
 
     // Privacy pure regions.
     pub fn ppr<'a, O, F: FnOnce(&'a T) -> O>(&'a self, functor: PrivacyPureRegion<F>) -> BBox<O, RefPolicy<'a, P>> {
         let functor = functor.get_functor();
-        BBox::new(functor(&self.t), RefPolicy::new(&self.p))
+        BBox::new(functor(self.fb.get()), RefPolicy::new(&self.p))
     }
     pub fn into_ppr<O, F: FnOnce(T) -> O>(self, functor: PrivacyPureRegion<F>) -> BBox<O, P> {
         let functor = functor.get_functor();
-        BBox::new(functor(*self.t), self.p)
+        BBox::new(functor(self.fb.mov()), self.p)
     }
 }
 
 // Can clone a ref policy to own it.
 impl<'a, T, P: Policy + Clone> BBox<T, RefPolicy<'a, P>> {
     pub fn to_owned_policy(self) -> BBox<T, P> {
-        BBox { t: self.t, p: self.p.policy().clone() }
+        BBox { fb: self.fb, p: self.p.policy().clone() }
     }
 }
 
 // Can clone a ref to own it.
 impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
     pub fn to_owned(&self) -> BBox<T::Owned, P> {
-        BBox::new((*self.t).to_owned(), self.p.policy().clone())
+        BBox::new(self.fb.clone().mov().to_owned(), self.p.policy().clone())
     }
 }
 
 // Up casting to std::any::Any and AnyPolicy.
 impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
     pub fn into_any(self) -> BBox<Box<dyn Any>, AnyPolicy> {
-        BBox::new(self.t, AnyPolicy::new(self.p))
+        BBox::new(Box::new(self.fb.mov()), AnyPolicy::new(self.p))
     }
 }
 
@@ -170,7 +238,7 @@ impl<T, P: Policy + Clone + 'static> BBox<T, OptionPolicy<P>> {
 impl<T, P: Policy + Clone + 'static> BBox<T, P> {
     pub fn into_any_policy(self) -> BBox<T, AnyPolicy> {
         BBox {
-            t: self.t,
+            fb: self.fb,
             p: AnyPolicy::new(self.p),
         }
     }
@@ -181,7 +249,7 @@ impl<T> BBox<T, AnyPolicy> {
     }
     pub fn specialize_policy<P: Policy + 'static>(self) -> Result<BBox<T, P>, String> {
         Ok(BBox {
-            t: self.t,
+            fb: self.fb,
             p: self.p.specialize()?,
         })
     }
@@ -190,14 +258,14 @@ impl<T> BBox<T, AnyPolicy> {
 // NoPolicy can be discarded, logged, etc
 impl<T> BBox<T, NoPolicy> {
     pub fn discard_box(self) -> T {
-        *self.t
+        self.fb.mov()
     }
 }
 
 // Same but for RefPolicy<NoPolicy>
 impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
     pub fn discard_box(self) -> &'a T {
-        *self.t
+        self.fb.mov()
     }
 }
 
@@ -221,7 +289,7 @@ impl<'a, T: Future + Unpin, P: Policy + Clone> Future for BBox<T, P> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
-        match this.t.poll(cx) {
+        match this.fb.poll(cx) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(t) => Poll::Ready(BBox::new(t, this.p.clone())),
         }
@@ -282,7 +350,7 @@ mod tests {
     #[test]
     fn test_box() {
         let bbox = BBox::new(10u64, NoPolicy {});
-        assert_eq!(bbox.t, Box::new(10u64));
+        assert_eq!(bbox.fb.get(), &10u64);
         assert_eq!(bbox.discard_box(), 10u64);
     }
 

@@ -21,7 +21,7 @@ impl<D: ContextData> Context<D> {
     }
 
     // Context cannot be manufactured.
-    pub(crate) fn new(route: String, data: D) -> Self {
+    pub fn new(route: String, data: D) -> Self {
         Self {
             route,
             data: Some(data),

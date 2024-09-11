@@ -1,5 +1,6 @@
 #![feature(box_into_inner)]
 #![feature(specialization)]
+#![feature(core_intrinsics)]
 
 #[macro_use]
 extern crate lazy_static;
