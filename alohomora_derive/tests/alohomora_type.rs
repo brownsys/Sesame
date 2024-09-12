@@ -1,6 +1,7 @@
 use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::bbox::BBox;
 use alohomora::AlohomoraType;
+use alohomora::testing::TestPolicy;
 use std::collections::HashMap;
 use alohomora::fold::fold;
 use alohomora_derive::AlohomoraType;
@@ -26,8 +27,8 @@ fn test_derived_no_boxes() {
 #[derive(AlohomoraType, Clone, PartialEq, Debug)]
 #[alohomora_out_type(to_derive = [PartialEq, Debug])]
 pub struct MixedBoxes {
-    pub f1: BBox<u64, NoPolicy>,
-    pub f2: BBox<String, NoPolicy>,
+    pub f1: BBox<u64, TestPolicy<NoPolicy>>,
+    pub f2: BBox<String, TestPolicy<NoPolicy>>,
     pub f3: u64,
     pub f4: String,
 }
@@ -35,8 +36,8 @@ pub struct MixedBoxes {
 #[test]
 fn test_mixed_boxes() {
     let input = MixedBoxes {
-        f1: BBox::new(10, NoPolicy {}),
-        f2: BBox::new(String::from("hello"), NoPolicy {}),
+        f1: BBox::new(10, TestPolicy::new(NoPolicy {})),
+        f2: BBox::new(String::from("hello"), TestPolicy::new(NoPolicy {})),
         f3: 20,
         f4: String::from("bye"),
     };
@@ -50,7 +51,7 @@ fn test_mixed_boxes() {
     };
 
     let folded: BBox<<MixedBoxes as AlohomoraType>::Out, AnyPolicy> = fold(input).unwrap();
-    let folded: BBox<<MixedBoxes as AlohomoraType>::Out, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: BBox<<MixedBoxes as AlohomoraType>::Out, TestPolicy<NoPolicy>> = folded.specialize_policy().unwrap();
     assert_eq!(folded.discard_box(), expected);
 }
 
@@ -83,34 +84,34 @@ fn test_nested_boxes() {
         },
         f2: vec![
             MixedBoxes {
-                f1: BBox::new(1, NoPolicy {}),
-                f2: BBox::new(String::from("v0.f2"), NoPolicy {}),
+                f1: BBox::new(1, TestPolicy::new(NoPolicy {})),
+                f2: BBox::new(String::from("v0.f2"), TestPolicy::new(NoPolicy {})),
                 f3: 2,
                 f4: String::from("v0.f4"),
             },
             MixedBoxes {
-                f1: BBox::new(3, NoPolicy {}),
-                f2: BBox::new(String::from("v1.f2"), NoPolicy {}),
+                f1: BBox::new(3, TestPolicy::new(NoPolicy {})),
+                f2: BBox::new(String::from("v1.f2"), TestPolicy::new(NoPolicy {})),
                 f3: 4,
                 f4: String::from("v1.f4"),
             },
             MixedBoxes {
-                f1: BBox::new(5, NoPolicy {}),
-                f2: BBox::new(String::from("v2.f2"), NoPolicy {}),
+                f1: BBox::new(5, TestPolicy::new(NoPolicy {})),
+                f2: BBox::new(String::from("v2.f2"), TestPolicy::new(NoPolicy {})),
                 f3: 6,
                 f4: String::from("v2.f4"),
             },
         ],
         f3: HashMap::from([
             (String::from("k0"), MixedBoxes {
-                f1: BBox::new(7, NoPolicy {}),
-                f2: BBox::new(String::from("k0.f2"), NoPolicy {}),
+                f1: BBox::new(7, TestPolicy::new(NoPolicy {})),
+                f2: BBox::new(String::from("k0.f2"), TestPolicy::new(NoPolicy {})),
                 f3: 8,
                 f4: String::from("k0.f4"),
             }),
             (String::from("k1"), MixedBoxes {
-                f1: BBox::new(9, NoPolicy {}),
-                f2: BBox::new(String::from("k1.f2"), NoPolicy {}),
+                f1: BBox::new(9, TestPolicy::new(NoPolicy {})),
+                f2: BBox::new(String::from("k1.f2"), TestPolicy::new(NoPolicy {})),
                 f3: 10,
                 f4: String::from("k1.f4"),
             })
@@ -118,7 +119,7 @@ fn test_nested_boxes() {
     };
 
     let folded: BBox<NestedOut, AnyPolicy> = fold(input).unwrap();
-    let folded: BBox<NestedOut, NoPolicy>  = folded.specialize_policy().unwrap();
+    let folded: BBox<NestedOut, TestPolicy<NoPolicy>>  = folded.specialize_policy().unwrap();
     let folded: NestedOut = folded.discard_box();
 
 
@@ -175,7 +176,7 @@ pub struct VerbatimType(pub u32, pub String);
 #[alohomora_out_type(verbatim = [f3])]
 pub struct VerbatimBox {
     pub f1: u64,
-    pub f2: BBox<String, NoPolicy>,
+    pub f2: BBox<String, TestPolicy<NoPolicy>>,
     pub f3: VerbatimType,
 }
 
@@ -183,12 +184,12 @@ pub struct VerbatimBox {
 fn test_derived_verbatim() {
     let input = VerbatimBox {
         f1: 10,
-        f2: BBox::new(String::from("hello"), NoPolicy {}),
+        f2: BBox::new(String::from("hello"), TestPolicy::new(NoPolicy {})),
         f3: VerbatimType(20, String::from("bye")),
     };
 
     let folded: BBox<_, AnyPolicy> = fold(input).unwrap();
-    let folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: BBox<_, TestPolicy<NoPolicy>> = folded.specialize_policy().unwrap();
     let folded = folded.discard_box();
 
     assert_eq!(folded.f1, 10);

@@ -2,7 +2,7 @@ use alohomora::context::Context;
 use alohomora::policy::{Policy, RefPolicy, NoPolicy};
 use alohomora_derive::BBoxRender;
 use erased_serde::Serialize;
-use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::pcr::{PrivacyCriticalRegion, Signature};
 
 type RefBBox<'a> = alohomora::bbox::BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
@@ -45,8 +45,14 @@ fn bbox_to_string<'a>(bbox: &'a RefBBox<'_>) -> Result<String, ()> {
     let context = Context::test(());
     let result = bbox.unbox(
         context,
-        PrivacyCriticalRegion::new(|t: &&'a dyn Serialize, _| *t),
-        ());
+        PrivacyCriticalRegion::new(
+            |t: &&'a dyn Serialize, _| *t,
+            Signature { username: "", signature: "" },
+            Signature { username: "", signature: "" },
+            Signature { username: "", signature: "" },
+        ),
+        ()
+    );
     serialize_to_string(result.unwrap())
 }
 

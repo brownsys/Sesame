@@ -1,5 +1,5 @@
-use std::{fmt::{Debug, Formatter}, any::Any};
-use std::fmt::Write;
+use std::{fmt::Debug, any::Any};
+use std::fmt::{Formatter, Write};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
@@ -18,11 +18,17 @@ use crate::fold::fold;
 
 // Privacy Container type.
 pin_project! {
-    #[derive(Debug, PartialEq)]
     pub struct BBox<T, P: Policy> {
         #[pin]
         t: T,
         p: P,
+    }
+}
+
+// Logging reveals no information.
+impl<T, P: Policy> Debug for BBox<T, P> {
+    default fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f,"BBox(<hidden data>, <{}>)", self.policy().name())
     }
 }
 
@@ -253,6 +259,7 @@ impl<P: Policy> BBox<String, P> {
 // Unit tests.
 #[cfg(test)]
 mod tests {
+    use crate::pcr::Signature;
     use crate::policy::NoPolicy;
     use crate::testing::{TestContextData, TestPolicy};
 
@@ -294,9 +301,14 @@ mod tests {
         let bbox = BBox::new(10u64, NoPolicy {});
         let result = bbox.into_unbox(
             context,
-            PrivacyCriticalRegion::new(|val, exp| {
-                assert_eq!(val, exp);
-            }),
+            PrivacyCriticalRegion::new(
+                |val, exp| {
+                    assert_eq!(val, exp);
+                },
+                Signature { username: "", signature: "" },
+                Signature { username: "", signature: "" },
+                Signature { username: "", signature: "" },
+            ),
             10u64);
         assert!(result.is_ok());
     }

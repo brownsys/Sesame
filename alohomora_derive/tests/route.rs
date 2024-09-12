@@ -2,21 +2,22 @@ use std::collections::HashMap;
 
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
+use alohomora::testing::TestPolicy;
 use alohomora_derive::{route, routes, FromBBoxForm, AlohomoraType};
 
 // POST request data.
 #[derive(FromBBoxForm, PartialEq, Debug)]
 pub struct Nested {
-    pub inner: alohomora::bbox::BBox<String, NoPolicy>,
-    pub vec: Vec<alohomora::bbox::BBox<usize, NoPolicy>>,
+    pub inner: alohomora::bbox::BBox<String, TestPolicy<NoPolicy>>,
+    pub vec: Vec<alohomora::bbox::BBox<usize, TestPolicy<NoPolicy>>>,
 }
 
 #[derive(FromBBoxForm, PartialEq, Debug)]
 pub struct Simple {
-    pub f1: alohomora::bbox::BBox<String, NoPolicy>,
+    pub f1: alohomora::bbox::BBox<String, TestPolicy<NoPolicy>>,
     pub f2: Nested,
-    pub f3: alohomora::bbox::BBox<u8, NoPolicy>,
-    pub f4: HashMap<String, alohomora::bbox::BBox<u8, NoPolicy>>,
+    pub f3: alohomora::bbox::BBox<u8, TestPolicy<NoPolicy>>,
+    pub f4: HashMap<String, alohomora::bbox::BBox<u8, TestPolicy<NoPolicy>>>,
 }
 
 // Guard managed by rocket.
@@ -62,18 +63,18 @@ async fn my_route(
     assert_eq!(*dog.age.as_ref().discard_box(), 10);
 
     let simple = Simple {
-        f1: alohomora::bbox::BBox::new(String::from("hello"), NoPolicy {}),
+        f1: alohomora::bbox::BBox::new(String::from("hello"), TestPolicy::new(NoPolicy {})),
         f2: Nested {
-            inner: alohomora::bbox::BBox::new(String::from("bye"), NoPolicy {}),
+            inner: alohomora::bbox::BBox::new(String::from("bye"), TestPolicy::new(NoPolicy {})),
             vec: vec![
-                alohomora::bbox::BBox::new(100, NoPolicy {}),
-                alohomora::bbox::BBox::new(200, NoPolicy {})
+                alohomora::bbox::BBox::new(100, TestPolicy::new(NoPolicy {})),
+                alohomora::bbox::BBox::new(200, TestPolicy::new(NoPolicy {}))
             ],
         },
-        f3: alohomora::bbox::BBox::new(55, NoPolicy {}),
+        f3: alohomora::bbox::BBox::new(55, TestPolicy::new(NoPolicy {})),
         f4: HashMap::from([
-            (String::from("k1"), alohomora::bbox::BBox::new(11, NoPolicy {})),
-            (String::from("k2"), alohomora::bbox::BBox::new(12, NoPolicy {})),
+            (String::from("k1"), alohomora::bbox::BBox::new(11, TestPolicy::new(NoPolicy {}))),
+            (String::from("k2"), alohomora::bbox::BBox::new(12, TestPolicy::new(NoPolicy {}))),
         ]),
     };
 

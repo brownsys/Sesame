@@ -1,8 +1,9 @@
+use std::fmt::{Debug, Formatter};
 use sea_orm::{ColIdx, ColumnType, DbErr, QueryResult, TryFromU64, TryGetable, TryGetError, Value};
 use sea_orm::sea_query::{ArrayType, Nullable, ValueType, ValueTypeErr};
 
 use crate::bbox::BBox;
-use crate::policy::{NoPolicy, Policy};
+use crate::policy::Policy;
 use crate::orm::ORMPolicy;
 
 // Now, BBox<T, Policy> can be used in models.
@@ -47,5 +48,13 @@ impl<T: TryFromU64, P: ORMPolicy> TryFromU64 for BBox<T, P> {
 impl<T: Nullable, P: Policy> Nullable for BBox<T, P> {
     fn null() -> Value {
         T::null()
+    }
+}
+
+// TODO(babman): leaky, implement this the right way by overriding the need to BBox implement these
+// in sea-orm fork.
+impl<T: PartialEq, P: Policy> PartialEq for BBox<T, P> {
+    default fn eq(&self, other: &Self) -> bool {
+        self.data().eq(other.data())
     }
 }

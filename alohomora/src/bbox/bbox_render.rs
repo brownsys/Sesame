@@ -128,7 +128,7 @@ mod tests {
         let string = String::from("my test!");
         let renderable = string.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let result = renderable.transform("", &UnprotectedContext::empty());
         assert!(matches!(result, Result::Ok(FValue::String(_, result)) if result == string));
     }
 
@@ -137,7 +137,7 @@ mod tests {
         let bbox = BBox::new(String::from("my bbox!"), NoPolicy {});
         let renderable = bbox.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let result = renderable.transform("", &UnprotectedContext::empty());
         assert!(matches!(result, Result::Ok(FValue::String(_, result)) if &result == bbox.data()));
     }
 
@@ -146,7 +146,7 @@ mod tests {
         let either: EitherBBox<String, NoPolicy> = EitherBBox::Value(String::from("my_test!"));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let result = renderable.transform("", &UnprotectedContext::empty());
         assert!(
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_test!"))
         );
@@ -154,7 +154,7 @@ mod tests {
         let either = EitherBBox::BBox(BBox::new(String::from("my_bbox!"), NoPolicy {}));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let result = renderable.transform("", &UnprotectedContext::empty());
         assert!(
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_bbox!"))
         );
@@ -167,7 +167,7 @@ mod tests {
         vec.push(BBox::new(String::from("bye"), NoPolicy {}));
         let renderable = vec.render();
         assert!(matches!(renderable, Renderable::Array(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let result = renderable.transform("", &UnprotectedContext::empty());
         assert!(matches!(result, Result::Ok(FValue::Array(_, _))));
         if let Result::Ok(FValue::Array(_, arr)) = result {
             assert!(matches!(&arr[0], FValue::String(_, e) if e == "hello"));
@@ -182,7 +182,7 @@ mod tests {
         map.insert("key2", BBox::new(String::from("val2"), NoPolicy {}));
         let renderable = map.render();
         assert!(matches!(renderable, Renderable::Dict(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let result = renderable.transform("", &UnprotectedContext::empty());
         assert!(matches!(result, Result::Ok(FValue::Dict(_, _))));
         if let Result::Ok(FValue::Dict(_, dict)) = result {
             assert!(matches!(dict.get("key1"), Option::Some(FValue::String(_, e)) if e == "val1"));

@@ -4,14 +4,14 @@ use serde::Serialize;
 
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
-use alohomora::testing::TestContextData;
+use alohomora::testing::{TestContextData, TestPolicy};
 use alohomora_derive::{route, routes, RequestBBoxJson, ResponseBBoxJson};
 
 // POST request data.
 #[derive(RequestBBoxJson, ResponseBBoxJson, PartialEq, Debug)]
 pub struct Nested {
-    pub inner: alohomora::bbox::BBox<String, NoPolicy>,
-    pub vec: Vec<alohomora::bbox::BBox<i64, NoPolicy>>,
+    pub inner: alohomora::bbox::BBox<String, TestPolicy<NoPolicy>>,
+    pub vec: Vec<alohomora::bbox::BBox<i64, TestPolicy<NoPolicy>>>,
 }
 
 #[derive(Serialize)]
@@ -22,17 +22,17 @@ pub struct Nested2 {
 
 #[derive(RequestBBoxJson, PartialEq, Debug)]
 pub struct Simple {
-    pub f1: alohomora::bbox::BBox<String, NoPolicy>,
+    pub f1: alohomora::bbox::BBox<String, TestPolicy<NoPolicy>>,
     pub f2: Nested,
-    pub f3: alohomora::bbox::BBox<u64, NoPolicy>,
-    pub f4: HashMap<String, alohomora::bbox::BBox<u64, NoPolicy>>,
-    pub f5: Option<alohomora::bbox::BBox<u64, NoPolicy>>,
+    pub f3: alohomora::bbox::BBox<u64, TestPolicy<NoPolicy>>,
+    pub f4: HashMap<String, alohomora::bbox::BBox<u64, TestPolicy<NoPolicy>>>,
+    pub f5: Option<alohomora::bbox::BBox<u64, TestPolicy<NoPolicy>>>,
 }
 
 #[derive(ResponseBBoxJson)]
 #[response_bbox_json(as_is = [f3])]
 pub struct Output {
-    pub f1: alohomora::bbox::BBox<String, NoPolicy>,
+    pub f1: alohomora::bbox::BBox<String, TestPolicy<NoPolicy>>,
     pub f2: Nested,
     pub f3: Nested2,
     pub f4: Option<Nested>,
@@ -46,18 +46,18 @@ fn my_route(
     data: alohomora::rocket::BBoxJson<Simple>,
 ) -> alohomora::rocket::JsonResponse<Output, TestContextData<()>> {
     let simple = Simple {
-        f1: alohomora::bbox::BBox::new(String::from("hello"), NoPolicy {}),
+        f1: alohomora::bbox::BBox::new(String::from("hello"), TestPolicy::new(NoPolicy {})),
         f2: Nested {
-            inner: alohomora::bbox::BBox::new(String::from("bye"), NoPolicy {}),
+            inner: alohomora::bbox::BBox::new(String::from("bye"), TestPolicy::new(NoPolicy {})),
             vec: vec![
-                alohomora::bbox::BBox::new(-100, NoPolicy {}),
-                alohomora::bbox::BBox::new(200, NoPolicy {})
+                alohomora::bbox::BBox::new(-100, TestPolicy::new(NoPolicy {})),
+                alohomora::bbox::BBox::new(200, TestPolicy::new(NoPolicy {}))
             ],
         },
-        f3: alohomora::bbox::BBox::new(55, NoPolicy {}),
+        f3: alohomora::bbox::BBox::new(55, TestPolicy::new(NoPolicy {})),
         f4: HashMap::from([
-            (String::from("k1"), alohomora::bbox::BBox::new(11, NoPolicy {})),
-            (String::from("k2"), alohomora::bbox::BBox::new(12, NoPolicy {})),
+            (String::from("k1"), alohomora::bbox::BBox::new(11, TestPolicy::new(NoPolicy {}))),
+            (String::from("k2"), alohomora::bbox::BBox::new(12, TestPolicy::new(NoPolicy {}))),
         ]),
         f5: None,
     };
@@ -66,7 +66,7 @@ fn my_route(
     assert_eq!(data.into_inner(), simple);
 
     let output = Output {
-        f1: alohomora::bbox::BBox::new(String::from("hi"), NoPolicy {}),
+        f1: alohomora::bbox::BBox::new(String::from("hi"), TestPolicy::new(NoPolicy {})),
         f2: simple.f2,
         f3: Nested2 {
             f1: String::from("nestedf1"),
