@@ -193,6 +193,48 @@ impl Parse for DataArg {
     }
 }
 
+
+// with_data = "<data>".
+struct WithDataArg {
+    pub parameter: String,
+}
+impl Parse for WithDataArg {
+    fn parse(input: ParseStream) -> Result<Self, syn::Error> {
+        // Parse data ident.
+        let fork = input.fork();
+        let ident: Ident = fork.parse()?;
+        if ident.to_string() != "with_data" {
+            return Err(input.error("Expected with_data ="));
+        }
+        input.parse::<Ident>()?;
+
+        // Parse = token.
+        let _token: Token![=] = input.parse()?;
+
+        // Parse str literal.
+        let fork = input.fork();
+        let lit: Lit = fork.parse()?;
+        let data = match lit {
+            Lit::Str(lit) => lit.value(),
+            _ => {
+                return Err(input.error("Expected a literal str for data"));
+            }
+        };
+
+        // Ensure literal is on the form `<...>`.
+        let parameter = match parse_parameter(&data) {
+            Option::Some(data) => data,
+            Option::None => {
+                return Err(input.error("Expected <IDENTIFIER> for data"));
+            }
+        };
+
+        // Done.
+        input.parse::<Lit>()?;
+        Ok(WithDataArg { parameter })
+    }
+}
+
 // Used to tell parser whether we know the method ahead of time or not.
 pub trait RouteType {
     const TYPE: &'static str;
@@ -218,6 +260,7 @@ pub struct RouteArgs<T: RouteType> {
     pub query_params: Vec<String>,
     pub path_params: Vec<(String, usize)>,
     pub data: Option<String>,
+    pub with_data: Option<String>,
     _t: PhantomData<T>,
 }
 impl<T: RouteType> Parse for RouteArgs<T> {
@@ -244,6 +287,15 @@ impl<T: RouteType> Parse for RouteArgs<T> {
             Option::None
         };
 
+        // Parse with_data.
+        let with_data: Option<String> = if !input.is_empty() {
+            let _comma: Token![,] = input.parse()?;
+            let data: WithDataArg = input.parse()?;
+            Option::Some(data.parameter)
+        } else {
+            Option::None
+        };
+
         // Should be empty here.
         if !input.is_empty() {
             return Err(input.error("Expected stream to be empty"));
@@ -256,6 +308,7 @@ impl<T: RouteType> Parse for RouteArgs<T> {
             query_params: uri.query_params,
             path_params: uri.path_params,
             data,
+            with_data,
             _t: PhantomData,
         })
     }

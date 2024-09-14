@@ -129,6 +129,17 @@ pub trait FromBBoxRequest<'a, 'r>: Sized {
     ) -> BBoxRequestOutcome<Self, Self::BBoxError>;
 }
 
+// Similar to FromBBoxRequest, but also receives the BBoxData (for form parsing).
+// Used exclusively for Context.
+#[rocket::async_trait]
+pub trait FromBBoxRequestAndData<'a, 'r, T: Sync + FromBBoxData<'a, 'r>>: Sized {
+    type BBoxError: Debug + Send;
+    async fn from_bbox_request_and_data(
+        request: BBoxRequest<'a, 'r>,
+        data: &'_ T,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError>;
+}
+
 // Our own FromParam trait, applications likely never need to use this themselves.
 pub trait FromBBoxParam<P: Policy>: Sized {
     type BBoxError: Debug + Send;
@@ -208,7 +219,7 @@ impl_param_via_fromstr!(
 // outside application reach.
 use std::path::PathBuf;
 use rocket::data::Outcome;
-use crate::rocket::BBoxHeaderMap;
+use crate::rocket::{BBoxData, BBoxHeaderMap, FromBBoxData};
 
 impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;

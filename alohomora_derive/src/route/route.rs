@@ -41,6 +41,7 @@ enum ParamClass {
     Query,     // Use FromBBoxForm.
     Path,      // Use FromBBoxParam.
     DataGuard, // Use FromBBoxRequest.
+    DataGuardWithData, // Use FromBBoxRequestAndData
 }
 
 // Easy to use format of the macro inputs.
@@ -50,6 +51,8 @@ struct RouteAttribute {
     pub func_name: Option<Ident>,
     // post request data parameter name.
     pub data: Option<Parameter>,
+    // anything that needs FromBBoxRequestAndData (usually the context).
+    pub with_data: Option<Parameter>,
     // all get parameters in the query (?<x>)
     pub query_params: Vec<Parameter>,
     // all uri path parameters (/<x>/...)
@@ -69,6 +72,7 @@ impl RouteAttribute {
             method: args.method,
             func_name: None,
             data: args.data.map(Parameter::new),
+            with_data: args.with_data.map(Parameter::new),
             query_params: args.query_params.into_iter().map(Parameter::new).collect(),
             path_params: args
                 .path_params
@@ -93,7 +97,10 @@ impl RouteAttribute {
         } else {
             match &self.data {
                 Some(p) if p == name => Some(ParamClass::Data),
-                _ => None,
+                _ => match &self.with_data {
+                  Some(p) if p == name => Some(ParamClass::DataGuardWithData),
+                  _ => None,
+                },
             }
         }
     }
@@ -108,6 +115,7 @@ impl RouteAttribute {
 
     pub fn param_count(&self) -> usize {
         let mut result = if self.data.is_some() { 1 } else { 0 };
+        result += if self.with_data.is_some() { 1 } else { 0 };
         result += self.query_params.len() + self.path_params.len();
         result += self.guards.len();
         result
@@ -183,30 +191,31 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
     // Do data guards.
     let data_guards = args.guards.iter().map(|param| {
-    let ident = param.to_ident();
-    let ty = args.types.get(param).unwrap();
+      let ident = param.to_ident();
+      let ty = args.types.get(param).unwrap();
 
-    quote! {
-      let #ident = match <#ty as ::alohomora::rocket::FromBBoxRequest>::from_bbox_request(_request).await {
-        ::alohomora::rocket::BBoxRequestOutcome::Success(_d) => _d,
-        ::alohomora::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
-          return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
-        },
-        ::alohomora::rocket::BBoxRequestOutcome::Forward(_) => {
-          return ::alohomora::rocket::BBoxResponseOutcome::Forward(_data);
-        },
-      };
-    }
-  });
+      quote! {
+        let #ident = match <#ty as ::alohomora::rocket::FromBBoxRequest>::from_bbox_request(_request).await {
+          ::alohomora::rocket::BBoxRequestOutcome::Success(_d) => _d,
+          ::alohomora::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
+            return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
+          },
+          ::alohomora::rocket::BBoxRequestOutcome::Forward(_) => {
+            return ::alohomora::rocket::BBoxResponseOutcome::Forward(_data);
+          },
+        };
+      }
+    });
 
     // Do post data.
+    let mut with_data = quote!{};
     let post_data = match args.data.as_ref() {
         None => quote! {},
         Some(data) => {
             let ident = data.to_ident();
-            let ty = args.types.get(data).unwrap();
-            quote! {
-              let #ident = match <#ty as ::alohomora::rocket::FromBBoxData>::from_data(_request, _data).await {
+            let data_ty = args.types.get(data).unwrap();
+            let post_data = quote! {
+              let #ident = match <#data_ty as ::alohomora::rocket::FromBBoxData>::from_data(_request, _data).await {
                 ::alohomora::rocket::BBoxDataOutcome::Success(_d) => _d,
                 ::alohomora::rocket::BBoxDataOutcome::Failure((_s, _e)) => {
                   return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
@@ -215,7 +224,29 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
                   return ::alohomora::rocket::BBoxResponseOutcome::Forward(_f);
                 },
               };
-            }
+            };
+
+            // Pass the form data parameter to the context if it needs from_bbox_request_and_data.
+            with_data = match args.with_data.as_ref() {
+                None => quote! {},
+                Some(with_data) => {
+                    let with_data_ident = with_data.to_ident();
+                    let ty = args.types.get(with_data).unwrap();
+                    quote! {
+                      let #with_data_ident = match <#ty as ::alohomora::rocket::FromBBoxRequestAndData<#data_ty>>::from_bbox_request_and_data(_request, &#ident).await {
+                        ::alohomora::rocket::BBoxRequestOutcome::Success(_d) => _d,
+                        ::alohomora::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
+                          return ::alohomora::rocket::BBoxResponseOutcome::Failure(_s);
+                        },
+                        ::alohomora::rocket::BBoxRequestOutcome::Forward(_f) => {
+                          panic!("With_data member forwarded but data is consumed");
+                        },
+                      };
+                    }
+                }
+            };
+
+            post_data
         }
     };
 
@@ -297,6 +328,9 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
           // POST data (if any).
           #post_data
+
+          // with_data (context, if any).
+          #with_data
 
           // invoke with result.
           let _res = #fn_call;

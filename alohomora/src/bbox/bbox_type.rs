@@ -257,6 +257,7 @@ mod tests {
     use crate::testing::{TestContextData, TestPolicy};
 
     use super::*;
+    use crate::pcr::Signature;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct ExamplePolicy {
@@ -294,9 +295,14 @@ mod tests {
         let bbox = BBox::new(10u64, NoPolicy {});
         let result = bbox.into_unbox(
             context,
-            PrivacyCriticalRegion::new(|val, exp| {
-                assert_eq!(val, exp);
-            }),
+            PrivacyCriticalRegion::new(
+                |val, exp| {
+                    assert_eq!(val, exp);
+                },
+                Signature { username: "", signature: "" },
+                Signature { username: "", signature: "" },
+                Signature { username: "", signature: "" },
+            ),
             10u64);
         assert!(result.is_ok());
     }

@@ -57,5 +57,9 @@ derive = ["alohomora_derive"]
 orm = ["sea-orm"]
 sandbox_timing = ["alohomora_sandbox/sandbox_timing"]
 
+[[test]]
+name = "orm"
+required-features = ["orm"]
+
 [patch.crates-io]
 funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

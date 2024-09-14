@@ -1,13 +1,13 @@
 use std::any::Any;
-use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
+use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxData, FromBBoxRequest, FromBBoxRequestAndData};
 use rocket::http::Status;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use crate::AlohomoraType;
 use crate::fold::fold;
 
 // Context Data must satisfy these requirements.
-pub trait ContextData : AlohomoraType + for<'a, 'r> FromBBoxRequest<'a, 'r> + Send + 'static {}
-impl<D: AlohomoraType + for<'a, 'r> FromBBoxRequest<'a, 'r> + Send + 'static> ContextData for D {}
+pub trait ContextData : AlohomoraType + Send + 'static {}
+impl<D: AlohomoraType + Send + 'static> ContextData for D {}
 
 // Context is generic over some developer defined data.
 #[derive(Debug, Clone)]
@@ -35,6 +35,11 @@ impl<D: ContextData> Context<D> {
             data: None,
         }
     }
+
+    // Only for testing.
+    pub fn data(&self) -> Option<&D> {
+       self.data.as_ref()
+    }
 }
 
 // The only way to construct a Context is to get via from a BBoxRequest using below trait.
@@ -46,14 +51,36 @@ pub enum ContextError {
     Unconstructible,
 }
 
+// Context can be constructed from just the request, or the request and the form data, depending on
+// what the developer chooses for D.
 #[rocket::async_trait]
-impl<'a, 'r, D: ContextData> FromBBoxRequest<'a, 'r> for Context<D> {
+impl<'a, 'r, D: ContextData + FromBBoxRequest<'a, 'r>> FromBBoxRequest<'a, 'r> for Context<D> {
     type BBoxError = ContextError;
 
     async fn from_bbox_request(
         request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         match (request.route(), request.guard::<D>().await) {
+            (None, _) => Failure((Status::InternalServerError, ContextError::Unconstructible)),
+            (Some(route), Success(data)) => Success(Context::new(route.uri.to_string(), data)),
+            (_, Failure((status, _))) => Failure((status, ContextError::Unconstructible)),
+            (_, Forward(f)) => Forward(f),
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl<'a, 'r, T, D: ContextData> FromBBoxRequestAndData<'a, 'r, T> for Context<D> where
+    T: FromBBoxData<'a, 'r> + Sync,
+    D: FromBBoxRequestAndData<'a, 'r, T>,
+{
+    type BBoxError = ContextError;
+
+    async fn from_bbox_request_and_data(
+        request: BBoxRequest<'a, 'r>,
+        data: &T,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+        match (request.route(), D::from_bbox_request_and_data(request, data).await) {
             (None, _) => Failure((Status::InternalServerError, ContextError::Unconstructible)),
             (Some(route), Success(data)) => Success(Context::new(route.uri.to_string(), data)),
             (_, Failure((status, _))) => Failure((status, ContextError::Unconstructible)),

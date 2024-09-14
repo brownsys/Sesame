@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use alohomora::AlohomoraType;
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
 use alohomora_derive::{route, routes, FromBBoxForm, AlohomoraType};
@@ -29,22 +30,36 @@ struct Dog {
     pub age: alohomora::bbox::BBox<usize, NoPolicy>,
 }
 
-
+// Context derived from both request and also form data.
 #[derive(AlohomoraType)]
-struct ContextData {}
+struct ContextData {
+  // we acquire this from the post data via BBoxForm<Simple> (also would work
+  // had post data been BBoxJson<Simple> etc).
+  pub f1: alohomora::bbox::BBox<String, NoPolicy>,
+  // we acquire this a cookie via BBoxRequest.
+  pub cookie: alohomora::bbox::BBox<String, NoPolicy>,
+}
 
+// Notice that we need to include *BBoxForm<Simple>* (or BBoxJson<Simple>) in
+// the trait generics, and NOT just Simple.
 #[rocket::async_trait]
-impl<'a, 'r> alohomora::rocket::FromBBoxRequest<'a, 'r> for ContextData {
+impl<'a, 'r: 'a> alohomora::rocket::FromBBoxRequestAndData<'a, 'r, alohomora::rocket::BBoxForm<Simple>> for ContextData {
     type BBoxError = ();
-    async fn from_bbox_request(_request: alohomora::rocket::BBoxRequest<'a, 'r>) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
-        alohomora::rocket::BBoxRequestOutcome::Success(ContextData {})
+    async fn from_bbox_request_and_data(
+        request: alohomora::rocket::BBoxRequest<'a, 'r>,
+        form: &'_ alohomora::rocket::BBoxForm<Simple>,
+    ) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
+        alohomora::rocket::BBoxRequestOutcome::Success(ContextData {
+            f1: form.f1.clone(),
+            cookie: request.cookies().get("mycookie").unwrap().value().to_owned(),
+        })
     }
 }
 
 // HTTP request.
 // POST /route/<num>?<dog>&<a>
 // Example: /route/5?a=apple&dog.name=Max&dog.age=10
-#[route(POST, "/route/<num>?<dog>&<a>", data = "<data>")]
+#[route(POST, "/route/<num>?<dog>&<a>", data = "<data>", with_data = "<context>")]
 async fn my_route(
     config: &rocket::State<Config>,
     context: Context<ContextData>,
@@ -79,6 +94,9 @@ async fn my_route(
 
     assert_eq!(data.into_inner(), simple);
 
+    assert_eq!(context.data().unwrap().f1.as_ref().discard_box(), "hello");
+    assert_eq!(context.data().unwrap().cookie.as_ref().discard_box(), "cookie value!");
+
     // all good.
     alohomora::rocket::ContextResponse::from((a, context))
 }
@@ -92,6 +110,7 @@ fn simple_from_bbox_form_test() {
     // Create a client.
     let client = alohomora::testing::BBoxClient::tracked(rocket).expect("valid `Rocket`");
     let response = client.post("/route/5?a=apple&dog.name=Max&dog.age=10")
+        .cookie(rocket::http::Cookie::new("mycookie", "cookie value!"))
         .header(rocket::http::ContentType::Form)
         .body("f1=hello&f2.inner=bye&f2.vec.0=100&f2.vec.1=200&f3=55&f4.k1=11&f4.k2=12")
         .dispatch();

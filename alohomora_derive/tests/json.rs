@@ -2,10 +2,11 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
+use alohomora::AlohomoraType;
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
 use alohomora::testing::TestContextData;
-use alohomora_derive::{route, routes, RequestBBoxJson, ResponseBBoxJson};
+use alohomora_derive::{AlohomoraType, route, routes, RequestBBoxJson, ResponseBBoxJson};
 
 // POST request data.
 #[derive(RequestBBoxJson, ResponseBBoxJson, PartialEq, Debug)]
@@ -39,10 +40,34 @@ pub struct Output {
     pub f5: String,
 }
 
-#[route(POST, "/", data = "<data>")]
+// Context derived from both request and also json post data.
+#[derive(AlohomoraType)]
+struct ContextData {
+  // we acquire this from the post data via BBoxJson<Simple>.
+  pub f1: alohomora::bbox::BBox<String, NoPolicy>,
+  // we acquire this a cookie via BBoxRequest.
+  pub cookie: alohomora::bbox::BBox<String, NoPolicy>,
+}
+
+// Notice that we need to include *BBoxForm<Simple>* (or BBoxJson<Simple>) in
+// the trait generics, and NOT just Simple.
+#[rocket::async_trait]
+impl<'a, 'r> alohomora::rocket::FromBBoxRequestAndData<'a, 'r, alohomora::rocket::BBoxJson<Simple>> for ContextData {
+    type BBoxError = ();
+    async fn from_bbox_request_and_data(
+        request: alohomora::rocket::BBoxRequest<'a, 'r>,
+        form: &'_ alohomora::rocket::BBoxJson<Simple>,
+    ) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
+        alohomora::rocket::BBoxRequestOutcome::Success(ContextData {
+            f1: form.f1.clone(),
+            cookie: request.cookies().get("mycookie").unwrap().value().to_owned(),
+        })
+    }
+}
+
+#[route(POST, "/", data = "<data>", with_data = "<context>")]
 fn my_route(
-    // In reality, we would receive context as a parameter, commented out to simplify testing.
-    // context: Context<()>,
+    context: Context<ContextData>,
     data: alohomora::rocket::BBoxJson<Simple>,
 ) -> alohomora::rocket::JsonResponse<Output, TestContextData<()>> {
     let simple = Simple {
@@ -76,6 +101,10 @@ fn my_route(
         f5: String::from("raw"),
     };
 
+    // assert that context is constructed correctly.
+    assert_eq!(context.data().unwrap().f1.as_ref().discard_box(), "hello");
+    assert_eq!(context.data().unwrap().cookie.as_ref().discard_box(), "cookie value!");
+
     println!("test");
     // Return result.
     alohomora::rocket::JsonResponse::from((output, Context::test(())))
@@ -89,6 +118,7 @@ fn simple_from_bbox_form_test() {
     // Create a client.
     let client = alohomora::testing::BBoxClient::tracked(rocket).expect("valid `Rocket`");
     let response = client.post("/")
+        .cookie(rocket::http::Cookie::new("mycookie", "cookie value!"))
         .header(rocket::http::ContentType::JSON)
         .body("{\
             \"f1\": \"hello\",\
