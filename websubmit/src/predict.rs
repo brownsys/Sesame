@@ -9,8 +9,8 @@ use linfa_linear::{FittedLinearRegression, LinearRegression};
 use ndarray::prelude::*;
 
 use rocket::form::{Form, FromForm};
-use rocket::{get, post, State};
 use rocket::serde::json::Json;
+use rocket::{get, post, State};
 use rocket_dyn_templates::Template;
 
 use mysql::from_value;
@@ -42,11 +42,6 @@ pub fn train(grades: Vec<(NaiveDateTime, u64)>) -> FittedLinearRegression<f64> {
     let lin_reg = LinearRegression::new();
     let model = lin_reg.fit(&dataset).unwrap();
     model
-}
-
-pub fn evaluate_model(inputs: (String, FittedLinearRegression<f64>)) -> f64 {
-    let time = NaiveDateTime::parse_from_str(inputs.0.as_str(), "%Y-%m-%d %H:%M:%S");
-    inputs.1.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + inputs.1.intercept()
 }
 
 pub(crate) fn model_exists() -> bool {
@@ -81,7 +76,11 @@ struct PredictContext {
 }
 
 #[get("/<num>")]
-pub(crate) fn predict(_manager: Manager, num: u8, _backend: &State<Arc<Mutex<MySqlBackend>>>) -> Template {
+pub(crate) fn predict(
+    _manager: Manager,
+    num: u8,
+    _backend: &State<Arc<Mutex<MySqlBackend>>>,
+) -> Template {
     let ctx = PredictContext {
         lec_id: num,
         parent: "layout".into(),
@@ -99,7 +98,7 @@ pub(crate) struct PredictGradeForm {
 struct PredictGradeContext {
     lec_id: u8,
     time: String,
-    grade: f64,
+    grade: Vec<f64>,
     parent: String,
 }
 
@@ -116,14 +115,20 @@ pub(crate) fn predict_grade(
     }
 
     // Evaluate model.
-    let time = data.time.clone();
+    let time_string = data.time.clone();
     let model = MODEL.lock().unwrap().as_ref().unwrap().clone();
-    let grade = evaluate_model((time, model));
+    let grades = time_string
+        .split(',')
+        .map(|input| NaiveDateTime::parse_from_str(input, "%Y-%m-%d %H:%M:%S"))
+        .map(|input| {
+            model.params()[0] * (input.unwrap().and_utc().timestamp() as f64) + model.intercept()
+        })
+        .collect();
 
     let ctx = PredictGradeContext {
         lec_id: num,
-        time: data.time.clone(),
-        grade: grade,
+        time: time_string,
+        grade: grades,
         parent: "layout".into(),
     };
     Template::render("predictgrade", &ctx)

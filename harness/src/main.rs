@@ -12,8 +12,8 @@ use std::time::{Duration, Instant};
 use alohomora::testing::BBoxClient;
 use rocket::local::blocking::Client;
 
-use rand::seq::SliceRandom;
 use rand::rngs::StdRng;
+use rand::seq::SliceRandom;
 use rand::SeedableRng;
 
 use websubmit::{make_rocket as ws_make_rocket, parse_args as ws_parse_args};
@@ -28,6 +28,7 @@ const N_QUESTIONS_PER_LECTURE: usize = 10;
 const N_REGISTRATION_ATTEMPTS: usize = 1000;
 
 const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: usize = 100;
+const PREDICTION_REQUEST_BATCH_SIZE: usize = 100;
 const N_PREDICTION_ATTEMPTS_PER_LECTURE: usize = 100;
 const N_DISCUSSION_LEADER_QUERIES_PER_LECTURE: usize = 100;
 
@@ -220,7 +221,10 @@ fn answer_questions(client: &Client, users: &Vec<User>, r: &mut StdRng) -> Vec<D
 }
 
 fn view_answers(client: &Client, r: &mut StdRng) -> Vec<Duration> {
-    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE).collect();
+    let mut samples: Vec<usize> = (0..N_LECTURES)
+        .cycle()
+        .take(N_LECTURES * N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE)
+        .collect();
     samples.shuffle(r);
 
     samples
@@ -240,7 +244,10 @@ fn view_answers(client: &Client, r: &mut StdRng) -> Vec<Duration> {
 }
 
 fn view_answers_naive(client: &Client, r: &mut StdRng) -> Vec<Duration> {
-    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE).collect();
+    let mut samples: Vec<usize> = (0..N_LECTURES)
+        .cycle()
+        .take(N_LECTURES * N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE)
+        .collect();
     samples.shuffle(r);
 
     samples
@@ -294,15 +301,23 @@ fn submit_grades(client: &Client, users: &Vec<User>, r: &mut StdRng) -> Vec<Dura
 }
 
 fn predict_grades(client: &Client, r: &mut StdRng) -> Vec<Duration> {
-    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_PREDICTION_ATTEMPTS_PER_LECTURE).collect();
+    let mut samples: Vec<usize> = (0..N_LECTURES)
+        .cycle()
+        .take(N_LECTURES * N_PREDICTION_ATTEMPTS_PER_LECTURE)
+        .collect();
     samples.shuffle(r);
 
     samples
         .iter()
         .map(|lecture_id| {
-            let timestamp: NaiveDateTime = Faker.fake_with_rng(r);
             let prediction_request = PredictionRequest {
-                time: timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
+                time: (0..PREDICTION_REQUEST_BATCH_SIZE)
+                    .map(|_| {
+                        let timestamp: NaiveDateTime = Faker.fake_with_rng(r);
+                        timestamp.format("%Y-%m-%d %H:%M:%S").to_string()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(","),
             };
 
             let request = client
@@ -369,7 +384,10 @@ fn get_employer_info(client: &Client) -> Vec<Duration> {
 }
 
 fn get_discussion_leader(client: &Client, r: &mut StdRng) -> Vec<Duration> {
-    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_DISCUSSION_LEADER_QUERIES_PER_LECTURE).collect();
+    let mut samples: Vec<usize> = (0..N_LECTURES)
+        .cycle()
+        .take(N_LECTURES * N_DISCUSSION_LEADER_QUERIES_PER_LECTURE)
+        .collect();
     samples.shuffle(r);
 
     samples
@@ -389,7 +407,10 @@ fn get_discussion_leader(client: &Client, r: &mut StdRng) -> Vec<Duration> {
 }
 
 fn get_discussion_leader_naive(client: &Client, r: &mut StdRng) -> Vec<Duration> {
-    let mut samples: Vec<usize> =  (0..N_LECTURES).cycle().take(N_LECTURES * N_DISCUSSION_LEADER_QUERIES_PER_LECTURE).collect();
+    let mut samples: Vec<usize> = (0..N_LECTURES)
+        .cycle()
+        .take(N_LECTURES * N_DISCUSSION_LEADER_QUERIES_PER_LECTURE)
+        .collect();
     samples.shuffle(r);
 
     samples
@@ -551,7 +572,10 @@ fn main() {
         );
 
         let view_answers_naive_bench = view_answers_naive(&used_client, r);
-        write_stats(prefix.clone() + "view_answers_naive_bench", &view_answers_naive_bench);
+        write_stats(
+            prefix.clone() + "view_answers_naive_bench",
+            &view_answers_naive_bench,
+        );
         println!(
             "Took {} samples for view answers naive endpoint.",
             view_answers_naive_bench.len()

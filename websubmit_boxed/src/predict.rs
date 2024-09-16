@@ -14,8 +14,8 @@ use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm, JsonRes
 use alohomora::sandbox::execute_sandbox;
 
 use crate::backend::MySqlBackend;
-use crate::policies::{ContextData, MLTrainingPolicy};
 use crate::manage::Manager;
+use crate::policies::{ContextData, MLTrainingPolicy};
 
 use websubmit_boxed_sandboxes::train;
 
@@ -88,12 +88,10 @@ pub(crate) struct PredictGradeForm {
 #[derive(BBoxRender)]
 struct PredictGradeContext {
     lec_id: BBox<u8, NoPolicy>,
-    time: BBox<String, NoPolicy>,
-    grade: BBox<f64, MLTrainingPolicy>,
+    time: String,
+    grade: BBox<Vec<f64>, MLTrainingPolicy>,
     parent: String,
 }
-
-
 
 #[post("/predict_grade/<num>", data = "<data>")]
 pub(crate) fn predict_grade(
@@ -109,11 +107,19 @@ pub(crate) fn predict_grade(
     }
 
     // Evaluate model.
-    let time = data.time.as_ref().discard_box();
-    let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
+    let time_string = data.into_inner().time.discard_box();
     let model = MODEL.lock().unwrap().as_ref().unwrap().clone();
-    let grade = model.into_ppr(PrivacyPureRegion::new(|model: FittedLinearRegression<f64>|
-            model.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + model.intercept()
+    let grades = model.ppr(PrivacyPureRegion::new(
+        |model: &FittedLinearRegression<f64>| {
+            time_string
+                .split(',')
+                .map(|time_string| NaiveDateTime::parse_from_str(time_string, "%Y-%m-%d %H:%M:%S"))
+                .map(|time| {
+                    model.params()[0] * (time.unwrap().and_utc().timestamp() as f64)
+                        + model.intercept()
+                })
+                .collect()
+        },
     ));
 
     // let grade = execute_pure(
@@ -126,8 +132,8 @@ pub(crate) fn predict_grade(
 
     let ctx = PredictGradeContext {
         lec_id: num,
-        time: data.time.clone(),
-        grade: grade,
+        time: time_string,
+        grade: grades.to_owned_policy(),
         parent: "layout".into(),
     };
     BBoxTemplate::render("predictgrade", &ctx, context)
