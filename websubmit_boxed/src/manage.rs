@@ -16,7 +16,6 @@ use crate::policies::ContextData;
 use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::pcr::PrivacyCriticalRegion;
 use alohomora::policy::AnyPolicy;
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
@@ -46,9 +45,11 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for Manager {
             }
         }));
 
-        manager
-            .into_pcr(PrivacyCriticalRegion::new(|manager, _, _| manager), ())
-            .into_outcome((Status::Unauthorized, ManagerError::Unauthorized))
+        let manager = match manager.transpose() {
+            None => None,
+            Some(_) => Some(Manager),
+        };
+        manager.into_outcome((Status::Unauthorized, ManagerError::Unauthorized))
     }
 }
 

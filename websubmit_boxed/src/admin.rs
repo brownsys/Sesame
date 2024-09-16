@@ -8,9 +8,8 @@ use rocket::State;
 use alohomora::bbox::{BBox, BBoxRender, EitherBBox};
 use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::pcr::{execute_pcr, PrivacyCriticalRegion};
 use alohomora::policy::{AnyPolicy, NoPolicy};
-use alohomora::pure::PrivacyPureRegion;
+use alohomora::pure::{execute_pure, PrivacyPureRegion};
 use alohomora::rocket::{
     get, post, BBoxForm, BBoxRedirect, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxForm,
     FromBBoxRequest,
@@ -47,9 +46,11 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for Admin {
             }
         }));
 
-        admin
-            .into_pcr(PrivacyCriticalRegion::new(|admin, _, _| admin), ())
-            .into_outcome((Status::Unauthorized, AdminError::Unauthorized))
+        let admin = match admin.transpose() {
+            None => None,
+            Some(_) => Some(Admin),
+        };
+        admin.into_outcome((Status::Unauthorized, AdminError::Unauthorized))
     }
 }
 
@@ -182,14 +183,19 @@ pub(crate) fn editq(
     for r in res {
         let q = from_value::<u8, AnyPolicy>(r[1].clone()).unwrap();
 
-        let q_matches = execute_pcr(
+        let q_matches = execute_pure(
             (q, qnum.clone()),
-            PrivacyCriticalRegion::new(|(q, qnum), _, ()| q == qnum),
-            (),
+            PrivacyPureRegion::new(|(q, qnum)| {
+                if q == qnum {
+                    Some(())
+                } else {
+                    None
+                }
+            }),
         )
         .unwrap();
 
-        if q_matches {
+        if q_matches.transpose().is_some() {
             ctx.insert("lec_qprompt", from_value(r[2].clone()).unwrap().into());
         }
     }
