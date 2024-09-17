@@ -8,8 +8,8 @@ matplotlib.use("Agg")
 
 SYSTEM_COLORS = {
     'Baseline': 'C0',
-    'Alohomora': 'C1',
-    'Naive Alohomora': 'C2',
+    'Sesame': 'C1',
+    'Naive Sesame': 'C2',
 }
 
 
@@ -81,7 +81,7 @@ def PlotMergedPercentiles(baseline, alohomora):
 
         alpha = 1 if percentile == "50" else 0.3
         label_baseline = "Baseline" if percentile == "50" else None
-        label_alohomora = "Alohomora" if percentile == "50" else None
+        label_alohomora = "Sesame" if percentile == "50" else None
 
         ax1.bar(X - 0.5 * W, b, W, label=label_baseline,
                 color=SYSTEM_COLORS['Baseline'], alpha=alpha)
@@ -89,9 +89,9 @@ def PlotMergedPercentiles(baseline, alohomora):
                 color=SYSTEM_COLORS['Baseline'], alpha=alpha)
         
         ax1.bar(X + 0.5 * W, a, W, label=label_alohomora,
-                color=SYSTEM_COLORS['Alohomora'], alpha=alpha)
+                color=SYSTEM_COLORS['Sesame'], alpha=alpha)
         ax2.bar(X + 0.5 * W, a, W, label=label_alohomora,
-                color=SYSTEM_COLORS['Alohomora'], alpha=alpha)
+                color=SYSTEM_COLORS['Sesame'], alpha=alpha)
 
     d = .5  # proportion of vertical to horizontal extent of the slanted line
     kwargs = dict(marker=[(-1, -d), (1, d)], markersize=10,
@@ -116,17 +116,17 @@ def PlotMergedPercentilesNoBreak(baseline, alohomora):
         a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS]
 
         print("at percentile " + percentile + "\n");
-        print("\n baseline train is " + str(b[1]) + "\n");
-        print("\n alohomora train is " + str(a[1]) + "\n");
+        print("\n baseline train is " + str(b) + "\n");
+        print("\n alohomora train is " + str(a) + "\n");
 
         alpha = 1 if percentile == "50" else 0.3
         label_baseline = "Baseline" if percentile == "50" else None
-        label_alohomora = "Alohomora" if percentile == "50" else None
+        label_alohomora = "Sesame" if percentile == "50" else None
 
         plt.bar(X - 0.5 * W, b, W, label=label_baseline,
                 color=SYSTEM_COLORS['Baseline'], alpha=alpha)
         plt.bar(X + 0.5 * W, a, W, label=label_alohomora,
-                color=SYSTEM_COLORS['Alohomora'], alpha=alpha)
+                color=SYSTEM_COLORS['Sesame'], alpha=alpha)
 
     plt.ylabel("Latency [ms]", loc="center")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
@@ -140,7 +140,7 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     fig.subplots_adjust(hspace=0.1) 
 
-    ax1.set_ylim(255, 275)  # outliers only
+    ax1.set_ylim(245, 265)  # outliers only
     ax2.set_ylim(0, 25)  # most of the data
 
     for percentile in PERCENTILES:
@@ -148,18 +148,23 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
         a = [fold_alohomora[endpoint][percentile] for endpoint in FOLD_ALOHOMORA_ENDPOINTS]
         n = [fold_naive[endpoint][percentile] for endpoint in FOLD_NAIVE_ALOHOMORA_ENDPOINTS]
 
+        print("at percentile " + percentile + "\n");
+        print("\n baseline train is " + str(b) + "\n");
+        print("\n alohomora train is " + str(a) + "\n");
+        print("\n naive alohomora train is " + str(n) + "\n");
+
         alpha = 1 if percentile == "50" else 0.3
         label_baseline = "Baseline" if percentile == "50" else None
-        label_alohomora = "Alohomora" if percentile == "50" else None
-        label_naive = "Naive Alohomora" if percentile == "50" else None
+        label_alohomora = "Sesame" if percentile == "50" else None
+        label_naive = "Naive Sesame" if percentile == "50" else None
 
         ax1.bar(X_F - W, b, W, color=SYSTEM_COLORS['Baseline'], label=label_baseline, alpha=alpha)
-        ax1.bar(X_F, n, W, color=SYSTEM_COLORS['Naive Alohomora'], label=label_naive, alpha=alpha)
-        ax1.bar(X_F + W, a, W, color=SYSTEM_COLORS['Alohomora'], label=label_alohomora, alpha=alpha)
+        ax1.bar(X_F, n, W, color=SYSTEM_COLORS['Naive Sesame'], label=label_naive, alpha=alpha)
+        ax1.bar(X_F + W, a, W, color=SYSTEM_COLORS['Sesame'], label=label_alohomora, alpha=alpha)
 
         ax2.bar(X_F - W, b, W, color=SYSTEM_COLORS['Baseline'], label=label_baseline, alpha=alpha)
-        ax2.bar(X_F, n, W, color=SYSTEM_COLORS['Naive Alohomora'], label=label_naive, alpha=alpha)
-        ax2.bar(X_F + W, a, W, color=SYSTEM_COLORS['Alohomora'], label=label_alohomora, alpha=alpha)
+        ax2.bar(X_F, n, W, color=SYSTEM_COLORS['Naive Sesame'], label=label_naive, alpha=alpha)
+        ax2.bar(X_F + W, a, W, color=SYSTEM_COLORS['Sesame'], label=label_alohomora, alpha=alpha)
 
     d = .5  # proportion of vertical to horizontal extent of the slanted line
     kwargs = dict(marker=[(-1, -d), (1, d)], markersize=10,
@@ -187,12 +192,12 @@ def PlotMeanAndStd(baseline, alohomora):
     a_std = [alohomora[endpoint]['std'] for endpoint in ENDPOINTS]
 
     label_baseline = "Baseline"
-    label_alohomora = "Alohomora"
+    label_alohomora = "Sesame"
 
     plt.errorbar(X - 0.5 * W, b_mean, yerr=b_std, label=label_baseline,
             color=SYSTEM_COLORS['Baseline'], linestyle='None', marker='o', markersize=1)
     plt.errorbar(X + 0.5 * W, a_mean, yerr=a_std, label=label_alohomora,
-            color=SYSTEM_COLORS['Alohomora'], linestyle='None', marker='o', markersize=1)
+            color=SYSTEM_COLORS['Sesame'], linestyle='None', marker='o', markersize=1)
 
     plt.ylabel("Latency [ms]")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
