@@ -14,7 +14,7 @@ SYSTEM_COLORS = {
 
 
 def InitializeMatplotLib():
-    matplotlib.rc('font', family='serif', size=9)
+    matplotlib.rc('font', family='serif', size=10)
     matplotlib.rc('text.latex', preamble='\\usepackage{times,mathptmx}')
     matplotlib.rc('text', usetex=True)
     matplotlib.rc('legend', fontsize=8)
@@ -70,7 +70,7 @@ W = 0.3
 # Plot 50th and 95th percentile on one figure
 def PlotMergedPercentiles(baseline, alohomora):
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    fig.subplots_adjust(hspace=0.1) 
+    fig.subplots_adjust(hspace=0.1)
 
     ax1.set_ylim(0.09, 25)
     ax2.set_ylim(0, 0.09)
@@ -87,7 +87,7 @@ def PlotMergedPercentiles(baseline, alohomora):
                 color=SYSTEM_COLORS['Baseline'], alpha=alpha)
         ax2.bar(X - 0.5 * W, b, W, label=label_baseline,
                 color=SYSTEM_COLORS['Baseline'], alpha=alpha)
-        
+
         ax1.bar(X + 0.5 * W, a, W, label=label_alohomora,
                 color=SYSTEM_COLORS['Sesame'], alpha=alpha)
         ax2.bar(X + 0.5 * W, a, W, label=label_alohomora,
@@ -99,10 +99,10 @@ def PlotMergedPercentiles(baseline, alohomora):
     ax1.plot([0, 1], [0, 0], transform=ax1.transAxes, **kwargs)
     ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
 
-    ax1.legend(frameon=False, fontsize="7")
+    ax1.legend(frameon=False, fontsize=8)
 
     ax1.xaxis.set_ticks_position('none')
-    ax2.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
+    ax2.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=15, ha='right')
 
     # plt.xlabel("Websubmit Comparison")
     plt.ylabel("Latency [ms]")
@@ -129,16 +129,16 @@ def PlotMergedPercentilesNoBreak(baseline, alohomora):
                 color=SYSTEM_COLORS['Sesame'], alpha=alpha)
 
     plt.ylabel("Latency [ms]", loc="center")
-    plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
+    plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=15, ha='right')
     # plt.xlabel("Websubmit Comparison")
     plt.ylim(ymax=12)
-    plt.legend(frameon=False, fontsize="7")
+    plt.legend(frameon=False, fontsize=8)
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
 
 def PlotFoldPercentiles(baseline, alohomora, naive):
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    fig.subplots_adjust(hspace=0.1) 
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(2.22, 1.5))
+    fig.subplots_adjust(hspace=0.1)
 
     ax1.set_ylim(245, 265)  # outliers only
     ax2.set_ylim(0, 25)  # most of the data
@@ -156,7 +156,7 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
         alpha = 1 if percentile == "50" else 0.3
         label_baseline = "Baseline" if percentile == "50" else None
         label_alohomora = "Sesame" if percentile == "50" else None
-        label_naive = "Naive Sesame" if percentile == "50" else None
+        label_naive = "Na\\\"{i}ve Sesame" if percentile == "50" else None
 
         ax1.bar(X_F - W, b, W, color=SYSTEM_COLORS['Baseline'], label=label_baseline, alpha=alpha)
         ax1.bar(X_F, n, W, color=SYSTEM_COLORS['Naive Sesame'], label=label_naive, alpha=alpha)
@@ -175,9 +175,11 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
     ax1.legend(frameon=False)
 
     ax1.xaxis.set_ticks_position('none')
-    ax2.set_xticks(X_F, FOLD_ENDPOINTS)
-    
+    ax2.set_yticks([0, 10, 20])
+    ax2.set_xticks(X_F, FOLD_ENDPOINTS, rotation=15, ha='right')
+
     # plt.xlabel("Fold Comparison")
+    plt.subplots_adjust(left=0.22)
     fig.text(0, 0.5, 'Latency [ms]', va='center', rotation='vertical')
 
     plt.savefig("fold.pdf", format="pdf",
