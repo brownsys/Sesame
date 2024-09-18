@@ -111,6 +111,7 @@ def PlotMergedPercentiles(baseline, alohomora):
 
 # Plot 50th and 95th percentile on one figure
 def PlotMergedPercentilesNoBreak(baseline, alohomora):
+    fig = plt.figure(figsize=(3.33, 1.3))
     for percentile in PERCENTILES:
         b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS]
         a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS]
@@ -131,13 +132,14 @@ def PlotMergedPercentilesNoBreak(baseline, alohomora):
     plt.ylabel("Latency [ms]", loc="center")
     plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=15, ha='right')
     # plt.xlabel("Websubmit Comparison")
-    plt.ylim(ymax=12)
+    plt.ylim(ymax=11)
     plt.legend(frameon=False, fontsize=8)
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
 
 def PlotFoldPercentiles(baseline, alohomora, naive):
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(2.22, 1.5))
+    matplotlib.rc('figure', figsize=(2.22, 1.4))
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(2.22, 1.4))
     fig.subplots_adjust(hspace=0.1)
 
     ax1.set_ylim(245, 265)  # outliers only
@@ -172,7 +174,8 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
     ax1.plot([0, 1], [0, 0], transform=ax1.transAxes, **kwargs)
     ax2.plot([0, 1], [1, 1], transform=ax2.transAxes, **kwargs)
 
-    ax1.legend(frameon=False)
+    ax1.legend(frameon=False, loc='upper left',
+               borderaxespad=0.2, handletextpad=0.2, handlelength=1)
 
     ax1.xaxis.set_ticks_position('none')
     ax2.set_yticks([0, 10, 20])
@@ -184,6 +187,7 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
 
     plt.savefig("fold.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
+    matplotlib.rc('figure', figsize=(3.63, 1.5))
 
 # Plot 50th and 95th percentile on one figure
 def PlotMeanAndStd(baseline, alohomora):

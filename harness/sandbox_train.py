@@ -6,7 +6,7 @@ mpl.rc('font', family='serif', size=10)
 mpl.rc('text.latex', preamble='\\usepackage{times,mathptmx}')
 mpl.rc('text', usetex=True)
 mpl.rc('legend', fontsize=8)
-mpl.rc('figure', figsize=(2.22, 1.5))
+mpl.rc('figure', figsize=(2.22, 1.45))
 mpl.rc('axes', linewidth=0.5)
 mpl.rc('lines', linewidth=0.5)
 
@@ -28,7 +28,7 @@ total = [func[i] + set_tear[i] + copy[i] for i in range(len(categories))]
 x = np.arange(len(categories))
 
 # Plot
-fig = plt.figure(figsize=(2.22, 1.5))
+fig = plt.figure(figsize=(2.22, 1.45))
 gs = fig.add_gridspec(2, 1, hspace=0.1)
 
 # Upper plot (with break)
@@ -61,7 +61,7 @@ ax2.set_xticklabels(categories, rotation=15, ha='right')
 # Combine legends and place them in the upper plot
 handles, labels = ax1.get_legend_handles_labels()
 ax1.legend(handles, labels, loc='upper left', frameon=False, ncols=2,
-           handletextpad=0.2, handlelength=1, columnspacing=1)
+           borderaxespad=0.2, handletextpad=0.2, handlelength=1, columnspacing=1)
 
 # Hide x-axis on the upper plot
 ax1.xaxis.set_visible(False)
