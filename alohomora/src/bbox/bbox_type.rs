@@ -16,81 +16,15 @@ use crate::pure::PrivacyPureRegion;
 use pin_project_lite::pin_project;
 use crate::AlohomoraType;
 use crate::fold::fold;
+use crate::bbox::obfuscated_pointer::ObPtr;
 
 // Privacy Container type.
 pin_project! {
     #[derive(Debug, PartialEq)]
     pub struct BBox<T, P: Policy> {
         #[pin]
-        fb: FakeBox<T>,
+        fb: ObPtr<T>,
         p: P,
-    }
-}
-
-const secret: usize = 2238711266;
-
-#[derive(Debug)]
-struct FakeBox<T> {
-    ptr: usize,
-    _marker: PhantomData<T>
-}
-
-// BBox is cloneable if what is inside is cloneable.
-impl<T: Clone> Clone for FakeBox<T> {
-    fn clone(&self) -> Self {
-        unsafe {
-            FakeBox::new(self.get().clone())
-        }
-    }
-}
-
-impl<T: PartialEq> PartialEq for FakeBox<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.get() == other.get()
-    }
-}
-
-impl<'a, T: Future + Unpin> Future for FakeBox<T> {
-    type Output = T::Output;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        let inner_future: &mut T = unsafe { self.get_unchecked_mut().get_mut() };
-        Pin::new(inner_future).poll(cx)
-    }
-}
-
-impl<T> Drop for FakeBox<T> {
-    fn drop(&mut self) {
-        if self.ptr != 0 {
-            drop(unsafe { Box::from_raw((self.ptr ^ secret) as *mut T) });
-        }
-    }
-}
-
-impl<T> FakeBox<T> {
-    pub fn new(t: T) -> Self {
-        let t = Box::new(t);
-        let ptr: *mut T = Box::into_raw(t);
-        let ptr: usize = ptr as usize;
-        let ptr: usize = ptr ^ secret;
-        Self { ptr: ptr, _marker: PhantomData}
-    }
-
-    pub fn get(&self) -> &T {
-        unsafe { &*((self.ptr ^ secret) as *mut T) }
-    }
-
-    pub fn get_mut(&mut self) -> &mut T {
-        unsafe {&mut *((self.ptr ^ secret) as *mut T) }
-    }
-
-    pub fn mov(mut self) -> T {
-        let t: T = unsafe {
-            // Convert the pointer back to a Box<T>, which gives ownership of the value
-            *Box::from_raw((self.ptr ^ secret) as *mut T)
-        };
-        self.ptr = 0;
-        t
     }
 }
 
@@ -108,7 +42,7 @@ impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
 // This API moves/consumes the data and policy, or operates on them as refs.
 impl<T, P: Policy> BBox<T, P> {
     pub fn new(t: T, p: P) -> Self {
-        Self { fb: FakeBox::new(t), p }
+        Self { fb: ObPtr::new(t), p }
     }
 
     // Consumes the bboxes extracting data and policy (private usable only in crate).
@@ -131,7 +65,7 @@ impl<T, P: Policy> BBox<T, P> {
         P: Into<P2>,
     {
         BBox {
-            fb: FakeBox::new((self.fb.mov()).into()),
+            fb: ObPtr::new((self.fb.mov()).into()),
             p: self.p.into(),
         }
     }
@@ -140,7 +74,7 @@ impl<T, P: Policy> BBox<T, P> {
         T: From<F>,
     {
         BBox {
-            fb: FakeBox::new(T::from(value.fb.mov())),
+            fb: ObPtr::new(T::from(value.fb.mov())),
             p: value.p,
         }
     }
