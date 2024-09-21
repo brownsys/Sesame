@@ -38,16 +38,7 @@ impl ChatAccessPolicy {
 
 impl Policy for ChatAccessPolicy {
     fn name(&self) -> String {
-        if self.groupchat.is_none() { 
-            format!("ChatAccessPolicy--chat from {} to {}", 
-                self.sender.clone().unwrap_or("[none]".to_string()), 
-                self.recipient.clone().unwrap_or("[none]".to_string()))
-        } else {
-            format!("ChatAccessPolicy--chat from {} to {} (in {})", 
-                self.sender.clone().unwrap_or("[none]".to_string()), 
-                self.recipient.clone().unwrap_or("[none]".to_string()), 
-                self.groupchat.clone().unwrap())
-        }
+         format!("ChatAccessPolicy")
     }
 
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
