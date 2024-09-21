@@ -14,7 +14,7 @@ pub struct EmployersReleasePolicy {
 
 impl Policy for EmployersReleasePolicy {
     fn name(&self) -> String {
-        format!("EmployersReleasePolicy(consent={})", self.consent)
+        "EmployersReleasePolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {

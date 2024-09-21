@@ -14,7 +14,7 @@ const MIN_K: u64 = 10;
 
 impl Policy for KAnonymityPolicy {
     fn name(&self) -> String {
-        format!("KAnonymityPolicy(count={})", self.count)
+        "KAnonymityPolicy".to_string()
     }
 
     fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
