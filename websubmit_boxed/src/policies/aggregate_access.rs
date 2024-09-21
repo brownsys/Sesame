@@ -16,7 +16,7 @@ const SENSITIVE_TABLES: &'static [&'static str] = &["agg_gender"];
 
 impl Policy for AggregateAccessPolicy {
     fn name(&self) -> String {
-        format!("AggregateAccessPolicy(sensitive={})", self.sensitive)
+        "AggregateAccessPolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {

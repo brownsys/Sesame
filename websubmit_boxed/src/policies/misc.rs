@@ -14,7 +14,7 @@ pub struct QueryableOnly {}
 //   1. SELECT query
 impl Policy for QueryableOnly {
     fn name(&self) -> String {
-        String::from("QueryableOnly")
+        "QueryableOnly".to_string()
     }
 
     fn check(&self, _context: &UnprotectedContext, reason: Reason) -> bool {

@@ -15,7 +15,7 @@ pub struct UserProfilePolicy {
 
 impl Policy for UserProfilePolicy {
     fn name(&self) -> String {
-        format!("UserProfilePolicy(for user {:?})", self.owner)
+        "UserProfilePolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
