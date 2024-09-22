@@ -38,10 +38,7 @@ impl AnswerAccessPolicy {
 //      (`P(me)` alter. `is me in set<P(students)>`);
 impl Policy for AnswerAccessPolicy {
     fn name(&self) -> String {
-        format!(
-            "AnswerAccessPolicy(lec id{:?} for user {:?})",
-            self.lec_id, self.owner
-        )
+            "AnswerAccessPolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {

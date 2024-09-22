@@ -14,7 +14,7 @@ pub struct MLTrainingPolicy {
 
 impl Policy for MLTrainingPolicy {
     fn name(&self) -> String {
-        format!("MLTrainingPolicy(consent={})", self.consent)
+        "MLTrainingPolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
