@@ -12,7 +12,7 @@ use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::context::Context;
 use alohomora::db::{from_value, from_value_or_null};
 use alohomora::fold::fold;
-use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::pcr::{PrivacyCriticalRegion, Signature};
 use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::{execute_pure, PrivacyPureRegion};
 use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxTemplate, FromBBoxForm};
@@ -443,6 +443,7 @@ pub(crate) fn questions_submit(
                             .join("\n-----\n"),
                     );
 
+                    // config is component of the context -> has passed policy check at this point
                     let recipients = if num < 90 {
                         config.staff.clone()
                     } else {
@@ -458,6 +459,9 @@ pub(crate) fn questions_submit(
                     )
                     .expect("failed to send email")
                 },
+                Signature{username: "corinnt", signature: "?"}, 
+            Signature{username: "corinnt", signature: "?"},
+            Signature{username: "corinnt", signature: "?"}, 
             ),
             (),
         );

@@ -10,7 +10,7 @@ use rocket::State;
 use alohomora::bbox::BBox;
 use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::pcr::PrivacyCriticalRegion;
+use alohomora::pcr::{PrivacyCriticalRegion, Signature};
 use alohomora::policy::{AnyPolicy, NoPolicy, Policy};
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::AlohomoraType;
@@ -187,9 +187,12 @@ pub(crate) fn generate(
                     format!("Your {} API key is: {}\n", config.class, hash),
                 )
                 .expect("failed to send API key email");
-            }),
-            (),
-        )
+            }, 
+            Signature{username: "corinnt", signature: "?"}, 
+            Signature{username: "corinnt", signature: "?"},
+            Signature{username: "corinnt", signature: "?"}, 
+        ), 
+        ())
         .unwrap();
     }
     drop(bg);
