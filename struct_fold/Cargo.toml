@@ -1,0 +1,24 @@
+[package]
+name = "struct-fold"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# portfolio-api = { path = "../api" }
+# portfolio-core = { path = "../core" }
+chrono = "^0.4"
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "1.0"
+
+alohomora = { path = "../alohomora", features= ["orm"] }
+alohomora_derive = { path = "../alohomora_derive" }
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+
+[dependencies.sea-orm]
+git = "https://github.com/KinanBab/sea-orm.git"
+branch = "main"
+features = [ "sqlx-mysql", "sqlx-sqlite", "runtime-tokio-native-tls", "macros" ]
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
