@@ -1,96 +1,32 @@
 use std::collections::HashMap;
-use std::any::Any;
 use std::hash::Hash;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use itertools::Itertools;
 
 use crate::bbox::{BBox};
-use crate::policy::{AnyPolicy, Policy};
+use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
 
-pub fn compose_policies(policy1: Result<Option<AnyPolicy>, ()>, policy2: Result<Option<AnyPolicy>, ()>) -> Result<Option<AnyPolicy>, ()> {
-    let policy1 = policy1?;
-    let policy2 = policy2?;
-    match (policy1, policy2) {
-        (None, policy2) => Ok(policy2),
-        (policy1, None) => Ok(policy1),
-        (Some(policy1), Some(policy2)) =>
-            Ok(Some(policy1.join(policy2)?)),
-    }
+// 0-sized type that can only be constructed by Alohomora.
+pub struct Unwrapper {
+    _phantom: (),
 }
-
-// This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum AlohomoraTypeEnum {
-    BBox(BBox<Box<dyn Any>, AnyPolicy>),
-    Value(Box<dyn Any>),
-    Vec(Vec<AlohomoraTypeEnum>),
-    Struct(HashMap<String, AlohomoraTypeEnum>),
-}
-
-impl AlohomoraTypeEnum {
-    // Combines the policies of all the BBox inside this type.
-    pub fn policy(&self) -> Result<Option<AnyPolicy>, ()> {
-        match self {
-            AlohomoraTypeEnum::Value(_) => Ok(None),
-            AlohomoraTypeEnum::BBox(bbox) => {
-                Ok(Some(bbox.policy().clone()))
-            },
-            AlohomoraTypeEnum::Vec(vec)  => {
-                vec
-                    .into_iter()
-                    .map(|e| e.policy())
-                    .reduce(compose_policies)
-                    .unwrap_or(Ok(None))
-            }
-            AlohomoraTypeEnum::Struct(hashmap) => {
-                // iterate over hashmap, collect policies
-                hashmap
-                    .into_iter()
-                    .map(|(_, e)| e.policy())
-                    .reduce(compose_policies)
-                    .unwrap_or(Ok(None))
-            }
-        }
+impl Unwrapper {
+    pub(crate) fn new() -> Self {
+        Unwrapper { _phantom: () }
     }
-
-    // Transforms the Enum to an unboxed enum.
-    pub(crate) fn remove_bboxes(self) -> AlohomoraTypeEnum {
-        match self {
-            AlohomoraTypeEnum::Value(val) => AlohomoraTypeEnum::Value(val),
-            AlohomoraTypeEnum::BBox(bbox) => AlohomoraTypeEnum::Value(bbox.consume().0),
-            AlohomoraTypeEnum::Vec(vec) => AlohomoraTypeEnum::Vec(
-                vec
-                    .into_iter()
-                    .map(|e| e.remove_bboxes())
-                    .collect()
-            ),
-            AlohomoraTypeEnum::Struct(hashmap) => AlohomoraTypeEnum::Struct(
-                hashmap
-                    .into_iter()
-                    .map(|(key, val)| (key, val.remove_bboxes()))
-                    .collect(),
-            ),
-        }
-    }
-
-    // Coerces self into the given type provided it is a Value(...) of that type.
-    pub fn coerce<T: 'static>(self) -> Result<T, ()> {
-        match self {
-            AlohomoraTypeEnum::Value(v) => match v.downcast() {
-                Ok(t) => Ok(*t),
-                Err(_) => Err(()),
-            },
-            _ => Err(()),
-        }
+    pub fn unwrap<T, P: Policy>(&self, bbox: BBox<T, P>) -> (T, P) {
+        bbox.consume()
     }
 }
 
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to
 // sandboxes.
+// TODO(babman): Do not use AnyPolicy anywhere here.
+// TODO(babman): Propogate OptionPolicy upwards with join (see test_nested_boxes in alohomora_derive).
+// TODO(babman): Update derive macro to be smarter about output policy type.
 pub trait AlohomoraType {
     type Out;     // Unboxed form of struct
-    fn to_enum(self) -> AlohomoraTypeEnum;
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()>;
+    type Policy: Policy + Clone + 'static;  // Policy
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()>;
 }
 
 // Implement AlohomoraType for various primitives.
@@ -99,22 +35,13 @@ macro_rules! alohomora_type_impl {
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
         impl AlohomoraType for $T {
             type Out = $T;
-            fn to_enum(self) -> AlohomoraTypeEnum{
-                AlohomoraTypeEnum::Value(Box::new(self))
-            }
-            fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-                match e {
-                    AlohomoraTypeEnum::Value(v) => match v.downcast() {
-                        Err(_) => Err(()),
-                        Ok(v) => Ok(*v),
-                    },
-                    _ => Err(()),
-                }
+            type Policy = NoPolicy;
+            fn inner_fold(self, _unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+                Ok((self, NoPolicy {}))
             }
         }
     };
 }
-
 alohomora_type_impl!(i8);
 alohomora_type_impl!(i16);
 alohomora_type_impl!(i32);
@@ -131,85 +58,83 @@ alohomora_type_impl!(String);
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: AlohomoraType> AlohomoraType for Option<T> {
     type Out = Option<T::Out>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
+    type Policy = OptionPolicy<T::Policy>;
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
         match self {
-            None => AlohomoraTypeEnum::Vec(Vec::new()),
-            Some(t) => AlohomoraTypeEnum::Vec(vec![t.to_enum()]),
-        }
-    }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            AlohomoraTypeEnum::Vec(mut vec) => match vec.pop() {
-                None => Ok(None),
-                Some(v) => Ok(Some(T::from_enum(v)?)),
+            None => Ok((None, OptionPolicy::NoPolicy)),
+            Some(t) => {
+                let (t, p) = t.inner_fold(unwrapper)?;
+                Ok((Some(t), OptionPolicy::Policy(p)))
             },
-            _ => Err(()),
         }
     }
 }
 
 // Implement AlohomoraType for BBox<T, P>
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<T: 'static, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
+impl<T, P: Policy + Clone + 'static> AlohomoraType for BBox<T, P> {
     type Out = T;
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::BBox(self.into_any())
-    }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            AlohomoraTypeEnum::Value(v) => match v.downcast() {
-                Err(_) => Err(()),
-                Ok(v) => Ok(*v),
-            },
-            _ => Err(()),
-        }
+    type Policy = P;
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+        Ok(unwrapper.unwrap(self))
     }
 }
 
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<S: AlohomoraType> AlohomoraType for Vec<S> {
     type Out = Vec<S::Out>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::Vec(self.into_iter().map(|s| s.to_enum()).collect())
-    }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            AlohomoraTypeEnum::Vec(v) => {
-                let mut result = Vec::with_capacity(v.len());
-                for e in v.into_iter() {
-                    result.push(S::from_enum(e)?);
-                }
-                Ok(result)
-            }
-            _ => Err(()),
+    type Policy = OptionPolicy<S::Policy>;
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+        let mut v = Vec::with_capacity(self.len());
+
+        // Get first element.
+        let mut it = self.into_iter();
+        let mut p = match it.next() {
+            None => { return Ok((v, OptionPolicy::NoPolicy)); },
+            Some(e) => {
+                let (t, p) = e.inner_fold(unwrapper)?;
+                v.push(t);
+                p
+            },
+        };
+
+        // Iterate over remaining elements.
+        for e in it {
+            let (t, p2) = e.inner_fold(unwrapper)?;
+            v.push(t);
+            p = p.join_logic(p2)?;
         }
+
+        Ok((v, OptionPolicy::Policy(p)))
     }
 }
 
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for HashMap<K, S> {
+impl<K: Hash + Eq, S: AlohomoraType> AlohomoraType for HashMap<K, S> {
     type Out = HashMap<K, S::Out>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::Struct(self.into_iter().map(|(k, v)| (k.to_string(), v.to_enum())).collect())
-    }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            AlohomoraTypeEnum::Struct(m) => {
-                let mut result = HashMap::new();
-                for (k, v) in m.into_iter() {
-                    match K::from_str(&k) {
-                        Ok(k) => {
-                            result.insert(k, S::from_enum(v)?);
-                        },
-                        Err(_) => {
-                            return Err(())
-                        }
-                    }
-                }
-                Ok(result)
-            }
-            _ => Err(()),
+    type Policy = OptionPolicy<S::Policy>;
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+        let mut v = HashMap::with_capacity(self.len());
+
+        // Get first element.
+        let mut it = self.into_iter();
+        let mut p = match it.next() {
+            None => { return Ok((v, OptionPolicy::NoPolicy)); },
+            Some((k, e)) => {
+                let (t, p) = e.inner_fold(unwrapper)?;
+                v.insert(k, t);
+                p
+            },
+        };
+
+        // Iterate over remaining elements.
+        for (k, e) in it {
+            let (t, p2) = e.inner_fold(unwrapper)?;
+            v.insert(k, t);
+            p = p.join_logic(p2)?;
         }
+
+        Ok((v, OptionPolicy::Policy(p)))
     }
 }
 
@@ -217,14 +142,9 @@ impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for Hash
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl AlohomoraType for () {
     type Out = ();
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::Value(Box::new(()))
-    }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            AlohomoraTypeEnum::Value(_) => Ok(()),
-            _ => Err(()),
-        }
+    type Policy = NoPolicy;
+    fn inner_fold(self, _unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+        Ok(((), NoPolicy {}))
     }
 }
 
@@ -234,20 +154,14 @@ macro_rules! alohomora_type_tuple_impl {
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl<$($A: AlohomoraType,)*> AlohomoraType for ($($A,)*) {
         type Out = ($($A::Out,)*);
-        fn to_enum(self) -> AlohomoraTypeEnum {
+        type Policy = AnyPolicy;
+
+        fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
             #[allow(non_snake_case)]
-            let ($($A,)*) = ($(self.$i.to_enum(),)*);
-            AlohomoraTypeEnum::Vec(vec![$($A,)*])
-        }
-        fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-            match e {
-                AlohomoraTypeEnum::Vec(v) => {
-                    #[allow(non_snake_case)]
-                    let ($($A,)*) = v.into_iter().collect_tuple().unwrap();
-                    Ok(($($A::from_enum($A)?,)*))
-                },
-                _ => Err(()),
-            }
+            let ($($A,)*) = ($(self.$i.inner_fold(unwrapper)?,)*);
+            let (data, policies) = (($($A.0,)*), vec![$(AnyPolicy::new($A.1),)*]);
+            let policy = policies.into_iter().reduce(|p1, p2| p1.join(p2).unwrap()).unwrap();
+            Ok((data, policy))
         }
     }
   );
@@ -324,17 +238,10 @@ alohomora_type_tuple_impl!(
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: AlohomoraType> AlohomoraType for Arc<Mutex<T>> {
     type Out = Arc<Mutex<T::Out>>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
+    type Policy = T::Policy;
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
         let t = Arc::into_inner(self).unwrap().into_inner().unwrap();
-        AlohomoraTypeEnum::Vec(vec![t.to_enum()])
-    }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            AlohomoraTypeEnum::Vec(mut v) => {
-                let t = v.pop().unwrap();
-                Ok(Arc::new(Mutex::new(T::from_enum(t)?)))
-            }
-            _ => Err(()),
-        }
+        let (t, p) = t.inner_fold(unwrapper)?;
+        Ok((Arc::new(Mutex::new(t)), p))
     }
 }

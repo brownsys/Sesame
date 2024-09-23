@@ -20,7 +20,7 @@ impl<F> PrivacyCriticalRegion<F> {
 }
 
 // Executes a PCR over some boxed type.
-pub fn execute_pcr<S: AlohomoraType, C, O, F: FnOnce(S::Out, AnyPolicy, C) -> O>(
+pub fn execute_pcr<S: AlohomoraType, C, O, F: FnOnce(S::Out, S::Policy, C) -> O>(
         data: S,
         functor: PrivacyCriticalRegion<F>,
         arg: C) -> Result<O, ()> {

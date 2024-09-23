@@ -15,7 +15,7 @@ pub use alohomora_derive::{AlohomoraSandbox, FastTransfer};
 
 /// Copies `t` into a sandbox and executes the specified function on it,
 /// and copies the result value and returns it.
-pub fn execute_sandbox<S, T, R>(t: T) -> SandboxOut<BBox<R, AnyPolicy>>
+pub fn execute_sandbox<S, T, R>(t: T) -> SandboxOut<BBox<R, T::Policy>>
 where
     T: AlohomoraType,
     T::Out: SandboxableType,

@@ -1,7 +1,8 @@
 use rocket::async_trait;
-use alohomora::{AlohomoraType, AlohomoraTypeEnum};
+use alohomora::{AlohomoraType, Unwrapper};
 use alohomora::bbox::BBox;
 use alohomora::context::Context;
+use alohomora::policy::OptionPolicy;
 use alohomora::rocket::{BBoxCookie, BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 
 use crate::application::policy::AuthenticationCookiePolicy;
@@ -17,11 +18,10 @@ pub type AppContext = Context<ContextData>;
 
 impl AlohomoraType for ContextData {
     type Out = Option<String>;
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        self.user.to_enum()
-    }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        Option::<BBox<String, AuthenticationCookiePolicy>>::from_enum(e)
+    type Policy = OptionPolicy<AuthenticationCookiePolicy>;
+
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+        self.user.inner_fold(unwrapper)
     }
 }
 

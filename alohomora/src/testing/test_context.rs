@@ -1,4 +1,4 @@
-use crate::{AlohomoraType, AlohomoraTypeEnum};
+use crate::{AlohomoraType, Unwrapper};
 use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};
 use crate::policy::NoPolicy;
@@ -16,19 +16,10 @@ impl<T: Send + 'static> TestContextData<T> {
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: Send + 'static> AlohomoraType for TestContextData<T> {
     type Out = T;
+    type Policy = NoPolicy;
 
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::BBox(self.0.into_any())
-    }
-
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        if let AlohomoraTypeEnum::Value(t) = e {
-            return match t.downcast() {
-                Ok(t) => Ok(*t),
-                Err(_) => Err(()),
-            };
-        }
-        Err(())
+    fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+        self.0.inner_fold(unwrapper)
     }
 }
 

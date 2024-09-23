@@ -1,5 +1,5 @@
 // BBox
-use crate::{AlohomoraType, AlohomoraTypeEnum};
+use crate::{AlohomoraType, Unwrapper};
 use crate::db::{BBoxParams, BBoxQueryResult};
 
 // mysql imports.
@@ -7,7 +7,7 @@ use mysql::prelude::Queryable;
 pub use mysql::{Opts as BBoxOpts};
 pub use mysql::Result as BBoxResult;
 use crate::context::{Context, ContextData};
-use crate::policy::Reason;
+use crate::policy::{NoPolicy, Reason};
 
 // BBox DB connection
 pub struct BBoxConn {
@@ -112,18 +112,8 @@ impl BBoxConn {
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl AlohomoraType for BBoxConn {
     type Out = mysql::Conn;
-    fn to_enum(self) -> AlohomoraTypeEnum {
-      AlohomoraTypeEnum::Value(Box::new(self))
+    type Policy = NoPolicy;
+    fn inner_fold(self, _unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+        Ok((self.conn, NoPolicy {}))
     }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        match e {
-            AlohomoraTypeEnum::Value(db) => {
-                match db.downcast::<BBoxConn>() {
-                  Ok(db) => Ok(db.conn),
-                  Err(_) => Err(()),
-                }
-            }
-            _ => Err(()),
-        }
-    } 
 }

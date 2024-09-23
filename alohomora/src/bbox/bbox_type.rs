@@ -166,6 +166,18 @@ impl<T, P: Policy + Clone + 'static> BBox<T, OptionPolicy<P>> {
             OptionPolicy::Policy(p) => Either::Right(BBox::new(t, p)),
         }
     }
+    pub fn to_some_policy(self) -> BBox<T, P> {
+        match self.p {
+            OptionPolicy::NoPolicy => panic!("to_some_policy on None"),
+            OptionPolicy::Policy(p) => BBox { fb: self.fb, p },
+        }
+    }
+    pub fn to_no_policy(self) -> BBox<T, NoPolicy> {
+        match self.p {
+            OptionPolicy::NoPolicy => BBox { fb: self.fb, p: NoPolicy {} },
+            OptionPolicy::Policy(_) => panic!("to_no_policy on Some"),
+        }
+    }
 }
 
 // Up and downcasting policy with AnyPolicy.

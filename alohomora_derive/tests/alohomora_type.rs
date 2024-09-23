@@ -1,4 +1,4 @@
-use alohomora::policy::{AnyPolicy, NoPolicy};
+use alohomora::policy::{AnyPolicy, OptionPolicy, NoPolicy};
 use alohomora::bbox::BBox;
 use alohomora::AlohomoraType;
 use std::collections::HashMap;
@@ -117,8 +117,10 @@ fn test_nested_boxes() {
         ]),
     };
 
+    // TODO(babman): propogate OptionPolicy all the way up to get rid of this.
     let folded: BBox<NestedOut, AnyPolicy> = fold(input).unwrap();
-    let folded: BBox<NestedOut, NoPolicy>  = folded.specialize_policy().unwrap();
+    let folded: BBox<NestedOut, OptionPolicy<AnyPolicy>> = folded.specialize_policy().unwrap();
+    let folded: BBox<NestedOut, NoPolicy> = folded.to_some_policy().specialize_policy().unwrap();
     let folded: NestedOut = folded.discard_box();
 
 

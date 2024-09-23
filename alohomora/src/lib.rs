@@ -29,6 +29,7 @@ pub mod unbox;
 
 // Export this directly under alohomora::
 mod r#type;
+
 pub use r#type::*;
 
 #[cfg(feature = "alohomora_derive")]

@@ -1,94 +1,14 @@
-use itertools::Itertools;
-use crate::AlohomoraType;
+use crate::{AlohomoraType, Unwrapper};
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
 
-pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
-    let (v, p) = Foldable::unsafe_fold(s)?;
-    Ok(BBox::new(v, p))
+pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, S::Policy>, ()> {
+    let (t, p) = s.inner_fold(&Unwrapper::new())?;
+    Ok(BBox::new(t, p))
 }
-
-// Private trait that implements folding out nested BBoxes.
-pub(crate) trait Foldable: AlohomoraType {
-    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()> where Self: Sized;
-}
-
-// The general, unoptimized implementation of folding that works for all `AlohomoraType` types.
-// It's marked with the `default` keyword so we can override it with optimized implementations for specific types.
-impl<T: AlohomoraType>  Foldable for T {
-    default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicy), ()> where Self: Sized {
-        let e = self.to_enum();
-        let composed_policy = match e.policy()? {
-            None => AnyPolicy::new(NoPolicy {}),
-            Some(policy) => policy,
-        };
-        Ok((Self::from_enum(e.remove_bboxes())?, composed_policy))
-    }
-}
-
-// A more optimized version of unwrap for a simple vec of BBoxes.
-impl<T: Clone + 'static, P: Policy + Clone + 'static> Foldable for Vec<BBox<T, P>> {
-    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()> where Self: Sized {
-        let accum = (Vec::with_capacity(self.len()), OptionPolicy::NoPolicy);
-        let (v, p) = self.into_iter().fold(accum, |accum, e| {
-            let (mut v, p) = accum;
-            let (t, ep) = e.consume();
-            v.push(t);
-            match p {
-                OptionPolicy::NoPolicy => (v, OptionPolicy::Policy(ep)),
-                OptionPolicy::Policy(p) => match p.join_logic(ep) {
-                    Err(_) => panic!("Cannot unsafe_fold vector [opt]; unsatisfiable policy"),
-                    Ok(p) => (v, OptionPolicy::Policy(p)),
-                }
-            }
-        });
-
-        match p {
-            OptionPolicy::NoPolicy => Ok((v, AnyPolicy::new(NoPolicy {}))),
-            OptionPolicy::Policy(p) => Ok((v, AnyPolicy::new(p))),
-        }
-    }
-}
-
-// Expands to code that optimizes folding for simple vecs with tuples of bboxes. -- Eg. `Vec<(BBox<T, P>,)>`
-macro_rules! optimized_tup_fold {
-    ($([$A:tt,$P:tt]),*) => (
-        impl<$($A: Clone + 'static,)* $($P: Policy + Clone + 'static,)*> Foldable for Vec<($(BBox<$A, $P>,)*)> {
-            fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()> where Self: Sized {
-                let mut v: Vec<($($A,)*)> = Vec::with_capacity(self.len());
-                let mut p = AnyPolicy::new(NoPolicy {});
-                for tup in self {
-                    #[allow(non_snake_case)]
-                    let ($($A,)*) = tup;
-                    #[allow(non_snake_case)]
-                    let ($(($A, $P),)*) = ($($A.consume(),)*);
-
-                    v.push(($($A,)*));
-                    p = p.join(
-                        IntoIterator::into_iter([$(AnyPolicy::new($P),)*]).fold(
-                            AnyPolicy::new(NoPolicy {}),
-                            |p: AnyPolicy, ep: AnyPolicy| {
-                                p.join(ep).expect("Cannot fold vector in; unsatisfiable policy")
-                            }
-                        )
-                    )?;
-                }
-                Ok((v, p))
-            }
-        }
-    );
-}
-
-optimized_tup_fold!([T1, P1]);
-optimized_tup_fold!([T1, P1], [T2, P2]);
-optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3]);
-optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4]);
-optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5]);
-optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6]);
-optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7]);
-optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7], [T8, P8]);
 
 // Fold bbox from outside vector to inside vector.
+// TODO(babman): mark this as fold in.
 impl<T, P: Policy + Clone> From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> {
     fn from(x: BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
         let (t, p) = x.consume();
@@ -99,30 +19,14 @@ impl<T, P: Policy + Clone> From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> {
 // Fold bbox from inside vector to the outside. Same as generic fold(...) but preserves policy type.
 impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>> {
     fn from(v: Vec<BBox<T, P>>) -> BBox<Vec<T>, OptionPolicy<P>> {
-        let accum = (Vec::new(), OptionPolicy::NoPolicy);
-        let result = v.into_iter().fold(accum, |accum, e| {
-            let (mut v, p) = accum;
-            let (t, ep) = e.consume();
-            v.push(t);
-            match p {
-                OptionPolicy::NoPolicy => (v, OptionPolicy::Policy(ep)),
-                OptionPolicy::Policy(p) =>
-                    match p.join_logic(ep) {
-                        Err(_) => panic!("Cannot fold vector in; unsatisfiable policy"),
-                        Ok(p) => (v, OptionPolicy::Policy(p)),
-                    }
-            }
-        });
-
-        let (v, p) = result;
-        BBox::new(v, p)
+        fold(v).expect("Cannot fold vector out; unsatisfiable policy")
     }
 }
 
 // Tests
 #[cfg(test)]
 mod tests {
-    use crate::r#type::{AlohomoraType, AlohomoraTypeEnum};
+    use crate::r#type::AlohomoraType;
     use crate::bbox::BBox;
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy, Reason};
     use crate::testing::TestPolicy;
@@ -130,6 +34,7 @@ mod tests {
     use std::collections::{HashSet, HashMap};
     use std::iter::FromIterator;
     use crate::context::UnprotectedContext;
+    use crate::Unwrapper;
 
     #[derive(Clone, PartialEq, Debug)]
     pub struct ACLPolicy {
@@ -184,26 +89,21 @@ mod tests {
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl AlohomoraType for BoxedStruct {
         type Out = BoxedStructLite;
-        fn to_enum(self) -> AlohomoraTypeEnum {
-            let hashmap = HashMap::from([
-                (String::from("x"), self.x.to_enum()),
-                (String::from("y"), self.y.to_enum()),
-                (String::from("z"), self.z.to_enum()),
-            ]);
-            AlohomoraTypeEnum::Struct(hashmap)
-        }
-        fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-            match e {
-                AlohomoraTypeEnum::Struct(mut hashmap) =>
-                Ok(
-                    Self::Out {
-                        x: BBox::<u64, TestPolicy<ACLPolicy>>::from_enum(hashmap.remove("x").unwrap())?,
-                        y: BBox::<String, TestPolicy<ACLPolicy>>::from_enum(hashmap.remove("y").unwrap())?,
-                        z: String::from_enum(hashmap.remove("z").unwrap())?,
-                    }
-                ),
-                _ => Err(()),
-            }
+        type Policy = AnyPolicy;
+        fn inner_fold(self, unwrapper: &Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+            let (t_x, p_x) = self.x.inner_fold(unwrapper)?;
+            let (t_y, p_y) = self.y.inner_fold(unwrapper)?;
+            let (t_z, p_z) = self.z.inner_fold(unwrapper)?;
+
+            let p = p_x.join(AnyPolicy::new(p_y))?;
+            Ok((
+                BoxedStructLite {
+                    x: t_x,
+                    y: t_y,
+                    z: t_z,
+                },
+                p
+            ))
         }
     }
 
@@ -265,7 +165,7 @@ mod tests {
         ];
 
         let bbox = super::fold(vec).unwrap();
-        let bbox = bbox.specialize_policy::<TestPolicy<ACLPolicy>>().unwrap();
+        let bbox = bbox.to_some_policy();
         assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
 
@@ -338,7 +238,7 @@ mod tests {
         ];
 
         let bbox = super::fold(vec).unwrap();
-        let bbox = bbox.specialize_policy::<TestPolicy<ACLPolicy>>().unwrap();
+        let bbox = bbox.to_some_policy().specialize_policy::<TestPolicy<ACLPolicy>>().unwrap();
         assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(bbox.discard_box(), vec![
             BoxedStructLite {

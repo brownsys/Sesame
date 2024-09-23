@@ -144,47 +144,48 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> Result<TokenStream, Err
 
     // Find all fields.
     let fields: Vec<_> = input.fields.iter()
-        .map(|field| (
-            field.ident.as_ref().unwrap().clone(),
-            field.ident.as_ref().unwrap().to_string(),
-            field.ty.clone(),
-        ))
+        .map(|field| field.ident.as_ref().unwrap().clone())
         .collect();
 
     // Filter into those that are AlohomoraTypes themselves, and those who are kept verbatim.
     let alohomora_fields: Vec<_> = fields
         .iter()
-        .filter(|(_, string, _)| !attrs.is_verbatim(string))
+        .filter(|ident| !attrs.is_verbatim(&ident.to_string()))
         .cloned()
         .collect();
     let verbatium_fields: Vec<_> = fields
         .iter()
-        .filter(|(_, string, _)| attrs.is_verbatim(string))
+        .filter(|ident| attrs.is_verbatim(&ident.to_string()))
         .cloned()
         .collect();
 
     // Split field components.
-    let alohomora_fields_idents: Vec<_> = alohomora_fields
+    let alohomora_fields_t: Vec<_> = alohomora_fields
         .iter()
-        .map(|(ident, _, _)| ident.clone())
+        .map(|ident| Ident::new(&format!("__{}_t", ident), ident.span()))
         .collect();
-    let alohomora_fields_strings: Vec<_> = alohomora_fields
+    let alohomora_fields_p: Vec<_> = alohomora_fields
         .iter()
-        .map(|(_, string, _)| string.clone())
-        .collect();
-    let alohomora_fields_types: Vec<_> = alohomora_fields
-        .iter()
-        .map(|(_, _, ty)| ty.clone())
+        .map(|ident| Ident::new(&format!("__{}_p", ident), ident.span()))
         .collect();
 
-    let verbatim_fields_idents: Vec<_> = verbatium_fields
-        .iter()
-        .map(|(ident, _, _)| ident.clone())
-        .collect();
-    let verbatim_fields_strings: Vec<_> = verbatium_fields
-        .iter()
-        .map(|(_, string, _)| string.clone())
-        .collect();
+    // Pairs of joins.
+    let mut joins_left = Vec::new();
+    let mut joins_right = Vec::new();
+    for i in 1..alohomora_fields_p.len() {
+        joins_left.push(alohomora_fields_p[i-1].clone());
+        joins_right.push(alohomora_fields_p[i].clone());
+    }
+    let last_policy = if alohomora_fields_p.len() > 0 {
+        let ident = alohomora_fields_p[alohomora_fields_p.len() - 1].clone();
+        quote! {
+            #ident
+        }
+    } else {
+        quote! {
+            ::alohomora::policy::AnyPolicy::new(::alohomora::policy::NoPolicy {})
+        }
+    };
 
     // Generate implementation.
     Ok(quote! {
@@ -195,23 +196,19 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> Result<TokenStream, Err
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
         impl #impl_generics ::alohomora::AlohomoraType for #input_ident #ty_generics #where_clause {
             type Out = #out_ident;
-            fn to_enum(self) -> ::alohomora::AlohomoraTypeEnum {
-                let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
-                ::alohomora::AlohomoraTypeEnum::Struct(::std::collections::HashMap::from([
-                    #((String::from(#alohomora_fields_strings), <#alohomora_fields_types as AlohomoraType>::to_enum(self.#alohomora_fields_idents)),)*
-                    #((String::from(#verbatim_fields_strings), ::alohomora::AlohomoraTypeEnum::Value(Box::new(self.#verbatim_fields_idents))),)*
-                ]))
-            }
-            fn from_enum(e: ::alohomora::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-                match e {
-                    ::alohomora::AlohomoraTypeEnum::Struct(mut hashmap) => {
-                        Ok(Self::Out {
-                            #(#alohomora_fields_idents: <#alohomora_fields_types as ::alohomora::AlohomoraType>::from_enum(hashmap.remove(#alohomora_fields_strings).unwrap())?,)*
-                            #(#verbatim_fields_idents: hashmap.remove(#verbatim_fields_strings).unwrap().coerce()?,)*
-                        })
+            type Policy = ::alohomora::policy::AnyPolicy;
+            fn inner_fold(self, unwrapper: &::alohomora::Unwrapper) -> Result<(Self::Out, Self::Policy), ()> {
+                use ::alohomora::AlohomoraType;
+                use ::alohomora::policy::Policy;
+                #(let (#alohomora_fields_t, #alohomora_fields_p) = self.#alohomora_fields.inner_fold(unwrapper)?;)*
+                #(let #joins_right = #joins_left.join(::alohomora::policy::AnyPolicy::new(#joins_right))?;)*
+                Ok((
+                    Self::Out {
+                        #(#alohomora_fields: #alohomora_fields_t,)*
+                        #(#verbatium_fields: self.#verbatium_fields,)*
                     },
-                    _ => Err(()),
-                }
+                    #last_policy,
+                ))
             }
         }
     })
