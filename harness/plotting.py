@@ -7,9 +7,9 @@ import matplotlib
 matplotlib.use("Agg")
 
 SYSTEM_COLORS = {
-    'Baseline': 'C0',
-    'Sesame': 'C1',
-    'Naive Sesame': 'C2',
+    'Baseline': 'C5',
+    'Sesame': 'C2',
+    'Naive Sesame': 'C9',
 }
 
 
