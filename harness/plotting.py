@@ -7,9 +7,9 @@ import matplotlib
 matplotlib.use("Agg")
 
 SYSTEM_COLORS = {
-    'Baseline': 'C0',
-    'Sesame': 'C1',
-    'Naive Sesame': 'C2',
+    'Baseline': '#0000BC',
+    'Sesame': '#EDB415',
+    'Naive Sesame': '#C944C4',
 }
 
 
@@ -30,14 +30,26 @@ PLOT_LABELS = {
     "predict_grades_bench": "Predict Grades",
     "get_aggregates_bench": "Get Aggregates",
     "get_employer_info_bench": "Get Employer Info",
+    "upload_candidate_details": "Update Candidate",
+    "list_candidates": "List Candidates",
 }
 
-ENDPOINTS = [
+ENDPOINTS_LOAD = [
     "register_users_bench",
     "retrain_model_bench",
     "predict_grades_bench",
     "get_aggregates_bench",
     "get_employer_info_bench",
+]
+
+ENDPOINTS_PLOT = [
+    "register_users_bench",
+    "retrain_model_bench",
+    "predict_grades_bench",
+    "get_aggregates_bench",
+    "get_employer_info_bench",
+    "upload_candidate_details",
+    "list_candidates",
 ]
 
 FOLD_BASELINE_ENDPOINTS = [
@@ -62,7 +74,7 @@ FOLD_ENDPOINTS = [
 
 PERCENTILES = ["50", "95"]
 
-X = np.arange(len(ENDPOINTS))
+X = np.arange(len(ENDPOINTS_PLOT))
 X_F = np.arange(len(FOLD_ENDPOINTS))
 W = 0.3
 
@@ -76,8 +88,8 @@ def PlotMergedPercentiles(baseline, alohomora):
     ax2.set_ylim(0, 0.09)
 
     for percentile in PERCENTILES:
-        b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS]
-        a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS]
+        b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS_LOAD]
+        a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS_LOAD]
 
         alpha = 1 if percentile == "50" else 0.3
         label_baseline = "Baseline" if percentile == "50" else None
@@ -102,7 +114,7 @@ def PlotMergedPercentiles(baseline, alohomora):
     ax1.legend(frameon=False, fontsize=8)
 
     ax1.xaxis.set_ticks_position('none')
-    ax2.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=15, ha='right')
+    ax2.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS_LOAD], rotation=15, ha='right')
 
     # plt.xlabel("Websubmit Comparison")
     plt.ylabel("Latency [ms]")
@@ -111,10 +123,11 @@ def PlotMergedPercentiles(baseline, alohomora):
 
 # Plot 50th and 95th percentile on one figure
 def PlotMergedPercentilesNoBreak(baseline, alohomora):
-    fig = plt.figure(figsize=(3.33, 1.3))
+    fig, ax1 = plt.subplots(figsize=(3.33, 1.3))
+
     for percentile in PERCENTILES:
-        b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS]
-        a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS]
+        b = [baseline[endpoint][percentile] for endpoint in ENDPOINTS_PLOT]
+        a = [alohomora[endpoint][percentile] for endpoint in ENDPOINTS_PLOT]
 
         print("at percentile " + percentile + "\n");
         print("\n baseline train is " + str(b) + "\n");
@@ -124,16 +137,28 @@ def PlotMergedPercentilesNoBreak(baseline, alohomora):
         label_baseline = "Baseline" if percentile == "50" else None
         label_alohomora = "Sesame" if percentile == "50" else None
 
-        plt.bar(X - 0.5 * W, b, W, label=label_baseline,
+        ax1.bar(X - 0.5 * W, b, W, label=label_baseline,
                 color=SYSTEM_COLORS['Baseline'], alpha=alpha)
-        plt.bar(X + 0.5 * W, a, W, label=label_alohomora,
+        ax1.bar(X + 0.5 * W, a, W, label=label_alohomora,
                 color=SYSTEM_COLORS['Sesame'], alpha=alpha)
+        
+    ax1.set_ylim(ymax=12.5)
+    
+    ax2 = ax1.twinx()
+    ax2.set_ylim(ymax=37.5)
+    ax2.set_yticks([0, 10, 20, 30])
 
-    plt.ylabel("Latency [ms]", loc="center")
-    plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=15, ha='right')
+    ax1.set_ylabel("Latency [ms]", loc="center")
+    ax1.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS_PLOT], rotation=15, ha='right', fontsize=8)
     # plt.xlabel("Websubmit Comparison")
-    plt.ylim(ymax=11)
-    plt.legend(frameon=False, fontsize=8)
+
+    ax1.axvline(x=4.5, color='red', linestyle='--', linewidth=1.5)
+
+    ax1.legend(frameon=False, fontsize=8, ncol=2, handlelength=0.5, handletextpad=0.5, bbox_to_anchor=(0.525, 0.525))
+
+    fig.text(0.3, 0.775, 'WebSubmit')
+    fig.text(0.725, 0.775, 'Portfolio')
+
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
 
@@ -191,11 +216,11 @@ def PlotFoldPercentiles(baseline, alohomora, naive):
 
 # Plot 50th and 95th percentile on one figure
 def PlotMeanAndStd(baseline, alohomora):
-    b_mean = [baseline[endpoint]['mean'] for endpoint in ENDPOINTS]
-    a_mean = [alohomora[endpoint]['mean'] for endpoint in ENDPOINTS]
+    b_mean = [baseline[endpoint]['mean'] for endpoint in ENDPOINTS_LOAD]
+    a_mean = [alohomora[endpoint]['mean'] for endpoint in ENDPOINTS_LOAD]
 
-    b_std = [baseline[endpoint]['std'] for endpoint in ENDPOINTS]
-    a_std = [alohomora[endpoint]['std'] for endpoint in ENDPOINTS]
+    b_std = [baseline[endpoint]['std'] for endpoint in ENDPOINTS_LOAD]
+    a_std = [alohomora[endpoint]['std'] for endpoint in ENDPOINTS_LOAD]
 
     label_baseline = "Baseline"
     label_alohomora = "Sesame"
@@ -206,7 +231,7 @@ def PlotMeanAndStd(baseline, alohomora):
             color=SYSTEM_COLORS['Sesame'], linestyle='None', marker='o', markersize=1)
 
     plt.ylabel("Latency [ms]")
-    plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS], rotation=25, ha='right')
+    plt.xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS_LOAD], rotation=25, ha='right')
     # plt.xlabel("Websubmit Comparison")
     plt.ylim(ymax=20)
     plt.legend(frameon=False, loc='upper left')
@@ -217,7 +242,7 @@ def PlotMeanAndStd(baseline, alohomora):
 def ParseWebsubmitFiles(dir):
     data = dict()
 
-    for endpoint in ENDPOINTS:
+    for endpoint in ENDPOINTS_LOAD:
         df = pd.read_json(dir + "/" + endpoint + ".json")[0] / 1000000
 
         data[endpoint] = dict()
@@ -233,7 +258,7 @@ def ParseWebsubmitFiles(dir):
 def ParseWebsubmitBoxedFiles(dir):
     data = dict()
 
-    for endpoint in ENDPOINTS:
+    for endpoint in ENDPOINTS_LOAD:
         df = pd.read_json(dir + "/" + "boxed_" +
                           endpoint + ".json")[0] / 1000000
 
@@ -294,12 +319,16 @@ if __name__ == "__main__":
 
     # Parse input data.
     baseline = ParseWebsubmitFiles('benches')
+    baseline.update({"upload_candidate_details": {"50": 15.262/3, "95": 25.732/3, "mean": 0, "std": 0}, "list_candidates": {"50": 8.332/3, "95": 9.126/3, "mean": 0, "std": 0}})
+
     alohomora = ParseWebsubmitBoxedFiles('benches')
+    alohomora.update({"upload_candidate_details": {"50": 19.179/3, "95": 30.589/3, "mean": 0, "std": 0}, "list_candidates": {"50": 9.239/3, "95": 9.981/3, "mean": 0, "std": 0}})
+    print(baseline, alohomora)
 
     fold_baseline = ParseFoldWebsubmitFiles('benches')
     fold_alohomora = ParseFoldWebsubmitBoxedFiles('benches')
     fold_naive = ParseFoldWebsubmitNaiveFiles('benches')
-
+    
     # Plot output.
     # PlotMergedPercentiles(baseline, alohomora)
     PlotMergedPercentilesNoBreak(baseline, alohomora)
