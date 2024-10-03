@@ -68,8 +68,8 @@ fn check_crate(cx: &LateContext<'_>) {
     }
 
     let nested_trait_impls = cx.tcx.trait_impls_of(aloh_ty_def_id.unwrap());
-    let trait_impls = nested_trait_impls.non_blanket_impls().iter().fold(Vec::new(), |mut acc, (_, v)| { acc.extend(v.iter()); acc });
-    trait_impls.iter().filter(|def_id| !contains_secret(cx, def_id)).for_each(|def_id| {
+    let trait_impls: Vec<DefId> = nested_trait_impls.non_blanket_impls().iter().fold(Vec::new(), |mut acc, (_, v)| { acc.extend(v.iter()); acc });
+    trait_impls.iter().filter(|def_id| !contains_secret(cx, def_id) && def_id.krate == rustc_hir::def_id::LOCAL_CRATE).for_each(|def_id| {
         error_message(cx, def_id);
     });
 }
