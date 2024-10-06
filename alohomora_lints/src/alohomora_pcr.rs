@@ -1,10 +1,8 @@
 #![warn(unused_extern_crates)]
 
 extern crate rustc_ast;
-extern crate rustc_data_structures;
 extern crate rustc_hir;
 extern crate rustc_middle;
-extern crate rustc_query_system;
 extern crate rustc_span;
 
 use clippy_utils::diagnostics::span_lint_and_help;
@@ -19,8 +17,6 @@ use rustc_hir::ExprKind;
 
 use rustc_middle::ty::{subst::InternalSubsts, Instance, ParamEnv, TyCtxt};
 
-use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
-use rustc_query_system::ich::StableHashingContext;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -28,7 +24,7 @@ use base64::{engine::general_purpose, Engine as _};
 use if_chain::if_chain;
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::collections::HashSet;
 use syn::{self, parse_str};
@@ -39,20 +35,21 @@ use scrutils::{Collector, FunctionInfo,
 
 declare_alohomora_lint! {
     /// ### What it does
-    /// Warns if PrivacyCriticalRegions have invalid signatures. 
+    /// Warns if a CriticalRegion has an invalid signature. 
     /// 
     /// ### Why is this bad?
-    /// Closures in PrivacyCriticalRegions must be signed 
+    /// Closures in Critical Regions must be signed 
     /// to indicate they have been reviewed for unintended leakage 
     /// and for correct use of the application Context. 
     /// 
-    /// An invalidated signature indicates that the closure, 
+    /// An invalidated signature indicates that 
+    /// the closure, 
     /// a local-crate function the closure calls, 
     /// or a dependency of the closure
     /// has changed.
     /// 
     /// ### Known problems
-    /// Signatures allow small changes to closures, 
+    /// Signatures permit small changes to closures, 
     /// e.g., adding whitespace or comments, 
     /// but will be invalidated by larger changes 
     /// that are semantically equivalent. 
@@ -61,11 +58,7 @@ declare_alohomora_lint! {
     /// ```rust
     /// //  let pcr = PrivacyCriticalRegion::new(|x: u8| { <privacy-critical closure> },
     /// //          Signature {username: "corinnt", 
-    /// //              signature: "LS0tLS....."},     // author signature on closure
-    /// //          Signature {username: "corinnt", 
     /// //              signature: "LS0tLS....."},     // review signature on closure
-    /// //          Signature {username: "corinnt", 
-    /// //              signature: "LK0tLM..."})       // signature on Cargo.lock
     /// ```
     pub ALOHOMORA_PCR,
     Warn,
@@ -75,7 +68,7 @@ declare_alohomora_lint! {
 
 fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Expr<'_>) {
     let target_fn_path: Vec<Symbol> = vec![
-        sym!(alohomora),
+        sym!(alohomora), //TODO swap for `sesame`
         sym!(pcr),
         sym!(PrivacyCriticalRegion),
         sym!(new),
@@ -83,7 +76,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
 
     if let ExprKind::Call(maybe_path, args) = &expr.kind {
         if is_fn_call(cx, maybe_path, target_fn_path) {
-            assert!(args.len() == 4); // 4 args to constructor of PrivacyCriticalRegion
+            assert!(args.len() == 2); // 2 args to constructor of PrivacyCriticalRegion
             if let ExprKind::Closure(closure) = args[0].kind {
                 let closure_body = cx.tcx.hir().body(closure.body);
                 let pcr_src = cx
@@ -92,13 +85,10 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     .source_map()
                     .span_to_snippet(closure_body.value.span)
                     .unwrap();
-                let cargo_lock_hash = get_cargo_lock_hash(cx.tcx); 
                 let correct_src_hash= get_pcr_hash(cx.tcx, closure);
                 
-                //These args to PrivacyCriticalRegion::new will be of type Signature
-                let (author_id, author_src_signature ) = extract_from_signature_struct(&args[1].kind);
-                let (fn_reviewer_id, fn_reviewer_src_signature ) = extract_from_signature_struct(&args[2].kind);
-                let dep_reviewer = extract_from_signature_struct(&args[3].kind);
+                //This arg to CriticalRegion::new will be of type Signature
+                let (fn_reviewer_id, fn_reviewer_src_signature ) = extract_from_signature_struct(&args[1].kind);
 
                 let fn_loc = cx
                     .tcx
@@ -106,37 +96,23 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     .def_path(closure.def_id) 
                     .to_filename_friendly_no_crate(); 
 
-                let author_id_check = check_identity(&correct_src_hash, &(author_id, author_src_signature));               
-                let fn_reviewer_id_check = check_identity(&correct_src_hash, &(fn_reviewer_id.clone(), fn_reviewer_src_signature.to_string()));
-
-                let dep_reviewer_id_check = check_identity(&cargo_lock_hash, &dep_reviewer);
-
-                if author_id_check.is_err() 
-                    || fn_reviewer_id_check.is_err()
-                    || dep_reviewer_id_check.is_err() {
-
+                let fn_reviewer_id_check = check_identity(&correct_src_hash,
+                                                                                    &(fn_reviewer_id.clone(),
+                                                                                    fn_reviewer_src_signature.to_string()));
+                if fn_reviewer_id_check.is_err() {
                     let mut help_msg = String::new();
-                    push_id_error(&mut help_msg, "Cargo.lock reviewer", &dep_reviewer_id_check);
-                    push_id_error(&mut help_msg, "author", &author_id_check);
                     push_id_error(&mut help_msg, "closure reviewer", &fn_reviewer_id_check);
 
                     if !Path::exists("./pcr/".as_ref()) {
                         fs::create_dir("./pcr/").unwrap();
                     }
-                    if dep_reviewer_id_check.is_err(){
-                        let cargo_lock_file_name = format!("./pcr/Cargo.lock_hash"); // _{}", timestamp);
-                        help_msg.push_str(
-                            format!("written the hash of Cargo.lock into the file for signing: {}\n",
-                                    cargo_lock_file_name
-                            ).as_str());
-                        fs::write(cargo_lock_file_name, cargo_lock_hash).unwrap();
-                    } 
-                    if author_id_check.is_err() || fn_reviewer_id_check.is_err() {
+
+                    if fn_reviewer_id_check.is_err() {
                         let pcr_file_name = format!("./pcr/{}.rs", fn_loc);
                         let src_hash_file_name = format!("./pcr/{}_src_hash.rs", fn_loc);
                         help_msg.push_str(
                             format!(
-                                "written the hash of privacy-critical region into the files for signing: {}\n",
+                                "wrote the hash of privacy-critical region into the file for signing: {}\n",
                                 src_hash_file_name, 
                             ).as_str());
                         fs::write(pcr_file_name, pcr_src).unwrap();
@@ -146,23 +122,23 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                         cx,
                         ALOHOMORA_PCR,
                         expr.span,
-                        "\x1b[93minvalid signature on privacy-critical region, might be a source of privacy-related bugs\x1b[0m",
+                        "\x1b[93minvalid signature on privacy-critical region, could be a source of privacy policy violation bugs\x1b[0m",
                         None,
                         help_msg.as_str()
                     );
                 }
             } else {
-                panic!("Attempting to hash something different from a Closure.")
+                panic!("Attempting to hash something other than a Closure.")
             }
         }
     }
 }
 
-/// Returns true if the given Expression is of ExprKind::Path & path resolves to given fn_pat
+/// Returns true if the given Expression is of ExprKind::Path & path resolves to given fn_path
 fn is_fn_call(cx: &rustc_lint::LateContext, maybe_path: &Expr, fn_path: Vec<Symbol>) -> bool {
     if_chain!{
         if let ExprKind::Path(ref qpath) = maybe_path.kind;
-        if let Res::Def(_kind, def_id) = cx.typeck_results().qpath_res(qpath, maybe_path.hir_id);
+        if let Res::Def(_, def_id) = cx.typeck_results().qpath_res(qpath, maybe_path.hir_id);
         then {
             cx.match_def_path(def_id, &fn_path)
         } else {
@@ -202,44 +178,12 @@ fn extract_from_signature_struct(maybe_struct: &ExprKind) -> (String, String) {
     }
 }
 
-/// Recursively finds the path to the innermost Cargo.lock file
-fn get_cargo_lock(directory: PathBuf) -> Result<PathBuf, String> { 
-    let cargo_lock_path = directory.join("Cargo.lock");
-    if cargo_lock_path.is_file() {
-        Ok(cargo_lock_path) 
-    } else {
-        match directory.parent() {
-            Some(parent_dir) => {
-                assert!(parent_dir != directory); 
-                get_cargo_lock(parent_dir.to_path_buf())
-            }, 
-            None => Err(format!("No Cargo.lock found in {}", directory.display()))
-        }
-    }
-}
-
-/// Given the lint pass's TyCtxt, 
-///   returns the StableHash of the contents of the Cargo.lock of the cwd 
-fn get_cargo_lock_hash(tcx: TyCtxt) -> String {
-    let cwd = std::env::current_dir().unwrap(); 
-    let toml_path = get_cargo_lock(cwd).unwrap(); 
-    //println!("TOML PATH {}", toml_path.display()); 
-    let toml_contents = fs::read_to_string(toml_path).unwrap(); 
-    
-    let mut hcx = StableHashingContext::new(tcx.sess, tcx.untracked());
-    let mut hasher = StableHasher::new();
-    toml_contents.hash_stable(&mut hcx, &mut hasher);
-
-    let hash_tuple: (u64, u64) = hasher.finalize();
-    let toml_hash = format!("{:x} {:x}", hash_tuple.0, hash_tuple.1);
-    toml_hash
-}  
-
-/// Given a Closure, returns a hash of the source code
+/// Given a Closure, returns a hash 
+/// of its in-crate source code (including helpers) + versions of invoked dependencies
 fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     let def_id: rustc_hir::def_id::DefId = closure.def_id.to_def_id();
 
-    // Instance of the parent signed closure to pass to Collector
+    // Instance of the signed closure to pass to Collector
     let instance = Instance::resolve( 
         tcx,
         ParamEnv::reveal_all(),
@@ -261,7 +205,7 @@ fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
             FunctionInfo::WithBody { instance, .. } => 
                 instance.to_owned(),
             FunctionInfo::WithoutBody { def_id, .. } => 
-                panic!("this PCR contains an unresolvable item at {:?}", tcx.def_path_debug_str(*def_id)),
+                panic!("this PCR calls into an unresolvable item at {:?}", tcx.def_path_debug_str(*def_id)),
         }; 
     
         let body: rustc_middle::mir::Body = instance
@@ -280,7 +224,7 @@ fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
 
         deps.extend(compute_deps_for_body(body, tcx).into_iter());
     }
-    // goal here is to bind to deps to MIR hash
+    // bind dependencies to AST hash
     let non_local_deps = deps.into_iter()
         .filter(|dep| 
             dep.clone() != tcx.crate_name(rustc_span::def_id::LOCAL_CRATE).to_string())
