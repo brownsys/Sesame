@@ -114,6 +114,21 @@ impl<T, P: Policy> BBox<T, P> {
             Err(())
         }
     }
+    
+    pub fn into_unbox2<D: ContextData + Clone, F: FnOnce(T, D::Out)>(
+        self,
+        context: D,
+        functor: PrivacyCriticalRegion<F>,
+    ) {
+        let context_out = fold(context.clone()).unwrap().consume().0;
+        let context = UnprotectedContext::from2(context);
+        if self.p.check(&context, Reason::Custom(Box::new(()))) {
+            let functor = functor.get_functor();
+            functor(self.fb.mov(), context_out);
+        } else {
+            panic!("Policy check failed")
+        }
+    }
 
     // Privacy critical regions
     pub fn pcr<'a, C, O, F: FnOnce(&'a T, &'a P, C) -> O>(&'a self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {

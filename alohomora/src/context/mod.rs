@@ -104,6 +104,12 @@ impl UnprotectedContext {
             }
         }
     }
+    pub(crate) fn from2<D: ContextData>(context: D) -> Self {
+        Self {
+            route: String::from(""),
+            data: Box::new(fold(context).unwrap().consume().0),
+        }
+    }
     pub fn downcast_ref<D: 'static>(&self) -> Option<&D> {
         self.data.downcast_ref()
     }
