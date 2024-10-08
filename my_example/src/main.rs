@@ -33,7 +33,7 @@ impl Policy for AdmissionDecisionPolicy {
 
   // Check function
   fn check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
-    let context: &PortfolioContextOutType = context.downcast_ref().unwrap();
+    let context: &<PortfolioContext as SesameType>::Out = context.downcast_ref().unwrap();
     return context.file_path == format!("{}{}.txt", self.student, self.year);
   }
 }
@@ -42,7 +42,6 @@ impl Policy for AdmissionDecisionPolicy {
 struct PortfolioContext {
   file_path: PCon<String, AnyPolicy>,
 }
-pub type PortfolioContextOutType = <PortfolioContext as SesameType>::Out;
 
 // helper function to endpoint
 fn write_decision_letter(decision: PCon<AdmissionDecision, AdmissionDecisionPolicy>) -> Result<(), ()> {
@@ -59,7 +58,7 @@ fn write_decision_letter(decision: PCon<AdmissionDecision, AdmissionDecisionPoli
     decision,
     context,
     sesame::CriticalRegion::new(
-      |decision: AdmissionDecision, context: PortfolioContextOutType| {
+      |decision: AdmissionDecision, context: <PortfolioContext as SesameType>::Out| {
         decision.write_to_file(context.file_path);
       },
       sesame::Signature { username: "", signature: "" },
