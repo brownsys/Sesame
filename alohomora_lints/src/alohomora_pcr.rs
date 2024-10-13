@@ -233,8 +233,7 @@ fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
     src.sort_unstable(); 
     src.into_iter().for_each(|snippet| src_hasher.update(snippet));
     dep_strings.into_iter().for_each(|(dep_string1, dep_string2 )| {
-        let dep_string = format!("{} {}", dep_string1, dep_string2); 
-        println!("dep_string: {}", dep_string);
+        let dep_string = format!("{}#{}", dep_string1, dep_string2); 
         src_hasher.update(dep_string.as_str())
     } 
 );
