@@ -7,20 +7,19 @@ fn main() {
             x + child(x)
         },
         Signature {
-            username: "KinanBab", 
-            signature: "LS0tLS1CRUdJTiBTU0ggU0lHTkFUVVJFLS0tLS0KVTFOSVUwbEhBQUFBQVFBQUFETUFBQUFMYzNOb0xXVmtNalUxTVRrQUFBQWdRRVVMUGFSOEVlZk53WGtvc2RhZFJDZU14Zwp3MnEvMlY3dzk4VndneUZiTUFBQUFFWm1sc1pRQUFBQUFBQUFBR2MyaGhOVEV5QUFBQVV3QUFBQXR6YzJndFpXUXlOVFV4Ck9RQUFBRUFTNGs4SU9tV1dGb3Avdk5Hb2NtSmNvQWdzOG82OUFQUFBUd3ZlUGVGQ3Z4dTN1amNaaFlpZThDSTZ3aGJFNHAKY1AxclAvVDNxN0l3dy9VY3MyZ1JFTAotLS0tLUVORCBTU0ggU0lHTkFUVVJFLS0tLS0K"
+            username: "corinnt", 
+            signature: "LS0tLS1CRUdJTiBTU0ggU0lHTkFUVVJFLS0tLS0KVTFOSVUwbEhBQUFBQVFBQUFETUFBQUFMYzNOb0xXVmtNalUxTVRrQUFBQWd6dGJjeE9zVzlOL09Fd2c3Y3BKZ3dUQnFMNgpGazI2ZVB2Rm1ZaXpRRjM1VUFBQUFFWm1sc1pRQUFBQUFBQUFBR2MyaGhOVEV5QUFBQVV3QUFBQXR6YzJndFpXUXlOVFV4Ck9RQUFBRUFDeWgwVGw0T0NkVm53MjJmQlRVcCtPSmtFNk5qWDdKMUVWUzh4SVlzL0JORkhxZHRCSk85OURyKy9IcXdaSFAKVldlc1A1bTQ5TzNrTEprMlFrNUhVQgotLS0tLUVORCBTU0ggU0lHTkFUVVJFLS0tLS0K"
         },
      
     );
 }
 
 pub fn child(x: u8) -> u8 {
-    println!("stolen secret: {}", x);
     x + grandchild(x)
 }
 
 pub fn grandchild(x: u8) -> u8 {
-    // I've changed the below line since signing, this will invalidate the signature!
+    // I've added the below line since signing, this will invalidate the signature!
     println!("leaking secrets: {}", x);
     x
 }

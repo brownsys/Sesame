@@ -17,9 +17,7 @@ use rustc_hir::ExprKind;
 
 use rustc_middle::ty::{subst::InternalSubsts, Instance, ParamEnv, TyCtxt};
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-
+use sha2::{Sha256, Digest};
 use base64::{engine::general_purpose, Engine as _};
 use if_chain::if_chain;
 
@@ -231,11 +229,16 @@ fn get_pcr_hash<'a>(tcx: TyCtxt, closure: &rustc_hir::Closure) -> String {
         .collect(); 
     let dep_strings = compute_dep_strings_for_crates(&non_local_deps);
 
-    let mut src_hasher = DefaultHasher::new();
+    let mut src_hasher = Sha256::new();
     src.sort_unstable(); 
-    src.into_iter().for_each(|snippet| snippet.hash(&mut src_hasher));
-    dep_strings.into_iter().for_each(|dep_string| dep_string.hash(&mut src_hasher));
-    let src_hash: String = src_hasher.finish().to_string(); 
+    src.into_iter().for_each(|snippet| src_hasher.update(snippet));
+    dep_strings.into_iter().for_each(|(dep_string1, dep_string2 )| {
+        let dep_string = format!("{} {}", dep_string1, dep_string2); 
+        println!("dep_string: {}", dep_string);
+        src_hasher.update(dep_string.as_str())
+    } 
+);
+    let src_hash = hex::encode(&src_hasher.finalize()[..]); 
 
     src_hash
 }
