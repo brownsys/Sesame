@@ -188,10 +188,7 @@ pub(crate) fn generate(
                 )
                 .expect("failed to send API key email");
             }, 
-            Signature{username: "corinnt", signature: "?"}, 
-            Signature{username: "corinnt", signature: "?"},
-            Signature{username: "corinnt", signature: "?"}, 
-        ), 
+            Signature{username: "corinnt", signature: "?"}), 
         ())
         .unwrap();
     }

@@ -459,10 +459,7 @@ pub(crate) fn questions_submit(
                     )
                     .expect("failed to send email")
                 },
-                Signature{username: "corinnt", signature: "?"}, 
-            Signature{username: "corinnt", signature: "?"},
-            Signature{username: "corinnt", signature: "?"}, 
-            ),
+                Signature{username: "corinnt", signature: "TODO"}),
             (),
         );
         result.unwrap();
