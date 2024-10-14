@@ -5,12 +5,28 @@ use std::sync::{Arc, Mutex};
 
 use alohomora::testing::BBoxClient;
 use portfolio_api::*;
+#[cfg(feature = "boxed")]
 use portfolio_core::models::{application::CleanApplicationResponse, candidate::CleanCreateCandidateResponse};
+#[cfg(feature = "unboxed")]
+use portfolio_core::models::{application::ApplicationResponse, candidate::CreateCandidateResponse};
 use rocket::{http::{Cookie, Header, Status}, local::blocking::Client};
 use std::time::{Instant, Duration};
 
+#[cfg(feature = "unboxed")]
+type CleanApplicationResponse = ApplicationResponse;
+#[cfg(feature = "unboxed")]
+type CleanCreateCandidateResponse = CreateCandidateResponse;
+
+
+
+#[cfg(feature = "boxed")]
 fn get_portfolio() -> BBoxClient {
     BBoxClient::tracked(portfolio_api::rocket()).expect("invalid rocket")
+}
+
+#[cfg(feature = "unboxed")]
+fn get_portfolio() -> Client {
+    Client::tracked(portfolio_api::rocket()).expect("invalid rocket")
 }
 
 pub const ADMIN_ID: i32 = 3;
