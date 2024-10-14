@@ -2,6 +2,7 @@ use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
 use crate::context::UnprotectedContext;
 use crate::policy::{NoPolicy, Policy, Reason};
+use crate::bbox::FoldInAllowed; 
 
 // Any (owned) Policy.
 trait TypeIdPolicyTrait: Policy + Any {

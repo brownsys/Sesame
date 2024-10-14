@@ -1,5 +1,6 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, Policy, Reason};
+use crate::bbox::FoldInAllowed; 
 
 #[derive(Clone)]
 pub struct RefPolicy<'a, P: Policy + ?Sized> {
