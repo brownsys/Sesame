@@ -4,7 +4,7 @@ mod value;
 mod policy;
 
 pub use database::*;
-pub use rocket::*;
+pub use self::rocket::*;
 pub use value::*;
 pub use policy::*;
 
