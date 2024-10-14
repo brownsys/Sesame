@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 use either::Either;
 use mysql::chrono;
 
-use crate::context::{Context, ContextData, UnprotectedContext};
+use crate::{context::{Context, ContextData, UnprotectedContext}};
 use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason, CloneableAny};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
@@ -202,17 +202,37 @@ impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
         self.fb.mov()
     }
 }
+pub auto trait FoldInAllowed {}
 
-// Transpose
-impl<T, E, P: Policy> BBox<Result<T, E>, P> {
-    pub fn transpose(self) -> Result<BBox<T, P>, E> {
+/// Trait to move PCons from outside a container to inside
+pub(crate) trait FoldIn<T, P, E> 
+where
+    P: Policy + FoldInAllowed
+{
+    type Output;
+
+    fn fold_in(self) -> Self::Output;
+}
+
+impl<T, E, P> FoldIn<T, P, E> for BBox<Result<T, E>, P> 
+where
+    P: Policy + FoldInAllowed
+{
+    type Output = Result<BBox<T, P>, E>;
+
+    fn fold_in(self) -> Self::Output {
         let (t, p) = self.consume();
         Ok(BBox::new(t?, p))
     }
 }
 
-impl<T, P: Policy> BBox<Option<T>, P> {
-    pub fn transpose(self) -> Option<BBox<T, P>> {
+impl<T, P> FoldIn<T, P, ()> for BBox<Option<T>, P> 
+where
+    P: Policy + FoldInAllowed
+{
+    type Output = Option<BBox<T, P>>;
+
+    fn fold_in(self) -> Self::Output {
         let (t, p) = self.consume();
         Some(BBox::new(t?, p))
     }
@@ -281,6 +301,28 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct NoFoldPolicy {
+        pub attr: String,
+    }
+
+    impl !FoldInAllowed for NoFoldPolicy {}
+
+    impl Policy for NoFoldPolicy {
+        fn name(&self) -> String {
+            String::from("NoFoldInPolicy")
+        }
+        fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
+            true
+        }
+        fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+            Ok(AnyPolicy::new(self.clone()))
+        }
+        fn join_logic(&self, _other: Self) -> Result<Self, ()> {
+            Ok(NoFoldPolicy { attr: String::from("") })
+        }
+    } 
+
     #[test]
     fn test_box() {
         let bbox = BBox::new(10u64, NoPolicy {});
@@ -309,6 +351,29 @@ mod tests {
             10u64);
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_fold_in() {
+        let opt_of_pcon: BBox<Option<u64>, NoPolicy> = BBox::new(Some(10u64), NoPolicy {});
+        let pcon_of_opt: Option<BBox<u64, NoPolicy>> = opt_of_pcon.fold_in(); 
+        assert_eq!(pcon_of_opt.clone().unwrap(), BBox::new(10u64, NoPolicy {}));
+        assert_eq!(pcon_of_opt.unwrap().discard_box(), 10u64);
+
+        let res_of_pcon: BBox<Result<u64, ()>, NoPolicy> = BBox::new(Ok(10u64), NoPolicy {});
+        let pcon_of_res: Result<BBox<u64, NoPolicy>, ()> = res_of_pcon.fold_in(); 
+        assert_eq!(pcon_of_res.clone().unwrap(), BBox::new(10u64, NoPolicy {}));
+        assert_eq!(pcon_of_res.unwrap().discard_box(), 10u64);
+    }
+
+
+    /// This test (correctly) fails to compile!
+    /* #[test]
+    fn test_no_fold_in() {
+        let pcon_of_vec: BBox<Vec<u64>, NoFoldPolicy>  = BBox::new(vec![10u64], NoFoldPolicy { attr: "".to_string() });
+        let vec_of_pcon: Vec<BBox<u64, NoFoldPolicy>> = pcon_of_vec.fold_in(); 
+        assert_eq!(vec_of_pcon.first().unwrap(), &BBox::new(10u64, NoFoldPolicy { attr: "".to_string() }));
+    } 
+    */
 
     #[test]
     fn test_policy_transformation() {

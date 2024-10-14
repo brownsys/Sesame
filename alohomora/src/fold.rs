@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use crate::AlohomoraType;
-use crate::bbox::BBox;
+use crate::bbox::{BBox, FoldIn, FoldInAllowed};
 use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
 
 pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
@@ -88,10 +88,15 @@ optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6]);
 optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7]);
 optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7], [T8, P8]);
 
-// Fold bbox from outside vector to inside vector.
-impl<T, P: Policy + Clone> From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> {
-    fn from(x: BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
-        let (t, p) = x.consume();
+// Fold PCon from outside vector to inside vector.
+impl<T, P> FoldIn<T, P, ()> for BBox<Vec<T>, P> 
+where
+    P: Policy + FoldInAllowed + Clone,
+{
+    type Output = Vec<BBox<T, P>>;
+
+    fn fold_in(self) -> Self::Output {
+        let (t, p) = self.consume();
         t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
     }
 }
@@ -122,8 +127,10 @@ impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P
 // Tests
 #[cfg(test)]
 mod tests {
+    use rocket_dyn_templates::tera::Test;
+
     use crate::r#type::{AlohomoraType, AlohomoraTypeEnum};
-    use crate::bbox::BBox;
+    use crate::bbox::{BBox, FoldIn};
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy, Reason};
     use crate::testing::TestPolicy;
 
@@ -270,7 +277,7 @@ mod tests {
         assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
 
         // inverse fold for vector.
-        let vec: Vec<BBox<i32, TestPolicy<ACLPolicy>>> = Vec::from(bbox);
+        let vec: Vec<BBox<i32, TestPolicy<ACLPolicy>>> = bbox.fold_in();
         assert_eq!(vec[0].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[1].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[2].policy().policy().owners, HashSet::from_iter([40]));
@@ -357,5 +364,13 @@ mod tests {
                 z: String::from("z2"),
             },
         ]);
+    }
+
+    #[test]
+    fn test_fold_in() {
+        let pcon_of_vec: BBox<Vec<u64>, TestPolicy<ACLPolicy>>  = BBox::new(vec![10u64], TestPolicy::new(ACLPolicy::new(&[10, 20])));
+        let vec_of_pcon: Vec<BBox<u64, TestPolicy<ACLPolicy>>> = pcon_of_vec.fold_in(); 
+        assert_eq!(vec_of_pcon.first().unwrap(), &BBox::new(10u64, TestPolicy::new(ACLPolicy::new(&[10, 20]))));
+        assert_eq!(vec_of_pcon.first().unwrap().to_owned().discard_box(), 10u64);
     }
 }
