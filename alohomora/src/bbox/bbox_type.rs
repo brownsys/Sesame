@@ -205,7 +205,7 @@ impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
 pub auto trait FoldInAllowed {}
 
 /// Trait to move PCons from outside a container to inside
-pub(crate) trait FoldIn<T, P, E> 
+pub trait FoldIn<T, P, E> 
 where
     P: Policy + FoldInAllowed
 {
@@ -364,7 +364,6 @@ mod tests {
         assert_eq!(pcon_of_res.clone().unwrap(), BBox::new(10u64, NoPolicy {}));
         assert_eq!(pcon_of_res.unwrap().discard_box(), 10u64);
     }
-
 
     /// This test (correctly) fails to compile!
     /* #[test]
