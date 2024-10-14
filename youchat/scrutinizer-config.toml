@@ -144,6 +144,7 @@ allowlist = [
 
   # Raw equality comparison.
   'core\[\w*\]::intrinsics::\{extern#0\}::raw_eq',
+  'core\[\w*\]::intrinsics::\{extern#0\}::compare_bytes',
 
   # Vtable.
   'core\[\w*\]::intrinsics::\{extern#0\}::vtable_size',
@@ -163,7 +164,11 @@ allowlist = [
   'core\[\w*\]::intrinsics::\{extern#0\}::type_id',
   'core\[\w*\]::intrinsics::\{extern#0\}::type_name',
 
+  # Transmute is allowlisted as an intrinsic, but is checked for separately.
+  'core\[\w*\]::intrinsics::\{extern#0\}::transmute',
+
   # Panicking infrastructure.
+  'core\[\w*\]::panicking::assert_failed',
   'core\[\w*\]::panicking::const_panic_fmt',
   'core\[\w*\]::panicking::panic',
   'core\[\w*\]::panicking::panic_display',
@@ -193,9 +198,27 @@ allowlist = [
   # Rust 1.70 calls to memcmp to compare slices.
   # This is removed in further versions.
   'core\[\w*\]::slice::cmp::\{extern#0\}::memcmp',
+
+  # Architecture-dependent intrinsics.
+  'core\[\w*\]::core_arch',
+
+  # Pointer-address conversion primitives.
+  'core\[\w*\]::ptr::invalid',
+  'core\[\w*\]::ptr::invalid_mut',
+  'core\[\w*\]::ptr::const_ptr::\{impl#0\}::addr',
+  'core\[\w*\]::ptr::mut_ptr::\{impl#0\}::addr',
+  'core\[\w*\]::ptr::alignment::\{impl#0\}::new_unchecked',
 ]
 trusted_stdlib = [
+  # Vec collection.
   'alloc\[\w*\]::vec',
+  # Slice.
   'alloc\[\w*\]::slice',
+  'core\[\w*\]::slice',
+  # String.
+  'alloc\[\w*\]::string',
+  # Hashmap.
   'std\[\w*\]::collections::hash::map',
+  # Btreemap.
+  'alloc\[\w*\]::collections::btree'
 ]
