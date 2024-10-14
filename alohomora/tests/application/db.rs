@@ -10,7 +10,7 @@ pub struct DB {
 
 impl DB {
     pub fn connect() -> DB {
-        let opts = BBoxOpts::from_url("mysql://root:password@127.0.0.1/").unwrap();
+        let opts = BBoxOpts::from_url("mysql://root:@127.0.0.1/").unwrap();
         DB { conn: BBoxConn::new(opts).unwrap() }
     }
 

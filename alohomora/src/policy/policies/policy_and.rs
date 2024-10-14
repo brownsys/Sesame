@@ -10,6 +10,8 @@ impl<P1: Policy, P2: Policy> PolicyAnd<P1, P2> {
     pub fn new(p1: P1, p2: P2) -> Self {
         Self { p1, p2 }
     }
+    pub fn policy1(&self) -> &P1 { &self.p1 }
+    pub fn policy2(&self) -> &P2 { &self.p2 }
 }
 
 impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {

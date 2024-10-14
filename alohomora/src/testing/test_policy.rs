@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter, Write};
+use std::fmt::{Debug, Formatter};
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
@@ -65,6 +65,21 @@ impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
         self.consume().0
     }
 }
+
+impl<T: Debug, P: 'static + Policy + Clone + Debug> Debug for BBox<T, TestPolicy<P>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BBox")
+            .field("data", self.data())
+            .field("policy", self.policy())
+            .finish()
+    }
+}
+impl<T: PartialEq, P: 'static + Policy + Clone + PartialEq> PartialEq for BBox<T, TestPolicy<P>> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data() == other.data() && self.policy() == other.policy()
+    }
+}
+
 impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}
 
 // Same but for RefPolicy<TestPolicy>
@@ -73,16 +88,17 @@ impl<'a, T, P: 'static + Policy + Clone> BBox<&'a T, RefPolicy<'a, TestPolicy<P>
         self.consume().0
     }
 }
-impl<'a, T: Debug, P: 'static + Policy + Clone> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: Debug, P: 'static + Policy + Clone + Debug> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("Box(")?;
-        self.clone().consume().0.fmt(f)?;
-        f.write_char(')')
+        f.debug_struct("BBox")
+            .field("data", self.data())
+            .field("policy", self.policy())
+            .finish()
     }
 }
-impl<'a, T: PartialEq, P: 'static + Policy + Clone> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: PartialEq, P: 'static + Policy + Clone + PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     fn eq(&self, other: &Self) -> bool {
-        self.clone().consume().0 == other.clone().consume().0
+        self.data() == other.data() && self.policy() == other.policy()
     }
 }
 impl<'a, T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {}

@@ -48,8 +48,6 @@ fn bbox_to_string<'a>(bbox: &'a RefBBox<'_>) -> Result<String, ()> {
         PrivacyCriticalRegion::new(
             |t: &&'a dyn Serialize, _| *t,
             Signature { username: "", signature: "" },
-            Signature { username: "", signature: "" },
-            Signature { username: "", signature: "" },
         ),
         ()
     );

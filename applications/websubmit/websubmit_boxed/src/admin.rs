@@ -46,7 +46,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for Admin {
             }
         }));
 
-        let admin = match admin.transpose() {
+        let admin = match admin.fold_in() {
             None => None,
             Some(_) => Some(Admin),
         };
@@ -195,7 +195,7 @@ pub(crate) fn editq(
         )
         .unwrap();
 
-        if q_matches.transpose().is_some() {
+        if q_matches.fold_in().is_some() {
             ctx.insert("lec_qprompt", from_value(r[2].clone()).unwrap().into());
         }
     }

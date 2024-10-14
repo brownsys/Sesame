@@ -45,7 +45,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for Manager {
             }
         }));
 
-        let manager = match manager.transpose() {
+        let manager = match manager.fold_in() {
             None => None,
             Some(_) => Some(Manager),
         };

@@ -151,7 +151,7 @@ pub(crate) fn try_delete(gc_name: BBox<String, NoPolicy>,
                 }),
             );
             
-            if can_delete.unwrap().transpose().is_ok() {
+            if can_delete.unwrap().fold_in().is_ok() {
                 delete(gc_name, user_name, index, backend, context.clone())
             } else {
                 BBoxRedirect::to("/chat/{}/{}", (&gc_name, &user_name), context.clone())

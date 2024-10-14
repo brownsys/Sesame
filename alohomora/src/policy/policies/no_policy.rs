@@ -1,5 +1,7 @@
+use std::fmt::{Debug, Formatter};
+use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
 
 // NoPolicy can be directly discarded.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -43,5 +45,26 @@ impl FrontendPolicy for NoPolicy {
 impl Default for NoPolicy {
     fn default() -> Self {
         NoPolicy {}
+    }
+}
+
+
+
+// NoPolicy can be discarded, logged, etc
+impl<T> BBox<T, NoPolicy> {
+    pub fn discard_box(self) -> T {
+        self.consume().0
+    }
+}
+impl<T: Debug> Debug for BBox<T, NoPolicy> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BBox")
+            .field("data", self.data())
+            .finish()
+    }
+}
+impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data() == other.data()
     }
 }

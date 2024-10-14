@@ -3,7 +3,7 @@ class = "CSCI 2390"
 # MySQL database user
 db_user = "root"
 # MySQL database password
-db_password = "password"
+db_password = ""
 # list email addresses whose API keys get admin access
 admins = ["malte@cs.brown.edu"]
 # list email addresses whose API keys get manager access

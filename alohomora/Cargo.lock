@@ -91,6 +91,7 @@ dependencies = [
  "serde",
  "serde_json",
  "small_ctor",
+ "static_assertions",
  "time 0.2.27",
  "tokio",
  "tokio-test",

@@ -377,11 +377,11 @@ pub(crate) fn questions(
     )
     .unwrap();
 
-    let questions: Vec<BBox<Vec<Value>, AnyPolicy>> = questions.into();
+    let questions: Vec<BBox<Vec<Value>, AnyPolicy>> = questions.fold_in();
     let questions = questions
         .into_iter()
         .map(|r: BBox<Vec<Value>, AnyPolicy>| {
-            let r: Vec<BBox<Value, AnyPolicy>> = r.into();
+            let r: Vec<BBox<Value, AnyPolicy>> = r.fold_in();
             LectureQuestion {
                 id: from_value(r[0].clone()).unwrap(),
                 prompt: from_value(r[1].clone()).unwrap(),
