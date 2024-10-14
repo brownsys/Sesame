@@ -152,12 +152,12 @@ def PlotMergedPercentilesNoBreak(baseline, alohomora):
     ax1.set_xticks(X, [PLOT_LABELS[e] for e in ENDPOINTS_PLOT], rotation=15, ha='right', fontsize=8)
     # plt.xlabel("Websubmit Comparison")
 
-    ax1.axvline(x=4.5, color='red', linestyle='--', linewidth=1.5)
+    ax1.axvline(x=4.5, color='black', linestyle='-', linewidth=1.5)
 
     ax1.legend(frameon=False, fontsize=8, ncol=2, handlelength=0.5, handletextpad=0.5, bbox_to_anchor=(0.525, 0.525))
 
     fig.text(0.3, 0.775, 'WebSubmit')
-    fig.text(0.725, 0.775, 'Portfolio')
+    fig.text(0.7175, 0.775, 'Portfolio')
 
     plt.savefig("websubmit.pdf", format="pdf",
                 bbox_inches="tight", pad_inches=0.01)
