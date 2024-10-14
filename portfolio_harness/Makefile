@@ -1,5 +1,7 @@
 .PHONY: boxed unboxed clean
 
+SHELL=bash
+
 UNBOXEDPATH = ../portfolio
 BOXEDPATH = ../portfolio_boxed
 
@@ -34,3 +36,7 @@ clean:
 	cargo clean
 	cd $(BOXEDPATH) && cargo clean
 	cd $(UNBOXEDPATH) && cargo clean
+	number=1 ; while [[ $$number -le 1000 ]] ; do \
+        rm -rf $$number ; \
+        ((number = number + 1)) ; \
+    done
