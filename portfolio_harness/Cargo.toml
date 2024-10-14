@@ -5,20 +5,16 @@ edition = "2021"
 publish = false
 
 [dependencies]
-portfolio = { path = "../Portfolio" }
-portfolio-api = { path = "../Portfolio/api" }
-portfolio-core = { path = "../Portfolio/core" }
 alohomora = { path = "../alohomora" }
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 
+portfolio = { path = "../portfolio_boxed/" }
+portfolio-api = { path = "../portfolio_boxed/api" }
+portfolio-core = { path = "../portfolio_boxed/core" }
+
 [patch.crates-io]
 funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
-# flame = "0.2.2"
-# flamer = "0.5"
 
-# [profile.release]
-# strip = false
-# debug = true
 [features]
 boxed = []
 unboxed = []
