@@ -1,0 +1,21 @@
+[package]
+name = "portfolio-harness"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+portfolio = { path = "../post-portfolio" }
+portfolio-api = { path = "../post-portfolio/api" }
+portfolio-core = { path = "../post-portfolio/core" }
+alohomora = { path = "../alohomora/alohomora" }
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
+# flame = "0.2.2"
+# flamer = "0.5"
+
+# [profile.release]
+# strip = false
+# debug = true
