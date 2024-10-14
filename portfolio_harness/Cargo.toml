@@ -1,0 +1,20 @@
+[package]
+name = "portfolio-harness"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+alohomora = { path = "../alohomora" }
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+
+portfolio = { path = "../portfolio_boxed/" }
+portfolio-api = { path = "../portfolio_boxed/api" }
+portfolio-core = { path = "../portfolio_boxed/core" }
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
+
+[features]
+boxed = []
+unboxed = []
