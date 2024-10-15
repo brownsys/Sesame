@@ -19,6 +19,8 @@ impl<'a, P: Policy + ?Sized> RefPolicy<'a, P> {
     }
 }
 
+impl<'a, P: Policy + ?Sized> FoldInAllowed for RefPolicy<'a, P> {}
+
 impl<'a, P: Policy + ?Sized> Policy for RefPolicy<'a, P> {
     fn name(&self) -> String {
         format!("RefPolicy({})", self.policy.name())

@@ -50,6 +50,8 @@ impl AnyPolicy {
     }
 }
 
+impl FoldInAllowed for AnyPolicy {}
+
 impl Policy for AnyPolicy {
     fn name(&self) -> String {
         format!("AnyPolicy({})", self.policy.name())
