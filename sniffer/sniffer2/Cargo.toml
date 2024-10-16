@@ -1,0 +1,18 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+name = "sniffer2"
+version = "0.1.0"
+authors = ["Kinan Dak Albab <kinan.bab.14@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "bin"
+path = "src/bin.rs"
+
+[dependencies]
+alohomora = { path = "../../alohomora/", default_features = false, features = ["derive"] }
+unsafelib = { path = "../unsafelib" }
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

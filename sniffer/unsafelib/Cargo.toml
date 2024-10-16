@@ -1,0 +1,11 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+name = "unsafelib"
+version = "0.1.0"
+authors = ["Kinan Dak Albab <kinan.bab.14@gmail.com>"]
+edition = "2018"
+
+[lib]
+name = "unsafelib"
+path = "src/lib.rs"
