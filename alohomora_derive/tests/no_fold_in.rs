@@ -1,7 +1,8 @@
 #![feature(negative_impls)]
 use alohomora::policy::{Policy, AnyPolicy};
 use alohomora_derive::NoFoldIn;
-use alohomora::bbox::{BBox, FoldIn}; 
+use alohomora::bbox::BBox; 
+use alohomora::fold_in::FoldIn; 
 use alohomora::context::UnprotectedContext;
 use alohomora::policy::Reason; 
 
@@ -53,7 +54,7 @@ impl Policy for FoldPolicy {
     assert_eq!(vec_of_pcon.first().unwrap(), &BBox::new(10u64, FoldPolicy { attr: "".to_string() }));
 } 
 
-/// This correctly fails to compile. 
+// This correctly fails to compile. 
 /*
 #[test]
  fn test_fold_in_denied() {

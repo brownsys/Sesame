@@ -24,6 +24,7 @@ pub mod policy;
 pub mod rocket;
 pub mod sandbox;
 pub mod testing;
+pub mod fold_in;
 pub mod fold;
 pub mod pcr;
 pub mod pure;

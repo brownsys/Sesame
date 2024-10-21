@@ -1,8 +1,8 @@
 use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
 use crate::context::UnprotectedContext;
-use crate::policy::{NoPolicy, Policy, Reason};
-use crate::bbox::FoldInAllowed; 
+use crate::policy::{Policy, Reason};
+use crate::fold_in::{FoldInAllowed, RuntimeFoldIn}; 
 
 // Any (owned) Policy.
 trait TypeIdPolicyTrait: Policy + Any {
@@ -51,6 +51,14 @@ impl AnyPolicy {
 }
 
 impl FoldInAllowed for AnyPolicy {}
+
+/// This allows for a runtime check that
+/// wrapped policy allows folding in. 
+impl RuntimeFoldIn for AnyPolicy {
+    fn can_fold_in(&self) -> bool {
+        self.policy.can_fold_in()
+    }
+}
 
 impl Policy for AnyPolicy {
     fn name(&self) -> String {

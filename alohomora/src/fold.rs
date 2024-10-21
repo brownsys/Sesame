@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use crate::AlohomoraType;
-use crate::bbox::{BBox, FoldIn, FoldInAllowed};
+use crate::bbox::{BBox};
 use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
 
 pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
@@ -88,19 +88,6 @@ optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6]);
 optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7]);
 optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7], [T8, P8]);
 
-// Fold PCon from outside vector to inside vector.
-impl<T, P> FoldIn<T, P, ()> for BBox<Vec<T>, P> 
-where
-    P: Policy + FoldInAllowed + Clone,
-{
-    type Output = Vec<BBox<T, P>>;
-
-    fn fold_in(self) -> Self::Output {
-        let (t, p) = self.consume();
-        t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
-    }
-}
-
 // Fold bbox from inside vector to the outside. Same as generic fold(...) but preserves policy type.
 impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>> {
     fn from(v: Vec<BBox<T, P>>) -> BBox<Vec<T>, OptionPolicy<P>> {
@@ -130,7 +117,8 @@ mod tests {
     use rocket_dyn_templates::tera::Test;
 
     use crate::r#type::{AlohomoraType, AlohomoraTypeEnum};
-    use crate::bbox::{BBox, FoldIn};
+    use crate::bbox::BBox;
+    use crate::fold_in::FoldIn; 
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy, Reason};
     use crate::testing::TestPolicy;
 

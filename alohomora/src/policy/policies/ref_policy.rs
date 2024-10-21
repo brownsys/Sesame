@@ -1,6 +1,6 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, Policy, Reason};
-use crate::bbox::FoldInAllowed; 
+use crate::fold_in::{FoldInAllowed, RuntimeFoldIn}; 
 
 #[derive(Clone)]
 pub struct RefPolicy<'a, P: Policy + ?Sized> {
@@ -18,8 +18,6 @@ impl<'a, P: Policy + ?Sized> RefPolicy<'a, P> {
         self.policy
     }
 }
-
-impl<'a, P: Policy + ?Sized> FoldInAllowed for RefPolicy<'a, P> {}
 
 impl<'a, P: Policy + ?Sized> Policy for RefPolicy<'a, P> {
     fn name(&self) -> String {

@@ -27,6 +27,6 @@ pub fn derive_no_fold_in_impl(input: DeriveInput) -> Result<TokenStream, Error> 
     // Generate implementation.
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics !::alohomora::bbox::FoldInAllowed for #input_ident #ty_generics #where_clause {}
+        impl #impl_generics !::alohomora::fold_in::FoldInAllowed for #input_ident #ty_generics #where_clause {}
     })
 }
