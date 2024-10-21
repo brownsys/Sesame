@@ -114,11 +114,8 @@ impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P
 // Tests
 #[cfg(test)]
 mod tests {
-    use rocket_dyn_templates::tera::Test;
-
     use crate::r#type::{AlohomoraType, AlohomoraTypeEnum};
     use crate::bbox::BBox;
-    use crate::fold_in::FoldIn; 
     use crate::policy::{Policy, PolicyAnd, AnyPolicy, OptionPolicy, Reason};
     use crate::testing::TestPolicy;
 
@@ -352,13 +349,5 @@ mod tests {
                 z: String::from("z2"),
             },
         ]);
-    }
-
-    #[test]
-    fn test_fold_in() {
-        let pcon_of_vec: BBox<Vec<u64>, TestPolicy<ACLPolicy>>  = BBox::new(vec![10u64], TestPolicy::new(ACLPolicy::new(&[10, 20])));
-        let vec_of_pcon: Vec<BBox<u64, TestPolicy<ACLPolicy>>> = pcon_of_vec.fold_in(); 
-        assert_eq!(vec_of_pcon.first().unwrap(), &BBox::new(10u64, TestPolicy::new(ACLPolicy::new(&[10, 20]))));
-        assert_eq!(vec_of_pcon.first().unwrap().to_owned().discard_box(), 10u64);
     }
 }

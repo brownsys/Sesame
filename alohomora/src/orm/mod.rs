@@ -2,7 +2,9 @@ mod rocket;
 mod database;
 mod value;
 mod policy;
+mod bbox;
 
+pub use bbox::*;
 pub use database::*;
 pub use rocket::*;
 pub use value::*;

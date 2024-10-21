@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 use either::Either;
 use mysql::chrono;
 
-use crate::{context::{Context, ContextData, UnprotectedContext}};
+use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason, CloneableAny};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::pure::PrivacyPureRegion;
@@ -20,7 +20,6 @@ use crate::bbox::obfuscated_pointer::ObPtr;
 
 // Privacy Container type.
 pin_project! {
-    #[derive(Debug, PartialEq)]
     pub struct BBox<T, P: Policy> {
         #[pin]
         fb: ObPtr<T>,
@@ -189,20 +188,6 @@ impl<T> BBox<T, AnyPolicy> {
     }
 }
 
-// NoPolicy can be discarded, logged, etc
-impl<T> BBox<T, NoPolicy> {
-    pub fn discard_box(self) -> T {
-        self.fb.mov()
-    }
-}
-
-// Same but for RefPolicy<NoPolicy>
-impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
-    pub fn discard_box(self) -> &'a T {
-        self.fb.mov()
-    }
-}
-
 impl<'a, T: Future + Unpin, P: Policy + Clone> Future for BBox<T, P> {
     type Output = BBox<T::Output, P>;
 
@@ -242,7 +227,6 @@ impl<P: Policy> BBox<String, P> {
 #[cfg(test)]
 mod tests {
     use crate::policy::NoPolicy;
-    use crate::pure::execute_pure;
     use crate::testing::{TestContextData, TestPolicy};
 
     use super::*;

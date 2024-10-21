@@ -2,15 +2,19 @@ use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
 use crate::context::UnprotectedContext;
 use crate::policy::{Policy, Reason};
-use crate::fold_in::{FoldInAllowed, RuntimeFoldIn}; 
+use crate::fold_in::RuntimeFoldIn;
 
 // Any (owned) Policy.
-trait TypeIdPolicyTrait: Policy + Any {
-    fn clone(&self) -> Box<dyn TypeIdPolicyTrait>;
+pub(crate) trait TypeIdPolicyTrait: Policy + Any {
+    fn clone_boxed(&self) -> Box<dyn TypeIdPolicyTrait>;
+    fn can_fold_in_boxed(&self) -> bool;
 }
 impl<P: Policy + Clone + 'static> TypeIdPolicyTrait for P {
-    fn clone(&self) -> Box<dyn TypeIdPolicyTrait> {
+    fn clone_boxed(&self) -> Box<dyn TypeIdPolicyTrait> {
         Box::new(self.clone())
+    }
+    fn can_fold_in_boxed(&self) -> bool {
+        self.can_fold_in()
     }
 }
 
@@ -48,15 +52,9 @@ impl AnyPolicy {
             ))
         }
     }
-}
 
-impl FoldInAllowed for AnyPolicy {}
-
-/// This allows for a runtime check that
-/// wrapped policy allows folding in. 
-impl RuntimeFoldIn for AnyPolicy {
-    fn can_fold_in(&self) -> bool {
-        self.policy.can_fold_in()
+    pub(crate) fn policy(&self) -> &dyn TypeIdPolicyTrait {
+        self.policy.as_ref()
     }
 }
 
@@ -80,7 +78,7 @@ impl Policy for AnyPolicy {
 impl Clone for AnyPolicy {
     fn clone(&self) -> Self {
         Self {
-            policy: self.policy.clone()
+            policy: self.policy.clone_boxed()
         }
     }
 }

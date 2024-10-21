@@ -7,6 +7,10 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(test)]
+#[macro_use]
+extern crate static_assertions;
+
 // Re-export our derive macros
 #[cfg(feature = "alohomora_derive")]
 extern crate alohomora_derive;
@@ -32,6 +36,7 @@ pub mod unbox;
 
 // Export this directly under alohomora::
 mod r#type;
+
 pub use r#type::*;
 
 #[cfg(feature = "alohomora_derive")]
