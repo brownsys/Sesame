@@ -13,7 +13,7 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
 
-use alohomora::bbox::{BBox, BBoxRender};
+use alohomora::bbox::{BBox, BBoxRender, FoldIn};
 use alohomora::context::Context;
 use alohomora::db::from_value;
 use alohomora::policy::AnyPolicy;
@@ -45,7 +45,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for Manager {
             }
         }));
 
-        let manager = match manager.transpose() {
+        let manager = match manager.fold_in() {
             None => None,
             Some(_) => Some(Manager),
         };

@@ -2,12 +2,12 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
 use std::boxed::Box;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 // Secret to XOR with.
 const secret: usize = 2238711266;
 
-#[derive(Debug)]
 pub struct ObPtr<T> {
     ptr: usize,
     _marker: PhantomData<T>
@@ -54,7 +54,7 @@ impl<T> Drop for ObPtr<T> {
     }
 }
 
-// Cloneable if whats underneath is cloneable.
+// Cloneable if what's underneath is cloneable.
 impl<T: Clone> Clone for ObPtr<T> {
     fn clone(&self) -> Self {
         unsafe {
@@ -67,6 +67,11 @@ impl<T: Clone> Clone for ObPtr<T> {
 impl<T: PartialEq> PartialEq for ObPtr<T> {
     fn eq(&self, other: &Self) -> bool {
         self.get() == other.get()
+    }
+}
+impl<T: Debug> Debug for ObPtr<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.get().fmt(f)
     }
 }
 

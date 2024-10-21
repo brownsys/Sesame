@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use crate::AlohomoraType;
-use crate::bbox::BBox;
+use crate::bbox::{BBox};
 use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
 
 pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
@@ -87,14 +87,6 @@ optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5]);
 optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6]);
 optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7]);
 optimized_tup_fold!([T1, P1], [T2, P2], [T3, P3], [T4, P4], [T5, P5], [T6, P6], [T7, P7], [T8, P8]);
-
-// Fold bbox from outside vector to inside vector.
-impl<T, P: Policy + Clone> From<BBox<Vec<T>, P>> for Vec<BBox<T, P>> {
-    fn from(x: BBox<Vec<T>, P>) -> Vec<BBox<T, P>> {
-        let (t, p) = x.consume();
-        t.into_iter().map(|t| BBox::new(t, p.clone())).collect()
-    }
-}
 
 // Fold bbox from inside vector to the outside. Same as generic fold(...) but preserves policy type.
 impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>> {
@@ -270,7 +262,7 @@ mod tests {
         assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
 
         // inverse fold for vector.
-        let vec: Vec<BBox<i32, TestPolicy<ACLPolicy>>> = Vec::from(bbox);
+        let vec: Vec<BBox<i32, TestPolicy<ACLPolicy>>> = bbox.fold_in();
         assert_eq!(vec[0].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[1].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[2].policy().policy().owners, HashSet::from_iter([40]));

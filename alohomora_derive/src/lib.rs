@@ -1,3 +1,4 @@
+#![feature(negative_impls)]
 extern crate proc_macro;
 extern crate syn;
 
@@ -14,6 +15,7 @@ mod route;
 mod alohomora_type;
 mod sandbox;
 mod json;
+mod no_fold_in;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
@@ -121,6 +123,15 @@ pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {
 pub fn dervie_response_bbox_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match json::response_impl(input) {
+        Ok(tokens) => tokens.into(),
+        Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
+    }
+}
+
+#[proc_macro_derive(NoFoldIn, attributes(alohomora_out_type))]
+pub fn derive_no_fold_in(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    match no_fold_in::derive_no_fold_in_impl(input) {
         Ok(tokens) => tokens.into(),
         Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
     }

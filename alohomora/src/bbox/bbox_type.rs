@@ -20,7 +20,6 @@ use crate::bbox::obfuscated_pointer::ObPtr;
 
 // Privacy Container type.
 pin_project! {
-    #[derive(Debug, PartialEq)]
     pub struct BBox<T, P: Policy> {
         #[pin]
         fb: ObPtr<T>,
@@ -186,35 +185,6 @@ impl<T> BBox<T, AnyPolicy> {
             fb: self.fb,
             p: self.p.specialize()?,
         })
-    }
-}
-
-// NoPolicy can be discarded, logged, etc
-impl<T> BBox<T, NoPolicy> {
-    pub fn discard_box(self) -> T {
-        self.fb.mov()
-    }
-}
-
-// Same but for RefPolicy<NoPolicy>
-impl<'a, T> BBox<&'a T, RefPolicy<'a, NoPolicy>> {
-    pub fn discard_box(self) -> &'a T {
-        self.fb.mov()
-    }
-}
-
-// Transpose
-impl<T, E, P: Policy> BBox<Result<T, E>, P> {
-    pub fn transpose(self) -> Result<BBox<T, P>, E> {
-        let (t, p) = self.consume();
-        Ok(BBox::new(t?, p))
-    }
-}
-
-impl<T, P: Policy> BBox<Option<T>, P> {
-    pub fn transpose(self) -> Option<BBox<T, P>> {
-        let (t, p) = self.consume();
-        Some(BBox::new(t?, p))
     }
 }
 
