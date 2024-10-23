@@ -27,7 +27,7 @@ erased-serde = "0.3.25"
 mysql = "21.0.2"
 mysql_common = "0.22"
 dynfmt = { version = "0.1.5", features = ["curly"] }
-small_ctor = "0.1.0"
+small_ctor = "0.1.2"
 cookie = { version = "0.15", features = ["percent-encode"] }
 time = { version = "0.2.11", default-features = false, features = ["std"] }
 indexmap = "1.7.0"
