@@ -1,6 +1,9 @@
 [submodule "voltron"]
 	path = voltron
 	url = git@github.com:22ridley/voltron.git
-[submodule "Portfolio"]
-	path = Portfolio
+[submodule "PortfolioBoxed"]
+	path = portfolio_boxed
 	url = https://github.com/AlexanderPortland/Portfolio.git
+[submodule "Portfolio2"]
+	path = portfolio
+	url = git@github.com:AlexanderPortland/Portfolio.git
