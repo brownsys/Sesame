@@ -1,0 +1,14 @@
+[package]
+name = "alohomora_policy"
+version = "0.1.0"
+authors = ["Alexander Portland <aportlan@cs.brown.edu>"]
+edition = "2018"
+
+[lib]
+name = "alohomora_policy"
+path = "src/lib.rs"
+
+[dependencies]
+# rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
+# async-trait = { version = "^0.1" }
+alohomora = { path = "../alohomora", features = ["default", "orm"] }
