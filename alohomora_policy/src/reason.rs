@@ -1,9 +1,11 @@
+
+
 #[macro_export]
-macro_rules! to_db {
-    () => {
-        $crate::match_reasons!([alohomora::policy::Reason::DB(_, _)])
-    }
-}
+macro_rules! never_leaked { () => { $crate::match_reasons!() } }
+#[macro_export]
+macro_rules! to_db { () => { $crate::match_reasons!([alohomora::policy::Reason::DB(_, _)]) } }
+#[macro_export]
+macro_rules! to_pcr { () => { $crate::match_reasons!([alohomora::policy::Reason::Custom(_)]) } }
 
 // #[macro_export]
 // macro_rules! to_pcr {

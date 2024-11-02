@@ -71,6 +71,41 @@ pub trait FrontendPolicy: Policy + Send {
         request: &'a rocket::Request<'r>) -> Self where Self: Sized;
 }
 
+pub trait FromSchema {
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
+    where
+        Self: Sized;
+}
+
+// Front end policy can be constructed from HTTP requests and from cookies.
+pub trait FromFrontend {
+    fn from_request<'a, 'r>(request: &'a rocket::Request<'r>) -> Self
+        where
+            Self: Sized;
+}
+
+pub struct AccessControlPolicy<U> {
+    owner: U,
+}
+
+impl<U: FromFrontend> FrontendPolicy for AccessControlPolicy<U> 
+    where AccessControlPolicy<U>: Policy {
+        fn from_cookie<'a, 'r>(
+                _: &str,
+                _: &'a rocket::http::Cookie<'static>,
+                request: &'a rocket::Request<'r>) -> Self where Self: Sized {
+                Self::from_request(request)
+        }
+        fn from_request<'a, 'r>(request: &'a rocket::Request<'r>) -> Self
+                where
+                    Self: Sized {
+            AccessControlPolicy {
+                owner: U::from_request(request),
+            }
+        }
+}
+
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
