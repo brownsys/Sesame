@@ -1,7 +1,10 @@
 use std::any::Any;
 use std::boxed::Box;
+use rocket::outcome::IntoOutcome;
+
 use crate::context::UnprotectedContext;
 use crate::policy::AnyPolicy;
+use crate::rocket::FromBBoxRequest;
 
 pub trait CloneableAny : Any {
     fn any_clone(&self) -> Box<dyn CloneableAny>;
@@ -77,15 +80,22 @@ pub trait FromSchema {
         Self: Sized;
 }
 
-// Front end policy can be constructed from HTTP requests and from cookies.
 pub trait FromFrontend {
     fn from_request<'a, 'r>(request: &'a rocket::Request<'r>) -> Self
         where
             Self: Sized;
 }
 
+pub trait FromBBoxReq where Self: Sized {
+    fn from_bbox_request<'a, 'r, 'async_trait>(request:crate::rocket::BBoxRequest<'a,'r> ,) -> Self;
+}
+
 pub struct AccessControlPolicy<U> {
     owner: U,
+}
+
+pub struct BaseContext<U> {
+    current_user: U,
 }
 
 impl<U: FromFrontend> FrontendPolicy for AccessControlPolicy<U> 
@@ -103,6 +113,28 @@ impl<U: FromFrontend> FrontendPolicy for AccessControlPolicy<U>
                 owner: U::from_request(request),
             }
         }
+}
+
+impl<U: FromSchema> SchemaPolicy for AccessControlPolicy<U> 
+    where AccessControlPolicy<U>: Policy {
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
+        where
+            Self: Sized {
+        AccessControlPolicy { owner: U::from_row(table_name, row) }
+    }
+}
+
+#[::rocket::async_trait]
+impl<'a, 'r, U: FromBBoxReq> FromBBoxRequest<'a, 'r> for BaseContext<U> {
+    type BBoxError = ();
+    async fn from_bbox_request(request:crate::rocket::BBoxRequest<'a,'r> ,) -> crate::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
+        let c = BaseContext {
+            current_user: U::from_bbox_request(request),
+        };
+        request.route().and_then(|_|{
+            Some(c)
+        }).into_outcome((rocket::http::Status::InternalServerError, ()))
+    }
 }
 
 
