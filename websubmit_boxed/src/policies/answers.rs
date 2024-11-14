@@ -82,9 +82,9 @@ impl Policy for AnswerAccessPolicy {
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<AnswerAccessPolicy>() {
+        if other.is::<Self>() {
             // Policies are combinable
-            let other = other.specialize::<AnswerAccessPolicy>().unwrap();
+            let other = other.specialize::<Self>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
             //Policies must be stacked

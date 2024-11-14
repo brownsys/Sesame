@@ -200,6 +200,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "alohomora_policy"
+version = "0.1.0"
+dependencies = [
+ "alohomora",
+]
+
+[[package]]
 name = "alohomora_sandbox"
 version = "0.1.0"
 dependencies = [
@@ -3392,9 +3399,9 @@ dependencies = [
 
 [[package]]
 name = "paste"
-version = "1.0.14"
+version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pbkdf2"
@@ -3648,6 +3655,7 @@ name = "portfolio-api"
 version = "2.0.0"
 dependencies = [
  "alohomora",
+ "alohomora_build",
  "alohomora_derive",
  "async-trait",
  "chrono",
@@ -3750,6 +3758,7 @@ version = "2.0.0"
 dependencies = [
  "alohomora",
  "alohomora_derive",
+ "alohomora_policy",
  "async-trait",
  "mysql",
  "mysql_common 0.22.2",

@@ -90,15 +90,16 @@ pub trait FromBBoxReq where Self: Sized {
     fn from_bbox_request<'a, 'r, 'async_trait>(request:crate::rocket::BBoxRequest<'a,'r> ,) -> Self;
 }
 
+#[derive(Clone, Debug)]
 pub struct AccessControlPolicy<U> {
-    owner: U,
+    pub owner: U,
 }
 
 pub struct BaseContext<U> {
     current_user: U,
 }
 
-impl<U: FromFrontend> FrontendPolicy for AccessControlPolicy<U> 
+impl<U: FromFrontend> FrontendPolicy for AccessControlPolicy<U>
     where AccessControlPolicy<U>: Policy {
         fn from_cookie<'a, 'r>(
                 _: &str,
