@@ -90,51 +90,35 @@ pub trait FromBBoxReq where Self: Sized {
     fn from_bbox_request<'a, 'r, 'async_trait>(request:crate::rocket::BBoxRequest<'a,'r> ,) -> Self;
 }
 
-#[derive(Clone, Debug)]
-pub struct AccessControlPolicy<U> {
-    pub owner: U,
+pub trait DefaultWithUser {
+    type User;
+    fn make(user: Self::User) -> Self;
 }
 
-pub struct BaseContext<U> {
-    current_user: U,
-}
+impl<T> FrontendPolicy for T 
+    where T: DefaultWithUser + Policy,
+          T::User: FromFrontend {
+    fn from_cookie<'a, 'r>(
+            _: &str,
+            _: &'a rocket::http::Cookie<'static>,
+            request: &'a rocket::Request<'r>) -> Self where Self: Sized {
+        Self::from_request(request)
+    }
 
-impl<U: FromFrontend> FrontendPolicy for AccessControlPolicy<U>
-    where AccessControlPolicy<U>: Policy {
-        fn from_cookie<'a, 'r>(
-                _: &str,
-                _: &'a rocket::http::Cookie<'static>,
-                request: &'a rocket::Request<'r>) -> Self where Self: Sized {
-                Self::from_request(request)
-        }
-        fn from_request<'a, 'r>(request: &'a rocket::Request<'r>) -> Self
-                where
-                    Self: Sized {
-            AccessControlPolicy {
-                owner: U::from_request(request),
-            }
-        }
-}
-
-impl<U: FromSchema> SchemaPolicy for AccessControlPolicy<U> 
-    where AccessControlPolicy<U>: Policy {
-    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
-        where
-            Self: Sized {
-        AccessControlPolicy { owner: U::from_row(table_name, row) }
+    fn from_request<'a, 'r>(request: &'a rocket::Request<'r>) -> Self
+            where
+                Self: Sized {
+        T::make(T::User::from_request(request))
     }
 }
 
-#[::rocket::async_trait]
-impl<'a, 'r, U: FromBBoxReq> FromBBoxRequest<'a, 'r> for BaseContext<U> {
-    type BBoxError = ();
-    async fn from_bbox_request(request:crate::rocket::BBoxRequest<'a,'r> ,) -> crate::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
-        let c = BaseContext {
-            current_user: U::from_bbox_request(request),
-        };
-        request.route().and_then(|_|{
-            Some(c)
-        }).into_outcome((rocket::http::Status::InternalServerError, ()))
+impl<T> SchemaPolicy for T 
+    where T: DefaultWithUser + Policy,
+          T::User: FromSchema {
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
+        where
+            Self: Sized {
+        T::make(T::User::from_row(table_name, row))
     }
 }
 
