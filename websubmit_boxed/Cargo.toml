@@ -7,6 +7,7 @@ build = "build.rs"
 
 [dependencies]
 alohomora = { path = "../alohomora", default_features = false, features = ["derive"] }
+alohomora_policy = { path = "../alohomora_policy" }
 chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.33.0"
 lazy_static = "1.4.0"

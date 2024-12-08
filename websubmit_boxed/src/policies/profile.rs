@@ -5,9 +5,9 @@ use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, Sch
 use alohomora::AlohomoraType;
 
 // Access control policy.
-#[schema_policy(table = "users", column = 5)] // gender
-#[schema_policy(table = "users", column = 6)] // age
-#[schema_policy(table = "users", column = 7)] // ethnicity
+// #[schema_policy(table = "users", column = 5)] // gender
+// #[schema_policy(table = "users", column = 6)] // age
+// #[schema_policy(table = "users", column = 7)] // ethnicity
 #[derive(Clone)]
 pub struct UserProfilePolicy {
     owner: Option<String>, // even if no owner, admins may access
@@ -79,3 +79,4 @@ impl SchemaPolicy for UserProfilePolicy {
         }
     }
 }
+

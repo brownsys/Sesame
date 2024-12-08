@@ -39,7 +39,7 @@ macro_rules! access_control_policy {
      $context_name: tt, 
      $user: tt,
      $([$pred_fn: tt $(|| $next_pred_fn: tt)*, $reason_check: expr]),+ 
-     $([$default_reason_check: expr])?) => {
+     $([$default_reason_check: expr])? $(; $user_combine_fn: expr)?) => {
 
         /// Auto-Generated Access Control Policy
         // TODO: remove Debug, i dont think its needed
@@ -72,10 +72,11 @@ macro_rules! access_control_policy {
 
                 return $($default_reason_check(reason) ||)? false;
             }
-                
+
+            #[allow(unreachable_code)]
             fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized {
-                // similar to policy_join() but just for each item
-                todo!()
+                $(return Ok(<Self as alohomora::policy::DefaultWithUser>::make($user_combine_fn(&self.owner, &other.owner)));)?
+                return todo!();
             }
                 
             $crate::default_policy_join!();
