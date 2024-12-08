@@ -8,6 +8,7 @@ edition = "2018"
 [dependencies]
 alohomora = { path = "../alohomora/", default_features = false, features = ["derive"] }
 alohomora_derive = { path = "../alohomora_derive" }
+alohomora_policy = { path = "../alohomora_policy" }
 chrono = "0.4.31"
 mysql = "21.0.2"
 mysql_common = "0.22"

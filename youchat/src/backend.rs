@@ -18,9 +18,11 @@ impl MySqlBackend {
     ) -> Result<Self, String> {
         let schema = std::fs::read_to_string("src/schema.sql").unwrap();
 
+        println!("trying ot db connect w/ user {user} / {password}");
         let mut db = BBoxConn::new(
             BBoxOpts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap()
         ).unwrap();
+        println!("done db connect");
 
         assert_eq!(db.ping(), true);
 

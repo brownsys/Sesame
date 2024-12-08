@@ -35,15 +35,20 @@ macro_rules! generate_context {
 /// Takes a list of role predicates and their reason checks & converts that into a simple RBAC policy 
 /// named `name`.
 macro_rules! access_control_policy {
-    ($name: tt, $context_name: tt, $user: tt, $([$pred_fn: tt, $reason_check: expr]),+ $([$default_reason_check: expr])?) => {
+    ($name: tt, 
+     $context_name: tt, 
+     $user: tt,
+     $([$pred_fn: tt $(|| $next_pred_fn: tt)*, $reason_check: expr]),+ 
+     $([$default_reason_check: expr])?) => {
 
         /// Auto-Generated Access Control Policy
+        // TODO: remove Debug, i dont think its needed
         #[derive(Clone, Debug)]
-        struct $name {
+        pub struct $name {
             pub owner: $user,
         }
 
-        impl DefaultWithUser for $name {
+        impl alohomora::policy::DefaultWithUser for $name {
             type User = $user;
             fn make(user: Self::User) -> Self {
                 $name { owner: user }
@@ -58,9 +63,9 @@ macro_rules! access_control_policy {
 
             fn check(&self, context: &alohomora::context::UnprotectedContext, reason: alohomora::policy::Reason<'_>) -> bool {
                 // TODO: downcast to correct context for accessing
-                let context = context.downcast_ref::<$context_name>().unwrap();
+                let context = context.downcast_ref::<<$context_name as AlohomoraType>::Out>().unwrap();
                 // TODO: should be other way around
-                $(if self.owner.$pred_fn(context) {
+                $(if self.owner.$pred_fn(context) $(|| self.owner.$next_pred_fn(context))* {
                     // TODO: should it be okay if this check fails?
                     return $reason_check(reason);
                 })*
