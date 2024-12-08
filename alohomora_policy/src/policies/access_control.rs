@@ -1,4 +1,5 @@
-use alohomora::policy::{FromFrontend, FrontendPolicy};
+// use alohomora::policy::{FromFrontend, FrontendPolicy};
+
 
 #[macro_export]
 macro_rules! generate_context {
@@ -38,8 +39,8 @@ macro_rules! access_control_policy {
     ($name: tt, 
      $context_name: tt, 
      $user: tt,
-     $([$pred_fn: tt $(|| $next_pred_fn: tt)*, $reason_check: expr]),+ 
-     $([$default_reason_check: expr])? $(; $user_combine_fn: expr)?) => {
+     $([$pred_fn: tt $(|| $next_pred_fn: tt)*, $reason_check: expr]),* 
+     $(($default_reason_check: expr))? $(; $user_combine_fn: expr)?) => {
 
         /// Auto-Generated Access Control Policy
         // TODO: remove Debug, i dont think its needed
@@ -63,7 +64,7 @@ macro_rules! access_control_policy {
 
             fn check(&self, context: &alohomora::context::UnprotectedContext, reason: alohomora::policy::Reason<'_>) -> bool {
                 // TODO: downcast to correct context for accessing
-                let context = context.downcast_ref::<<$context_name as AlohomoraType>::Out>().unwrap();
+                let context = context.downcast_ref::<<$context_name as alohomora::AlohomoraType>::Out>().unwrap();
                 // TODO: should be other way around
                 $(if self.owner.$pred_fn(context) $(|| self.owner.$next_pred_fn(context))* {
                     // TODO: should it be okay if this check fails?

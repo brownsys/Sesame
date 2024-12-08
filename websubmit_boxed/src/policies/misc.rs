@@ -1,14 +1,19 @@
 use alohomora::context::UnprotectedContext;
 use alohomora::policy::{
-    schema_policy, AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, SchemaPolicy,
+    schema_policy, AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, SchemaPolicy,EmptyUser
 };
 use mysql::Value;
 use rocket::http::Cookie;
 use rocket::Request;
 
+use super::ContextData;
+
 #[derive(Clone)]
 #[schema_policy(table = "users", column = 1)]
 pub struct QueryableOnly {}
+
+alohomora_policy::access_control_policy!(QueryableOnly2, ContextData, EmptyUser,
+    (alohomora_policy::match_reasons!([Reason::DB(query, _), (query.starts_with("SELECT"))])));
 
 // Content of apikey column can only be accessed by:
 //   1. SELECT query

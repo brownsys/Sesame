@@ -3,19 +3,28 @@ use crate::policies::ContextData;
 use alohomora::context::UnprotectedContext;
 use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
 use alohomora::AlohomoraType;
+use crate::policies::User;
 
 // Access control policy.
 // #[schema_policy(table = "users", column = 5)] // gender
 // #[schema_policy(table = "users", column = 6)] // age
 // #[schema_policy(table = "users", column = 7)] // ethnicity
+
+alohomora_policy::access_control_policy!(UserProfilePolicy, ContextData, User,
+    [is_not_authenticated, alohomora_policy::never_leaked!()],
+    [is_owner || is_admin, alohomora_policy::anything!()]
+    (alohomora_policy::never_leaked!());
+    User::combine);
+
+
 #[derive(Clone)]
-pub struct UserProfilePolicy {
+pub struct OGUserProfilePolicy {
     owner: Option<String>, // even if no owner, admins may access
 }
 
-impl Policy for UserProfilePolicy {
+impl Policy for OGUserProfilePolicy {
     fn name(&self) -> String {
-        "UserProfilePolicy".to_string()
+        "OGUserProfilePolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
@@ -47,8 +56,8 @@ impl Policy for UserProfilePolicy {
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<UserProfilePolicy>() {
-            let other = other.specialize::<UserProfilePolicy>().unwrap();
+        if other.is::<OGUserProfilePolicy>() {
+            let other = other.specialize::<OGUserProfilePolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
             Ok(AnyPolicy::new(PolicyAnd::new(
@@ -65,16 +74,16 @@ impl Policy for UserProfilePolicy {
         } else {
             comp_owner = None;
         }
-        Ok(UserProfilePolicy { owner: comp_owner })
+        Ok(OGUserProfilePolicy { owner: comp_owner })
     }
 }
 
-impl SchemaPolicy for UserProfilePolicy {
+impl SchemaPolicy for OGUserProfilePolicy {
     fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized,
     {
-        UserProfilePolicy {
+        OGUserProfilePolicy {
             owner: mysql::from_value(row[0].clone()),
         }
     }

@@ -90,6 +90,25 @@ pub trait FromBBoxReq where Self: Sized {
     fn from_bbox_request<'a, 'r, 'async_trait>(request:crate::rocket::BBoxRequest<'a,'r> ,) -> Self;
 }
 
+#[derive(Clone, Debug)]
+pub struct EmptyUser;
+
+impl FromFrontend for EmptyUser {
+    fn from_request<'a, 'r>(_: &'a rocket::Request<'r>) -> Self
+            where
+                Self: Sized {
+        EmptyUser{}
+    }
+}
+
+impl FromSchema for EmptyUser {
+    fn from_row(_: &str, _: &Vec<mysql::Value>) -> Self
+        where
+            Self: Sized {
+        EmptyUser{}
+    }
+}
+
 pub trait DefaultWithUser {
     type User;
     fn make(user: Self::User) -> Self;

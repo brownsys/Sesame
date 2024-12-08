@@ -31,72 +31,53 @@ type ContextDataOut = <ContextData as AlohomoraType>::Out;
 pub struct User(Option<String>, Option<u64>);
 
 impl User {
-    fn is_not_authenticated(&self, _ctx: &ContextDataOut) -> bool {
-        // println!("checking is not authenticated for {:?}", self);
-        self.0.is_none()
+    pub fn is_not_authenticated(&self, ctx: &ContextDataOut) -> bool {
+        ctx.user.is_none()
     }
 
-    fn is_owner(&self, ctx: &ContextDataOut) -> bool {
-        // println!("checking is owner for {:?}", self);
+    pub fn is_owner(&self, ctx: &ContextDataOut) -> bool {
         if let Some(owner) = &self.0 {
             owner == ctx.user.as_ref().unwrap()
         } else { false }
     }
 
-    fn is_admin(&self, ctx: &ContextDataOut) -> bool {
-        // println!("checking is admin for {:?}", self);
+    pub fn is_admin(&self, ctx: &ContextDataOut) -> bool {
         ctx.config.admins.contains(ctx.user.as_ref().unwrap())
     }
 
-    fn is_discussion_leader(&self, ctx: &ContextDataOut) -> bool {
-        // println!("checking is leader for {:?}", self);
+    pub fn is_discussion_leader(&self, ctx: &ContextDataOut) -> bool {
         if let Some(me) = &ctx.user {
             if let Some(lec_id) = self.1 {
-                // todo!();
                 let vec = ctx.db.lock().unwrap().prep_exec(
                     "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
                     (lec_id, me),
                     Context::empty(),
                 );
-                // println!("got vec {:?}", vec);
                 return vec.len() > 0;
             } else { return false; }
         } else { false }
-        
     }
 
-    fn combine(me: &Self, other: &Self) -> Self {
+    pub fn combine(me: &Self, other: &Self) -> Self {
         let comp_owner = if me.0.eq(&other.0) { me.0.clone() } else { None };
         let comp_lec_id = if me.1.eq(&other.1) { me.1.clone() } else { None };
         User(comp_owner, comp_lec_id)
     }
 }
 
-alohomora_policy::access_control_policy!(AnswerAccessPolicy2, 
-    ContextData,
-    User,
+alohomora_policy::access_control_policy!(AnswerAccessPolicy2, ContextData, User,
     [is_owner || is_admin || is_discussion_leader, alohomora_policy::anything!()]
-    [alohomora_policy::never_leaked!()];
+    (alohomora_policy::never_leaked!());
     User::combine);
 
 impl FromSchema for User {
     fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
-    where Self: Sized,
-    {
-        // println!("getting for answers table on row {:?}", row);
+    where Self: Sized {
         match table {
-            "answers" => {
-                let a = User(mysql::from_value(row[0].clone()), mysql::from_value(row[1].clone()));
-                // println!("{a:?}");
-                if a.0.is_none() { panic!(); }
-                a
-            }
-            "users" => {
-                User(mysql::from_value(row[0].clone()), None)
-            }
+            "answers" => User(mysql::from_value(row[0].clone()), mysql::from_value(row[1].clone())),
+            "users" => User(mysql::from_value(row[0].clone()), None),
             _ => panic!("unhandled table type"),
         }
-        
     }
 }
 
