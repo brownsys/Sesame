@@ -13,7 +13,7 @@ use super::ContextData;
 pub struct QueryableOnly {}
 
 alohomora_policy::access_control_policy!(QueryableOnly2, ContextData, EmptyUser,
-    (alohomora_policy::match_reasons!([Reason::DB(query, _), (query.starts_with("SELECT"))])));
+    (alohomora_policy::allowed_reasons!([Reason::DB(query, _), (query.starts_with("SELECT"))])));
 
 // Content of apikey column can only be accessed by:
 //   1. SELECT query
