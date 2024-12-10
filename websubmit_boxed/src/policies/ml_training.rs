@@ -4,17 +4,23 @@ use alohomora::context::UnprotectedContext;
 use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
 use alohomora::AlohomoraType;
 
+use super::User;
+
 // ML training policy.
 #[schema_policy(table = "ml_training", column = 0)]
 #[schema_policy(table = "ml_training", column = 1)]
 #[derive(Clone)]
-pub struct MLTrainingPolicy {
+pub struct OGMLTrainingPolicy {
     consent: bool,
 }
 
-impl Policy for MLTrainingPolicy {
+pub type MLTrainingPolicy = MLTrainingPolicy2;
+
+alohomora_policy::consent_policy!(MLTrainingPolicy2, User, [3, alohomora_policy::anything!()]);
+
+impl Policy for OGMLTrainingPolicy {
     fn name(&self) -> String {
-        "MLTrainingPolicy".to_string()
+        "OGMLTrainingPolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
@@ -32,8 +38,8 @@ impl Policy for MLTrainingPolicy {
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<MLTrainingPolicy>() {
-            let other = other.specialize::<MLTrainingPolicy>().unwrap();
+        if other.is::<OGMLTrainingPolicy>() {
+            let other = other.specialize::<OGMLTrainingPolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
             Ok(AnyPolicy::new(PolicyAnd::new(
@@ -44,18 +50,18 @@ impl Policy for MLTrainingPolicy {
     }
 
     fn join_logic(&self, p2: Self) -> Result<Self, ()> {
-        Ok(MLTrainingPolicy {
+        Ok(OGMLTrainingPolicy {
             consent: self.consent && p2.consent,
         })
     }
 }
 
-impl SchemaPolicy for MLTrainingPolicy {
+impl SchemaPolicy for OGMLTrainingPolicy {
     fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized,
     {
-        MLTrainingPolicy {
+        OGMLTrainingPolicy {
             consent: mysql::from_value(row[2].clone()),
         }
     }

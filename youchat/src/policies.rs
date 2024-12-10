@@ -23,16 +23,18 @@ impl ChatUser {
         let group_name = if self.2.is_some() { self.2.as_ref().unwrap() } else { return false; };
         let mut db = ctx.db.lock().unwrap();
 
-        let groupchats_w_name: Vec<(String, String, String)> = 
-            db.query(format!("SELECT * FROM group_chats WHERE group_name = \"{}\"", group_name)).unwrap();
+        let groupchats_w_name: Vec<(String, String, String)> = db.query(
+            format!("SELECT * FROM group_chats WHERE group_name = \"{}\"", group_name)
+        ).unwrap();
         
         if let Some((_group_name, admin_name, group_code)) = groupchats_w_name.first() {
             if let Some(name) = ctx.user.as_ref() {
                 if name == admin_name { return true; }
             }
 
-            let codes: Vec<(String, String)> = db.query(format!("SELECT * FROM users_group WHERE user_name = \"{}\" AND access_code = \"{}\"",
-                    ctx.user.as_ref().unwrap(), group_code)).unwrap();
+            let codes: Vec<(String, String)> = db.query(
+                format!("SELECT * FROM users_group WHERE user_name = \"{}\" AND access_code = \"{}\"",
+                ctx.user.as_ref().unwrap(), group_code)).unwrap();
 
             codes.len() >= 1
         } else { false }
