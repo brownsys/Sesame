@@ -3,9 +3,9 @@
 #[macro_export]
 macro_rules! never_leaked { () => { $crate::allowed_reasons!() } }
 #[macro_export]
-macro_rules! to_db { () => { $crate::allowed_reasons!([alohomora::policy::Reason::DB(_, _)]) } }
+macro_rules! only_to_db { () => { $crate::allowed_reasons!([alohomora::policy::Reason::DB(_, _)]) } }
 #[macro_export]
-macro_rules! to_pcr { () => { $crate::allowed_reasons!([alohomora::policy::Reason::Custom(_)]) } }
+macro_rules! only_to_pcr { () => { $crate::allowed_reasons!([alohomora::policy::Reason::Custom(_)]) } }
 #[macro_export]
 macro_rules! anything { () => { $crate::allowed_reasons!(, true) } }
 
