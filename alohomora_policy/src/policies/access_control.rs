@@ -63,7 +63,7 @@ macro_rules! access_control_policy {
             }
 
             fn check(&self, context: &alohomora::context::UnprotectedContext, reason: alohomora::policy::Reason<'_>) -> bool {
-                // TODO: downcast to correct context for accessing
+                // downcast to correct context for accessing
                 let context = context.downcast_ref::<<$context_name as alohomora::AlohomoraType>::Out>().unwrap();
                 // TODO: should be other way around
                 $(if self.owner.$pred_fn(context) $(|| self.owner.$next_pred_fn(context))* {

@@ -27,8 +27,8 @@ pub type AnswerAccessPolicy = AnswerAccessPolicy2;
 type ContextDataOut = <ContextData as AlohomoraType>::Out;
 
 #[derive(Clone, Debug)]
-//corresponds to:      owner           lec
-pub struct User(Option<String>, Option<u64>);
+// corresponds to:     owner           lec       ML        Employer Release
+pub struct User(Option<String>, Option<u64>, pub bool, pub bool);
 
 impl User {
     pub fn is_not_authenticated(&self, ctx: &ContextDataOut) -> bool {
@@ -61,7 +61,7 @@ impl User {
     pub fn combine(me: &Self, other: &Self) -> Self {
         let comp_owner = if me.0.eq(&other.0) { me.0.clone() } else { None };
         let comp_lec_id = if me.1.eq(&other.1) { me.1.clone() } else { None };
-        User(comp_owner, comp_lec_id)
+        User(comp_owner, comp_lec_id, me.2 && other.2, me.3 && other.3)
     }
 }
 
@@ -74,8 +74,10 @@ impl FromSchema for User {
     fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
     where Self: Sized {
         match table {
-            "answers" => User(mysql::from_value(row[0].clone()), mysql::from_value(row[1].clone())),
-            "users" => User(mysql::from_value(row[0].clone()), None),
+            "answers" => User(mysql::from_value(row[0].clone()), mysql::from_value(row[1].clone()), false, false),
+            "users" => User(mysql::from_value(row[0].clone()), None, false, false),
+            "ml_training" => User(None, None, mysql::from_value(row[2].clone()), false),
+            "employers_release" => User(None, None, false, mysql::from_value(row[2].clone())),
             _ => panic!("unhandled table type"),
         }
     }

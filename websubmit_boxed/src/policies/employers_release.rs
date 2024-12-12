@@ -4,17 +4,24 @@ use alohomora::context::UnprotectedContext;
 use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
 use alohomora::AlohomoraType;
 
+use super::User;
+
 // ML training policy.
 #[schema_policy(table = "employers_release", column = 0)]
 #[schema_policy(table = "employers_release", column = 1)]
 #[derive(Clone)]
-pub struct EmployersReleasePolicy {
+pub struct OGEmployersReleasePolicy {
     consent: bool,
 }
 
-impl Policy for EmployersReleasePolicy {
+pub type EmployersReleasePolicy = EmployersReleasePolicy2;
+
+alohomora_policy::consent_policy!(EmployersReleasePolicy2, User, [2, alohomora_policy::anything!()]);
+
+
+impl Policy for OGEmployersReleasePolicy {
     fn name(&self) -> String {
-        "EmployersReleasePolicy".to_string()
+        "OGEmployersReleasePolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
@@ -32,8 +39,8 @@ impl Policy for EmployersReleasePolicy {
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<EmployersReleasePolicy>() {
-            let other = other.specialize::<EmployersReleasePolicy>().unwrap();
+        if other.is::<OGEmployersReleasePolicy>() {
+            let other = other.specialize::<OGEmployersReleasePolicy>().unwrap();
             Ok(AnyPolicy::new(self.join_logic(other)?))
         } else {
             Ok(AnyPolicy::new(PolicyAnd::new(
@@ -44,18 +51,18 @@ impl Policy for EmployersReleasePolicy {
     }
 
     fn join_logic(&self, p2: Self) -> Result<Self, ()> {
-        Ok(EmployersReleasePolicy {
+        Ok(OGEmployersReleasePolicy {
             consent: self.consent && p2.consent,
         })
     }
 }
 
-impl SchemaPolicy for EmployersReleasePolicy {
+impl SchemaPolicy for OGEmployersReleasePolicy {
     fn from_row(_table: &str, row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized,
     {
-        EmployersReleasePolicy {
+        OGEmployersReleasePolicy {
             consent: mysql::from_value(row[2].clone()),
         }
     }
