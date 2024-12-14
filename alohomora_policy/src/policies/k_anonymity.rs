@@ -1,27 +1,6 @@
-//use alohomora::policy::Policy;
-
-// #[macro_export]
-// macro_rules! generate_context {
-//     ($context_name:ident, $data_field:ident, $data_type:ty) => {
-//         pub struct $context_name {
-//             pub $data_field: $data_type,
-//         }
-
-//         impl $context_name {
-//             pub fn new(data: $data_type) -> Self {
-//                 Self { $data_field: data }
-//             }
-
-//             pub fn get_data(&self) -> &$data_type {
-//                 &self.$data_field
-//             }
-//         }
-//     };
-// }
-
 #[macro_export]
 macro_rules! k_anonymity_policy {
-    ($policy_name:ident, $min_k:expr, [ $( ( table: $table:expr, column: $column:expr ) ),+ ]) => {
+    ($policy_name:ident, $min_k:expr, [ $( ( table: $table:expr, column: $column:expr ) ),+ ] $(, $schema_policy_impl:tt )?) => {
         #[derive(Clone)]
         pub struct $policy_name {
             count: u64,
@@ -102,17 +81,26 @@ macro_rules! k_anonymity_policy {
             }
         }
 
+        k_anonymity_policy!(@parse_schema_policy $policy_name $(, $schema_policy_impl)? );
+    };
+
+    // If no custom schema policy block is provided, define a default one
+    (@parse_schema_policy $policy_name:ident) => {
         impl alohomora::policy::SchemaPolicy for $policy_name {
-            fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self
-            where
-                Self: Sized,
-            {
+            fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self {
                 let mut policy = $policy_name::new();
                 policy
                     .initialize_from_row(table, row)
                     .expect("Failed to initialize policy from row");
                 policy
             }
+        }
+    };
+
+    // If a custom schema policy block is provided, use it as-is
+    (@parse_schema_policy $policy_name:ident, { $($body:tt)* }) => {
+        impl alohomora::policy::SchemaPolicy for $policy_name {
+            $($body)*
         }
     };
 }

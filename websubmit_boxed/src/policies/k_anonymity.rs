@@ -53,6 +53,7 @@
 
 use alohomora::context::UnprotectedContext;
 use alohomora::policy::{AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
+use alohomora_policy::k_anonymity_policy;
 use std::cmp;
 
 // Minimum K value for anonymity

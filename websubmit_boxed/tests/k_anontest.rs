@@ -1,3 +1,5 @@
+use alohomora_policy::k_anonymity_policy;
+use alohomora::policy::{Policy, SchemaPolicy, AnyPolicy};
 const MIN_K: u64 = 10;
 
 alohomora_policy::k_anonymity_policy!(
@@ -8,6 +10,23 @@ alohomora_policy::k_anonymity_policy!(
         (table: "agg_remote", column: 1)
     ]
 );
+
+alohomora_policy::k_anonymity_policy!(
+    CustomKAnonymityPolicy,
+    MIN_K,
+    [
+        (table: "customers", column: 2)
+    ],
+    {
+        fn from_row(table: &str, row: &Vec<mysql::Value>) -> Self {
+            let mut p = Self::new();
+            let idx = *p.schema.get(table).expect("Table not in schema");
+            p.count = mysql::from_value(row[idx].clone());
+            p
+        }
+    }
+);
+    
 
 #[cfg(test)]
 mod tests {
@@ -172,5 +191,24 @@ mod tests {
             err.is_err(),
             "Should fail because column index 1 is out of bounds"
         );
+    }
+
+    #[test]
+    fn test_custom_schema_policy() {
+        // Customers mapped to col 2
+        let row = vec![
+            mysql::Value::from("irrelevant"),
+            mysql::Value::from(123u64),
+            mysql::Value::from(999u64), // The one we want to count
+        ];
+
+        let context = UnprotectedContext {
+            route: "/test".to_string(),
+            data: Box::new(None::<()>),
+        };
+
+        let policy = CustomKAnonymityPolicy::from_row("customers", &row);
+        assert_eq!(policy.count, 999, "Expected count to come from column 2");
+        assert!(policy.check(&context, Reason::Response), "999 >= 5 should pass");
     }
 }
