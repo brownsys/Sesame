@@ -21,6 +21,7 @@ use crate::bbox::obfuscated_pointer::ObPtr;
 // Privacy Container type.
 pin_project! {
     #[derive(Debug, PartialEq)]
+    #[rustc_diagnostic_item = "pcon"]
     pub struct BBox<T, P: Policy> {
         #[pin]
         fb: ObPtr<T>,

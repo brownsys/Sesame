@@ -1,5 +1,6 @@
 #![feature(box_into_inner)]
 #![feature(specialization)]
+#![feature(rustc_attrs)]
 #![feature(core_intrinsics)]
 
 #[macro_use]

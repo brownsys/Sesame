@@ -2,9 +2,15 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::policies::ContextData;
 use alohomora::context::{Context, UnprotectedContext};
-use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, Reason, SchemaPolicy};
+use alohomora::policy::{
+    schema_policy, AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, SchemaPolicy,
+};
 use alohomora::AlohomoraType;
+use rocket::http::Cookie;
+use rocket::Request;
 use std::sync::{Arc, Mutex};
+
+use abomonation_derive::Abomonation;
 
 // Access control policy.
 #[schema_policy(table = "answers", column = 0)] // email
@@ -16,7 +22,7 @@ use std::sync::{Arc, Mutex};
 // grade, WHY CAN DISCUSSION LEADER SEE GRADE
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy across tables/columns.
-#[derive(Clone)]
+#[derive(Clone, Abomonation)]
 pub struct AnswerAccessPolicy {
     owner: Option<String>, // even if no owner, admins may access
     lec_id: Option<u64>,   // no lec_id when Policy for multiple Answers from different lectures
@@ -38,7 +44,7 @@ impl AnswerAccessPolicy {
 //      (`P(me)` alter. `is me in set<P(students)>`);
 impl Policy for AnswerAccessPolicy {
     fn name(&self) -> String {
-            "AnswerAccessPolicy".to_string()
+        "AnswerAccessPolicy".to_string()
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
@@ -124,5 +130,25 @@ impl SchemaPolicy for AnswerAccessPolicy {
             mysql::from_value(row[0].clone()),
             mysql::from_value(row[1].clone()),
         )
+    }
+}
+
+impl FrontendPolicy for AnswerAccessPolicy {
+    fn from_request<'a, 'r>(_request: &'a Request<'r>) -> Self {
+        AnswerAccessPolicy {
+            lec_id: None,
+            owner: None,
+        }
+    }
+
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a Cookie<'static>,
+        _request: &'a Request<'r>,
+    ) -> Self {
+        AnswerAccessPolicy {
+            lec_id: None,
+            owner: None,
+        }
     }
 }

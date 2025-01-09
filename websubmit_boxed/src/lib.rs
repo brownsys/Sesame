@@ -1,3 +1,7 @@
+#![feature(const_refs_to_cell)]
+#![feature(rustc_attrs)]
+#![feature(offset_of)]
+
 use alohomora::policy::add_schema_policy;
 use alohomora::rocket::{routes, BBoxRocket, BBoxRoute};
 use rocket::fs::FileServer;
