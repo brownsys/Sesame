@@ -1,12 +1,12 @@
 [workspace]
 members = [
+    "avoid_false_positives", 
     "blank_sign_illegal",
     "const_change_illegal",
     "copy_sign_illegal",
     "dep_change_illegal",
     "dependency",
     "rec_change_illegal",
-    "avoid_false_positives", 
 ]
 
 [patch.crates-io]
@@ -14,5 +14,5 @@ funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3d
 
 [workspace.metadata.dylint]
 libraries = [
-    { path = "../alohomora_lints" },
+    { path = "../../alohomora_lints" },
 ]

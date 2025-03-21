@@ -5,5 +5,5 @@ authors = ["corinn_tiffany@brown.edu"]
 edition = "2018"
 
 [dependencies]
-alohomora = { path = "../../alohomora" }
+alohomora = { path = "../../../alohomora" }
 dependency = { path = "../dependency" }
