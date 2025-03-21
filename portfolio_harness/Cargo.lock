@@ -3636,14 +3636,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "portfolio"
-version = "2.0.0"
-dependencies = [
- "portfolio-api",
- "sea-orm-rocket",
-]
-
-[[package]]
 name = "portfolio-api"
 version = "2.0.0"
 dependencies = [
@@ -3655,9 +3647,34 @@ dependencies = [
  "fern",
  "log",
  "once_cell",
- "portfolio-core",
- "portfolio-entity",
- "portfolio-migration",
+ "portfolio-core 2.0.0",
+ "portfolio-entity 2.0.0",
+ "portfolio-migration 2.0.0",
+ "rocket",
+ "sea-orm-migration",
+ "sea-orm-rocket",
+ "serde",
+ "serde_json",
+ "tokio",
+ "validator",
+]
+
+[[package]]
+name = "portfolio-api"
+version = "2.0.1"
+dependencies = [
+ "alohomora",
+ "alohomora_build",
+ "alohomora_derive",
+ "async-trait",
+ "chrono",
+ "dotenv",
+ "fern",
+ "log",
+ "once_cell",
+ "portfolio-core 2.0.1",
+ "portfolio-entity 2.0.1",
+ "portfolio-migration 2.0.1",
  "portfolio-policies",
  "rocket",
  "sea-orm-migration",
@@ -3690,7 +3707,43 @@ dependencies = [
  "infer",
  "lazy_static",
  "log",
- "portfolio-entity",
+ "portfolio-entity 2.0.0",
+ "rand 0.8.5",
+ "rocket",
+ "sea-orm",
+ "sea-orm-rocket",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid 1.8.0",
+ "validator",
+]
+
+[[package]]
+name = "portfolio-core"
+version = "2.0.1"
+dependencies = [
+ "aes-gcm-siv",
+ "age",
+ "alohomora",
+ "alohomora_build",
+ "alohomora_derive",
+ "argon2",
+ "async-compat",
+ "async-trait",
+ "async_zip",
+ "base64 0.21.7",
+ "chrono",
+ "csv",
+ "dotenv",
+ "fern",
+ "futures",
+ "infer",
+ "lazy_static",
+ "log",
+ "portfolio-entity 2.0.1",
  "portfolio-policies",
  "portfolio-types",
  "portfolio_sandbox",
@@ -3715,6 +3768,17 @@ dependencies = [
  "alohomora_derive",
  "async-trait",
  "chrono",
+ "sea-orm",
+]
+
+[[package]]
+name = "portfolio-entity"
+version = "2.0.1"
+dependencies = [
+ "alohomora",
+ "alohomora_derive",
+ "async-trait",
+ "chrono",
  "portfolio-policies",
  "sea-orm",
 ]
@@ -3724,9 +3788,10 @@ name = "portfolio-harness"
 version = "0.1.0"
 dependencies = [
  "alohomora",
- "portfolio",
- "portfolio-api",
- "portfolio-core",
+ "portfolio-api 2.0.0",
+ "portfolio-api 2.0.1",
+ "portfolio-core 2.0.0",
+ "portfolio-core 2.0.1",
  "rocket",
 ]
 
@@ -3737,7 +3802,20 @@ dependencies = [
  "alohomora",
  "alohomora_derive",
  "chrono",
- "portfolio-entity",
+ "portfolio-entity 2.0.0",
+ "sea-orm-migration",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "portfolio-migration"
+version = "2.0.1"
+dependencies = [
+ "alohomora",
+ "alohomora_derive",
+ "chrono",
+ "portfolio-entity 2.0.1",
  "portfolio-policies",
  "sea-orm-migration",
  "serde",
@@ -3746,7 +3824,7 @@ dependencies = [
 
 [[package]]
 name = "portfolio-policies"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "alohomora",
  "alohomora_derive",
@@ -3763,7 +3841,7 @@ dependencies = [
 
 [[package]]
 name = "portfolio-types"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
 ]
@@ -5021,9 +5099,9 @@ dependencies = [
 
 [[package]]
 name = "small_ctor"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "533b934026d84df379afeed5d4f346d6c86622465b2eba78eef8940f01f97575"
+checksum = "88414a5ca1f85d82cc34471e975f0f74f6aa54c40f062efa42c0080e7f763f81"
 
 [[package]]
 name = "smallvec"

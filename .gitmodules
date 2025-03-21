@@ -4,6 +4,6 @@
 [submodule "PortfolioBoxed"]
 	path = portfolio_boxed
 	url = https://github.com/AlexanderPortland/Portfolio.git
-[submodule "Portfolio2"]
+[submodule "Portfolio"]
 	path = portfolio
-	url = git@github.com:AlexanderPortland/Portfolio.git
+	url = https://github.com/AlexanderPortland/Portfolio.git

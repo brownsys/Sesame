@@ -8,13 +8,18 @@ publish = false
 alohomora = { path = "../alohomora" }
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 
-portfolio = { path = "../portfolio_boxed/" }
-portfolio-api = { path = "../portfolio_boxed/api" }
-portfolio-core = { path = "../portfolio_boxed/core" }
+#portfolio = { path = "../portfolio/" }
+portfolio-api = { path = "../portfolio/api", optional = true }
+portfolio-core = { path = "../portfolio/core", optional = true }
+
+#portfolio_boxed = { path = "../portfolio_boxed/" }
+portfolio_boxed-api = { path = "../portfolio_boxed/api", package = "portfolio-api", optional = true }
+portfolio_boxed-core = { path = "../portfolio_boxed/core", package = "portfolio-core", optional = true }
 
 [patch.crates-io]
 funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
 
 [features]
-boxed = []
-unboxed = []
+default = []
+boxed = [ "portfolio_boxed-api", "portfolio_boxed-core" ]
+unboxed = [ "portfolio-api", "portfolio-core" ]

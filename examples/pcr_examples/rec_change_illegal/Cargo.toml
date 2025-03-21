@@ -1,8 +1,8 @@
 [package]
-name = "blank_sign_illegal"
+name = "rec_change_illegal"
 version = "0.1.0"
 authors = ["corinn_tiffany@brown.edu"]
 edition = "2018"
 
 [dependencies]
-alohomora = { path = "../../alohomora" }
+alohomora = { path = "../../../alohomora" }

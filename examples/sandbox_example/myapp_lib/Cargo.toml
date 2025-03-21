@@ -7,12 +7,12 @@ build = "build.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-alohomora_derive = { path = "../../alohomora_derive" }
-alohomora_sandbox = { path = "../../alohomora_sandbox" } #, features = ["sandbox_timing"] }
+alohomora_derive = { path = "../../../alohomora_derive" }
+alohomora_sandbox = { path = "../../../alohomora_sandbox" } #, features = ["sandbox_timing"] }
 
 [build-dependencies]
 bindgen = "0.69.1"
-alohomora_build = { path = "../../alohomora_build" }
+alohomora_build = { path = "../../../alohomora_build" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
