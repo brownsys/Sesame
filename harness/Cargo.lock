@@ -4006,9 +4006,9 @@ dependencies = [
 
 [[package]]
 name = "small_ctor"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "533b934026d84df379afeed5d4f346d6c86622465b2eba78eef8940f01f97575"
+checksum = "88414a5ca1f85d82cc34471e975f0f74f6aa54c40f062efa42c0080e7f763f81"
 
 [[package]]
 name = "smallvec"
