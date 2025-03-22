@@ -18,8 +18,8 @@ unboxed:
 
 clean:
 	cargo clean
-	rm -rf $(BOXEDPATH)/sandbox/libportfolio_sandbox_sandbox.so
-	number=1 ; while [[ $$number -le 1000 ]] ; do \
+	cd $(BOXEDPATH)/sandbox/ && rm -rf libportfolio_sandbox_sandbox.so && cargo clean && rm -rf wasm_target
+	number=1 ; while [[ $$number -le 1001 ]] ; do \
         rm -rf $$number ; \
         ((number = number + 1)) ; \
     done
