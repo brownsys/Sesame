@@ -39,6 +39,9 @@ fn get_portfolio() -> Client {
 // No more conditionals!
 pub const ADMIN_ID: i32 = 3;
 pub const ADMIN_PASSWORD: &'static str = "test";
+pub const CANDIDATES_COUNT: i32 = 1000;
+pub const LIST_CANDIDATES_COUNT: u64 = 100;
+pub const LIST_CANDIDATES_PAGE_SIZE: i64 = 20;
 
 // Helpers for login.
 pub fn admin_login(client: &Client) -> (Cookie, Cookie) {
@@ -116,13 +119,13 @@ fn make_candidates(client: &Client, ids: Vec<i32>) -> Vec<(i32, String)> {
 fn list_candidates(
     times_to_list: u64,
     client: &Client,
-    response_len: usize,
 ) -> Vec<Duration> {
     let mut times = vec![];
     let cookies = admin_login(&client);
     for i in 0..times_to_list {
+        let page_num = i % 50;
         let request = client
-            .get(format!("/admin/list/candidates?page={}", i % 50))
+            .get(format!("/admin/list/candidates?page={}", page_num))
             .cookie(cookies.clone().0)
             .cookie(cookies.clone().1);
 
@@ -133,7 +136,18 @@ fn list_candidates(
         times.push(timer.elapsed());
 
         let vec = response.into_json::<Vec<CleanApplicationResponse>>().unwrap();
-        assert_eq!(vec.len(), 20);
+        
+        // Compute expected size given pagination.
+        let candidates_before = page_num as i64 * LIST_CANDIDATES_PAGE_SIZE;
+        let mut expected_size = (CANDIDATES_COUNT + 1) as i64 - candidates_before;
+        if expected_size < 0 {
+            expected_size = 0;
+        }
+        if expected_size > LIST_CANDIDATES_PAGE_SIZE {
+            expected_size = LIST_CANDIDATES_PAGE_SIZE;
+        }
+        
+        assert_eq!(vec.len(), expected_size as usize);
     }
     times
 }
@@ -204,7 +218,7 @@ fn main() {
     // setup
     let client = get_portfolio();
 
-    let ids: Vec<i32> = (102151..(102151 + 1000)).collect();
+    let ids: Vec<i32> = (102151..(102151 + CANDIDATES_COUNT)).collect();
     let ids_len = ids.len();
 
     println!("making candidates");
@@ -214,6 +228,6 @@ fn main() {
     let upload_times = upload_details(&client, candidates);
     println!("details: {:?}", compute_times(upload_times));
 
-    let list_times = list_candidates(100, &client, ids_len + 1);
+    let list_times = list_candidates(LIST_CANDIDATES_COUNT, &client);
     println!("list: {:?}", compute_times(list_times));
 }

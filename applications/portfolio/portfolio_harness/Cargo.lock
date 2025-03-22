@@ -3639,8 +3639,6 @@ dependencies = [
 name = "portfolio-api"
 version = "2.0.0"
 dependencies = [
- "alohomora",
- "alohomora_derive",
  "async-trait",
  "chrono",
  "dotenv",
@@ -3691,9 +3689,6 @@ version = "2.0.0"
 dependencies = [
  "aes-gcm-siv",
  "age",
- "alohomora",
- "alohomora_build",
- "alohomora_derive",
  "argon2",
  "async-compat",
  "async-trait",
@@ -3764,8 +3759,6 @@ dependencies = [
 name = "portfolio-entity"
 version = "2.0.0"
 dependencies = [
- "alohomora",
- "alohomora_derive",
  "async-trait",
  "chrono",
  "sea-orm",
@@ -3799,8 +3792,6 @@ dependencies = [
 name = "portfolio-migration"
 version = "2.0.0"
 dependencies = [
- "alohomora",
- "alohomora_derive",
  "chrono",
  "portfolio-entity 2.0.0",
  "sea-orm-migration",

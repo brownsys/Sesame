@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-alohomora = { path = "../alohomora" }
+alohomora = { path = "../../../alohomora" }
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main" }
 
 #portfolio = { path = "../portfolio/" }
