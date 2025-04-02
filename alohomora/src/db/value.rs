@@ -4,6 +4,7 @@ use crate::policy::{AnyPolicy, Policy};
 
 // mysql imports.
 pub use mysql::prelude::FromValue as BBoxFromValue;
+pub use mysql::Value;
 
 
 // What is a (return) value.

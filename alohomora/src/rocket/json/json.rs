@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use mysql::chrono::{NaiveDateTime, NaiveDate, NaiveTime};
+use mysql::chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::bbox::BBox;
 use crate::policy::{FrontendPolicy, Policy};
@@ -11,8 +11,8 @@ use crate::rocket::{BBoxRequest, InputBBoxValue, OutputBBoxValue};
 // Traits for transformation between JSON data and structs.
 pub trait RequestBBoxJson {
     fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 pub trait ResponseBBoxJson {
@@ -23,7 +23,10 @@ pub trait ResponseBBoxJson {
 // macro.
 // Implement trait for Date types.
 impl<T: DeserializeOwned, P: FrontendPolicy> RequestBBoxJson for BBox<T, P> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> {
+    fn from_json(
+        value: InputBBoxValue,
+        request: BBoxRequest<'_, '_>,
+    ) -> Result<Self, &'static str> {
         let value = value.value;
         match serde_json::from_value(value) {
             Err(_) => Err("Bad JSON"),
@@ -32,10 +35,12 @@ impl<T: DeserializeOwned, P: FrontendPolicy> RequestBBoxJson for BBox<T, P> {
     }
 }
 
-
 // Option (for nulls).
 impl<T: RequestBBoxJson> RequestBBoxJson for Option<T> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
+    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str>
+    where
+        Self: Sized,
+    {
         if let Value::Null = value.value {
             Ok(None)
         } else {
@@ -51,7 +56,10 @@ impl<T: ResponseBBoxJson> ResponseBBoxJson for Vec<T> {
     }
 }
 impl<T: RequestBBoxJson> RequestBBoxJson for HashMap<String, T> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
+    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str>
+    where
+        Self: Sized,
+    {
         match value.value {
             Value::Object(map) => {
                 let mut result = HashMap::with_capacity(map.len());
@@ -59,7 +67,7 @@ impl<T: RequestBBoxJson> RequestBBoxJson for HashMap<String, T> {
                     result.insert(k, T::from_json(InputBBoxValue::new(v), request)?);
                 }
                 Ok(result)
-            },
+            }
             _ => Err("Bad JSON"),
         }
     }
@@ -69,6 +77,18 @@ impl<T: RequestBBoxJson> RequestBBoxJson for HashMap<String, T> {
 // Anything that is json serializable can be made to be a response.
 macro_rules! impl_base_types {
     ($T: ty) => {
+        impl RequestBBoxJson for $T {
+            fn from_json(
+                value: InputBBoxValue,
+                _request: BBoxRequest<'_, '_>,
+            ) -> Result<Self, &'static str> {
+                let value = value.value;
+                match serde_json::from_value(value) {
+                    Err(_) => Err("Bad JSON"),
+                    Ok(value) => Ok(value),
+                }
+            }
+        }
         impl ResponseBBoxJson for $T {
             fn to_json(self) -> OutputBBoxValue {
                 OutputBBoxValue::Value(serde_json::to_value(self).unwrap())
@@ -100,12 +120,15 @@ impl<T: ResponseBBoxJson> ResponseBBoxJson for Option<T> {
     fn to_json(self) -> OutputBBoxValue {
         match self {
             None => OutputBBoxValue::Value(Value::Null),
-            Some(v) => v.to_json()
+            Some(v) => v.to_json(),
         }
     }
 }
 impl<T: RequestBBoxJson> RequestBBoxJson for Vec<T> {
-    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> where Self: Sized {
+    fn from_json(value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str>
+    where
+        Self: Sized,
+    {
         match value.value {
             Value::Array(vec) => {
                 let mut result = Vec::with_capacity(vec.len());
@@ -113,7 +136,7 @@ impl<T: RequestBBoxJson> RequestBBoxJson for Vec<T> {
                     result.push(T::from_json(InputBBoxValue::new(v), request)?);
                 }
                 Ok(result)
-            },
+            }
             _ => Err("Bad JSON"),
         }
     }

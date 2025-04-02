@@ -26,6 +26,7 @@ pub use crate::rocket::response::*;
 pub use crate::rocket::rocket::*;
 pub use crate::rocket::route::*;
 pub use crate::rocket::template::*;
+pub use ::rocket::{Request as RocketRequest, http::Cookie as RocketCookie};
 
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::{get, post, route, routes, FromBBoxForm, ResponseBBoxJson, RequestBBoxJson};

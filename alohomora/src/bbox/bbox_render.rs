@@ -1,4 +1,4 @@
-extern crate erased_serde;
+// extern crate erased_serde;
 extern crate figment;
 
 use std::collections::{BTreeMap, HashMap};

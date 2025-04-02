@@ -69,3 +69,4 @@ impl<'a, 'r, 'o: 'a, T: ResponseBBoxJson, D: ContextData> BBoxResponder<'a, 'r, 
         }
     }
 }
+

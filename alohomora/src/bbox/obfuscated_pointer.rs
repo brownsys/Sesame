@@ -4,6 +4,8 @@ use std::task::Poll;
 use std::boxed::Box;
 use std::marker::PhantomData;
 
+use serde::Deserialize;
+
 // Secret to XOR with.
 const secret: usize = 2238711266;
 
@@ -11,6 +13,15 @@ const secret: usize = 2238711266;
 pub struct ObPtr<T> {
     ptr: usize,
     _marker: PhantomData<T>
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for ObPtr<T>{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de> {
+        let res = T::deserialize(deserializer)?;
+        Ok(ObPtr::new(res))
+    }
 }
 
 impl<T> ObPtr<T> {

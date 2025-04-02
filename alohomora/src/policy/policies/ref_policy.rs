@@ -1,10 +1,12 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, Policy, Reason};
+use serde::{Serialize, de::DeserializeOwned};
 
 #[derive(Clone)]
 pub struct RefPolicy<'a, P: Policy + ?Sized> {
     policy: &'a P,
 }
+
 
 unsafe impl<'a, P: Policy + ?Sized> Send for RefPolicy<'a, P> {}
 unsafe impl<'a, P: Policy + ?Sized> Sync for RefPolicy<'a, P> {}
@@ -39,3 +41,4 @@ impl<'a: 'static, P: Policy + Sized> From<RefPolicy<'a, P>> for RefPolicy<'a, dy
         RefPolicy::new(value.policy)
     }
 }
+

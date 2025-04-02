@@ -25,16 +25,21 @@ figment = "0.10.6"
 lazy_static = "1.4.0"
 erased-serde = "0.3.25"
 mysql = "21.0.2"
-mysql_common = "0.22"
+mysql_common = "0.29"
 dynfmt = { version = "0.1.5", features = ["curly"] }
 small_ctor = "0.1.0"
 cookie = { version = "0.15", features = ["percent-encode"] }
 time = { version = "0.2.11", default-features = false, features = ["std"] }
 indexmap = "1.7.0"
 itertools = "0.12.1"
+async-trait = "0.1.83"
+tokio-serde = { version = "0.8.0", features = ["serde_json", "json"] }
+tokio-util = "0.7.13"
+tokio-macros = "2.4.0"
+educe = { version = "0.6.0", features = ["full"] }
+tarpc = { version = "0.34.0", features = ["full"]}
 
 [dev-dependencies]
-tokio = "1.37.0"
 tokio-test = "0.4.0"
 
 [dependencies.rocket_dyn_templates]
@@ -56,6 +61,7 @@ default = ["derive"]
 derive = ["alohomora_derive"]
 orm = ["sea-orm"]
 sandbox_timing = ["alohomora_sandbox/sandbox_timing"]
+tahini = ["alohomora_derive/tahini"]
 
 [[test]]
 name = "orm"

@@ -7,13 +7,15 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parse_macro_input, DeriveInput, Expr, ItemFn, ItemStruct};
 
+mod alohomora_type;
 mod form;
+mod json;
 mod policy;
 mod render;
 mod route;
-mod alohomora_type;
 mod sandbox;
-mod json;
+#[cfg(feature = "tahini")]
+mod tahini;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
@@ -107,7 +109,6 @@ pub fn derive_sandboxable(input: TokenStream) -> TokenStream {
     }
 }
 
-
 #[proc_macro_derive(RequestBBoxJson)]
 pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -124,4 +125,20 @@ pub fn dervie_response_bbox_json(input: TokenStream) -> TokenStream {
         Ok(tokens) => tokens.into(),
         Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
     }
+}
+
+#[cfg(feature = "tahini")]
+#[proc_macro_derive(TahiniType)]
+pub fn derive_tahini_type(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    match tahini::tahini_type::derive_tahini_type_impl(input) {
+        Ok(tokens) => tokens.into(),
+        Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
+    }
+}
+
+#[cfg(feature = "tahini")]
+#[proc_macro_attribute]
+pub fn tahini_service(args: TokenStream, input: TokenStream) -> TokenStream {
+    tahini::tahini_service::service(args, input)
 }

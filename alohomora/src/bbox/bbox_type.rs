@@ -1,26 +1,32 @@
-use std::{fmt::{Debug, Formatter}, any::Any};
 use std::fmt::Write;
 use std::future::Future;
+use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::Poll;
-use std::marker::PhantomData;
+use std::{
+    any::Any,
+    fmt::{Debug, Formatter},
+};
 
 use either::Either;
 use mysql::chrono;
 
-use crate::context::{Context, ContextData, UnprotectedContext};
-use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, OptionPolicy, Reason, CloneableAny};
 use crate::pcr::PrivacyCriticalRegion;
+use crate::policy::{AnyPolicy, CloneableAny, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy};
 use crate::pure::PrivacyPureRegion;
+use crate::{
+    context::{Context, ContextData, UnprotectedContext},
+    policy::{PolicyAnd, PolicyTransformable},
+};
 
-use pin_project_lite::pin_project;
-use crate::AlohomoraType;
-use crate::fold::fold;
 use crate::bbox::obfuscated_pointer::ObPtr;
+use crate::fold::fold;
+use crate::AlohomoraType;
+use pin_project_lite::pin_project;
 
 // Privacy Container type.
 pin_project! {
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, serde::Deserialize)]
     pub struct BBox<T, P: Policy> {
         #[pin]
         fb: ObPtr<T>,
@@ -42,7 +48,10 @@ impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
 // This API moves/consumes the data and policy, or operates on them as refs.
 impl<T, P: Policy> BBox<T, P> {
     pub fn new(t: T, p: P) -> Self {
-        Self { fb: ObPtr::new(t), p }
+        Self {
+            fb: ObPtr::new(t),
+            p,
+        }
     }
 
     // Consumes the bboxes extracting data and policy (private usable only in crate).
@@ -69,6 +78,7 @@ impl<T, P: Policy> BBox<T, P> {
             p: self.p.into(),
         }
     }
+
     pub fn from_bbox<F>(value: BBox<F, P>) -> BBox<T, P>
     where
         T: From<F>,
@@ -78,8 +88,23 @@ impl<T, P: Policy> BBox<T, P> {
             p: value.p,
         }
     }
+
+    pub fn transform_policy<P2: Policy>(
+        self,
+        tahini_context: crate::tarpc::context::TahiniContext,
+    ) -> Result<BBox<T, P2>, String>
+    where
+        P: PolicyTransformable<P2>,
+    {
+        println!("Got a PCon with policy of type : {:?}.\nTransforming into Pcon with policy of type : {:?}", std::any::type_name::<P>(), std::any::type_name::<P2>());
+        Ok(BBox {
+            fb: ObPtr::new((self.fb.mov()).into()),
+            p: self.p.transform_into(tahini_context)?,
+        })
+    }
+
     // retrieve policy
-    pub fn policy(&self) -> &P{
+    pub fn policy(&self) -> &P {
         &self.p
     }
 
@@ -88,11 +113,17 @@ impl<T, P: Policy> BBox<T, P> {
         &'a self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
-        arg: C
-    ) -> Result<O, ()> where C::Out: CloneableAny + Clone {
+        arg: C,
+    ) -> Result<O, ()>
+    where
+        C::Out: CloneableAny + Clone,
+    {
         let arg_out = fold(arg.clone()).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
+        if self
+            .p
+            .check(&context, Reason::Custom(Box::new(arg_out.clone())))
+        {
             let functor = functor.get_functor();
             Ok(functor(self.fb.get(), arg_out))
         } else {
@@ -103,11 +134,17 @@ impl<T, P: Policy> BBox<T, P> {
         self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
-        arg: C
-    ) -> Result<O, ()> where C::Out: CloneableAny + Clone {
+        arg: C,
+    ) -> Result<O, ()>
+    where
+        C::Out: CloneableAny + Clone,
+    {
         let arg_out = fold(arg).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self.p.check(&context, Reason::Custom(Box::new(arg_out.clone()))) {
+        if self
+            .p
+            .check(&context, Reason::Custom(Box::new(arg_out.clone())))
+        {
             let functor = functor.get_functor();
             Ok(functor(self.fb.mov(), arg_out))
         } else {
@@ -116,17 +153,28 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Privacy critical regions
-    pub fn pcr<'a, C, O, F: FnOnce(&'a T, &'a P, C) -> O>(&'a self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
+    pub fn pcr<'a, C, O, F: FnOnce(&'a T, &'a P, C) -> O>(
+        &'a self,
+        functor: PrivacyCriticalRegion<F>,
+        arg: C,
+    ) -> O {
         let functor = functor.get_functor();
         functor(self.fb.get(), &self.p, arg)
     }
-    pub fn into_pcr<C, O, F: FnOnce(T, P, C) -> O>(self, functor: PrivacyCriticalRegion<F>, arg: C) -> O {
+    pub fn into_pcr<C, O, F: FnOnce(T, P, C) -> O>(
+        self,
+        functor: PrivacyCriticalRegion<F>,
+        arg: C,
+    ) -> O {
         let functor = functor.get_functor();
         functor(self.fb.mov(), self.p, arg)
     }
 
     // Privacy pure regions.
-    pub fn ppr<'a, O, F: FnOnce(&'a T) -> O>(&'a self, functor: PrivacyPureRegion<F>) -> BBox<O, RefPolicy<'a, P>> {
+    pub fn ppr<'a, O, F: FnOnce(&'a T) -> O>(
+        &'a self,
+        functor: PrivacyPureRegion<F>,
+    ) -> BBox<O, RefPolicy<'a, P>> {
         let functor = functor.get_functor();
         BBox::new(functor(self.fb.get()), RefPolicy::new(&self.p))
     }
@@ -139,7 +187,10 @@ impl<T, P: Policy> BBox<T, P> {
 // Can clone a ref policy to own it.
 impl<'a, T, P: Policy + Clone> BBox<T, RefPolicy<'a, P>> {
     pub fn to_owned_policy(self) -> BBox<T, P> {
-        BBox { fb: self.fb, p: self.p.policy().clone() }
+        BBox {
+            fb: self.fb,
+            p: self.p.policy().clone(),
+        }
     }
 }
 
@@ -154,6 +205,15 @@ impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
 impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
     pub fn into_any(self) -> BBox<Box<dyn Any>, AnyPolicy> {
         BBox::new(Box::new(self.fb.mov()), AnyPolicy::new(self.p))
+    }
+}
+impl BBox<Box<dyn Any>, AnyPolicy> {
+    pub fn specialize<T: 'static, P: Policy + Clone + 'static>(self) -> Result<BBox<T, P>, String> {
+        let (t, p) = self.consume();
+        Ok(BBox::new(
+            *t.downcast().map_err(|_| String::from("wrong type"))?,
+            p.specialize()?,
+        ))
     }
 }
 
@@ -237,7 +297,7 @@ impl<T: Default, P: Policy + Default> Default for BBox<T, P> {
 }
 
 // For datetime.
-use chrono::{NaiveDateTime, NaiveDate, NaiveTime, ParseResult};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime, ParseResult};
 impl<P: Policy> BBox<String, P> {
     pub fn into_date_time(self, fmt: &str) -> ParseResult<BBox<NaiveDateTime, P>> {
         let (t, p) = self.consume();
@@ -277,7 +337,9 @@ mod tests {
             Ok(AnyPolicy::new(self.clone()))
         }
         fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-            Ok(ExamplePolicy { attr: String::from("") })
+            Ok(ExamplePolicy {
+                attr: String::from(""),
+            })
         }
     }
 
@@ -290,10 +352,7 @@ mod tests {
 
     #[test]
     fn test_unbox() {
-        let context = Context::new(
-            String::from(""),
-            TestContextData::new(()),
-        );
+        let context = Context::new(String::from(""), TestContextData::new(()));
 
         let bbox = BBox::new(10u64, NoPolicy {});
         let result = bbox.into_unbox(
@@ -302,11 +361,21 @@ mod tests {
                 |val, exp| {
                     assert_eq!(val, exp);
                 },
-                Signature { username: "", signature: "" },
-                Signature { username: "", signature: "" },
-                Signature { username: "", signature: "" },
+                Signature {
+                    username: "",
+                    signature: "",
+                },
+                Signature {
+                    username: "",
+                    signature: "",
+                },
+                Signature {
+                    username: "",
+                    signature: "",
+                },
             ),
-            10u64);
+            10u64,
+        );
         assert!(result.is_ok());
     }
 
@@ -323,9 +392,14 @@ mod tests {
 
         // Make sure we can specialize.
         assert!(bbox.is_policy::<TestPolicy<ExamplePolicy>>());
-        let bbox = bbox.specialize_policy::<TestPolicy<ExamplePolicy>>().unwrap();
+        let bbox = bbox
+            .specialize_policy::<TestPolicy<ExamplePolicy>>()
+            .unwrap();
 
-        assert_eq!(bbox.policy().policy().attr, String::from("Hello this is a test!"));
+        assert_eq!(
+            bbox.policy().policy().attr,
+            String::from("Hello this is a test!")
+        );
         assert_eq!(bbox.discard_box(), String::from("hello"));
     }
 

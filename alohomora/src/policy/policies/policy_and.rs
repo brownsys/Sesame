@@ -10,6 +10,9 @@ impl<P1: Policy, P2: Policy> PolicyAnd<P1, P2> {
     pub fn new(p1: P1, p2: P2) -> Self {
         Self { p1, p2 }
     }
+    pub fn extract_policies(&self) -> (&P1, &P2) {
+        (&self.p1, &self.p2)
+    }
 }
 
 impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
@@ -46,7 +49,8 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyAnd<P1, P2
     fn from_cookie<'a, 'r>(
         name: &str,
         cookie: &'a rocket::http::Cookie<'static>,
-        request: &'a rocket::Request<'r>) -> Self {
+        request: &'a rocket::Request<'r>,
+    ) -> Self {
         Self {
             p1: P1::from_cookie(name, cookie, request),
             p2: P2::from_cookie(name, cookie, request),
