@@ -7,4 +7,4 @@ mod hacky;
 pub mod context;
 
 pub use enums::{TahiniEnum, TahiniVariantsEnum};
-pub use traits::TahiniType;
+pub use traits::{TahiniType, TahiniTransform};

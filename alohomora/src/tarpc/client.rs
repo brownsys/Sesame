@@ -4,8 +4,8 @@ use crate::tarpc::enums::TahiniSafeWrapper;
 //     deserialize_tahini_type, serialize_tahini_type, TahiniType, TahiniType2,
 // };
 use crate::bbox::BBox;
-use crate::policy::{Policy, PolicyTransformable, TahiniPolicy};
-use crate::tarpc::traits::TahiniType;
+use crate::policy::{Policy, PolicyInto, TahiniPolicy};
+use crate::tarpc::traits::{TahiniTransform, TahiniType};
 use pin_project_lite::pin_project;
 use std::future::Future;
 use tarpc::client::Channel as TarpcChannel;
@@ -44,12 +44,13 @@ pub trait TahiniStub {
     ) -> Result<Self::Resp, RpcError>;
 
     async fn transform_and_call<
-        T,
-        TargetPolicy: Policy + serde::Serialize,
-        SourcePolicy: PolicyTransformable<TargetPolicy>,
+        'a,
+        T: 'static,
+        TargetPolicy: Policy + serde::Serialize + 'static,
+        SourcePolicy: PolicyInto<TargetPolicy> + 'static,
         F: FnOnce(BBox<T, TargetPolicy>) -> Self::Req,
     >(
-        &self,
+        &'a self,
         ctx: context::Context,
         request_name: &'static str,
         tahini_context_builder: &'static str,
@@ -74,12 +75,13 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
     }
 
     async fn transform_and_call<
-        T,
-        TargetPolicy: Policy + serde::Serialize,
-        SourcePolicy: PolicyTransformable<TargetPolicy>,
+        'a,
+        T: 'static,
+        TargetPolicy: Policy + serde::Serialize + 'static,
+        SourcePolicy: PolicyInto<TargetPolicy> + 'static,
         F: FnOnce(BBox<T, TargetPolicy>) -> Self::Req,
     >(
-        &self,
+        &'a self,
         ctx: context::Context,
         request_name: &'static str,
         tahini_context_builder: &'static str,
@@ -90,7 +92,11 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
         assert_eq!(splitted.len(), 2, "Checking if request_name is of length 2");
         let (service, rpc) = (splitted[0], splitted[1]);
         let tahini_context = TahiniContext::new(service, rpc);
-        let req = request_builder(before_processed.transform_policy(tahini_context).expect("Couldn't transform policy"));
+        let req = request_builder(
+            before_processed
+                .transform_policy(&tahini_context)
+                .expect("Couldn't transform policy"),
+        );
         self.call(ctx, request_name, req).await
     }
 }

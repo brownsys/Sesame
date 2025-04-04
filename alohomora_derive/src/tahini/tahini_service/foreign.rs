@@ -855,11 +855,8 @@ impl<'a> ServiceGenerator<'a> {
                 #(
                     #[allow(unused)]
                     #( #method_attrs )*
-                    #vis fn #method_idents<SourcePolicy: ::alohomora::policy::PolicyTransformable<#target_policies> + 'static + Send>(&self, ctx: ::tarpc::context::Context, #arg_pats : ::alohomora::bbox::BBox<#bbox_types, SourcePolicy>)
+                    #vis fn #method_idents<SourcePolicy: ::alohomora::policy::PolicyInto<#target_policies> + 'static + Send>(&self, ctx: ::tarpc::context::Context, #arg_pats : ::alohomora::bbox::BBox<#bbox_types, SourcePolicy>)
                         -> impl ::core::future::Future<Output = ::core::result::Result<#return_types, ::tarpc::client::RpcError>> + '_ {
-                        // let context = ::alohomora::tarpc::context::TahiniContext::new(#service_ident_str, #method_idents_str);  
-                        // let transformed = #arg_pats.transform_policy::<#target_policies>(context).expect("Couldn't transform policy");
-                        // let request = #request_ident::#camel_case_idents {#arg_pats : transformed};
                         let closure = |x| {#request_ident::#camel_case_idents {#arg_pats: x}};
                         let resp = self.0.transform_and_call(ctx, #camel_case_idents_str, #context_builders, closure, #arg_pats);
                         async move {

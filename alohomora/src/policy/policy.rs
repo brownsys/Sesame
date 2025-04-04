@@ -1,5 +1,6 @@
 use crate::context::UnprotectedContext;
 use crate::policy::AnyPolicy;
+use crate::tarpc::context::TahiniContext;
 use std::any::Any;
 use std::boxed::Box;
 
@@ -79,14 +80,32 @@ pub trait FrontendPolicy: Policy + Send {
         Self: Sized;
 }
 
-//TODO(douk): Have more meaningful errors
-pub trait PolicyTransformable<P: Policy>: Policy {
-    fn transform_into(&self, context: crate::tarpc::context::TahiniContext) -> Result<P, String>;
+pub trait PolicyFrom<SourcePolicy: Policy>: Policy {
+    fn from_policy(other_policy: SourcePolicy, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized;
 }
 
-impl<P: Policy + Clone> PolicyTransformable<P> for P {
-    fn transform_into(&self, _context: crate::tarpc::context::TahiniContext) -> Result<P, String> {
-        Ok(self.clone())
+pub trait PolicyInto<TargetPolicy: Policy>: Policy {
+    fn into_policy(self, context: &TahiniContext) -> Result<TargetPolicy, String>;
+}
+
+impl<RemotePolicy: Policy, LocalPolicy: Policy + PolicyFrom<RemotePolicy>> PolicyInto<LocalPolicy>
+    for RemotePolicy
+{
+    fn into_policy(self, context: &TahiniContext) -> Result<LocalPolicy, String> {
+        LocalPolicy::from_policy(self, &context)
+    }
+}
+
+
+impl<P: Policy> PolicyFrom<P> for P {
+    fn from_policy(other_policy: P, _context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        //Can always cast to self, no matter the context
+        Ok(other_policy)
     }
 }
 

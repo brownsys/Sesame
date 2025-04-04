@@ -11,13 +11,10 @@ use std::{
 use either::Either;
 use mysql::chrono;
 
+use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::policy::{AnyPolicy, CloneableAny, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy};
 use crate::pure::PrivacyPureRegion;
-use crate::{
-    context::{Context, ContextData, UnprotectedContext},
-    policy::{PolicyAnd, PolicyTransformable},
-};
 
 use crate::bbox::obfuscated_pointer::ObPtr;
 use crate::fold::fold;
@@ -87,20 +84,6 @@ impl<T, P: Policy> BBox<T, P> {
             fb: ObPtr::new(T::from(value.fb.mov())),
             p: value.p,
         }
-    }
-
-    pub fn transform_policy<P2: Policy>(
-        self,
-        tahini_context: crate::tarpc::context::TahiniContext,
-    ) -> Result<BBox<T, P2>, String>
-    where
-        P: PolicyTransformable<P2>,
-    {
-        println!("Got a PCon with policy of type : {:?}.\nTransforming into Pcon with policy of type : {:?}", std::any::type_name::<P>(), std::any::type_name::<P2>());
-        Ok(BBox {
-            fb: ObPtr::new((self.fb.mov()).into()),
-            p: self.p.transform_into(tahini_context)?,
-        })
     }
 
     // retrieve policy
