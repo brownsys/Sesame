@@ -5,7 +5,7 @@ use crate::tarpc::enums::TahiniSafeWrapper;
 // };
 use crate::bbox::BBox;
 use crate::policy::{Policy, PolicyInto, TahiniPolicy};
-use crate::tarpc::traits::{TahiniTransform, TahiniType};
+use crate::tarpc::traits::{TahiniTransformFrom, TahiniTransformInto, TahiniType};
 use pin_project_lite::pin_project;
 use std::future::Future;
 use tarpc::client::Channel as TarpcChannel;
@@ -94,7 +94,7 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
         let tahini_context = TahiniContext::new(service, rpc);
         let req = request_builder(
             before_processed
-                .transform_policy(&tahini_context)
+                .transform_into(&tahini_context)
                 .expect("Couldn't transform policy"),
         );
         self.call(ctx, request_name, req).await

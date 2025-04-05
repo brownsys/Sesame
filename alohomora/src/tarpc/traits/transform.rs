@@ -1,58 +1,72 @@
 use crate::bbox::BBox;
-use crate::policy::{Policy, PolicyInto};
+use crate::policy::{Policy, PolicyFrom, PolicyInto};
 use crate::tarpc::context::TahiniContext;
 
-pub trait TahiniTransform<TargetPolicy: Policy, TargetType> {
-    fn transform_policy(self, context: &TahiniContext) -> Result<TargetType, String>;
+use super::TahiniType;
+
+pub trait TahiniTransformFrom<SourceType> {
+    fn transform_from(other: SourceType, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized;
 }
 
-impl<
-        T: 'static,
-        SourcePolicy: Policy + 'static + PolicyInto<TargetPolicy>,
-        TargetPolicy: Policy + 'static,
-    > TahiniTransform<TargetPolicy, BBox<T, TargetPolicy>> for BBox<T, SourcePolicy>
+pub trait TahiniTransformInto<TargetType> {
+    fn transform_into(self, context: &TahiniContext) -> Result<TargetType, String>;
+}
+
+impl<P, TargetType: TahiniTransformFrom<P>> TahiniTransformInto<TargetType> for P {
+    fn transform_into(self, context: &TahiniContext) -> Result<TargetType, String> {
+        TargetType::transform_from(self, context)
+    }
+}
+
+impl<T, SourcePolicy: PolicyInto<TargetPolicy>, TargetPolicy: Policy>
+    TahiniTransformFrom<BBox<T, SourcePolicy>> for BBox<T, TargetPolicy>
 {
-    fn transform_policy(self, context: &TahiniContext) -> Result<BBox<T, TargetPolicy>, String> {
-        let (t, p) = self.consume();
+    fn transform_from(
+        other: BBox<T, SourcePolicy>,
+        context: &TahiniContext,
+    ) -> Result<Self, String> {
+        let (t, p) = other.consume();
         Ok(BBox::new(t, p.into_policy(context)?))
     }
 }
 
-impl<
-        TargetType: 'static,
-        TargetPolicy: Policy,
-        SourceType: TahiniTransform<TargetPolicy, TargetType>,
-    > TahiniTransform<TargetPolicy, Vec<TargetType>> for Vec<SourceType>
+impl<SourceType, TargetType: TahiniTransformFrom<SourceType>, E: std::error::Error>
+    TahiniTransformFrom<Result<SourceType, E>> for Result<TargetType, E>
 {
-    fn transform_policy(self, context: &TahiniContext) -> Result<Vec<TargetType>, String> {
-        self.into_iter()
-            .map(|source_elem: SourceType| source_elem.transform_policy(context))
-            .collect::<Result<Vec<_>, String>>()
-    }
-}
-
-impl<
-        TargetType: 'static,
-        TargetPolicy: Policy,
-        SourceType: TahiniTransform<TargetPolicy, TargetType>,
-        E: std::error::Error,
-    > TahiniTransform<TargetPolicy, Result<TargetType, E>> for Result<SourceType, E>
-{
-    fn transform_policy(self, context: &TahiniContext) -> Result<Result<TargetType, E>, String> {
-        match self {
-            Ok(inner) => Ok(Ok(inner.transform_policy(context)?)),
+    fn transform_from(other: Result<SourceType, E>, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        match other {
+            Ok(ok) => Ok(Ok(ok.transform_into(context)?)),
             Err(e) => Ok(Err(e)),
         }
     }
 }
 
-impl<
-        TargetType: 'static,
-        TargetPolicy: Policy,
-        SourceType: TahiniTransform<TargetPolicy, TargetType>,
-    > TahiniTransform<TargetPolicy, Option<TargetType>> for Option<SourceType>
+impl<SourceType, TargetType: TahiniTransformFrom<SourceType>> TahiniTransformFrom<Vec<SourceType>>
+    for Vec<TargetType>
 {
-    fn transform_policy(self, context: &TahiniContext) -> Result<Option<TargetType>, String> {
-        self.map(|some| some.transform_policy(context)).transpose()
+    fn transform_from(other: Vec<SourceType>, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        other
+            .into_iter()
+            .map(|x| x.transform_into(context))
+            .collect()
+    }
+}
+
+impl<SourceType, TargetType: TahiniTransformFrom<SourceType>>
+    TahiniTransformFrom<Option<SourceType>> for Option<TargetType>
+{
+    fn transform_from(other: Option<SourceType>, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        other.map(|some| some.transform_into(context)).transpose()
     }
 }

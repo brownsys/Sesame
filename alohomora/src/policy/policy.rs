@@ -98,7 +98,6 @@ impl<RemotePolicy: Policy, LocalPolicy: Policy + PolicyFrom<RemotePolicy>> Polic
     }
 }
 
-
 impl<P: Policy> PolicyFrom<P> for P {
     fn from_policy(other_policy: P, _context: &TahiniContext) -> Result<Self, String>
     where

@@ -7,8 +7,7 @@ use syn::{parse_macro_input, Attribute, Ident, Item, ItemStruct, Lit, Token};
 
 mod internal_unchecked;
 mod foreign;
-
-pub use crate::tahini::tahini_service::foreign::service as other_service;
+mod company;
 
 pub enum Domain {
     Internal,
@@ -74,12 +73,11 @@ impl Parse for Domain {
 }
 
 pub fn service(attrs: TokenStream, input: TokenStream) -> TokenStream {
-    let attr = attrs.clone();
-    let domain = parse_macro_input!(attr as Domain);
+    let domain = parse_macro_input!(attrs as Domain);
     let attrs = TokenStream::new();
     match domain {
         Domain::Internal => internal_unchecked::service(attrs, input),
-        Domain::Company => panic!("Company Domain not supported"),
+        Domain::Company => company::service(attrs, input),
         Domain::Foreign => foreign::service(attrs, input)
     }
 }
