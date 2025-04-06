@@ -791,7 +791,7 @@ impl<'a> ServiceGenerator<'a> {
                             }
                         };
 
-                        self.0.transform_both_ways::<#single_args_types, InputLocalCompayType, _, #return_types, OutputLocalCompayType, _>(ctx, #camel_case_idents_str, #context_builders, #arg_pats, input_closure, output_closure)
+                        self.0.transform_both_ways::<#single_args_types, InputLocalType, _, #return_types, OutputLocalType, _>(ctx, #camel_case_idents_str, #context_builders, #arg_pats, input_closure, output_closure)
                     }
                 )*
             // }
