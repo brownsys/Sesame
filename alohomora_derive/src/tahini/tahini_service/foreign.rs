@@ -44,48 +44,6 @@ struct Service {
 }
 
 #[derive(Clone)]
-struct ForeignInterfaceArg {
-    ident: Pat,
-    inner_type: Type,
-    target_policy_type: Type,
-}
-
-// impl Parse for ForeignInterfaceArg {
-//     fn parse(input: ParseStream) -> syn::Result<Self> {
-//         let ident = input.parse()?;
-//         let col: Colon = input.parse()?;
-//         let full_type: Type = input.parse()?;
-//         if let Type::Path(TypePath { path, .. }) = &full_type {
-//             if let Some(PathSegment {
-//                 ident: bbox,
-//                 arguments,
-//             }) = path.segments.last()
-//             {
-//                 if let syn::PathArguments::AngleBracketed(angle_bracketed) = arguments {
-//                     let mut inners = angle_bracketed.args.clone().into_iter();
-//                     if let (
-//                         Some(syn::GenericArgument::Type(first_inner)),
-//                         Some(syn::GenericArgument::Type(second_inner)),
-//                     ) = (inners.next(), inners.next())
-//                     {
-//                         return Ok(Self {
-//                             ident,
-//                             _col: col,
-//                             bbox: bbox.clone(),
-//                             inner_type: first_inner,
-//                             target_policy_type: second_inner,
-//                         });
-//                     }
-//                 }
-//             }
-//         }
-//         Err(syn::Error::new_spanned(
-//             full_type,
-//             "Bad arguments passed to the BBox",
-//         ))
-//     }
-// }
-
 struct ForeignRpcMethod {
     attrs: Vec<Attribute>,
     ident: Ident,
@@ -558,7 +516,7 @@ impl<'a> ServiceGenerator<'a> {
                 },
             );
 
-        let stub_doc = format!("The stub trait for service [`{service_ident}`].");
+        let _stub_doc = format!("The stub trait for service [`{service_ident}`].");
         quote! {
             #( #attrs )*
             #vis trait #service_ident: ::core::marker::Sized + Clone {
@@ -635,7 +593,7 @@ impl<'a> ServiceGenerator<'a> {
             request_ident,
             camel_case_idents,
             args,
-            request_names,
+            // request_names,
             method_cfgs,
             ..
         } = self;
@@ -757,7 +715,6 @@ impl<'a> ServiceGenerator<'a> {
     fn impl_client_rpc_methods(&self) -> TokenStream2 {
         let &Self {
             service_ident,
-            client_ident,
             request_ident,
             response_ident,
             method_attrs,
@@ -780,50 +737,11 @@ impl<'a> ServiceGenerator<'a> {
             camel_case_idents_str.push(var.as_str());
         }
 
-        let mut parsed_args_types = Vec::new();
-        for rpc in args {
-            let a = rpc
-                .iter()
-                .map(|ty| match *ty.ty {
-                    Type::Path(TypePath { ref path, .. }) => {
-                        if let Some(PathSegment {
-                            ident: bbox,
-                            arguments,
-                        }) = path.segments.last()
-                        {
-                            if let syn::PathArguments::AngleBracketed(angle_bracketed) = arguments {
-                                let mut inners = angle_bracketed.args.clone().into_iter();
-                                if let (
-                                    Some(syn::GenericArgument::Type(first_inner)),
-                                    Some(syn::GenericArgument::Type(second_inner)),
-                                ) = (inners.next(), inners.next())
-                                {
-                                    return ForeignInterfaceArg {
-                                        ident: *ty.pat.clone(),
-                                        inner_type: first_inner,
-                                        target_policy_type: second_inner,
-                                    };
-                                }
-                            }
-                        }
-                        panic!("Couldn't parse argument into Foreign Argument data structure");
-                    }
-                    ref other_type @ _ => {
-                        panic!("Wrong type for foreign interface. Got {:?}", other_type)
-                    }
-                })
-                .collect::<Vec<_>>();
-            parsed_args_types.push(a[0].clone());
-        }
+        let arg_types = args
+            .iter()
+            .map(|tys| tys.iter().map(|ty| *ty.ty.clone()).collect::<Vec<_>>())
+            .collect::<Vec<_>>();
 
-        let target_policies = parsed_args_types
-            .iter()
-            .map(|arg| arg.target_policy_type.clone())
-            .collect::<Vec<_>>();
-        let bbox_types = parsed_args_types
-            .iter()
-            .map(|arg| arg.inner_type.clone())
-            .collect::<Vec<_>>();
         for rpc in arg_pats {
             assert_eq!(
                 rpc.len(),
@@ -832,9 +750,12 @@ impl<'a> ServiceGenerator<'a> {
             );
         }
         let arg_pats = arg_pats.iter().map(|x| x[0]).collect::<Vec<_>>();
+        let single_args_types = arg_types.iter().map(|x| x[0].clone()).collect::<Vec<_>>();
         let service_ident_str = service_ident.to_string();
-        let context_builders = method_idents.iter().map(|x| format!("{}.{}", service_ident_str.clone(), x.to_string())).collect::<Vec<_>>();
-
+        let context_builders = method_idents
+            .iter()
+            .map(|x| format!("{}.{}", service_ident_str.clone(), x.to_string()))
+            .collect::<Vec<_>>();
         // self.method_idents.iter().zip(self.method_attrs.iter()).map(
         //     // | (method_ident, attrs)| {
         //     //     match check_if_protected_rpc(attrs) {
@@ -855,16 +776,22 @@ impl<'a> ServiceGenerator<'a> {
                 #(
                     #[allow(unused)]
                     #( #method_attrs )*
-                    #vis fn #method_idents<SourcePolicy: ::alohomora::policy::PolicyInto<#target_policies> + 'static + Send>(&self, ctx: ::tarpc::context::Context, #arg_pats : ::alohomora::bbox::BBox<#bbox_types, SourcePolicy>)
-                        -> impl ::core::future::Future<Output = ::core::result::Result<#return_types, ::tarpc::client::RpcError>> + '_ {
-                        let closure = |x| {#request_ident::#camel_case_idents {#arg_pats: x}};
-                        let resp = self.0.transform_and_call(ctx, #camel_case_idents_str, #context_builders, closure, #arg_pats);
-                        async move {
-                            match resp.await? {
-                                #response_ident::#camel_case_idents(msg) => ::core::result::Result::Ok(msg),
-                                _ => ::core::unreachable!(),
+                    #vis fn #method_idents<
+                    InputLocalType: ::alohomora::tarpc::traits::TahiniTransformInto<#single_args_types> + 'static + Send, 
+                    OutputLocalType : ::alohomora::tarpc::traits::TahiniTransformFrom<#return_types>+ Send + 'static>
+                    (&self, ctx: ::tarpc::context::Context, #arg_pats : InputLocalType)
+                    -> impl ::core::future::Future<
+                        Output = ::core::result::Result<OutputLocalType, ::tarpc::client::RpcError>
+                    > + '_ {
+                        let input_closure = |x: #single_args_types| {#request_ident::#camel_case_idents {#arg_pats: x}};
+                        let output_closure = |resp: #response_ident| {
+                            match resp {
+                                #response_ident::#camel_case_idents(msg) => msg,
+                                _ => ::core::unreachable!("Server RPC response doesn't match request RPC")
                             }
-                        }
+                        };
+
+                        self.0.transform_both_ways::<#single_args_types, InputLocalCompayType, _, #return_types, OutputLocalCompayType, _>(ctx, #camel_case_idents_str, #context_builders, #arg_pats, input_closure, output_closure)
                     }
                 )*
             // }
