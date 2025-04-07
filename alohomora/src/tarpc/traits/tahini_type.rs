@@ -11,10 +11,12 @@ pub trait TahiniType: Send {
     fn to_tahini_enum(&self) -> TahiniEnum;
     fn tahini_policy_check(
         &self,
-        members_fmt: &String,
-        context: &UnprotectedContext,
-        reason: &Reason,
-    ) -> bool;
+        _members_fmt: &String,
+        _context: &UnprotectedContext,
+        _reason: &Reason,
+    ) -> bool {
+        true
+    }
 }
 
 pub trait TahiniError: erased_serde::Serialize + std::error::Error {}
@@ -131,3 +133,85 @@ impl_tahini_trait_prim!(i32);
 impl_tahini_trait_prim!(usize);
 impl_tahini_trait_prim!(String);
 impl_tahini_trait_prim!(bool);
+
+
+
+macro_rules! alohomora_type_tuple_impl {
+  ($([$A:tt,$i:tt]),*) => (
+    #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+    impl<$($A: TahiniType,)*> TahiniType for ($($A,)*) {
+        fn to_tahini_enum(&self) -> TahiniEnum {
+            #[allow(non_snake_case)]
+            let ($($A,)*) = ($(self.$i.to_tahini_enum(),)*);
+            TahiniEnum::Vec(vec![$($A,)*])
+        }
+    }
+  );
+}
+
+alohomora_type_tuple_impl!([A, 0]);
+alohomora_type_tuple_impl!([A, 0], [B, 1]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3], [E, 4]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3], [E, 4], [F, 5]);
+alohomora_type_tuple_impl!([A, 0], [B, 1], [C, 2], [D, 3], [E, 4], [F, 5], [G, 6]);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7]
+);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8]
+);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8],
+    [J, 9]
+);alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8],
+    [J, 9],
+    [K, 10]
+);
+alohomora_type_tuple_impl!(
+    [A, 0],
+    [B, 1],
+    [C, 2],
+    [D, 3],
+    [E, 4],
+    [F, 5],
+    [G, 6],
+    [H, 7],
+    [I, 8],
+    [J, 9],
+    [K, 10],
+    [L, 11]
+);

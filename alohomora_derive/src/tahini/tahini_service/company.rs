@@ -742,13 +742,6 @@ impl<'a> ServiceGenerator<'a> {
             .map(|tys| tys.iter().map(|ty| *ty.ty.clone()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
-        for rpc in arg_pats {
-            assert_eq!(
-                rpc.len(),
-                1,
-                "Foreign interface can only take a single argument"
-            );
-        }
         let arg_pats = arg_pats.iter().map(|x| x[0]).collect::<Vec<_>>();
         let single_args_types = arg_types.iter().map(|x| x[0].clone()).collect::<Vec<_>>();
         let service_ident_str = service_ident.to_string();
@@ -772,7 +765,7 @@ impl<'a> ServiceGenerator<'a> {
             //         Req = #request_ident,
             //         Resp = #response_ident>
             // {
-
+            // TODO(douk): Fix for 0 parameters
                 #(
                     #[allow(unused)]
                     #( #method_attrs )*

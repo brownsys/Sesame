@@ -8,6 +8,7 @@ use super::TahiniType;
 ///handled locally.
 ///Note that it is assumed converting to a local type is always safe. As such, no distinction on
 ///the data flow is made on the Context here.
+// #[rustc_specialization_trait]
 pub trait TahiniTransformFrom<SourceType> {
     fn transform_from(other: SourceType, context: &TahiniContext) -> Result<Self, String>
     where
@@ -26,15 +27,27 @@ pub trait TahiniTransformInto<TargetType> {
 //         TargetType::transform_from(self, context)
 //     }
 // }
-//
 
-impl<P> TahiniTransformFrom<P> for P {
-    fn transform_from(other: P, _context: &TahiniContext) -> Result<Self, String>
+impl<TargetType, SourceType: TahiniTransformInto<TargetType>> TahiniTransformFrom<SourceType>
+    for TargetType
+{
+    fn transform_from(other: SourceType, context: &TahiniContext) -> Result<Self, String>
     where
         Self: Sized,
     {
-        Ok(other)
+        other.transform_into(context)
     }
+}
+
+//
+macro_rules! register_self_transform {
+    ($ty: ty) => {
+        impl TahiniTransformInto<$ty> for $ty {
+            fn transform_into(self, context: &TahiniContext) -> Result<$ty, String> {
+                Ok(self)
+            }
+        }
+    };
 }
 
 impl<T, SourcePolicy: PolicyInto<TargetPolicy>, TargetPolicy: Policy>
@@ -74,3 +87,55 @@ impl<TargetType, SourceType: TahiniTransformInto<TargetType>>
         self.map(|some| some.transform_into(context)).transpose()
     }
 }
+
+macro_rules! transform_type_tuple_impl {
+  ($([$SourceType:tt,$DestType:tt,$i:tt]),*) => (
+    impl<$($DestType: TahiniType),*, $($SourceType: TahiniTransformInto<$DestType>,)*> TahiniTransformInto<($($DestType,)*)> for ($($SourceType,)*) {
+        fn transform_into(self, context: &TahiniContext) -> Result<($($DestType,)*), String> {
+            Ok(($(self.$i.transform_into(context)?),*,))
+        }
+    }
+  );
+}
+
+transform_type_tuple_impl!([Source1, DestType1, 0]);
+transform_type_tuple_impl!([SourceType0, DestType0, 0], [SourceType1, DestType1, 1]);
+transform_type_tuple_impl!(
+    [SourceType0, DestType0, 0],
+    [SourceType1, DestType1, 1],
+    [SourceType2, DestType2, 2]
+);
+transform_type_tuple_impl!(
+    [SourceType0, DestType0, 0],
+    [SourceType1, DestType1, 1],
+    [SourceType2, DestType2, 2],
+    [SourceType3, DestType3, 3]
+);
+transform_type_tuple_impl!(
+    [SourceType0, DestType0, 0],
+    [SourceType1, DestType1, 1],
+    [SourceType2, DestType2, 2],
+    [SourceType3, DestType3, 3],
+    [SourceType4, DestType4, 4]
+);
+
+macro_rules! transform_type_prim_impl {
+    ($ty: ty) => {
+        impl TahiniTransformInto<$ty> for $ty {
+            fn transform_into(self, _context: &TahiniContext) -> Result<$ty, String> {
+                Ok(self)
+            }
+        }
+    };
+}
+
+transform_type_prim_impl!(u8);
+transform_type_prim_impl!(u16);
+transform_type_prim_impl!(u32);
+transform_type_prim_impl!(i8);
+transform_type_prim_impl!(i16);
+transform_type_prim_impl!(i32);
+transform_type_prim_impl!(usize);
+transform_type_prim_impl!(String);
+transform_type_prim_impl!(bool);
+transform_type_prim_impl!(&'static str);
