@@ -1,0 +1,139 @@
+[
+  {
+    "name": "users",
+    "data_subject": true,
+    "columns": [
+      { "name": "email", "ty": "text", "primary key": true },
+      { "name": "apikey",  "ty": "text", "unique": true, "policy": { "name": "QueryableOnly" } },
+      { "name": "is_admin", "ty": "int" },
+      { "name": "is_manager", "ty":  "int" },
+      { "name": "pseudonym", "ty": "text" },
+      { "name": "gender", "ty":  "text",
+        "policy": { "And": [
+          {
+            "name": "AccessControl",
+            "0": "${self.email}",
+            "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          { "name": "NoAggregate" }
+        ]}
+      },
+      { "name": "age", "ty": "int",
+        "policy": {
+          "name": "AccessControl",
+          "0": "${self.email}",
+          "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+        }
+      },
+      { "name": "ethnicity", "ty":  "text",
+        "policy": {
+          "name": "AccessControl",
+          "0": "${self.email}",
+          "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+        }
+      },
+      { "name": "is_remote", "ty": "int",
+        "policy": {
+          "name": "AccessControl",
+          "0": "${self.email}",
+          "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+        }
+      },
+      { "name": "education", "ty":  "text" },
+      { "name": "consent_employers", "ty":  "int" },
+      { "name": "consent_ml", "ty":  "int" }
+    ]
+  },
+  {
+    "name": "lectures",
+    "columns": [
+      { "name": "id", "ty": "int", "primary key": true },
+      { "name": "title", "ty": "text" }
+    ]
+  },
+  {
+    "name": "questions",
+    "columns": [
+      { "name": "id",  "ty": "int", "primary key": true, "auto increment": true },
+      { "name": "lec", "ty": "int",  "foreign key": "lectures.id" },
+      { "name": "q", "ty": "int" },
+      { "name": "question", "ty": "text" }
+    ]
+  },
+  {
+    "name": "discussion_leaders",
+    "columns": [
+      { "name": "id", "ty": "int", "primary key": true, "auto increment": true },
+      { "name": "email", "ty": "text", "owned by": "users.email" },
+      { "name": "lec",  "ty": "int", "foreign key": "lectures.id" }
+    ]
+  },
+  {
+    "name": "answers",
+    "columns": [
+      { "name": "id",  "ty": "int",  "auto increment": true, "primary key": true },
+      { "name": "email", "ty": "text", "owned by": "users.email",
+        "policy": { "Or": [
+          {
+            "name": "AccessControl",
+            "0": "${self.email}",
+            "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          {
+            "name": "Consent",
+            "consent": "q{SELECT consent_employers, users.email FROM users WHERE users.email = ${self.email}}",
+            "purpose": "v{'employers'}"
+          }
+        ]}
+      },
+      { "name": "lec",  "ty": "int", "foreign key": "lectures.id" },
+      { "name": "q", "ty": "int", "foreign key": "questions.id" },
+      { "name": "answer", "ty": "text",
+        "policy": {
+          "name": "AccessControl",
+          "0": "${self.email}",
+          "1": "q{SELECT email FROM users WHERE is_admin = 1}",
+          "2": "q{SELECT email, lec FROM discussion_leaders WHERE lec = ${self.lec}}"
+        }
+      },
+      { "name": "submitted_at", "ty": "datetime",
+        "policy": { "Or": [
+          {
+              "name": "AccessControl",
+              "0": "${self.email}",
+              "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          {
+              "name": "Consent",
+              "purpose": "v{'ml_experiment'}",
+              "consent": "q{SELECT consent_ml, users.email FROM users WHERE users.email = ${self.email}}"
+          }
+        ]}
+      },
+      { "name": "grade", "ty": "int",
+        "policy": { "Or": [
+          {
+            "name": "AccessControl",
+            "0": "${self.email}",
+            "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          {
+            "name": "Aggregate",
+            "distinct": "${self.email}",
+            "min_k": "v{10}"
+          },
+          {
+            "name": "Consent",
+            "consent": "q{SELECT consent_employers, users.email FROM users WHERE users.email = ${self.email}}",
+            "purpose": "v{'employers'}"
+          },
+          {
+            "name": "Consent",
+            "purpose": "v{'ml_experiment'}",
+            "consent": "q{SELECT consent_ml, users.email FROM users WHERE users.email = ${self.email}}"
+          }
+        ]}
+      }
+    ]
+  }
+]

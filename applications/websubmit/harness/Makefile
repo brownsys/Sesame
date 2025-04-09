@@ -1,6 +1,4 @@
-.PHONY: all boxed unboxed flamegraph flamegraph-boxed flamegraph-unboxed plot clean sudo-clean
-
-all: boxed unboxed
+.PHONY: boxed unboxed k9db flamegraph flamegraph-boxed flamegraph-unboxed plot clean sudo-clean
 
 boxed:
 	mkdir -p /tmp/harness/css
@@ -8,6 +6,13 @@ boxed:
 	cd ../websubmit_boxed_sandboxes/ && cargo build --release
 	mkdir -p target/release && cp ../websubmit_boxed_sandboxes/libwebsubmit_boxed_sandboxes_sandbox.so target/release/libwebsubmit_boxed_sandboxes_sandbox.so
 	cargo run --release --features "boxed" -- -i alohomora -c sample-config.toml
+
+k9db:
+	mkdir -p /tmp/harness/css
+	mkdir -p /tmp/harness/js
+	cd ../websubmit_boxed_sandboxes/ && cargo build --release
+	mkdir -p target/release && cp ../websubmit_boxed_sandboxes/libwebsubmit_boxed_sandboxes_sandbox.so target/release/libwebsubmit_boxed_sandboxes_sandbox.so
+	cargo run --release --features "k9db" -- -i alohomora -c sample-config.toml
 
 unboxed:
 	mkdir -p /tmp/harness/css

@@ -36,7 +36,8 @@ pub(crate) struct ApiKeyRequest {
     ethnicity: String,
     is_remote: bool,
     education: String,
-    consent: bool,
+    consent_employers: bool,
+    consent_ml: bool,
 }
 
 #[derive(Debug, FromForm)]
@@ -124,7 +125,8 @@ pub(crate) fn generate(
             data.ethnicity.as_str().into(),
             data.is_remote.into(),
             data.education.as_str().into(),
-            data.consent.into(),
+            data.consent_employers.into(),
+            data.consent_ml.into(),
         ],
     );
 

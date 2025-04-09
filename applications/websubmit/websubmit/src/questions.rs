@@ -126,13 +126,13 @@ pub(crate) fn answers(
     let answers: Vec<_> = res
         .into_iter()
         .map(|r| LectureAnswer {
-            id: from_value(r[2].clone()),
-            user: from_value(r[0].clone()),
-            answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone())
+            id: from_value(r[3].clone()),
+            user: from_value(r[1].clone()),
+            answer: from_value(r[4].clone()),
+            time: from_value::<NaiveDateTime>(r[5].clone())
                 .format("%Y-%m-%d %H:%M:%S")
                 .to_string(),
-            grade: from_value(r[5].clone()),
+            grade: from_value(r[6].clone()),
         })
         .collect();
 
@@ -172,13 +172,13 @@ pub(crate) fn answers_for_discussion_leaders(
     let answers: Vec<_> = res
         .into_iter()
         .map(|r| LectureAnswer {
-            id: from_value(r[2].clone()),
-            user: from_value(r[0].clone()),
-            answer: from_value(r[3].clone()),
-            time: from_value::<NaiveDateTime>(r[4].clone())
+            id: from_value(r[3].clone()),
+            user: from_value(r[1].clone()),
+            answer: from_value(r[4].clone()),
+            time: from_value::<NaiveDateTime>(r[5].clone())
                 .format("%Y-%m-%d %H:%M:%S")
                 .to_string(),
-            grade: from_value(r[5].clone()),
+            grade: from_value(r[6].clone()),
         })
         .collect();
 
@@ -257,7 +257,7 @@ pub(crate) fn questions_submit(
             ts.clone(),
             mysql::Value::Int(0)
         ];
-        bg.replace("answers", rec);
+        bg.insert("answers (email, lec, q, answer, submitted_at, grade)", rec);
     }
 
     if config.send_emails {

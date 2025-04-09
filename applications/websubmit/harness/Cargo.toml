@@ -16,6 +16,7 @@ serde_html_form = "0.2.6"
 
 websubmit = { path = "../websubmit", optional = true }
 websubmit_boxed = { path = "../websubmit_boxed", optional = true }
+websubmit_k9db = { path = "../websubmit_k9db", optional = true }
 
 [patch.crates-io]
 funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
@@ -24,3 +25,4 @@ funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3d
 default = []
 boxed = [ "websubmit_boxed" ]
 unboxed = [ "websubmit" ]
+k9db = [ "websubmit_k9db", "alohomora/k9db" ]

@@ -37,6 +37,7 @@ impl BBoxRow {
             .map(|(i, v)| {
                 let columns = self.row.columns_ref();
                 let table = columns[i].table_str().into_owned();
+                assert!(table.len() > 0);
                 BBox::new(v.clone(), get_schema_policies(table, i, &self.raw))
             })
             .collect()

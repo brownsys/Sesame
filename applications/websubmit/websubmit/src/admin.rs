@@ -135,7 +135,7 @@ pub(crate) fn addq(
 ) -> Redirect {
     let mut bg = backend.lock().unwrap();
     bg.insert(
-        "questions",
+        "questions (lec, q, question)",
         vec![
             (num as u64).into(),
             (data.q_id as u64).into(),

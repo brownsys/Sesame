@@ -1599,6 +1599,7 @@ dependencies = [
  "serde_json",
  "websubmit",
  "websubmit_boxed",
+ "websubmit_k9db",
 ]
 
 [[package]]
@@ -5029,6 +5030,35 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
+]
+
+[[package]]
+name = "websubmit_k9db"
+version = "0.1.0"
+dependencies = [
+ "alohomora",
+ "alohomora_build",
+ "chrono",
+ "clap",
+ "handlebars",
+ "lazy_static",
+ "lettre",
+ "lettre_email",
+ "linfa",
+ "linfa-linear",
+ "mysql",
+ "mysql_common 0.22.2",
+ "ndarray",
+ "rand 0.8.5",
+ "rocket",
+ "rocket_dyn_templates",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "slog",
+ "slog-term",
+ "toml 0.2.1",
+ "websubmit_boxed_sandboxes",
 ]
 
 [[package]]

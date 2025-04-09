@@ -1,0 +1,17 @@
+{{#*inline "page"}}
+    <h1>Admin: add lecture</h1>
+
+    <form action="/admin/lec/add" method="post" accept-charset="utf-8">
+      <p>
+        <label>Lecture ID: <input name="lec_id" />
+        </label>
+      </p>
+      <p>
+        <label>Lecture label: <input name="lec_label" />
+        </label>
+      </p>
+
+      <input type="submit" value="Submit">
+    </form>
+{{/inline}}
+{{~> (parent)~}}

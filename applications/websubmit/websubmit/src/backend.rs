@@ -21,6 +21,7 @@ impl MySqlBackend {
     pub fn new(
         user: &str,
         password: &str,
+        db_port: &str,
         dbname: &str,
         log: Option<slog::Logger>,
         prime: bool,
@@ -31,23 +32,25 @@ impl MySqlBackend {
         };
 
         let schema = std::fs::read_to_string("src/schema.sql")?;
+        let actual_port = if db_port == "" { db_port.to_owned() } else { format!(":{}", db_port) };
 
         // debug!(
         //     log,
         //     "Connecting to MySql DB and initializing schema {}...", dbname
         // );
         let mut db = mysql::Conn::new(
-            Opts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
+            Opts::from_url(&format!("mysql://{}:{}@127.0.0.1{}/", user, password, actual_port)).unwrap(),
         )
         .unwrap();
         assert_eq!(db.ping(), true);
 
         if prime {
-            db.query_drop(format!("DROP DATABASE IF EXISTS {};", dbname))
+            /*db.query_drop(format!("DROP DATABASE IF EXISTS {};", dbname))
                 .unwrap();
             db.query_drop(format!("CREATE DATABASE {};", dbname))
                 .unwrap();
             db.query_drop(format!("USE {};", dbname)).unwrap();
+            */
             for line in schema.lines() {
                 if line.starts_with("--") || line.is_empty() {
                     continue;
@@ -55,7 +58,7 @@ impl MySqlBackend {
                 db.query_drop(line).unwrap();
             }
         } else {
-            db.query_drop(format!("USE {};", dbname)).unwrap();
+            //db.query_drop(format!("USE {};", dbname)).unwrap();
         }
 
         Ok(MySqlBackend {

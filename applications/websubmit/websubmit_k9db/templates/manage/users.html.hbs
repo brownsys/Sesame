@@ -1,0 +1,17 @@
+{{#*inline "page"}}
+    <h1>User list to share with employers:</h1>
+
+    <table>
+        <tr>
+            <th>Email</th>
+            <th>Average Grade</th>
+        </tr>
+        {{#each users}}
+            <tr>
+                <td>{{{ this.email }}}</td>
+                <td>{{{ this.average_grade }}}</td>
+            </tr>
+        {{/each}}
+    </table>
+{{/inline}}
+{{~> (parent)~}}

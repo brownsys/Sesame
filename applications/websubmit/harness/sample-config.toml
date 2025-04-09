@@ -4,6 +4,8 @@ class = "CSCI 2390"
 db_user = "root"
 # MySQL database password
 db_password = ""
+# MySQL database port
+db_port = "10001"
 # list email addresses whose API keys get admin access
 admins = ["artem@brown.edu"]
 # list email addresses whose API keys get manager access

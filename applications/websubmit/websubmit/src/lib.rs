@@ -36,6 +36,7 @@ pub fn make_rocket(args: args::Args) -> Rocket<Build> {
         backend::MySqlBackend::new(
             &config.db_user,
             &config.db_password,
+            &config.db_port,
             &format!("{}", args.class),
             Some(new_logger()),
             config.prime,

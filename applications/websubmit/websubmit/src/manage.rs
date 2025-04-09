@@ -65,7 +65,7 @@ fn transform<T: Serialize + FromValue>(agg: Vec<Vec<mysql::Value>>) -> Vec<Aggre
     agg.into_iter()
         .map(|r| Aggregate {
             property: from_value(r[0].clone()),
-            average: from_value(r[1].clone()),
+            average: from_value::<u64>(r[1].clone()) as f64,
         })
         .collect()
 }
@@ -110,7 +110,7 @@ pub(crate) fn get_aggregate_remote(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
 ) -> Template {
     let mut bg = backend.lock().unwrap();
-    let grades = bg.prep_exec("SELECT * from agg_remote WHERE ucount >= 10", vec![]);
+    let grades = bg.prep_exec("SELECT * from agg_remote WHERE ucount > 9", vec![]);
     drop(bg);
 
     let ctx = AggregateRemoteContext {
@@ -124,7 +124,7 @@ pub(crate) fn get_aggregate_remote(
 #[derive(Serialize, Clone)]
 pub(crate) struct InfoForEmployers {
     email: String,
-    average_grade: f64,
+    average_grade: u64,
 }
 
 #[derive(Serialize)]
@@ -147,7 +147,7 @@ pub(crate) fn get_list_for_employers(
         .into_iter()
         .map(|r| InfoForEmployers {
             email: from_value(r[0].clone()),
-            average_grade: from_value(r[1].clone()),
+            average_grade: from_value(r[2].clone()),
         })
         .collect();
 
@@ -172,7 +172,7 @@ pub(crate) fn get_list_for_employers_buggy(
         .into_iter()
         .map(|r| InfoForEmployers {
             email: from_value(r[0].clone()),
-            average_grade: from_value(r[1].clone()),
+            average_grade: from_value(r[2].clone()),
         })
         .collect();
 

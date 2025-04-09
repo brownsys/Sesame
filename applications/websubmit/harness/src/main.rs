@@ -22,6 +22,12 @@ extern crate websubmit_boxed;
 #[cfg(feature = "boxed")]
 use websubmit_boxed::{make_rocket, parse_args};
 
+#[cfg(feature = "k9db")]
+extern crate websubmit_k9db;
+
+#[cfg(feature = "k9db")]
+use websubmit_k9db::{make_rocket, parse_args};
+
 #[cfg(feature = "unboxed")]
 extern crate websubmit;
 
@@ -88,7 +94,8 @@ struct User {
     education: Education,
 
     is_remote: bool,
-    consent: bool,
+    consent_employers: bool,
+    consent_ml: bool,
 
     #[dummy(default)]
     token: String,
@@ -454,6 +461,12 @@ fn get_websubmit() -> BBoxClient {
     BBoxClient::tracked(make_rocket(parse_args())).expect("valid `Rocket`")
 }
 
+#[cfg(feature = "k9db")]
+fn get_websubmit() -> BBoxClient {
+    println!("Running boxed websubmit.");
+    BBoxClient::tracked(make_rocket(parse_args())).expect("valid `Rocket`")
+}
+
 #[cfg(feature = "unboxed")]
 fn get_websubmit() -> Client {
     println!("Running regular websubmit.");
@@ -470,6 +483,8 @@ fn main() {
         "boxed_".to_owned()
     } else if cfg!(feature = "unboxed") {
         "".to_owned()
+    } else if cfg!(feature = "k9db") {
+        "k9db".to_owned()
     } else {
         unreachable!()
     };
@@ -557,7 +572,6 @@ fn main() {
     );
 
     // FOLD EXPERIMENT.
-
     // Discussion leader normal (runs for both boxed and unboxed).
     let get_discussion_leader_bench = get_discussion_leader(&used_client, r);
     write_stats(
@@ -569,7 +583,7 @@ fn main() {
         get_discussion_leader_bench.len()
     );
 
-    if cfg!(feature = "boxed") {
+    if cfg!(feature = "boxed") || cfg!(feature = "k9db") {
         let get_discussion_leader_naive_bench = get_discussion_leader_naive(&used_client, r);
         write_stats(
             prefix.clone() + "get_discussion_leader_naive_bench",
