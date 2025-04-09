@@ -22,6 +22,8 @@ pub mod context;
 pub mod db;
 pub mod fold;
 pub mod fold_in;
+#[cfg(feature = "k9db")]
+pub mod k9db;
 #[cfg(feature = "orm")]
 pub mod orm;
 pub mod pcr;

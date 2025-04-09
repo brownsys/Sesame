@@ -57,6 +57,7 @@ default = ["derive"]
 derive = ["alohomora_derive"]
 orm = ["sea-orm"]
 sandbox_timing = ["alohomora_sandbox/sandbox_timing"]
+k9db = []
 
 [[test]]
 name = "orm"
