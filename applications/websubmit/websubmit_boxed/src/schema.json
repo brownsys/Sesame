@@ -1,0 +1,122 @@
+[
+  {
+    "name": "users",
+    "data_subject": true,
+    "columns": [
+      { "name": "email", "ty": "text", "primary key": true },
+      { "name": "apikey",  "ty": "text", "unique": true, "policy": { "name": "QueryableOnly" } },
+      { "name": "is_admin", "ty": "int" },
+      { "name": "consent_employers", "ty": "int" },
+      { "name": "consent_ml", "ty": "int" },
+      { "name": "is_remote", "ty": "int",
+        "policy": {
+          "name": "AccessControl",
+          "0": "${self.email}",
+          "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+        }
+      },
+      { "name": "gender",  "ty": "text",
+        "policy": { "And": [
+          {
+              "name": "AccessControl",
+              "0": "${self.email}",
+              "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          { "name": "NoAggregate" }
+        ]}
+      }
+    ]
+  },
+  {
+    "name": "lectures",
+    "columns": [
+      { "name": "id", "ty": "int", "auto increment": true, "primary key": true },
+      { "name": "title", "ty": "text" }
+    ]
+  },
+  {
+    "name": "questions",
+    "columns": [
+      { "name": "id",  "ty": "int", "primary key": true, "auto increment": true },
+      { "name": "lecture_id", "ty": "int",  "foreign key": "lectures.id" },
+      { "name": "question_number", "ty": "int" },
+      { "name": "question_text", "ty": "text" }
+    ]
+  },
+  {
+    "name": "discussion_leaders",
+    "columns": [
+      { "name": "id", "ty": "int", "primary key": true, "auto increment": true },
+      { "name": "lecture_id",  "ty": "int", "foreign key": "lectures.id" },
+      { "name": "email", "ty": "text", "owned by": "users.email" }
+    ]
+  },
+  {
+    "name": "answers",
+    "columns": [
+      { "name": "id",  "ty": "int",  "auto increment": true, "primary key": true },
+      { "name": "question_id", "ty": "int", "foreign key": "questions.id" },
+      { "name": "lecture_id",  "ty": "int", "foreign key": "lectures.id" },
+      { "name": "author", "ty": "text", "owned by": "users.email",
+        "policy": { "Or": [
+          {
+            "name": "AccessControl",
+            "0": "${self.author}",
+            "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          {
+            "name": "Consent",
+            "consent": "q{SELECT consent_employers, users.email FROM users WHERE users.email = ${self.author}}",
+            "purpose": "v{'employers'}"
+          }
+        ]}
+      },
+      { "name": "answer", "ty": "text",
+        "policy": {
+          "name": "AccessControl",
+          "0": "${self.author}",
+          "1": "q{SELECT email FROM users WHERE is_admin = 1}",
+          "2": "q{SELECT email, lecture_id FROM discussion_leaders WHERE lecture_id = ${self.lecture_id}}"
+        }
+      },
+      { "name": "submitted_at", "ty": "datetime",
+        "policy": { "Or": [
+          {
+              "name": "AccessControl",
+              "0": "${self.author}",
+              "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          {
+              "name": "Consent",
+              "purpose": "v{'ml_experiment'}",
+              "consent": "q{SELECT consent_ml, users.email FROM users WHERE users.email = ${self.author}}"
+          }
+        ]}
+      },
+      { "name": "grade", "ty": "int",
+        "policy": { "Or": [
+          {
+            "name": "AccessControl",
+            "0": "${self.author}",
+            "1": "q{SELECT email FROM users WHERE is_admin = 1}"
+          },
+          {
+            "name": "Aggregate",
+            "distinct": "${self.author}",
+            "min_k": "v{10}"
+          },
+          {
+            "name": "Consent",
+            "consent": "q{SELECT consent_employers, users.email FROM users WHERE users.email = ${self.author}}",
+            "purpose": "v{'employers'}"
+          },
+          {
+            "name": "Consent",
+            "purpose": "v{'ml_experiment'}",
+            "consent": "q{SELECT consent_ml, users.email FROM users WHERE users.email = ${self.author}}"
+          }
+        ]}
+      }
+    ]
+  }
+]

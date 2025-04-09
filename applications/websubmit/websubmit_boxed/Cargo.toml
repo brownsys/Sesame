@@ -5,8 +5,19 @@ authors = ["Malte Schwarzkopf <malte@cs.brown.edu>"]
 edition = "2018"
 build = "build.rs"
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
+name = "bin"
+path = "src/example.rs"
+
 [dependencies]
-alohomora = { path = "../../../alohomora", default_features = false, features = ["derive"] }
+alohomora = { path = "../../../alohomora", default_features = false, features = ["derive", "k9db"] }
 chrono = { version = "0.4.0", features = ["serde"] }
 clap = "2.33.0"
 lazy_static = "1.4.0"
