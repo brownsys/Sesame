@@ -20,18 +20,16 @@ extern crate alohomora_sandbox;
 pub mod bbox;
 pub mod context;
 pub mod db;
-
+pub mod fold;
+pub mod fold_in;
 #[cfg(feature = "orm")]
 pub mod orm;
-
+pub mod pcr;
 pub mod policy;
+pub mod pure;
 pub mod rocket;
 pub mod sandbox;
 pub mod testing;
-pub mod fold_in;
-pub mod fold;
-pub mod pcr;
-pub mod pure;
 pub mod unbox;
 
 // Export this directly under alohomora::

@@ -68,13 +68,21 @@ impl BBoxConn {
         self.conn.exec_drop(statement, params)
     }
 
+    pub fn query_iter<T: AsRef<str>>(
+        &mut self,
+        query: T,
+    ) -> BBoxResult<BBoxQueryResult<'_, '_, '_, mysql::Text>> {
+        let result = self.conn.query_iter(query)?;
+        Ok(BBoxQueryResult { result })
+    }
+
     // Parameterized query and return iterator to result.
     pub fn exec_iter<'i, S: Into<BBoxStatement>, P: Into<BBoxParams>, D: ContextData>(
         &mut self,
         stmt: S,
         params: P,
         context: Context<D>,
-    ) -> BBoxResult<BBoxQueryResult<'_, '_, '_>> {
+    ) -> BBoxResult<BBoxQueryResult<'_, '_, '_, mysql::Binary>> {
         let stmt = stmt.into();
         let (statement, stmt_str) = (stmt.0, stmt.1);
         let statement = match statement {
@@ -103,7 +111,7 @@ impl BBoxConn {
         query: &str,
         params: P,
         context: Context<D>,
-    ) -> BBoxResult<BBoxQueryResult<'_, '_, '_>> {
+    ) -> BBoxResult<BBoxQueryResult<'_, '_, '_, mysql::Binary>> {
         let stmt = self.prep(query)?;
         self.exec_iter(stmt, params, context)
     }
