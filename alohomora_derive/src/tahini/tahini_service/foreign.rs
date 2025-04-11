@@ -574,10 +574,11 @@ impl<'a> ServiceGenerator<'a> {
                             #( #method_cfgs )*
                             #request_ident::#camel_case_idents{ #( #arg_pats ),* } => {
                                 ::core::result::Result::Ok(#response_ident::#camel_case_idents(
+                                        Fromable::new(
                                     #service_ident::#method_idents(
                                         self.service, ctx, #( #arg_pats ),*
                                     ).await
-                                ))
+                                )))
                             }
                         )*
                     }
@@ -640,7 +641,7 @@ impl<'a> ServiceGenerator<'a> {
             #[derive(::serde::Deserialize, ::alohomora::TahiniType, Clone)]
             #derives
             #vis enum #response_ident {
-                #( #camel_case_idents(#return_types) ),*
+                #( #camel_case_idents(Fromable<#return_types>) ),*
             }
         }
     }
@@ -764,6 +765,12 @@ impl<'a> ServiceGenerator<'a> {
         //     //     }
         //     // }
         // )
+        //
+        // let is_fromable = return_types.iter().map(|x: &&Type| {
+        //     match x {
+        //     Type::Path(path) =>true,
+        //     _ => false
+        // }}).collect::<Vec<_>>();
 
         //TODO(douk):Do we actually need a dedicated stub? I don't believe though
         quote! {
@@ -777,11 +784,10 @@ impl<'a> ServiceGenerator<'a> {
                     #[allow(unused)]
                     #( #method_attrs )*
                     #vis fn #method_idents<
-                    InputLocalType: ::alohomora::tarpc::traits::TahiniTransformInto<#single_args_types> + 'static + Send, 
-                    OutputLocalType : ::alohomora::tarpc::traits::TahiniTransformFrom<#return_types>+ Send + 'static>
+                    InputLocalType: ::alohomora::tarpc::traits::TahiniTransformInto<#single_args_types> + 'static + Send>
                     (&self, ctx: ::tarpc::context::Context, #arg_pats : InputLocalType)
                     -> impl ::core::future::Future<
-                        Output = ::core::result::Result<OutputLocalType, ::tarpc::client::RpcError>
+                        Output = ::core::result::Result<Fromable<#return_types>, ::tarpc::client::RpcError>
                     > + '_ {
                         let input_closure = |x: #single_args_types| {#request_ident::#camel_case_idents {#arg_pats: x}};
                         let output_closure = |resp: #response_ident| {
@@ -791,7 +797,7 @@ impl<'a> ServiceGenerator<'a> {
                             }
                         };
 
-                        self.0.transform_both_ways::<#single_args_types, InputLocalType, _, #return_types, OutputLocalType, _>(ctx, #camel_case_idents_str, #context_builders, #arg_pats, input_closure, output_closure)
+                        self.0.transform_with_fromable::<#single_args_types, InputLocalType, _, #return_types, _>(ctx, #camel_case_idents_str, #context_builders, #arg_pats, input_closure, output_closure)
                     }
                 )*
             // }

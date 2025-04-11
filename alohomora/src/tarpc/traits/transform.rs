@@ -1,14 +1,85 @@
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+
 use crate::bbox::BBox;
-use crate::policy::{Policy, PolicyFrom, PolicyInto};
+use crate::policy::{Policy, PolicyInto};
 use crate::tarpc::context::TahiniContext;
+use crate::tarpc::{TahiniEnum, TahiniVariantsEnum};
 
 use super::TahiniType;
+
+///Contains either an Uninitialized context from the wire, or an initialized one for local
+///transformation
+#[derive(Serialize, Deserialize, Clone)]
+pub(crate) enum EitherTahiniContext{
+    Uninitialized,
+    Initialized(TahiniContext),
+}
+
+impl<'a> TahiniType for EitherTahiniContext {
+    fn to_tahini_enum(&self) -> TahiniEnum {
+        match self {
+            Self::Uninitialized => TahiniEnum::Enum(
+                "EitherTahiniContext",
+                0,
+                "Uninitialized",
+                TahiniVariantsEnum::Unit,
+            ),
+            Self::Initialized(context) => TahiniEnum::Enum(
+                "EitherTahiniContext",
+                1,
+                "Initialized",
+                TahiniVariantsEnum::NewType(Box::new(context.to_tahini_enum())),
+            ),
+        }
+    }
+}
+
+///Contains some transformable data and some context for the transformation.
+#[derive(Deserialize, Clone)]
+pub struct Fromable<T: TahiniType> {
+    pub(crate) context: EitherTahiniContext,
+    data: T,
+}
+
+impl<T: TahiniType> Fromable<T> {
+    pub fn new(data: T) -> Self {
+        Self {
+            context: EitherTahiniContext::Uninitialized,
+            data,
+        }
+    }
+
+    ///Adds some transformation-specific context. This separation is required so that the
+    ///transformation can be called from application code, but the context can be setup in a secure
+    ///way
+    pub(crate) fn add_context(&mut self, context: TahiniContext) {
+        self.context = EitherTahiniContext::Initialized(context)
+    }
+
+    ///Transforms from TahiniType into some local type if transformation allows it
+    pub fn transform_into<U: TahiniTransformFrom<T>>(self) -> Result<U, String> {
+        match self.context {
+            EitherTahiniContext::Uninitialized => Err("Context was not initialized".to_string()),
+            EitherTahiniContext::Initialized(some_ctxt) => U::transform_from(self.data, &some_ctxt),
+        }
+    }
+}
+
+impl<T: TahiniType> TahiniType for Fromable<T> {
+    fn to_tahini_enum(&self) -> TahiniEnum {
+        let mut map = HashMap::new();
+        map.insert("context", self.context.to_tahini_enum());
+        map.insert("data", self.data.to_tahini_enum());
+        TahiniEnum::Struct("Fromable", map)
+    }
+}
 
 ///Developers should implement this trait when parsing an object of a remote type into one that is
 ///handled locally.
 ///Note that it is assumed converting to a local type is always safe. As such, no distinction on
 ///the data flow is made on the Context here.
-// #[rustc_specialization_trait]
 pub trait TahiniTransformFrom<SourceType> {
     fn transform_from(other: SourceType, context: &TahiniContext) -> Result<Self, String>
     where
@@ -28,14 +99,12 @@ pub trait TahiniTransformInto<TargetType> {
 //     }
 // }
 
-impl<TargetType, SourceType: TahiniTransformInto<TargetType>> TahiniTransformFrom<SourceType>
-    for TargetType
-{
-    fn transform_from(other: SourceType, context: &TahiniContext) -> Result<Self, String>
-    where
-        Self: Sized,
-    {
-        other.transform_into(context)
+
+impl<T> TahiniTransformFrom<T> for T {
+    fn transform_from(other: T, context: &TahiniContext) -> Result<Self, String>
+        where
+            Self: Sized {
+        Ok(other)
     }
 }
 

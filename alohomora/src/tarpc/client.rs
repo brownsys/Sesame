@@ -5,7 +5,7 @@ use crate::tarpc::enums::TahiniSafeWrapper;
 // };
 use crate::bbox::BBox;
 use crate::policy::{Policy, PolicyInto, TahiniPolicy};
-use crate::tarpc::traits::{TahiniTransformFrom, TahiniTransformInto, TahiniType};
+use crate::tarpc::traits::{Fromable, TahiniTransformFrom, TahiniTransformInto, TahiniType};
 use pin_project_lite::pin_project;
 use std::future::Future;
 use tarpc::client::Channel as TarpcChannel;
@@ -42,6 +42,23 @@ pub trait TahiniStub {
         request_name: &'static str,
         request: Self::Req,
     ) -> Result<Self::Resp, RpcError>;
+
+    async fn transform_with_fromable<
+        'a,
+        InputRemoteType: TahiniType,
+        InputLocalType: TahiniTransformInto<InputRemoteType> + 'static,
+        EgressTransform: FnOnce(InputRemoteType) -> Self::Req,
+        OutputRemoteType: TahiniType,
+        IngressTransform: FnOnce(Self::Resp) -> Fromable<OutputRemoteType>,
+    >(
+        &'a self,
+        ctx: context::Context,
+        request_name: &'static str,
+        tahini_context_builder: &'static str,
+        local_input: InputLocalType,
+        input_transform: EgressTransform,
+        output_transform: IngressTransform,
+    ) -> Result<Fromable<OutputRemoteType>, RpcError>;
 
     async fn transform_both_ways<
         'a,
@@ -147,6 +164,35 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
         let unwrapped: OutputRemoteType = output_transform(resp);
         Ok(OutputLocalType::transform_from(unwrapped, &tahini_context)
             .expect("Policy didn't allow to parse remote type into local type"))
+    }
+    async fn transform_with_fromable<
+        'a,
+        InputRemoteType: TahiniType,
+        InputLocalType: TahiniTransformInto<InputRemoteType> + 'static,
+        EgressTransform: FnOnce(InputRemoteType) -> Self::Req,
+        OutputRemoteType: TahiniType,
+        IngressTransform: FnOnce(Self::Resp) -> Fromable<OutputRemoteType>,
+    >(
+        &'a self,
+        ctx: context::Context,
+        request_name: &'static str,
+        tahini_context_builder: &'static str,
+        local_input: InputLocalType,
+        input_transform: EgressTransform,
+        output_transform: IngressTransform,
+    ) -> Result<Fromable<OutputRemoteType>, RpcError> {
+        let splitted: Vec<_> = tahini_context_builder.split(".").collect();
+        assert_eq!(splitted.len(), 2, "Checking if request_name is of length 2");
+        let (service, rpc) = (splitted[0], splitted[1]);
+        let tahini_context = TahiniContext::new(service, rpc);
+        let remote_input: InputRemoteType = local_input
+            .transform_into(&tahini_context)
+            .expect("Policy didn't allow to transform the input for this RPC");
+        let wrapped = input_transform(remote_input);
+        let resp = self.call(ctx, request_name, wrapped).await?;
+        let mut unwrapped: Fromable<OutputRemoteType> = output_transform(resp);
+        unwrapped.add_context(tahini_context);
+        Ok(unwrapped)
     }
 }
 
