@@ -15,7 +15,7 @@ impl Policy for NoAggregate {
         String::from("NoAggregate")
     }
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
-        todo!()
+        self.ok
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()

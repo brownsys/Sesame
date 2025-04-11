@@ -6,7 +6,6 @@ use rocket::outcome::IntoOutcome;
 use rocket::State;
 
 use alohomora::bbox::{BBox, BBoxRender, EitherBBox};
-use alohomora::context::Context;
 use alohomora::db::from_value;
 use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::{execute_pure, PrivacyPureRegion};
@@ -18,7 +17,7 @@ use alohomora::rocket::{
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
-use crate::policies::ContextData;
+use crate::policies::Context;
 use crate::questions::{LectureQuestion, LectureQuestionsContext};
 
 pub(crate) struct Admin;
@@ -60,7 +59,7 @@ struct LecAddContext {
 }
 
 #[get("/")]
-pub(crate) fn lec_add(context: Context<ContextData>) -> BBoxTemplate {
+pub(crate) fn lec_add(context: Context) -> BBoxTemplate {
     let ctx = LecAddContext {
         parent: "layout".into(),
     };
@@ -78,7 +77,7 @@ pub(crate) fn lec_add_submit(
     _adm: Admin,
     data: BBoxForm<AdminLecAdd>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxRedirect {
     let data = data.into_inner();
 
@@ -97,7 +96,7 @@ pub(crate) fn lec(
     _adm: Admin,
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let key = num.clone().into_bbox::<u64, NoPolicy>();
 
@@ -144,7 +143,7 @@ pub(crate) fn addq(
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<AddLectureQuestionForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxRedirect {
     let data = data.into_inner();
 
@@ -169,7 +168,7 @@ pub(crate) fn editq(
     num: BBox<u8, NoPolicy>,
     qnum: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -219,7 +218,7 @@ pub(crate) fn editq_submit(
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<AddLectureQuestionForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxRedirect {
     let data = data.into_inner();
     let mut bg = backend.lock().unwrap();
@@ -255,7 +254,7 @@ pub(crate) fn get_registered_users(
     _adm: Admin,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(

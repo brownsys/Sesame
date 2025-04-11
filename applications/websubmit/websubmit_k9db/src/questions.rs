@@ -9,9 +9,7 @@ use rocket::State;
 
 use crate::admin::Admin;
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::context::Context;
 use alohomora::db::{from_value, from_value_or_null};
-use alohomora::fold::fold;
 use alohomora::pcr::{PrivacyCriticalRegion, Signature};
 use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::{execute_pure, PrivacyPureRegion};
@@ -24,7 +22,7 @@ use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
 use crate::helpers::{left_join, JoinIdx};
-use crate::policies::{AnswerAccessPolicy, ContextData};
+use crate::policies::{Context};
 
 // TODO (allen): is this NoPolicy because it came from the user and we're going to write it (not for reading yet?)
 #[derive(Debug, FromBBoxForm)]
@@ -52,23 +50,15 @@ pub(crate) struct LectureQuestionsContext {
 #[alohomora_out_type(to_derive = [BBoxRender, Clone, Serialize])]
 //#[derive(BBoxRender, Clone)]
 pub struct LectureAnswer {
-    pub id: BBox<u64, AnswerAccessPolicy>,
-    pub user: BBox<String, AnswerAccessPolicy>,
-    pub answer: BBox<String, AnswerAccessPolicy>,
-    pub time: BBox<String, AnswerAccessPolicy>,
-    pub grade: BBox<u64, AnswerAccessPolicy>,
+    pub id: BBox<u64, NoPolicy>,
+    pub user: BBox<String, AnyPolicy>,
+    pub answer: BBox<String, AnyPolicy>,
+    pub time: BBox<String, AnyPolicy>,
+    pub grade: BBox<u64, AnyPolicy>,
 }
 
-// TODO (allen): do we need BBox's for context to our pages? and what kind of policy should they have?
 #[derive(BBoxRender)]
 pub struct LectureAnswersContext {
-    pub lec_id: BBox<u8, NoPolicy>,
-    pub answers: BBox<Vec<LectureAnswerOut>, AnswerAccessPolicy>,
-    pub parent: String,
-}
-
-#[derive(BBoxRender)]
-pub struct NaiveLectureAnswersContext {
     pub lec_id: BBox<u8, NoPolicy>,
     pub answers: Vec<LectureAnswer>,
     pub parent: String,
@@ -97,7 +87,7 @@ pub(crate) fn leclist(
     apikey: ApiKey,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -139,52 +129,12 @@ pub(crate) fn leclist(
     BBoxTemplate::render("leclist", &ctx, context)
 }
 
-#[get("/naive/<num>")]
-pub(crate) fn naive_answers(
-    _admin: Admin,
-    num: BBox<u8, NoPolicy>,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
-) -> BBoxTemplate {
-    let mut bg = backend.lock().unwrap();
-    let key = num.clone().into_bbox::<u64, NoPolicy>();
-    let res = bg.prep_exec(
-        "SELECT * FROM answers WHERE lec = ?",
-        (key,),
-        context.clone(),
-    );
-    drop(bg);
-
-    // Wraps incoming column data in LectureAnswer format
-    let answers: Vec<LectureAnswer> = res
-        .into_iter()
-        .map(|r| LectureAnswer {
-            id: from_value(r[3].clone()).unwrap(),
-            user: from_value(r[1].clone()).unwrap(),
-            answer: from_value(r[4].clone()).unwrap(),
-            time: from_value(r[5].clone())
-                .unwrap()
-                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| {
-                    v.format("%Y-%m-%d %H:%M:%S").to_string()
-                })),
-            grade: from_value(r[6].clone()).unwrap(),
-        })
-        .collect();
-
-    let ctx = NaiveLectureAnswersContext {
-        lec_id: num,
-        answers,
-        parent: "layout".into(),
-    };
-    BBoxTemplate::render("answers", &ctx, context)
-}
-
 #[get("/<num>")]
-pub(crate) fn composed_answers(
+pub(crate) fn answers(
     _admin: Admin,
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let key = num.clone().into_bbox::<u64, NoPolicy>();
@@ -210,15 +160,10 @@ pub(crate) fn composed_answers(
             grade: from_value(r[6].clone()).unwrap(),
         })
         .collect();
-
-    let outer_box_answers = fold(answers)
-        .unwrap()
-        .specialize_policy::<AnswerAccessPolicy>()
-        .unwrap();
 
     let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: outer_box_answers,
+        answers,
         parent: "layout".into(),
     };
     BBoxTemplate::render("answers", &ctx, context)
@@ -229,7 +174,7 @@ pub(crate) fn answers_for_discussion_leaders(
     num: BBox<u8, NoPolicy>,
     apikey: ApiKey,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let key = num.clone().into_bbox::<u64, NoPolicy>();
 
@@ -270,68 +215,8 @@ pub(crate) fn answers_for_discussion_leaders(
             grade: from_value(r[6].clone()).unwrap(),
         })
         .collect();
-
-    let outer_box_answers = fold(answers)
-        .unwrap()
-        .specialize_policy::<AnswerAccessPolicy>()
-        .unwrap();
 
     let ctx = LectureAnswersContext {
-        lec_id: num,
-        answers: outer_box_answers,
-        parent: "layout".into(),
-    };
-    BBoxTemplate::render("answers", &ctx, context)
-}
-
-#[get("/discussion_leaders/naive/<num>")]
-pub(crate) fn answers_for_discussion_leaders_naive(
-    num: BBox<u8, NoPolicy>,
-    apikey: ApiKey,
-    backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
-) -> BBoxTemplate {
-    let key = num.clone().into_bbox::<u64, NoPolicy>();
-
-    let is_discussion_leader = {
-        let mut bg = backend.lock().unwrap();
-        let vec = bg.prep_exec(
-            "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-            (key.clone(), apikey.user),
-            context.clone(),
-        );
-        vec.len() > 0
-    };
-
-    if !is_discussion_leader {
-        panic!()
-    }
-
-    let mut bg = backend.lock().unwrap();
-    let res = bg.prep_exec(
-        "SELECT * FROM answers WHERE lec = ?",
-        (key,),
-        context.clone(),
-    );
-    drop(bg);
-
-    // Wraps incoming column data in LectureAnswer format
-    let answers: Vec<LectureAnswer> = res
-        .into_iter()
-        .map(|r| LectureAnswer {
-            id: from_value(r[3].clone()).unwrap(),
-            user: from_value(r[1].clone()).unwrap(),
-            answer: from_value(r[4].clone()).unwrap(),
-            time: from_value(r[5].clone())
-                .unwrap()
-                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| {
-                    v.format("%Y-%m-%d %H:%M:%S").to_string()
-                })),
-            grade: from_value(r[6].clone()).unwrap(),
-        })
-        .collect();
-
-    let ctx = NaiveLectureAnswersContext {
         lec_id: num,
         answers,
         parent: "layout".into(),
@@ -344,7 +229,7 @@ pub(crate) fn questions(
     apikey: ApiKey,
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let key = num.clone().into_bbox::<u64, NoPolicy>();
@@ -405,7 +290,7 @@ pub(crate) fn questions_submit(
     data: BBoxForm<LectureQuestionSubmission>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxRedirect {
     let num = num.into_bbox::<u64, NoPolicy>();
     let ts: mysql::Value = Local::now().naive_local().into();

@@ -20,17 +20,7 @@ impl Policy for AggregateAccessPolicy {
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
-        type ContextDataOut = <ContextData as AlohomoraType>::Out;
-        let context: &ContextDataOut = context.downcast_ref().unwrap();
-
-        let user: &Option<String> = &context.user;
-        let config: &Config = &context.config;
-
-        let user = user.as_ref().unwrap();
-        if config.managers.contains(user) && !self.sensitive || config.admins.contains(user) {
-            return true;
-        }
-        return false;
+        true
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {

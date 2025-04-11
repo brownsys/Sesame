@@ -3,6 +3,7 @@ use std::iter::FromIterator;
 
 use mysql::Value;
 use crate::context::UnprotectedContext;
+use crate::k9db::context::UnprotectedK9dbContextData;
 use crate::k9db::policies::{K9dbPolicy, register, add_k9db_policy};
 use crate::policy::{AnyPolicy, Policy, Reason};
 
@@ -16,7 +17,11 @@ impl Policy for AccessControl {
         String::from("AccessControl")
     }
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
-        todo!()
+        let context = context.downcast_ref::<UnprotectedK9dbContextData>().unwrap();
+        match &context.user {
+            None => false,
+            Some(user) => self.users.contains(user),
+        }
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()

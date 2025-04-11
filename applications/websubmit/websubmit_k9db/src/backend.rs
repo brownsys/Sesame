@@ -1,15 +1,17 @@
 use crate::policies::ContextData;
-use alohomora::context::Context;
-use alohomora::db::{BBoxConn, BBoxOpts, BBoxParams, BBoxStatement, BBoxValue};
+use alohomora::db::{BBoxOpts, BBoxParams, BBoxStatement, BBoxValue};
 use slog::{debug, o, warn};
 use std::collections::HashMap;
 use std::error::Error;
 use std::result::Result;
+use alohomora::k9db::{K9db, db::K9dbBBoxConn};
+
+use crate::policies::Context;
 
 pub struct MySqlBackend {
-    pub handle: BBoxConn,
+    k9db: K9db,
+    pub handle: K9dbBBoxConn,
     pub log: slog::Logger,
-    _schema: String,
     prep_stmts: HashMap<String, BBoxStatement>,
     db_user: String,
     db_password: String,
@@ -25,49 +27,43 @@ impl MySqlBackend {
         log: Option<slog::Logger>,
         prime: bool,
     ) -> Result<Self, Box<dyn Error>> {
+        let actual_port = if db_port == "" { db_port.to_owned() } else { format!(":{}", db_port) };
         let log = match log {
             None => slog::Logger::root(slog::Discard, o!()),
             Some(l) => l,
         };
 
-        let schema = std::fs::read_to_string("src/schema.sql")?;
-        let actual_port = if db_port == "" { db_port.to_owned() } else { format!(":{}", db_port) };
-
         debug!(
             log,
             "Connecting to MySql DB and initializing schema {}...", dbname
         );
-        // let password = "";
-        // println!("password is `{}`", password);
-        let mut db = BBoxConn::new(
-            // this is the user and password from the config.toml file
-            BBoxOpts::from_url(&format!("mysql://{}:{}@127.0.0.1{}/", user, password, actual_port)).unwrap(),
-        )
-        .unwrap();
+
+        let k9db = K9db::new(
+            "src/schema.json",
+            BBoxOpts::from_url("mysql://root:password@0.0.0.0:10001/").unwrap()
+        ).unwrap();
+
+        if prime {
+            k9db.prime().unwrap();
+        }
+
+        let mut db = k9db.make_connection().unwrap();
         assert_eq!(db.ping(), true);
 
         if prime {
-            /*
-            db.query_drop(format!("DROP DATABASE IF EXISTS {};", dbname))
-                .unwrap();
-            db.query_drop(format!("CREATE DATABASE {};", dbname))
-                .unwrap();
-            db.query_drop(format!("USE {};", dbname)).unwrap();
-            */
+            let schema = std::fs::read_to_string("src/k9db.sql")?;
             for line in schema.lines() {
                 if line.starts_with("--") || line.is_empty() {
                     continue;
                 }
                 db.query_drop(line).unwrap();
             }
-        } else {
-            //db.query_drop(format!("USE {};", dbname)).unwrap();
         }
 
         Ok(MySqlBackend {
+            k9db: k9db,
             handle: db,
             log: log,
-            _schema: schema.to_owned(),
             prep_stmts: HashMap::new(),
             db_user: String::from(user),
             db_password: String::from(password),
@@ -76,21 +72,14 @@ impl MySqlBackend {
     }
 
     fn reconnect(&mut self) {
-        self.handle = BBoxConn::new(
-            BBoxOpts::from_url(&format!(
-                "mysql://{}:{}@127.0.0.1/{}",
-                self.db_user, self.db_password, self.db_name
-            ))
-            .unwrap(),
-        )
-        .unwrap();
+        self.handle = self.k9db.make_connection().unwrap();
     }
 
     pub fn prep_exec<P: Into<BBoxParams>>(
         &mut self,
         sql: &str,
         params: P,
-        context: Context<ContextData>,
+        context: Context,
     ) -> Vec<Vec<BBoxValue>> {
         if !self.prep_stmts.contains_key(sql) {
             let stmt = self
@@ -131,7 +120,7 @@ impl MySqlBackend {
         table: &str,
         vals: P,
         replace: bool,
-        context: Context<ContextData>,
+        context: Context,
     ) {
         let vals: BBoxParams = vals.into();
         let mut param_count = 0;
@@ -165,7 +154,7 @@ impl MySqlBackend {
         &mut self,
         table: &str,
         vals: P,
-        context: Context<ContextData>,
+        context: Context,
     ) {
         self.do_insert(table, vals, false, context);
     }
@@ -174,7 +163,7 @@ impl MySqlBackend {
         &mut self,
         table: &str,
         vals: P,
-        context: Context<ContextData>,
+        context: Context,
     ) {
         self.do_insert(table, vals, true, context);
     }

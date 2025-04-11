@@ -1,3 +1,4 @@
+pub mod context;
 pub mod db;
 mod k9db;
 pub mod policies;

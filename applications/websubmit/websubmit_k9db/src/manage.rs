@@ -11,10 +11,9 @@ use serde::Serialize;
 use crate::apikey::ApiKey;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
-use crate::policies::ContextData;
+use crate::policies::Context;
 
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::context::Context;
 use alohomora::db::from_value;
 use alohomora::policy::AnyPolicy;
 use alohomora::pure::PrivacyPureRegion;
@@ -86,7 +85,7 @@ fn transform<T: Serialize + FromValue>(
 pub(crate) fn get_aggregate_gender(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec("SELECT * from agg_gender", (), context.clone());
@@ -104,7 +103,7 @@ pub(crate) fn get_aggregate_gender(
 pub(crate) fn get_aggregate_remote_buggy(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec("SELECT * from agg_remote", (), context.clone());
@@ -122,7 +121,7 @@ pub(crate) fn get_aggregate_remote_buggy(
 pub(crate) fn get_aggregate_remote(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let grades = bg.prep_exec(
@@ -157,7 +156,7 @@ pub(crate) fn get_list_for_employers(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     _config: &State<Config>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -187,7 +186,7 @@ pub(crate) fn get_list_for_employers_buggy(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     _config: &State<Config>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec("SELECT * from employers_release", (), context.clone());

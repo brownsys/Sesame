@@ -1,4 +1,4 @@
-use websubmit_boxed::{make_rocket, parse_args};
+use websubmit_k9db::{make_rocket, parse_args};
 
 #[rocket::main]
 async fn main() {

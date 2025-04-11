@@ -1,13 +1,10 @@
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{
-    schema_policy, AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason, SchemaPolicy,
-};
+use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, PolicyAnd, Reason};
 use mysql::Value;
 use rocket::http::Cookie;
 use rocket::Request;
 
 #[derive(Clone)]
-#[schema_policy(table = "users", column = 1)]
 pub struct QueryableOnly {}
 
 // Content of apikey column can only be accessed by:
@@ -48,15 +45,6 @@ impl FrontendPolicy for QueryableOnly {
         _cookie: &'a Cookie<'static>,
         _request: &'a Request<'r>,
     ) -> Self {
-        QueryableOnly {}
-    }
-}
-
-impl SchemaPolicy for QueryableOnly {
-    fn from_row(_table: &str, _row: &Vec<Value>) -> Self
-    where
-        Self: Sized,
-    {
         QueryableOnly {}
     }
 }

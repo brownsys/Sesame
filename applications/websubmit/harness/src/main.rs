@@ -36,20 +36,20 @@ use websubmit::{make_rocket, parse_args};
 
 const RNG_SEED: u64 = 3705;
 
-const N_USERS: usize = 100;                    // 100
-const N_LECTURES: usize = 10;                  // 10
-const N_QUESTIONS_PER_LECTURE: usize = 10;     // 10
+const N_USERS: usize = 5;                    // 100
+const N_LECTURES: usize = 2;                  // 10
+const N_QUESTIONS_PER_LECTURE: usize = 2;     // 10
 
-const N_REGISTRATION_ATTEMPTS: usize = 1000;   // 1000
+const N_REGISTRATION_ATTEMPTS: usize = 10;   // 1000
 
-const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: usize = 100;       // 100
-const PREDICTION_REQUEST_BATCH_SIZE: usize = 100;            // 100
-const N_PREDICTION_ATTEMPTS_PER_LECTURE: usize = 100;        // 100
-const N_DISCUSSION_LEADER_QUERIES_PER_LECTURE: usize = 100;  // 100
+const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: usize = 1;       // 100
+const PREDICTION_REQUEST_BATCH_SIZE: usize = 5;            // 100
+const N_PREDICTION_ATTEMPTS_PER_LECTURE: usize = 1;        // 100
+const N_DISCUSSION_LEADER_QUERIES_PER_LECTURE: usize = 1;  // 100
 
-const N_RETRAINING_MODEL_QUERIES: usize = 1000;              // 1000
-const N_AGGREGATE_GRADES_QUERIES: usize = 1000;              // 1000
-const N_EMPLOYER_INFO_QUERIES: usize = 1000;                 // 1000
+const N_RETRAINING_MODEL_QUERIES: usize = 5;              // 1000
+const N_AGGREGATE_GRADES_QUERIES: usize = 5;              // 1000
+const N_EMPLOYER_INFO_QUERIES: usize = 5;                 // 1000
 
 const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
 const DISCUSSION_LEADER_KEY: &'static str = "DISCUSSION_LEADER_KEY";
@@ -508,6 +508,7 @@ fn main() {
     add_lectures(&used_client, r);
     add_questions(&used_client, r);
 
+
     // 2. Bench answering the questions.
     let answer_questions_bench = answer_questions(&used_client, &users, r);
     write_stats(
@@ -527,6 +528,7 @@ fn main() {
         view_answers_bench.len()
     );
 
+
     // Prime the database with grades.
     submit_grades(&used_client, &users, r);
 
@@ -538,6 +540,7 @@ fn main() {
         retrain_model_bench.len()
     );
 
+    /*
     // 5. Query the prediction model.
     let predict_grades_bench = predict_grades(&used_client, r);
     write_stats(
@@ -604,4 +607,5 @@ fn main() {
             view_answers_naive_bench.len()
         );
     }
+    */
 }

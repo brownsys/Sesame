@@ -5,19 +5,19 @@ boxed:
 	mkdir -p /tmp/harness/js
 	cd ../websubmit_boxed_sandboxes/ && cargo build --release
 	mkdir -p target/release && cp ../websubmit_boxed_sandboxes/libwebsubmit_boxed_sandboxes_sandbox.so target/release/libwebsubmit_boxed_sandboxes_sandbox.so
-	cargo run --release --features "boxed" -- -i alohomora -c sample-config.toml
+	RUST_BACKTRACE=1 cargo run --release --features "boxed" -- -i alohomora -c sample-config.toml
 
 k9db:
 	mkdir -p /tmp/harness/css
 	mkdir -p /tmp/harness/js
 	cd ../websubmit_boxed_sandboxes/ && cargo build --release
 	mkdir -p target/release && cp ../websubmit_boxed_sandboxes/libwebsubmit_boxed_sandboxes_sandbox.so target/release/libwebsubmit_boxed_sandboxes_sandbox.so
-	cargo run --release --features "k9db" -- -i alohomora -c sample-config.toml
+	RUST_BACKTRACE=1 cargo run --release --features "k9db" -- -i alohomora -c sample-config.toml
 
 unboxed:
 	mkdir -p /tmp/harness/css
 	mkdir -p /tmp/harness/js
-	cargo run --release --features "unboxed" -- -i websubmit -c sample-config.toml
+	RUST_BACKTRACE=1 cargo run --release --features "unboxed" -- -i websubmit -c sample-config.toml
 
 plot:
 	. venv/bin/activate; python3 plotting.py; deactivate

@@ -117,6 +117,10 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
     pub fn route(&self) -> Option<&'r rocket::route::Route> {
         self.request.route()
     }
+
+    pub fn path(&self) -> String {
+        self.request.uri().path().to_string()
+    }
 }
 
 // Our own FromRequest trait, receives an instance of our Request struct.

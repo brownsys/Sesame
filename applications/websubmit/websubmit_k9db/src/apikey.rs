@@ -8,7 +8,6 @@ use rocket::outcome::IntoOutcome;
 use rocket::State;
 
 use alohomora::bbox::BBox;
-use alohomora::context::Context;
 use alohomora::db::from_value;
 use alohomora::pcr::{PrivacyCriticalRegion, Signature};
 use alohomora::policy::{AnyPolicy, NoPolicy, Policy};
@@ -25,7 +24,7 @@ use alohomora::unbox::unbox;
 use crate::backend::MySqlBackend;
 use crate::config::Config;
 use crate::email;
-use crate::policies::{ContextData, QueryableOnly};
+use crate::policies::{Context, ContextData, QueryableOnly};
 
 use websubmit_boxed_sandboxes::hash;
 
@@ -48,7 +47,7 @@ pub(crate) struct ApiKey {
 pub(crate) fn check_api_key<P: Policy + Clone + 'static>(
     backend: &Arc<Mutex<MySqlBackend>>,
     key: &BBox<String, P>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> Result<BBox<String, NoPolicy>, ApiKeyError> {
     let mut bg = backend.lock().unwrap();
     let rs = bg.prep_exec(
@@ -130,7 +129,7 @@ pub(crate) fn generate(
     data: BBoxForm<ApiKeyRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     config: &State<Config>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> JsonResponse<ApiKeyResponse, ContextData> {
     let pseudonym: String = thread_rng()
         .sample_iter(&Alphanumeric)
@@ -213,7 +212,7 @@ pub(crate) fn check(
     data: BBoxForm<ApiKeySubmit>,
     cookies: BBoxCookieJar<'_, '_>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxRedirect {
     // check that the API key exists and set cookie
     let res = check_api_key(&*backend, &data.key, context.clone());

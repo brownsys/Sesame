@@ -1,70 +1,87 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use rocket::http::Status;
-use rocket::outcome::IntoOutcome;
 use rocket::State;
 
 use alohomora::bbox::BBox;
-use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::policy::NoPolicy;
+use alohomora::k9db::context::{K9dbContext, K9dbContextData, K9dbContextDataTrait};
+use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
-use alohomora::AlohomoraType;
 
 use crate::backend::MySqlBackend;
-use crate::config::Config;
 use crate::policies::QueryableOnly;
 
+// Defines purposes
+const PURPOSE_MAP: [(&'static str, &'static str); 2] = [
+    ("<ML_EXPERIMENT>", "ml_experiment"),
+    ("<EMPLOYERS>", "employers"),
+];
+
 // Custom developer defined payload attached to every context.
-#[derive(AlohomoraType, Clone)]
-#[alohomora_out_type(verbatim = [db, config])]
-pub struct ContextData {
-    pub user: Option<BBox<String, NoPolicy>>,
-    pub db: Arc<Mutex<MySqlBackend>>,
-    pub config: Config,
+#[derive(Clone)]
+pub struct WebsubmitContextData {
+    pub user: BBox<Option<String>, QueryableOnly>,
+    pub purpose: BBox<Option<String>, QueryableOnly>,
+}
+
+pub type ContextData = K9dbContextData<WebsubmitContextData>;
+pub type Context = K9dbContext<WebsubmitContextData>;
+
+// Compatible with K9db policies.
+impl K9dbContextDataTrait for WebsubmitContextData {
+    fn user(&self) -> BBox<Option<String>, AnyPolicy> {
+        self.user.clone().into_any_policy()
+    }
+    fn purpose(&self) -> BBox<Option<String>, AnyPolicy> {
+        self.purpose.clone().into_any_policy()
+    }
 }
 
 // Build the custom payload for the context given HTTP request.
 #[rocket::async_trait]
-impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
+impl<'a, 'r> FromBBoxRequest<'a, 'r> for WebsubmitContextData {
     type BBoxError = ();
 
     async fn from_bbox_request(
         request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let db: &State<Arc<Mutex<MySqlBackend>>> = request.guard().await.unwrap();
-        let config: &State<Config> = request.guard().await.unwrap();
 
         // Find user using ApiKey token from cookie.
         let apikey = request.cookies().get::<QueryableOnly>("apikey");
         let user = match apikey {
-            None => None,
+            None => BBox::new(None, QueryableOnly {}),
             Some(apikey) => {
                 let apikey = apikey.value().to_owned();
                 let mut bg = db.lock().unwrap();
                 let res = bg.prep_exec(
                     "SELECT * FROM users WHERE apikey = ?",
                     (apikey,),
-                    Context::empty(),
+                    alohomora::context::Context::empty(),
                 );
                 drop(bg);
                 if res.len() > 0 {
-                    Some(from_value(res[0][0].clone()).unwrap())
+                    let user: BBox<String, NoPolicy> = from_value(res[0][0].clone()).unwrap();
+                    BBox::new(Some(user.discard_box()), QueryableOnly {})
                 } else {
-                    None
+                    BBox::new(None, QueryableOnly {})
                 }
             }
         };
 
-        request
-            .route()
-            .and_then(|_| {
-                Some(ContextData {
-                    user,
-                    db: db.inner().clone(),
-                    config: config.inner().clone(),
-                })
-            })
-            .into_outcome((Status::InternalServerError, ()))
+        // Find purpose by looking at routes.
+        let path = request.path();
+        println!("{:?}", path);
+
+        let mut purpose = None;
+        for (purpose_path, purpose_str) in PURPOSE_MAP {
+            if path == purpose_path {
+                purpose = Some(String::from(purpose_str));
+                break;
+            }
+        }
+        let purpose = BBox::new(purpose, QueryableOnly {});
+        BBoxRequestOutcome::Success(WebsubmitContextData { user, purpose })
     }
 }

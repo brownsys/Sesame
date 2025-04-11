@@ -42,43 +42,7 @@ impl Policy for AnswerAccessPolicy {
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
-        type ContextDataOut = <ContextData as AlohomoraType>::Out;
-        let context: &ContextDataOut = context.downcast_ref().unwrap();
-
-        let user: &Option<String> = &context.user;
-        let db: &Arc<Mutex<MySqlBackend>> = &context.db;
-        let config: &Config = &context.config;
-
-        // I am not an authenticated user. I cannot see any answers!
-        if user.is_none() {
-            return false;
-        }
-
-        // I am the owner of the answer.
-        let user = user.as_ref().unwrap();
-        if let Some(owner) = &self.owner {
-            if owner == user {
-                return true;
-            }
-        }
-
-        // I am an admin.
-        if config.admins.contains(user) {
-            return true;
-        }
-
-        // I am a discussion leader.
-        if let Some(lec_id) = self.lec_id {
-            let mut bg = db.lock().unwrap();
-            let vec = bg.prep_exec(
-                "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-                (lec_id, user),
-                Context::empty(),
-            );
-            return vec.len() > 0;
-        }
-
-        return false;
+        true
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {

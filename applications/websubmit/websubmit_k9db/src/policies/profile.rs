@@ -19,31 +19,7 @@ impl Policy for UserProfilePolicy {
     }
 
     fn check(&self, context: &UnprotectedContext, _reason: Reason) -> bool {
-        type ContextDataOut = <ContextData as AlohomoraType>::Out;
-        let context: &ContextDataOut = context.downcast_ref().unwrap();
-
-        let user: &Option<String> = &context.user;
-        let config: &Config = &context.config;
-
-        // I am not an authenticated user. I cannot see any profiles!
-        if user.is_none() {
-            return false;
-        }
-
-        // I am the owner of the profile.
-        let user = user.as_ref().unwrap();
-        if let Some(owner) = &self.owner {
-            if owner == user {
-                return true;
-            }
-        }
-
-        // I am an admin.
-        if config.admins.contains(user) {
-            return true;
-        }
-
-        return false;
+        true
     }
 
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {

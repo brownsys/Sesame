@@ -1,4 +1,3 @@
-use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
 use alohomora::rocket::{get, BBoxCookieJar, BBoxRedirect};
 use rocket::State;
@@ -6,13 +5,13 @@ use std::sync::{Arc, Mutex};
 
 use crate::apikey;
 use crate::backend::MySqlBackend;
-use crate::policies;
+use crate::policies::Context;
 
 #[get("/")]
 pub(crate) fn index(
     cookies: BBoxCookieJar<'_, '_>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<policies::ContextData>,
+    context: Context,
 ) -> BBoxRedirect {
     if let Some(cookie) = cookies.get::<NoPolicy>("apikey") {
         let apikey = cookie.into();

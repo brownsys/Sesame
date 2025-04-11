@@ -1,6 +1,7 @@
 use std::collections::{HashMap};
 use mysql::Value;
 use crate::context::UnprotectedContext;
+use crate::k9db::context::UnprotectedK9dbContextData;
 use crate::k9db::policies::{add_k9db_policy, K9dbPolicy};
 use crate::policy::{register, AnyPolicy, Policy, Reason};
 
@@ -14,9 +15,12 @@ impl Policy for Consent {
     fn name(&self) -> String {
         String::from("Consent")
     }
-    fn check(&self, _context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
-        // TODO(babman): need to check purpose of the context.
-        self.consent
+    fn check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
+        let context = context.downcast_ref::<UnprotectedK9dbContextData>().unwrap();
+        match &context.purpose {
+            None => false,
+            Some(purpose) => self.consent && &self.purpose == purpose,
+        }
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()

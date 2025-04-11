@@ -1,19 +1,17 @@
 use std::sync::{Arc, Mutex};
 
-use alohomora::fold::fold;
 use chrono::naive::NaiveDateTime;
 use rocket::State;
 
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::context::Context;
 use alohomora::db::from_value;
-use alohomora::policy::NoPolicy;
+use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxTemplate, FromBBoxForm};
 
 use crate::admin::Admin;
 use crate::backend::MySqlBackend;
-use crate::policies::{AnswerAccessPolicy, ContextData};
+use crate::policies::{Context};
 use crate::questions::LectureAnswer;
 use crate::questions::LectureAnswersContext;
 
@@ -22,7 +20,7 @@ pub(crate) fn grades(
     _adm: Admin,
     num: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let key = num.clone().into_bbox::<u64, NoPolicy>();
 
@@ -49,14 +47,9 @@ pub(crate) fn grades(
         })
         .collect();
 
-    let outer_box_answers: BBox<Vec<crate::questions::LectureAnswerOut>, AnswerAccessPolicy> = fold(answers)
-        .unwrap()
-        .specialize_policy::<AnswerAccessPolicy>()
-        .unwrap();
-
     let ctx = LectureAnswersContext {
         lec_id: num,
-        answers: outer_box_answers,
+        answers: answers,
         parent: "layout".into(),
     };
 
@@ -65,8 +58,8 @@ pub(crate) fn grades(
 
 #[derive(BBoxRender)]
 struct GradeEditContext {
-    answer: BBox<String, AnswerAccessPolicy>,
-    grade: BBox<u64, AnswerAccessPolicy>,
+    answer: BBox<String, AnyPolicy>,
+    grade: BBox<u64, AnyPolicy>,
     lec_id: BBox<u8, NoPolicy>,
     lec_qnum: BBox<u8, NoPolicy>,
     parent: String,
@@ -80,7 +73,7 @@ pub(crate) fn editg(
     num: BBox<u8, NoPolicy>,
     qnum: BBox<u8, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
@@ -120,7 +113,7 @@ pub(crate) fn editg_submit(
     qnum: BBox<u8, NoPolicy>,
     data: BBoxForm<EditGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxRedirect {
     let mut bg = backend.lock().unwrap();
 

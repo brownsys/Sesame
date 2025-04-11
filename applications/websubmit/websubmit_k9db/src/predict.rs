@@ -7,20 +7,19 @@ use linfa_linear::FittedLinearRegression;
 use rocket::State;
 
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::context::Context;
-use alohomora::policy::NoPolicy;
+use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm, JsonResponse};
 use alohomora::sandbox::execute_sandbox;
 
 use crate::backend::MySqlBackend;
 use crate::manage::Manager;
-use crate::policies::{ContextData, MLTrainingPolicy};
+use crate::policies::{Context, ContextData};
 
 use websubmit_boxed_sandboxes::train;
 
 lazy_static! {
-    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, MLTrainingPolicy>>>> =
+    static ref MODEL: Arc<Mutex<Option<BBox<FittedLinearRegression<f64>, AnyPolicy>>>> =
         Arc::new(Mutex::new(None));
 }
 
@@ -34,7 +33,7 @@ pub(crate) fn model_exists() -> bool {
 
 pub(crate) fn train_and_store(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) {
     // println!("Re-training the model and saving it globally...");
     // Get data from database.
@@ -42,8 +41,8 @@ pub(crate) fn train_and_store(
     let res = bg.prep_exec("SELECT * FROM ml_training WHERE consent = 1", (), context);
     drop(bg);
 
-    type BBoxTime = BBox<NaiveDateTime, MLTrainingPolicy>;
-    type BBoxGrade = BBox<u64, MLTrainingPolicy>;
+    type BBoxTime = BBox<NaiveDateTime, AnyPolicy>;
+    type BBoxGrade = BBox<u64, AnyPolicy>;
     let grades: Vec<(BBoxTime, BBoxGrade)> = res
         .into_iter()
         .map(|r| {
@@ -70,7 +69,7 @@ pub(crate) fn predict(
     _manager: Manager,
     num: BBox<u8, NoPolicy>,
     _backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     let ctx = PredictContext {
         lec_id: num,
@@ -89,7 +88,7 @@ pub(crate) struct PredictGradeForm {
 struct PredictGradeContext {
     lec_id: BBox<u8, NoPolicy>,
     time: String,
-    grade: BBox<Vec<f64>, MLTrainingPolicy>,
+    grade: BBox<Vec<f64>, AnyPolicy>,
     parent: String,
 }
 
@@ -99,7 +98,7 @@ pub(crate) fn predict_grade(
     num: BBox<u8, NoPolicy>,
     data: BBoxForm<PredictGradeForm>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> BBoxTemplate {
     // Train model if it doesn't exist.
     if !model_exists() {
@@ -122,14 +121,6 @@ pub(crate) fn predict_grade(
         },
     ));
 
-    // let grade = execute_pure(
-    //     (time, &model),
-    //     PrivacyPureRegion::new(|(time, model): (String, FittedLinearRegression<f64>)| {
-    //         let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
-    //         model.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + model.intercept()
-    //     }),
-    // ).unwrap();
-
     let ctx = PredictGradeContext {
         lec_id: num,
         time: time_string,
@@ -143,7 +134,7 @@ pub(crate) fn predict_grade(
 pub(crate) fn retrain_model(
     _manager: Manager,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
-    context: Context<ContextData>,
+    context: Context,
 ) -> JsonResponse<String, ContextData> {
     train_and_store(backend, context.clone());
     JsonResponse::from(("Successfully retrained the model.".to_owned(), context))
