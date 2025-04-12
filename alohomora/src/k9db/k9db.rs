@@ -23,7 +23,6 @@ impl K9db {
 
     pub fn prime(&self) -> BBoxResult<()> {
         let mut conn = self.make_connection()?;
-        conn.query_drop("SET echo;")?;
         for table in &self.tables {
             for sql in table.to_sql() {
                 conn.query_drop(sql)?;
@@ -34,7 +33,6 @@ impl K9db {
 
     pub fn declare_policies(&self) -> BBoxResult<()> {
         let mut conn = self.make_connection()?;
-        conn.query_drop("SET echo;")?;
         for table in &self.tables {
             for sql in table.to_sql().into_iter().skip(1) {
                 conn.query_drop(sql)?;

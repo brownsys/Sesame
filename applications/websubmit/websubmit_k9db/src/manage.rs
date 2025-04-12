@@ -15,7 +15,8 @@ use crate::policies::Context;
 
 use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::db::from_value;
-use alohomora::policy::AnyPolicy;
+use alohomora::k9db::policies::Consent;
+use alohomora::policy::{AnyPolicy, PolicyOr};
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, BBoxRequest, BBoxRequestOutcome, BBoxTemplate, FromBBoxRequest};
 
@@ -142,7 +143,7 @@ pub(crate) fn get_aggregate_remote(
 #[derive(BBoxRender, Clone)]
 pub(crate) struct InfoForEmployers {
     email: BBox<String, AnyPolicy>,
-    average_grade: BBox<u64, AnyPolicy>,
+    average_grade: BBox<u64, Consent>,
 }
 
 #[derive(BBoxRender)]
@@ -166,11 +167,16 @@ pub(crate) fn get_list_for_employers(
     );
     drop(bg);
 
+    type Or = PolicyOr<AnyPolicy, AnyPolicy>;
     let users = res
         .into_iter()
-        .map(|r| InfoForEmployers {
-            email: from_value(r[0].clone()).unwrap(),
-            average_grade: from_value(r[2].clone()).unwrap(),
+        .map(|r| {
+            let average_grade: BBox<u64, Or> = from_value(r[2].clone()).unwrap();
+            let average_grade = average_grade.specialize_left().specialize_policy::<Or>().unwrap().specialize_right();
+            InfoForEmployers {
+                email: from_value(r[0].clone()).unwrap(),
+                average_grade: average_grade.specialize_policy().unwrap(),
+            }
         })
         .collect();
 

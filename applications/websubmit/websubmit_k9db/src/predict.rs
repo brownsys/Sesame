@@ -7,7 +7,8 @@ use linfa_linear::FittedLinearRegression;
 use rocket::State;
 
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::policy::{AnyPolicy, NoPolicy};
+use alohomora::k9db::policies::Consent;
+use alohomora::policy::{AnyPolicy, NoPolicy, PolicyOr};
 use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{get, post, BBoxForm, BBoxTemplate, FromBBoxForm, JsonResponse};
 use alohomora::sandbox::execute_sandbox;
@@ -35,21 +36,26 @@ pub(crate) fn train_and_store(
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: Context,
 ) {
+    type Or = PolicyOr<AnyPolicy, AnyPolicy>;
+    use alohomora::policy::Policy;
     // println!("Re-training the model and saving it globally...");
     // Get data from database.
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec("SELECT * FROM ml_training WHERE consent = 1", (), context);
     drop(bg);
 
-    type BBoxTime = BBox<NaiveDateTime, AnyPolicy>;
-    type BBoxGrade = BBox<u64, AnyPolicy>;
+    type BBoxTime = BBox<NaiveDateTime, Consent>;
+    type BBoxGrade = BBox<u64, Consent>;
     let grades: Vec<(BBoxTime, BBoxGrade)> = res
         .into_iter()
         .map(|r| {
-            (
-                from_value(r[1].clone()).unwrap(),
-                from_value(r[0].clone()).unwrap(),
-            )
+            // Read from DB.
+            let time = from_value::<NaiveDateTime, Or>(r[1].clone()).unwrap();
+            let grade = from_value::<u64, Or>(r[0].clone()).unwrap();
+            // Specialize policies.
+            let time: BBoxTime = time.specialize_right().specialize_policy().unwrap();
+            let grade: BBoxGrade = grade.specialize_right().specialize_policy().unwrap();
+            (time, grade)
         })
         .collect();
 

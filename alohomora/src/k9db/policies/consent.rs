@@ -23,10 +23,18 @@ impl Policy for Consent {
         }
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        todo!()
+        if (other.is::<Self>()) {
+            Ok(AnyPolicy::new(self.join_logic(other.specialize().unwrap())?))
+        } else {
+            todo!()
+        }
     }
     fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        todo!()
+        assert_eq!(self.purpose, other.purpose);
+        Ok(Self {
+            consent: self.consent && other.consent,
+            purpose: self.purpose.clone(),
+        })
     }
 }
 

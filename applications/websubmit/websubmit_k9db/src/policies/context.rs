@@ -14,8 +14,8 @@ use crate::policies::QueryableOnly;
 
 // Defines purposes
 const PURPOSE_MAP: [(&'static str, &'static str); 2] = [
-    ("<ML_EXPERIMENT>", "ml_experiment"),
-    ("<EMPLOYERS>", "employers"),
+    ("/predict/predict_grade/", "ml_experiment"),
+    ("/manage/employers", "employers"),
 ];
 
 // Custom developer defined payload attached to every context.
@@ -72,11 +72,10 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for WebsubmitContextData {
 
         // Find purpose by looking at routes.
         let path = request.path();
-        println!("{:?}", path);
 
         let mut purpose = None;
         for (purpose_path, purpose_str) in PURPOSE_MAP {
-            if path == purpose_path {
+            if path.starts_with(purpose_path) {
                 purpose = Some(String::from(purpose_str));
                 break;
             }

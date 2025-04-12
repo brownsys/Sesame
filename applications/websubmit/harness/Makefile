@@ -1,4 +1,4 @@
-.PHONY: boxed unboxed k9db flamegraph flamegraph-boxed flamegraph-unboxed plot clean sudo-clean
+.PHONY: boxed unboxed k9db flamegraph flamegraph-boxed flamegraph-unboxed plot clean sudo-clean plot
 
 boxed:
 	mkdir -p /tmp/harness/css
@@ -20,7 +20,7 @@ unboxed:
 	RUST_BACKTRACE=1 cargo run --release --features "unboxed" -- -i websubmit -c sample-config.toml
 
 plot:
-	. venv/bin/activate; python3 plotting.py; deactivate
+	. venv/bin/activate; python3 plotting_k9db.py; deactivate
 
 flamegraph: flamegraph-boxed flamegraph-unboxed
 

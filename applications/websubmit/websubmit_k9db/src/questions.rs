@@ -11,7 +11,7 @@ use crate::admin::Admin;
 use alohomora::bbox::{BBox, BBoxRender};
 use alohomora::db::{from_value, from_value_or_null};
 use alohomora::pcr::{PrivacyCriticalRegion, Signature};
-use alohomora::policy::{AnyPolicy, NoPolicy};
+use alohomora::policy::{AnyPolicy, NoPolicy, PolicyOr};
 use alohomora::pure::{execute_pure, PrivacyPureRegion};
 use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxTemplate, FromBBoxForm};
 use alohomora::unbox::unbox;
@@ -178,20 +178,6 @@ pub(crate) fn answers_for_discussion_leaders(
 ) -> BBoxTemplate {
     let key = num.clone().into_bbox::<u64, NoPolicy>();
 
-    let is_discussion_leader = {
-        let mut bg = backend.lock().unwrap();
-        let vec = bg.prep_exec(
-            "SELECT * FROM discussion_leaders WHERE lec = ? AND email = ?",
-            (key.clone(), apikey.user),
-            context.clone(),
-        );
-        vec.len() > 0
-    };
-
-    if !is_discussion_leader {
-        panic!()
-    }
-
     let mut bg = backend.lock().unwrap();
     let res = bg.prep_exec(
         "SELECT * FROM answers WHERE lec = ?",
@@ -201,18 +187,17 @@ pub(crate) fn answers_for_discussion_leaders(
     drop(bg);
 
     // Wraps incoming column data in LectureAnswer format
+    type Or = PolicyOr<AnyPolicy, AnyPolicy>;
     let answers: Vec<LectureAnswer> = res
         .into_iter()
-        .map(|r| LectureAnswer {
-            id: from_value(r[3].clone()).unwrap(),
-            user: from_value(r[1].clone()).unwrap(),
-            answer: from_value(r[4].clone()).unwrap(),
-            time: from_value(r[5].clone())
-                .unwrap()
-                .into_ppr(PrivacyPureRegion::new(|v: NaiveDateTime| {
-                    v.format("%Y-%m-%d %H:%M:%S").to_string()
-                })),
-            grade: from_value(r[6].clone()).unwrap(),
+        .map(|r| {
+            LectureAnswer {
+                id: from_value(r[3].clone()).unwrap(),
+                user: BBox::new(String::from("<anon>"), AnyPolicy::new(NoPolicy {})),
+                answer: from_value(r[4].clone()).unwrap(),
+                time: BBox::new(String::from(""), AnyPolicy::new(NoPolicy {})),
+                grade: BBox::new(0, AnyPolicy::new(NoPolicy {}))
+            }
         })
         .collect();
 

@@ -1,3 +1,4 @@
+use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
 
@@ -12,6 +13,8 @@ impl<P1: Policy, P2: Policy> PolicyOr<P1, P2> {
     }
     pub fn policy1(&self) -> &P1 { &self.p1 }
     pub fn policy2(&self) -> &P2 { &self.p2 }
+    pub fn take_left(self) -> P1 { self.p1 }
+    pub fn take_right(self) -> P2 { self.p2 }
 }
 impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     fn name(&self) -> String {
@@ -51,5 +54,16 @@ impl<P1: FrontendPolicy, P2: FrontendPolicy> FrontendPolicy for PolicyOr<P1, P2>
             p1: P1::from_cookie(name, cookie, request),
             p2: P2::from_cookie(name, cookie, request),
         }
+    }
+}
+
+impl <T, P1: Policy, P2: Policy> BBox<T, PolicyOr<P1, P2>> {
+    pub fn specialize_left(self) -> BBox<T, P1> {
+        let (t, p) = self.consume();
+        BBox::new(t, p.take_left())
+    }
+    pub fn specialize_right(self) -> BBox<T, P2> {
+        let (t, p) = self.consume();
+        BBox::new(t, p.take_right())
     }
 }

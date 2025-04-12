@@ -36,20 +36,20 @@ use websubmit::{make_rocket, parse_args};
 
 const RNG_SEED: u64 = 3705;
 
-const N_USERS: usize = 5;                    // 100
-const N_LECTURES: usize = 2;                  // 10
-const N_QUESTIONS_PER_LECTURE: usize = 2;     // 10
+const N_USERS: usize = 100;                    // 100
+const N_LECTURES: usize = 1;                   // 10
+const N_QUESTIONS_PER_LECTURE: usize = 10;      // 10
 
-const N_REGISTRATION_ATTEMPTS: usize = 10;   // 1000
+const N_REGISTRATION_ATTEMPTS: usize = 100;   // 1000
 
-const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: usize = 1;       // 100
-const PREDICTION_REQUEST_BATCH_SIZE: usize = 5;            // 100
-const N_PREDICTION_ATTEMPTS_PER_LECTURE: usize = 1;        // 100
-const N_DISCUSSION_LEADER_QUERIES_PER_LECTURE: usize = 1;  // 100
+const N_ANSWER_VIEW_ATTEMPTS_PER_LECTURE: usize = 1;         // 100
+const PREDICTION_REQUEST_BATCH_SIZE: usize = 100;            // 100
+const N_PREDICTION_ATTEMPTS_PER_LECTURE: usize = 100;        // 100
+const N_DISCUSSION_LEADER_QUERIES_PER_LECTURE: usize = 100;  // 100
 
-const N_RETRAINING_MODEL_QUERIES: usize = 5;              // 1000
-const N_AGGREGATE_GRADES_QUERIES: usize = 5;              // 1000
-const N_EMPLOYER_INFO_QUERIES: usize = 5;                 // 1000
+const N_RETRAINING_MODEL_QUERIES: usize = 1;              // 1000
+const N_AGGREGATE_GRADES_QUERIES: usize = 100;              // 1000
+const N_EMPLOYER_INFO_QUERIES: usize = 100;                 // 1000
 
 const ADMIN_APIKEY: &'static str = "ADMIN_API_KEY";
 const DISCUSSION_LEADER_KEY: &'static str = "DISCUSSION_LEADER_KEY";
@@ -540,7 +540,7 @@ fn main() {
         retrain_model_bench.len()
     );
 
-    /*
+
     // 5. Query the prediction model.
     let predict_grades_bench = predict_grades(&used_client, r);
     write_stats(
@@ -574,6 +574,7 @@ fn main() {
         get_employer_info_bench.len()
     );
 
+
     // FOLD EXPERIMENT.
     // Discussion leader normal (runs for both boxed and unboxed).
     let get_discussion_leader_bench = get_discussion_leader(&used_client, r);
@@ -586,7 +587,8 @@ fn main() {
         get_discussion_leader_bench.len()
     );
 
-    if cfg!(feature = "boxed") || cfg!(feature = "k9db") {
+    /*
+    if cfg!(feature = "boxed") {
         let get_discussion_leader_naive_bench = get_discussion_leader_naive(&used_client, r);
         write_stats(
             prefix.clone() + "get_discussion_leader_naive_bench",
