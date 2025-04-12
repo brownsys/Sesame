@@ -39,4 +39,4 @@ pub use r#type::*;
 pub use alohomora_derive::AlohomoraType;
 
 #[cfg(feature = "tahini")]
-pub use alohomora_derive::{TahiniType, tahini_service};
+pub use alohomora_derive::{TahiniType, tahini_service, allow_client_transform};

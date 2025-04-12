@@ -3,16 +3,16 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::bbox::BBox;
-use crate::policy::{Policy, PolicyInto};
+use crate::policy::{Policy, PolicyFrom, PolicyInto};
 use crate::tarpc::context::TahiniContext;
 use crate::tarpc::{TahiniEnum, TahiniVariantsEnum};
 
-use super::TahiniType;
+use super::{TahiniError, TahiniType};
 
 ///Contains either an Uninitialized context from the wire, or an initialized one for local
 ///transformation
 #[derive(Serialize, Deserialize, Clone)]
-pub(crate) enum EitherTahiniContext{
+pub(crate) enum EitherTahiniContext {
     Uninitialized,
     Initialized(TahiniContext),
 }
@@ -67,6 +67,22 @@ impl<T: TahiniType> Fromable<T> {
     }
 }
 
+impl<
+        T: TahiniType + Clone + 'static,
+        E: std::error::Error + Clone + Send + TahiniError + 'static,
+    > Fromable<Result<T, E>>
+{
+    pub fn transpose(self) -> Result<Fromable<T>, E> {
+        match self.data {
+            Ok(d) => Ok(Fromable {
+                context: self.context,
+                data: d,
+            }),
+            Err(e) => Err(e),
+        }
+    }
+}
+
 impl<T: TahiniType> TahiniType for Fromable<T> {
     fn to_tahini_enum(&self) -> TahiniEnum {
         let mut map = HashMap::new();
@@ -99,25 +115,15 @@ pub trait TahiniTransformInto<TargetType> {
 //     }
 // }
 
-
-impl<T> TahiniTransformFrom<T> for T {
-    fn transform_from(other: T, context: &TahiniContext) -> Result<Self, String>
-        where
-            Self: Sized {
-        Ok(other)
-    }
-}
-
-//
-macro_rules! register_self_transform {
-    ($ty: ty) => {
-        impl TahiniTransformInto<$ty> for $ty {
-            fn transform_into(self, context: &TahiniContext) -> Result<$ty, String> {
-                Ok(self)
-            }
-        }
-    };
-}
+// impl<T> TahiniTransformFrom<T> for T {
+//     #[inline]
+//     fn transform_from(other: T, _context: &TahiniContext) -> Result<Self, String>
+//     where
+//         Self: Sized,
+//     {
+//         Ok(other)
+//     }
+// }
 
 impl<T, SourcePolicy: PolicyInto<TargetPolicy>, TargetPolicy: Policy>
     TahiniTransformInto<BBox<T, TargetPolicy>> for BBox<T, SourcePolicy>
@@ -128,12 +134,38 @@ impl<T, SourcePolicy: PolicyInto<TargetPolicy>, TargetPolicy: Policy>
     }
 }
 
+impl<T, TargetPolicy: PolicyFrom<SourcePolicy>, SourcePolicy: Policy>
+    TahiniTransformFrom<BBox<T, SourcePolicy>> for BBox<T, TargetPolicy>
+{
+    fn transform_from(other: BBox<T, SourcePolicy>, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        let (t, p) = other.consume();
+        Ok(BBox::new(t, TargetPolicy::from_policy(p, context)?))
+    }
+}
+
 impl<TargetType, SourceType: TahiniTransformInto<TargetType>, E: std::error::Error>
     TahiniTransformInto<Result<TargetType, E>> for Result<SourceType, E>
 {
     fn transform_into(self, context: &TahiniContext) -> Result<Result<TargetType, E>, String> {
         match self {
             Ok(src) => Ok(Ok(src.transform_into(context)?)),
+            Err(e) => Ok(Err(e)),
+        }
+    }
+}
+
+impl<SourceType, TargetType: TahiniTransformFrom<SourceType>, E: std::error::Error>
+    TahiniTransformFrom<Result<SourceType, E>> for Result<TargetType, E>
+{
+    fn transform_from(other: Result<SourceType, E>, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        match other {
+            Ok(src) => Ok(Ok(TargetType::transform_from(src, context)?)),
             Err(e) => Ok(Err(e)),
         }
     }
@@ -149,11 +181,38 @@ impl<TargetType, SourceType: TahiniTransformInto<TargetType>> TahiniTransformInt
     }
 }
 
+impl<SourceType, TargetType: TahiniTransformFrom<SourceType>> TahiniTransformFrom<Vec<SourceType>>
+    for Vec<TargetType>
+{
+    fn transform_from(other: Vec<SourceType>, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        other
+            .into_iter()
+            .map(|x| TargetType::transform_from(x, context))
+            .collect()
+    }
+}
+
 impl<TargetType, SourceType: TahiniTransformInto<TargetType>>
     TahiniTransformInto<Option<TargetType>> for Option<SourceType>
 {
     fn transform_into(self, context: &TahiniContext) -> Result<Option<TargetType>, String> {
         self.map(|some| some.transform_into(context)).transpose()
+    }
+}
+
+impl<SourceType, TargetType: TahiniTransformFrom<SourceType>>
+    TahiniTransformFrom<Option<SourceType>> for Option<TargetType>
+{
+    fn transform_from(other: Option<SourceType>, context: &TahiniContext) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        other
+            .map(|some| TargetType::transform_from(some, context))
+            .transpose()
     }
 }
 
@@ -193,6 +252,13 @@ macro_rules! transform_type_prim_impl {
         impl TahiniTransformInto<$ty> for $ty {
             fn transform_into(self, _context: &TahiniContext) -> Result<$ty, String> {
                 Ok(self)
+            }
+        }
+
+        impl TahiniTransformFrom<$ty> for $ty {
+            #[inline]
+            fn transform_from(other: $ty, _context: &TahiniContext) -> Result<Self, String> {
+                Ok(other)
             }
         }
     };

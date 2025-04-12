@@ -115,34 +115,24 @@ impl Parse for ForeignRpcMethod {
         let mut args = Vec::new();
         let mut errors = Ok(());
         let args2 = content.parse_terminated(FnArg::parse, Comma)?;
-        //TODO(douk): Change with possibly a better strategy down the road
-        if args2.len() != 1 {
-            extend_errors!(
-                errors,
-                syn::Error::new(
-                    input.span(),
-                    "Foreign interfaces only take a single argument"
-                )
-            )
-        }
-        let arg = args2[0].clone();
 
-        // for arg in args2 {
-        match arg {
-            FnArg::Typed(captured) if matches!(&*captured.pat, Pat::Ident(_)) => {
-                args.push(captured);
-            }
-            FnArg::Typed(captured) => {
-                extend_errors!(
-                    errors,
-                    syn::Error::new(captured.pat.span(), "patterns aren't allowed in RPC args")
-                );
-            }
-            FnArg::Receiver(_) => {
-                extend_errors!(
-                    errors,
-                    syn::Error::new(arg.span(), "method args cannot start with self")
-                );
+        for arg in args2 {
+            match arg {
+                FnArg::Typed(captured) if matches!(&*captured.pat, Pat::Ident(_)) => {
+                    args.push(captured);
+                }
+                FnArg::Typed(captured) => {
+                    extend_errors!(
+                        errors,
+                        syn::Error::new(captured.pat.span(), "patterns aren't allowed in RPC args")
+                    );
+                }
+                FnArg::Receiver(_) => {
+                    extend_errors!(
+                        errors,
+                        syn::Error::new(arg.span(), "method args cannot start with self")
+                    );
+                }
             }
         }
         // }
@@ -555,9 +545,19 @@ impl<'a> ServiceGenerator<'a> {
             camel_case_idents,
             arg_pats,
             method_idents,
+            method_attrs,
             method_cfgs,
             ..
         } = self;
+
+        let response_binding = method_idents.iter().zip(arg_pats).enumerate().map(|(index, (method_ident, arg_pats))|{
+            let is_fromable = is_transformable(method_attrs[index]);
+            if is_fromable {
+                quote! { Fromable::new(#service_ident::#method_ident(self.service, ctx, #(#arg_pats),*).await)}
+            } else {
+                quote! { #service_ident::#method_ident(self.service, ctx, #(#arg_pats),*).await}
+            }
+        }).collect::<Vec<_>>();
 
         quote! {
             impl<S> ::alohomora::tarpc::server::TahiniServe for #server_ident<S>
@@ -574,11 +574,8 @@ impl<'a> ServiceGenerator<'a> {
                             #( #method_cfgs )*
                             #request_ident::#camel_case_idents{ #( #arg_pats ),* } => {
                                 ::core::result::Result::Ok(#response_ident::#camel_case_idents(
-                                        Fromable::new(
-                                    #service_ident::#method_idents(
-                                        self.service, ctx, #( #arg_pats ),*
-                                    ).await
-                                )))
+                                        #response_binding
+                                ))
                             }
                         )*
                     }
@@ -632,8 +629,22 @@ impl<'a> ServiceGenerator<'a> {
             response_ident,
             camel_case_idents,
             return_types,
+            method_attrs,
             ..
         } = self;
+
+        let variants = method_attrs
+            .iter()
+            .zip(return_types)
+            .map(|(attrs, ty)| {
+                let is_fromable = is_transformable(attrs);
+                if is_fromable {
+                    quote! {Fromable<#ty>}
+                } else {
+                    quote! {#ty}
+                }
+            })
+            .collect::<Vec<_>>();
 
         quote! {
             /// The response sent over the wire from the server to the client.
@@ -641,7 +652,7 @@ impl<'a> ServiceGenerator<'a> {
             #[derive(::serde::Deserialize, ::alohomora::TahiniType, Clone)]
             #derives
             #vis enum #response_ident {
-                #( #camel_case_idents(Fromable<#return_types>) ),*
+                #( #camel_case_idents(#variants) ),*
             }
         }
     }
@@ -743,69 +754,150 @@ impl<'a> ServiceGenerator<'a> {
             .map(|tys| tys.iter().map(|ty| *ty.ty.clone()).collect::<Vec<_>>())
             .collect::<Vec<_>>();
 
-        for rpc in arg_pats {
-            assert_eq!(
-                rpc.len(),
-                1,
-                "Foreign interface can only take a single argument"
-            );
-        }
-        let arg_pats = arg_pats.iter().map(|x| x[0]).collect::<Vec<_>>();
+        // let arg_pats = arg_pats.iter().map(|x| x[0]).collect::<Vec<_>>();
         let single_args_types = arg_types.iter().map(|x| x[0].clone()).collect::<Vec<_>>();
         let service_ident_str = service_ident.to_string();
         let context_builders = method_idents
             .iter()
             .map(|x| format!("{}.{}", service_ident_str.clone(), x.to_string()))
             .collect::<Vec<_>>();
-        // self.method_idents.iter().zip(self.method_attrs.iter()).map(
-        //     // | (method_ident, attrs)| {
-        //     //     match check_if_protected_rpc(attrs) {
-        //     //         true =>
-        //     //
-        //     //     }
-        //     // }
-        // )
-        //
-        // let is_fromable = return_types.iter().map(|x: &&Type| {
-        //     match x {
-        //     Type::Path(path) =>true,
-        //     _ => false
-        // }}).collect::<Vec<_>>();
 
         //TODO(douk):Do we actually need a dedicated stub? I don't believe though
-        quote! {
-            // impl<Stub> #client_ident<Stub>
-            //     where Stub: ::tarpc::client::stub::Stub<
-            //         Req = #request_ident,
-            //         Resp = #response_ident>
-            // {
-
-                #(
-                    #[allow(unused)]
-                    #( #method_attrs )*
-                    #vis fn #method_idents<
-                    InputLocalType: ::alohomora::tarpc::traits::TahiniTransformInto<#single_args_types> + 'static + Send>
-                    (&self, ctx: ::tarpc::context::Context, #arg_pats : InputLocalType)
-                    -> impl ::core::future::Future<
-                        Output = ::core::result::Result<Fromable<#return_types>, ::tarpc::client::RpcError>
-                    > + '_ {
-                        let input_closure = |x: #single_args_types| {#request_ident::#camel_case_idents {#arg_pats: x}};
-                        let output_closure = |resp: #response_ident| {
-                            match resp {
-                                #response_ident::#camel_case_idents(msg) => msg,
-                                _ => ::core::unreachable!("Server RPC response doesn't match request RPC")
-                            }
-                        };
-
-                        self.0.transform_with_fromable::<#single_args_types, InputLocalType, _, #return_types, _>(ctx, #camel_case_idents_str, #context_builders, #arg_pats, input_closure, output_closure)
-                    }
-                )*
-            // }
+        let mut bodies = Vec::new();
+        for index in 0..method_idents.iter().len() {
+            bodies.push(impl_rpc_method(
+                request_ident,
+                response_ident,
+                method_attrs[index],
+                vis,
+                method_idents[index],
+                args[index],
+                return_types[index],
+                &arg_pats[index],
+                &camel_case_idents[index],
+                camel_case_idents_str[index],
+                &context_builders[index],
+            ));
         }
+        quote! {
+            #(
+                #bodies
+            )*
+        }
+        // quote! {
+        //     // impl<Stub> #client_ident<Stub>
+        //     //     where Stub: ::tarpc::client::stub::Stub<
+        //     //         Req = #request_ident,
+        //     //         Resp = #response_ident>
+        //     // {
+        //
+        //         #(
+        //             #[allow(unused)]
+        //             #( #method_attrs )*
+        //             #vis fn #method_idents<
+        //             InputLocalType: ::alohomora::tarpc::traits::TahiniTransformInto<#single_args_types> + 'static + Send>
+        //             (&self, ctx: ::tarpc::context::Context, #arg_pats : InputLocalType)
+        //             -> impl ::core::future::Future<
+        //                 Output = ::core::result::Result<Fromable<#return_types>, ::tarpc::client::RpcError>
+        //             > + '_ {
+        //                 let input_closure = |x: #single_args_types| {#request_ident::#camel_case_idents {#arg_pats: x}};
+        //                 let output_closure = |resp: #response_ident| {
+        //                     match resp {
+        //                         #response_ident::#camel_case_idents(msg) => msg,
+        //                         _ => ::core::unreachable!("Server RPC response doesn't match request RPC")
+        //                     }
+        //                 };
+        //
+        //                 self.0.transform_with_fromable::<#single_args_types, InputLocalType, _, #return_types, _>(ctx, #camel_case_idents_str, #context_builders, #arg_pats, input_closure, output_closure)
+        //             }
+        //         )*
+        //     // }
+        // }
     }
 
     fn emit_warnings(&self) -> TokenStream2 {
         self.warnings.iter().map(|w| w.to_token_stream()).collect()
+    }
+}
+
+fn is_transformable(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|attr: &Attribute| attr.path().is_ident("allow_client_transform"))
+}
+
+fn impl_rpc_method(
+    request_ident: &Ident,
+    response_ident: &Ident,
+    method_attrs: &[Attribute],
+    vis: &Visibility,
+    method_ident: &Ident,
+    args: &[PatType],
+    return_type: &Type,
+    arg_pats: &[&Pat],
+    camel_case_ident: &Ident,
+    camel_case_ident_str: &str,
+    context_builder: &str,
+) -> TokenStream2 {
+    let is_transformable = is_transformable(method_attrs);
+    let input_arg_types = args.iter().map(|x| &(*x.ty)).collect::<Vec<_>>();
+    let local_args = args
+        .iter()
+        .map(|arg| match *arg.pat {
+            Pat::Ident(ref ident) => {
+                let arg_ident = ident.ident.to_string();
+                format_ident!("{}LocalType", snake_to_camel(arg_ident.as_str()))
+            }
+            _ => panic!("Type written is not a an indentifier"),
+        })
+        .collect::<Vec<_>>();
+    let generics = input_arg_types.iter().zip(local_args.clone()).map(|(ty, gen_ident)| {
+        quote!{ #gen_ident: ::alohomora::tarpc::traits::TahiniTransformInto<#ty> + 'static + Send}
+    }).collect::<Vec<_>>();
+
+    let closure_args = args
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format_ident!("x{}", i))
+        .collect::<Vec<_>>();
+
+    if is_transformable {
+        quote! {
+            #[allow(unused)]
+            #( #method_attrs )*
+            #vis fn #method_ident<#(#generics),* >(&self, ctx: ::tarpc::context::Context, #(#arg_pats: #local_args),* )
+            -> impl ::core::future::Future<
+                Output = ::core::result::Result<Fromable<#return_type>, ::tarpc::client::RpcError>
+                > + '_ {
+                    let input_closure = |(#(#closure_args),*): (#(#input_arg_types),*)| {#request_ident::#camel_case_ident {#(#arg_pats: #closure_args),* }};
+                    let output_closure = |resp: #response_ident| {
+                        match resp {
+                            #response_ident::#camel_case_ident(msg) => msg,
+                            _ => ::core::unreachable!("RPC response does not match client-side RPC")
+
+                        }
+                    };
+                    self.0.transform_with_fromable::<(#(#input_arg_types),*), (#(#local_args),*), _, #return_type, _>(ctx, #camel_case_ident_str, #context_builder, (#(#arg_pats),*), input_closure, output_closure)
+            }
+        }
+    } else {
+        quote! {
+        #[allow(unused)]
+        #( #method_attrs )*
+        #vis fn #method_ident<#(#generics),* >(&self, ctx: ::tarpc::context::Context, #(#arg_pats: #local_args),* )
+        -> impl ::core::future::Future<
+            Output = ::core::result::Result<#return_type, ::tarpc::client::RpcError>
+            > + '_ {
+                let input_closure = |(#(#closure_args),*): (#(#input_arg_types),*)| {#request_ident::#camel_case_ident {#(#arg_pats: #closure_args),* }};
+                let resp = self.0.transform_only_egress::<(#(#input_arg_types),*), (#(#local_args),*), _>(ctx, #camel_case_ident_str, #context_builder, (#(#arg_pats),*), input_closure);
+                async move {
+                    match resp.await? {
+                        #response_ident::#camel_case_ident(msg) => ::core::result::Result::Ok(msg),
+                        _ => ::core::unreachable!(),
+                    }
+                }
+        }
+        }
     }
 }
 

@@ -60,6 +60,20 @@ pub trait TahiniStub {
         output_transform: IngressTransform,
     ) -> Result<Fromable<OutputRemoteType>, RpcError>;
 
+    async fn transform_only_egress<
+        'a,
+        InputRemoteType: TahiniType,
+        InputLocalType: TahiniTransformInto<InputRemoteType> + 'static,
+        EgressTransform: FnOnce(InputRemoteType) -> Self::Req,
+    >(
+        &'a self,
+        ctx: context::Context,
+        request_name: &'static str,
+        tahini_context_builder: &'static str,
+        local_input: InputLocalType,
+        input_transform: EgressTransform,
+    ) -> Result<Self::Resp, RpcError>;
+
     async fn transform_both_ways<
         'a,
         InputRemoteType: TahiniType,
@@ -193,6 +207,29 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
         let mut unwrapped: Fromable<OutputRemoteType> = output_transform(resp);
         unwrapped.add_context(tahini_context);
         Ok(unwrapped)
+    }
+    async fn transform_only_egress<
+        'a,
+        InputRemoteType: TahiniType,
+        InputLocalType: TahiniTransformInto<InputRemoteType> + 'static,
+        EgressTransform: FnOnce(InputRemoteType) -> Self::Req,
+    >(
+        &'a self,
+        ctx: context::Context,
+        request_name: &'static str,
+        tahini_context_builder: &'static str,
+        local_input: InputLocalType,
+        input_transform: EgressTransform,
+    ) -> Result<Self::Resp, RpcError> {
+        let splitted: Vec<_> = tahini_context_builder.split(".").collect();
+        assert_eq!(splitted.len(), 2, "Checking if request_name is of length 2");
+        let (service, rpc) = (splitted[0], splitted[1]);
+        let tahini_context = TahiniContext::new(service, rpc);
+        let remote_input: InputRemoteType = local_input
+            .transform_into(&tahini_context)
+            .expect("Policy didn't allow to transform the input for this RPC");
+        let wrapped = input_transform(remote_input);
+        self.call(ctx, request_name, wrapped).await
     }
 }
 

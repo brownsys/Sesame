@@ -142,3 +142,9 @@ pub fn derive_tahini_type(input: TokenStream) -> TokenStream {
 pub fn tahini_service(args: TokenStream, input: TokenStream) -> TokenStream {
     tahini::tahini_service::service(args, input)
 }
+
+#[cfg(feature = "tahini")]
+#[proc_macro_attribute]
+pub fn allow_client_transform(_args: TokenStream, input: TokenStream) -> TokenStream {
+    input
+}
