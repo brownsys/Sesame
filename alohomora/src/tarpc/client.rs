@@ -3,28 +3,41 @@ use crate::tarpc::enums::TahiniSafeWrapper;
 // use crate::tarpc::traits::{
 //     deserialize_tahini_type, serialize_tahini_type, TahiniType, TahiniType2,
 // };
-use crate::bbox::BBox;
-use crate::policy::{Policy, PolicyInto, TahiniPolicy};
-use crate::tarpc::traits::{Fromable, TahiniTransformFrom, TahiniTransformInto, TahiniType};
+use crate::tarpc::traits::{Fromable, TahiniTransformInto, TahiniType};
 use pin_project_lite::pin_project;
+use tahini_attest::client::DynamicAttestationVerifier;
+use tahini_attest::types::DynamicAttestationData;
+use std::fs::File;
 use std::future::Future;
+use std::path::Path;
 use tarpc::client::Channel as TarpcChannel;
 use tarpc::client::NewClient as TarpcNewClient;
 use tarpc::client::RequestDispatch as TarpcRequestDispatch;
 use tarpc::client::{Config, RpcError};
 use tarpc::{context, ChannelError, ClientMessage, Response, Transport};
 
+use super::transport::{KeyEngineState, TahiniTransportTrait};
+
 #[derive(Clone)]
 pub struct TahiniChannel<Req: TahiniType, Resp: TahiniType> {
     channel: TarpcChannel<TahiniSafeWrapper<Req>, Resp>,
-    // phantom_req: PhantomData<Req>,
-    // phantom_resp: PhantomData<Resp>,
+    engine: KeyEngineState,
 }
 
 impl<'a, Req: TahiniType, Resp: TahiniType> TahiniChannel<Req, Resp> {
-    pub(crate) fn new(channel: TarpcChannel<TahiniSafeWrapper<Req>, Resp>) -> Self {
-        Self { channel }
+    pub(crate) fn new(
+        channel: TarpcChannel<TahiniSafeWrapper<Req>, Resp>,
+        engine: KeyEngineState,
+    ) -> Self {
+        Self { channel, engine }
     }
+}
+
+#[allow(async_fn_in_trait)]
+pub trait TahiniStubWrapper {
+    type Channel: TahiniStub;
+
+    async fn attest_on_launch(&self);
 }
 
 // mimics `tarpc::client::Stub`.
@@ -74,38 +87,15 @@ pub trait TahiniStub {
         input_transform: EgressTransform,
     ) -> Result<Self::Resp, RpcError>;
 
-    async fn transform_both_ways<
-        'a,
-        InputRemoteType: TahiniType,
-        InputLocalType: TahiniTransformInto<InputRemoteType> + 'static,
-        EgressTransform: FnOnce(InputRemoteType) -> Self::Req,
-        OutputRemoteType: TahiniType,
-        OutputLocalType: TahiniTransformFrom<OutputRemoteType> + 'static,
-        IngressTransform: FnOnce(Self::Resp) -> OutputRemoteType,
+    async fn attest_to_remote<
+        KeyShareWrapClosure: FnOnce(usize) -> Self::Req,
     >(
-        &'a self,
+        &self,
         ctx: context::Context,
-        request_name: &'static str,
-        tahini_context_builder: &'static str,
-        local_input: InputLocalType,
-        input_transform: EgressTransform,
-        output_transform: IngressTransform,
-    ) -> Result<OutputLocalType, RpcError>;
+        service_name: &'static str,
+        wrap_closure: KeyShareWrapClosure,
+    ) -> Result<bool, RpcError>;
 
-    async fn transform_and_call<
-        'a,
-        T: 'static,
-        TargetPolicy: Policy + serde::Serialize + 'static,
-        SourcePolicy: PolicyInto<TargetPolicy> + 'static,
-        F: FnOnce(BBox<T, TargetPolicy>) -> Self::Req,
-    >(
-        &'a self,
-        ctx: context::Context,
-        request_name: &'static str,
-        tahini_context_builder: &'static str,
-        request_builder: F,
-        before_processed: BBox<T, SourcePolicy>,
-    ) -> Result<Self::Resp, RpcError>;
 }
 
 impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req, Resp> {
@@ -118,66 +108,17 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
         request_name: &'static str,
         request: Req,
     ) -> Result<Self::Resp, RpcError> {
+        //Ensure the key has been initialized to avoid subsequent requests from doubling the key
+        //exchange
+        // println!("Waiting indefinitely on key engine");
+        self.engine.key.wait();
+        // if self.engine.key.get().is_none() {
+        //     println!("Engine is none");
+        //     sleep(Duration::from_secs(2));
+        // }
         let request = TahiniSafeWrapper(request);
         let response = self.channel.call(ctx, request_name, request).await?;
         Ok(response)
-    }
-
-    async fn transform_and_call<
-        'a,
-        T: 'static,
-        TargetPolicy: Policy + serde::Serialize + 'static,
-        SourcePolicy: PolicyInto<TargetPolicy> + 'static,
-        F: FnOnce(BBox<T, TargetPolicy>) -> Self::Req,
-    >(
-        &'a self,
-        ctx: context::Context,
-        request_name: &'static str,
-        tahini_context_builder: &'static str,
-        request_builder: F,
-        before_processed: BBox<T, SourcePolicy>,
-    ) -> Result<Self::Resp, RpcError> {
-        let splitted: Vec<_> = tahini_context_builder.split(".").collect();
-        assert_eq!(splitted.len(), 2, "Checking if request_name is of length 2");
-        let (service, rpc) = (splitted[0], splitted[1]);
-        let tahini_context = TahiniContext::new(service, rpc);
-        let req = request_builder(
-            before_processed
-                .transform_into(&tahini_context)
-                .expect("Couldn't transform policy"),
-        );
-        self.call(ctx, request_name, req).await
-    }
-
-    async fn transform_both_ways<
-        'a,
-        InputRemoteType: TahiniType,
-        InputLocalType: TahiniTransformInto<InputRemoteType> + 'static,
-        EgressTransform: FnOnce(InputRemoteType) -> Self::Req,
-        OutputRemoteType: TahiniType,
-        OutputLocalType: TahiniTransformFrom<OutputRemoteType> + 'static,
-        IngressTransform: FnOnce(Self::Resp) -> OutputRemoteType,
-    >(
-        &'a self,
-        ctx: context::Context,
-        request_name: &'static str,
-        tahini_context_builder: &'static str,
-        local_input: InputLocalType,
-        input_transform: EgressTransform,
-        output_transform: IngressTransform,
-    ) -> Result<OutputLocalType, RpcError> {
-        let splitted: Vec<_> = tahini_context_builder.split(".").collect();
-        assert_eq!(splitted.len(), 2, "Checking if request_name is of length 2");
-        let (service, rpc) = (splitted[0], splitted[1]);
-        let tahini_context = TahiniContext::new(service, rpc);
-        let remote_input: InputRemoteType = local_input
-            .transform_into(&tahini_context)
-            .expect("Policy didn't allow to transform the input for this RPC");
-        let wrapped = input_transform(remote_input);
-        let resp = self.call(ctx, request_name, wrapped).await?;
-        let unwrapped: OutputRemoteType = output_transform(resp);
-        Ok(OutputLocalType::transform_from(unwrapped, &tahini_context)
-            .expect("Policy didn't allow to parse remote type into local type"))
     }
     async fn transform_with_fromable<
         'a,
@@ -231,6 +172,37 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
         let wrapped = input_transform(remote_input);
         self.call(ctx, request_name, wrapped).await
     }
+
+    async fn attest_to_remote<
+        KeyShareWrapClosure: FnOnce(usize) -> Self::Req,
+    >(
+        &self,
+        ctx: context::Context,
+        service_name: &'static str,
+        wrap_closure: KeyShareWrapClosure,
+    ) -> Result<bool, RpcError> {
+        let client_attest_config = Path::new("./client_attestation_config.toml");
+        let attest_verifier = DynamicAttestationVerifier::from_config(client_attest_config).expect("Couldn't load config");
+        match attest_verifier.verify_binary(service_name.to_string().into()).await {
+            Ok((client_id, aes_key)) => {
+                let request_name = "tahini_attest";
+                let req = wrap_closure(client_id.into());
+                let res = self
+                    .channel
+                    .call(ctx, request_name, TahiniSafeWrapper(req))
+                    .await?;
+                    self.engine.key
+                        .set(aes_key)
+                        .expect("Key is already initialized for this session");
+                    self.engine.passthrough.set(true).expect("Attestation should be running only once");
+                    Ok(true)
+            },
+            Err(e) => {
+                println!("Got error {:?}", e);
+                Err(RpcError::Shutdown)
+            }
+        }
+    }
 }
 
 pin_project! {
@@ -283,28 +255,38 @@ where
     // Trans: TahiniTransport<Req, Resp> + 'static,
     TahiniRequestDispatch<Req, Resp, Trans>: Future<Output = Result<(), E>> + Send + 'static,
     E: std::error::Error + Send + Sync + 'static,
+    C: TahiniStubWrapper,
 {
-    pub fn spawn(self) -> C {
+    pub async fn spawn(self) -> C {
         let client = TarpcNewClient {
             client: self.client,
             dispatch: self.dispatch,
         };
-        client.spawn()
+        let client = client.spawn();
+        client.attest_on_launch().await;
+        client
     }
 }
 
+//TODO(douk): Generated client-side code basically extracts the channel from within
+//this new client, and then recomponses itself into a TahiniNewClient.
+//Might be a more elegant way to do that with a nice API with generics over a trait.
 pub fn new<Req, Resp, Trans>(
     config: Config,
     transport: Trans,
-) -> TahiniNewClient<TahiniChannel<Req, Resp>, TahiniRequestDispatch<Req, Resp, Trans>>
+) -> TahiniNewClient<
+    TahiniChannel<Req, Resp>,
+    TahiniRequestDispatch<Req, Resp, Trans::InnerChannelType>,
+>
 where
     Req: TahiniType,
     Resp: TahiniType,
-    Trans: Transport<ClientMessage<TahiniSafeWrapper<Req>>, Response<Resp>>,
+    Trans: TahiniTransportTrait<ClientMessage<TahiniSafeWrapper<Req>>, Response<Resp>>,
 {
-    let client = tarpc::client::new(config, transport);
+    let engine = transport.get_engine();
+    let client = tarpc::client::new(config, transport.get_inner());
     TahiniNewClient {
-        client: TahiniChannel::new(client.client),
+        client: TahiniChannel::new(client.client, engine),
         dispatch: TahiniRequestDispatch::new(client.dispatch),
     }
 }

@@ -28,3 +28,5 @@ funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3d
 
 [features]
 tahini = []
+tahini_server=["tahini"]
+tahini_client=["tahini"]

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use alohomora::AlohomoraType;
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
-use alohomora_derive::{route, routes, FromBBoxForm, AlohomoraType};
+use alohomora_derive::{route, routes, FromBBoxForm, AlohomoraType as DeriveSesameType};
 
 // POST request data.
 #[derive(FromBBoxForm, PartialEq, Debug)]
@@ -31,7 +31,7 @@ struct Dog {
 }
 
 // Context derived from both request and also form data.
-#[derive(AlohomoraType)]
+#[derive(DeriveSesameType)]
 struct ContextData {
   // we acquire this from the post data via BBoxForm<Simple> (also would work
   // had post data been BBoxJson<Simple> etc).

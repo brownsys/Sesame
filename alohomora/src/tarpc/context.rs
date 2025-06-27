@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::{TahiniEnum, TahiniType};
 use std::borrow::Cow;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TahiniContext {
     pub service: String,
     pub rpc: String,

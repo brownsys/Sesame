@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use serde::Deserialize;
 
 // Secret to XOR with.
-const secret: usize = 2238711266;
+const SECRET: usize = 2238711266;
 
 #[derive(Debug)]
 pub struct ObPtr<T> {
@@ -31,19 +31,19 @@ impl<T> ObPtr<T> {
         let t = Box::new(t);
         let ptr: *mut T = Box::into_raw(t);
         let ptr: usize = ptr as usize;
-        let ptr: usize = ptr ^ secret;
-        Self { ptr: ptr, _marker: PhantomData}
+        let ptr: usize = ptr ^ SECRET;
+        Self { ptr, _marker: PhantomData}
     }
 
     // No need to put in box, can deobfuscate directly.
     // Lifetime is same as ObPtr ref.
     pub fn get(&self) -> &T {
-        unsafe { &*((self.ptr ^ secret) as *mut T) }
+        unsafe { &*((self.ptr ^ SECRET) as *mut T) }
     }
 
     // Lifetime is same as ObPtr ref.
     pub fn get_mut(&mut self) -> &mut T {
-        unsafe {&mut *((self.ptr ^ secret) as *mut T) }
+        unsafe {&mut *((self.ptr ^ SECRET) as *mut T) }
     }
 
     // Consumes and moves the content out.
@@ -52,7 +52,7 @@ impl<T> ObPtr<T> {
         let ptr = self.ptr;
         self.ptr = 0;  // Zero it out to avoid double free.
         // Convert the pointer back to a Box<T>, and give ownership of the value
-        unsafe { *Box::from_raw((ptr ^ secret) as *mut T) }
+        unsafe { *Box::from_raw((ptr ^ SECRET) as *mut T) }
     }
 }
 
@@ -60,7 +60,7 @@ impl<T> ObPtr<T> {
 impl<T> Drop for ObPtr<T> {
     fn drop(&mut self) {
         if self.ptr != 0 {
-            drop(unsafe { Box::from_raw((self.ptr ^ secret) as *mut T) });
+            drop(unsafe { Box::from_raw((self.ptr ^ SECRET) as *mut T) });
         }
     }
 }
@@ -68,9 +68,7 @@ impl<T> Drop for ObPtr<T> {
 // Cloneable if whats underneath is cloneable.
 impl<T: Clone> Clone for ObPtr<T> {
     fn clone(&self) -> Self {
-        unsafe {
-            ObPtr::new(self.get().clone())
-        }
+        ObPtr::new(self.get().clone())
     }
 }
 

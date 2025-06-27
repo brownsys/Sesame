@@ -134,8 +134,6 @@ impl_tahini_trait_prim!(usize);
 impl_tahini_trait_prim!(String);
 impl_tahini_trait_prim!(bool);
 
-
-
 macro_rules! alohomora_type_tuple_impl {
   ($([$A:tt,$i:tt]),*) => (
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]

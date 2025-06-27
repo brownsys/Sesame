@@ -218,8 +218,7 @@ impl_param_via_fromstr!(
 // Implement FromBBoxParam for a few other types that rocket controls safely
 // outside application reach.
 use std::path::PathBuf;
-use rocket::data::Outcome;
-use crate::rocket::{BBoxData, BBoxHeaderMap, FromBBoxData};
+use crate::rocket::{BBoxHeaderMap, FromBBoxData};
 
 impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;

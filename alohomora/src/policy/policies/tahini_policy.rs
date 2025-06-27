@@ -3,9 +3,9 @@ use std::fmt::{Debug, Formatter};
 use erased_serde::serialize_trait_object;
 
 use crate::context::UnprotectedContext;
-use crate::policy::{NoPolicy, Policy, Reason};
+use crate::policy::{Policy, Reason};
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::AnyPolicy;
 
@@ -74,12 +74,12 @@ impl Policy for TahiniPolicy {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.policy.check(context, reason)
     }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         //TODO(douk): Add to policies an optional tahini_join or smth like that
         todo!()
         // self.policy.join(other)
     }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
+    fn join_logic(&self, _other: Self) -> Result<Self, ()> {
         //TODO(douk): Add to policies an optional tahini_join or smth like that
         todo!()
         // self.policy.join(other)
@@ -98,11 +98,5 @@ impl Clone for TahiniPolicy {
 impl Debug for TahiniPolicy {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.name())
-    }
-}
-
-impl PartialEq for TahiniPolicy {
-    fn eq(&self, other: &Self) -> bool {
-        true
     }
 }

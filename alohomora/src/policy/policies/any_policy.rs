@@ -1,7 +1,7 @@
 use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
 use crate::context::UnprotectedContext;
-use crate::policy::{NoPolicy, Policy, Reason};
+use crate::policy::{Policy, Reason};
 
 // Any (owned) Policy.
 trait TypeIdPolicyTrait: Policy + Any {
@@ -80,7 +80,7 @@ impl Debug for AnyPolicy {
 }
 
 impl PartialEq for AnyPolicy {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         true
     }
 }

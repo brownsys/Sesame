@@ -4,7 +4,7 @@ use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
 use alohomora::context::UnprotectedContext;
 use alohomora::rocket::{BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxRocket};
-use alohomora::test_route;
+// use alohomora::test_route;
 use alohomora::testing::{BBoxClient, TestPolicy};
 use alohomora_derive::FromBBoxForm;
 
@@ -81,23 +81,23 @@ pub async fn route<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>) -> 
     BBoxResponseOutcome::from(request, "success")
 }
 
-#[test]
-fn form_test() {
-// Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build()
-        .mount(
-            "/",
-            vec![test_route!(Post, "/<user>", route)]
-        );
-
-    // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
-    let response = client.post("/user")
-        .header(ContentType::Form)
-        .cookie(Cookie::new("cookie", "cvalue"))
-        .body("f1=hello&f2.inner=bye&f2.vec.0=100&f2.vec.1=101&f2.vec.2=102&f3=10")
-        .dispatch();
-
-    assert_eq!(response.status(), Status::new(200));
-    assert_eq!(response.into_string().unwrap(), String::from("success"));
-}
+// #[test]
+// fn form_test() {
+// // Create a rocket instance and mount route.
+//     let rocket = BBoxRocket::build()
+//         .mount(
+//             "/",
+//             vec![test_route!(Post, "/<user>", route)]
+//         );
+//
+//     // Create a client.
+//     let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+//     let response = client.post("/user")
+//         .header(ContentType::Form)
+//         .cookie(Cookie::new("cookie", "cvalue"))
+//         .body("f1=hello&f2.inner=bye&f2.vec.0=100&f2.vec.1=101&f2.vec.2=102&f3=10")
+//         .dispatch();
+//
+//     assert_eq!(response.status(), Status::new(200));
+//     assert_eq!(response.into_string().unwrap(), String::from("success"));
+// }

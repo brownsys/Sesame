@@ -38,6 +38,9 @@ tokio-util = "0.7.13"
 tokio-macros = "2.4.0"
 educe = { version = "0.6.0", features = ["full"] }
 tarpc = { version = "0.34.0", features = ["full"]}
+aws-lc-rs = "1.13.1"
+tokio = { version = "1.45.0", features = ["io-std", "io-util", "rt", "mio", "libc"] }
+tahini_attest = {version="0.1.0", git = "https://github.com/alex-douk/tahini_lib"}
 
 [dev-dependencies]
 tokio-test = "0.4.0"
@@ -62,6 +65,8 @@ derive = ["alohomora_derive"]
 orm = ["sea-orm"]
 sandbox_timing = ["alohomora_sandbox/sandbox_timing"]
 tahini = ["alohomora_derive/tahini"]
+tahini_server = ["tahini_attest/server", "alohomora_derive/tahini_server"]
+tahini_client = ["tahini_attest/client", "alohomora_derive/tahini_client"]
 
 [[test]]
 name = "orm"

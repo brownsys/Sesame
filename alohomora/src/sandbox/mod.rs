@@ -1,5 +1,4 @@
-use std::{fmt::Debug};
-
+#[cfg(feature = "sandbox_timing")]
 use std::time::Instant;
 
 use crate::AlohomoraType;

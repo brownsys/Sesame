@@ -1,8 +1,18 @@
 use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::{Arc, OnceLock};
 use std::task::Poll;
 
+use aws_lc_rs::aead::{RandomizedNonceKey, AES_128_GCM};
+use aws_lc_rs::agreement::{self, agree_ephemeral, PublicKey, UnparsedPublicKey};
+use aws_lc_rs::error::Unspecified;
+use aws_lc_rs::kdf::{self, get_sskdf_hmac_algorithm, sskdf_hmac, SskdfHmacAlgorithmId};
+
+#[cfg(feature="tahini_server")]
+use tahini_attest::server::get_key_for_client;
+
+use crate::tarpc::{enums::TahiniSafeWrapper, traits::TahiniType};
 use futures::{FutureExt, Sink, Stream};
 use pin_project_lite::pin_project;
 use tarpc::context::Context;
@@ -11,7 +21,8 @@ use tarpc::server::Channel as TarpcChannel;
 use tarpc::server::Serve as TarpcServe;
 use tarpc::server::{Config, TrackedRequest};
 use tarpc::{ChannelError, ClientMessage, Response, ServerError, Transport};
-use crate::tarpc::{enums::TahiniSafeWrapper, traits::TahiniType};
+
+use super::transport::{KeyEngineState, TahiniTransportTrait};
 
 pub trait TahiniChannel
 where
@@ -36,10 +47,11 @@ pin_project! {
     where
         Req: TahiniType,
         Resp: TahiniType,
-        Trans: Transport<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>
+        Trans: TahiniTransportTrait<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>
     {
         #[pin]
-        channel: TarpcBaseChannel<Req, TahiniSafeWrapper<Resp>, Trans>
+        channel: TarpcBaseChannel<Req, TahiniSafeWrapper<Resp>, Trans::InnerChannelType>,
+        key_engine:  KeyEngineState
     }
 }
 
@@ -47,16 +59,20 @@ impl<Req, Resp, Trans> TahiniBaseChannel<Req, Resp, Trans>
 where
     Req: TahiniType,
     Resp: TahiniType,
-    Trans: Transport<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
+    Trans: TahiniTransportTrait<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
 {
     pub fn new(config: Config, transport: Trans) -> Self {
+        let engine = transport.get_engine();
         Self {
-            channel: TarpcBaseChannel::new(config, transport),
+            channel: TarpcBaseChannel::new(config, transport.get_inner()),
+            key_engine: engine,
         }
     }
     pub fn with_defaults(transport: Trans) -> Self {
+        let engine = transport.get_engine();
         Self {
-            channel: TarpcBaseChannel::with_defaults(transport),
+            channel: TarpcBaseChannel::with_defaults(transport.get_inner()),
+            key_engine: engine,
         }
     }
 }
@@ -65,11 +81,11 @@ impl<Req, Resp, Trans> TahiniChannel for TahiniBaseChannel<Req, Resp, Trans>
 where
     Req: TahiniType,
     Resp: TahiniType,
-    Trans: Transport<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
+    Trans: TahiniTransportTrait<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
 {
     type Req = Req;
     type Resp = Resp;
-    type Transport = Trans;
+    type Transport = Trans::InnerChannelType;
 
     fn config(&self) -> &Config {
         self.channel.config()
@@ -88,18 +104,25 @@ where
         Self: Sized,
         S: TahiniServe<Req = Self::Req, Resp = Self::Resp> + Clone,
     {
-        self.channel.execute(ServeAdapter::new(serve))
+        self.channel
+            .execute(ServeAdapter::new(serve, self.key_engine))
     }
 }
 
-impl<Req, Resp, Trans> Sink<Response<TahiniSafeWrapper<Resp>>> for TahiniBaseChannel<Req, Resp, Trans>
+impl<Req, Resp, Trans, ChannelType> Sink<Response<TahiniSafeWrapper<Resp>>>
+    for TahiniBaseChannel<Req, Resp, Trans>
 where
     Req: TahiniType,
     Resp: TahiniType,
-    Trans: Transport<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
-    Trans::Error: Error,
+    Trans: TahiniTransportTrait<
+        Response<TahiniSafeWrapper<Resp>>,
+        ClientMessage<Req>,
+        InnerChannelType = ChannelType,
+    >,
+    ChannelType: Transport<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
+    ChannelType::Error: Error,
 {
-    type Error = ChannelError<Trans::Error>;
+    type Error = ChannelError<ChannelType::TransportError>;
     fn poll_ready(
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -127,13 +150,19 @@ where
 }
 
 //
-impl<Req, Resp, Trans> Stream for TahiniBaseChannel<Req, Resp, Trans>
+impl<Req, Resp, Trans, ChannelType> Stream for TahiniBaseChannel<Req, Resp, Trans>
 where
     Req: TahiniType,
     Resp: TahiniType,
-    Trans: Transport<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
+    Trans: TahiniTransportTrait<
+        Response<TahiniSafeWrapper<Resp>>,
+        ClientMessage<Req>,
+        InnerChannelType = ChannelType,
+    >,
+    ChannelType: Transport<Response<TahiniSafeWrapper<Resp>>, ClientMessage<Req>>,
+    ChannelType::Error: Error,
 {
-    type Item = Result<TrackedRequest<Req>, ChannelError<Trans::Error>>;
+    type Item = Result<TrackedRequest<Req>, ChannelError<ChannelType::Error>>;
     fn poll_next(
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -157,17 +186,36 @@ pub trait TahiniServe {
 
     /// Responds to a single request.
     async fn serve(self, ctx: Context, req: Self::Req) -> Result<Self::Resp, ServerError>;
+
+    async fn attest_serve(
+        self,
+        ctx: Context,
+        req: Self::Req,
+        lock_ref: Arc<OnceLock<RandomizedNonceKey>>,
+    ) -> Result<Self::Resp, ServerError>
+    where
+        Self: Sized;
 }
-//
-// // Private struct for us!
+
 #[derive(Clone)]
 struct ServeAdapter<T: TahiniServe> {
     tahini_serve: T,
+    key_engine: KeyEngineState,
 }
 impl<T: TahiniServe> ServeAdapter<T> {
-    pub fn new(tahini_serve: T) -> Self {
-        Self { tahini_serve }
+    fn new(tahini_serve: T, key_engine: KeyEngineState) -> Self {
+        Self {
+            tahini_serve,
+            key_engine,
+        }
     }
+
+}
+
+#[cfg(feature="tahini_server")]
+pub fn get_session_key_for_client(client_id: usize) -> RandomizedNonceKey {
+    let client_id = tahini_attest::types::ClientId::from(client_id);
+    get_key_for_client(&client_id)
 }
 
 impl<T: TahiniServe> TarpcServe for ServeAdapter<T> {
@@ -175,10 +223,17 @@ impl<T: TahiniServe> TarpcServe for ServeAdapter<T> {
     type Resp = TahiniSafeWrapper<T::Resp>;
 
     async fn serve(self, ctx: Context, req: Self::Req) -> Result<Self::Resp, ServerError> {
-        self.tahini_serve
-            .serve(ctx, req)
-            .map(|res| res.map(|rsp| TahiniSafeWrapper(rsp)))
-            .await
+        if self.key_engine.key.get().is_none() {
+            self.tahini_serve
+                .attest_serve(ctx, req, self.key_engine.key)
+                .map(|res| res.map(|rsp| TahiniSafeWrapper(rsp)))
+                .await
+        } else {
+            self.tahini_serve
+                .serve(ctx, req)
+                .map(|res| res.map(|rsp| TahiniSafeWrapper(rsp)))
+                .await
+        }
     }
     // fn method(&self, request: &Self::Req) -> Option<&'static str> {
     //     Some(T::Req::enum_name(request))

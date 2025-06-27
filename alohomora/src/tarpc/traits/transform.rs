@@ -11,7 +11,7 @@ use super::{TahiniError, TahiniType};
 
 ///Contains either an Uninitialized context from the wire, or an initialized one for local
 ///transformation
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub(crate) enum EitherTahiniContext {
     Uninitialized,
     Initialized(TahiniContext),
@@ -37,7 +37,7 @@ impl<'a> TahiniType for EitherTahiniContext {
 }
 
 ///Contains some transformable data and some context for the transformation.
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct Fromable<T: TahiniType> {
     pub(crate) context: EitherTahiniContext,
     data: T,

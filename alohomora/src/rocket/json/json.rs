@@ -1,6 +1,5 @@
 use mysql::chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde::de::DeserializeOwned;
-use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 

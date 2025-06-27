@@ -40,11 +40,10 @@ struct Service {
     attrs: Vec<Attribute>,
     vis: Visibility,
     ident: Ident,
-    rpcs: Vec<ForeignRpcMethod>,
+    rpcs: Vec<RpcMethod>,
 }
 
-#[derive(Clone)]
-struct ForeignRpcMethod {
+struct RpcMethod {
     attrs: Vec<Attribute>,
     ident: Ident,
     args: Vec<PatType>,
@@ -65,7 +64,7 @@ impl Parse for Service {
         let ident: Ident = input.parse()?;
         let content;
         braced!(content in input);
-        let mut rpcs = Vec::<ForeignRpcMethod>::new();
+        let mut rpcs = Vec::<RpcMethod>::new();
         while !content.is_empty() {
             rpcs.push(content.parse()?);
         }
@@ -113,7 +112,7 @@ impl Parse for Service {
     }
 }
 
-impl Parse for ForeignRpcMethod {
+impl Parse for RpcMethod {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         input.parse::<Token![async]>()?;
@@ -123,9 +122,7 @@ impl Parse for ForeignRpcMethod {
         parenthesized!(content in input);
         let mut args = Vec::new();
         let mut errors = Ok(());
-        let args2 = content.parse_terminated(FnArg::parse, Comma)?;
-
-        for arg in args2 {
+        for arg in content.parse_terminated(FnArg::parse, Comma)? {
             match arg {
                 FnArg::Typed(captured) if matches!(&*captured.pat, Pat::Ident(_)) => {
                     args.push(captured);
@@ -144,7 +141,6 @@ impl Parse for ForeignRpcMethod {
                 }
             }
         }
-        // }
         errors?;
         let output = input.parse()?;
         input.parse::<Token![;]>()?;
@@ -273,15 +269,15 @@ impl Parse for DeriveMeta {
                     ),
                 }
                 derive_serde.push(meta);
-                // } else {
-                //     extend_errors!(
-                //         result,
-                //         syn::Error::new(
-                //             meta.span(),
-                //             "tarpc::service does not support this meta item"
-                //         )
-                //     );
-                //     continue;
+            // } else {
+            //     extend_errors!(
+            //         result,
+            //         syn::Error::new(
+            //             meta.span(),
+            //             "tarpc::service does not support this meta item"
+            //         )
+            //     );
+            //     continue;
             }
         }
 
@@ -344,7 +340,7 @@ impl Parse for DeriveMeta {
     }
 }
 
-fn collect_cfg_attrs(rpcs: &[ForeignRpcMethod]) -> Vec<Vec<&Attribute>> {
+fn collect_cfg_attrs(rpcs: &[RpcMethod]) -> Vec<Vec<&Attribute>> {
     rpcs.iter()
         .map(|rpc| {
             rpc.attrs
@@ -414,7 +410,7 @@ pub fn service(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     ServiceGenerator {
         service_ident: ident,
-        _client_stub_ident: &format_ident!("{}Stub", ident),
+        client_stub_ident: &format_ident!("{}Stub", ident),
         server_ident: &format_ident!("Serve{}", ident),
         client_ident: &format_ident!("Tahini{}Client", ident),
         request_ident: &format_ident!("{}TahiniRequest", ident),
@@ -424,7 +420,7 @@ pub fn service(attr: TokenStream, input: TokenStream) -> TokenStream {
         method_attrs: &rpcs.iter().map(|rpc| &*rpc.attrs).collect::<Vec<_>>(),
         method_cfgs: &collect_cfg_attrs(rpcs),
         method_idents: &methods,
-        _request_names: &request_names,
+        request_names: &request_names,
         attrs,
         rpcs,
         return_types: &rpcs
@@ -454,17 +450,17 @@ pub fn service(attr: TokenStream, input: TokenStream) -> TokenStream {
 // the client stub.
 struct ServiceGenerator<'a> {
     service_ident: &'a Ident,
-    _client_stub_ident: &'a Ident,
+    client_stub_ident: &'a Ident,
     server_ident: &'a Ident,
     client_ident: &'a Ident,
     request_ident: &'a Ident,
     response_ident: &'a Ident,
     vis: &'a Visibility,
     attrs: &'a [Attribute],
-    rpcs: &'a [ForeignRpcMethod],
+    rpcs: &'a [RpcMethod],
     camel_case_idents: &'a [Ident],
     method_idents: &'a [&'a Ident],
-    _request_names: &'a [String],
+    request_names: &'a [String],
     method_attrs: &'a [&'a [Attribute]],
     method_cfgs: &'a [Vec<&'a Attribute>],
     args: &'a [&'a [PatType]],
@@ -482,9 +478,9 @@ impl<'a> ServiceGenerator<'a> {
             vis,
             return_types,
             service_ident,
-            // client_stub_ident,
-            // request_ident,
-            // response_ident,
+            client_stub_ident,
+            request_ident,
+            response_ident,
             server_ident,
             ..
         } = self;
@@ -494,7 +490,7 @@ impl<'a> ServiceGenerator<'a> {
             .zip(return_types.iter())
             .map(
                 |(
-                     ForeignRpcMethod {
+                     RpcMethod {
                          attrs, ident, args, ..
                      },
                      output,
@@ -515,9 +511,8 @@ impl<'a> ServiceGenerator<'a> {
                 },
             );
 
-        let _stub_doc = format!("The stub trait for service [`{service_ident}`].");
-        #[cfg(feature = "tahini_server")]
-        return quote! {
+        let stub_doc = format!("The stub trait for service [`{service_ident}`].");
+        quote! {
             #( #attrs )*
             #vis trait #service_ident: ::core::marker::Sized + Clone {
                 #( #rpc_fns )*
@@ -529,22 +524,6 @@ impl<'a> ServiceGenerator<'a> {
                 }
             }
 
-        };
-        #[cfg(feature = "tahini_client")]
-        return quote! {
-            #( #attrs )*
-            #vis trait #service_ident: ::core::marker::Sized + Clone {
-                #( #rpc_fns )*
-
-            }
-        };
-
-        //Default on client-side
-        return quote! {
-            #vis trait #service_ident: ::core::marker::Sized + Clone {
-                #( #rpc_fns )*
-
-            }
         }
     }
 
@@ -562,7 +541,6 @@ impl<'a> ServiceGenerator<'a> {
         }
     }
 
-    #[cfg(feature="tahini_server")]
     fn impl_serve_for_server(&self) -> TokenStream2 {
         let &Self {
             request_ident,
@@ -572,19 +550,9 @@ impl<'a> ServiceGenerator<'a> {
             camel_case_idents,
             arg_pats,
             method_idents,
-            method_attrs,
             method_cfgs,
             ..
         } = self;
-
-        let response_binding = method_idents.iter().zip(arg_pats).enumerate().map(|(index, (method_ident, arg_pats))|{
-            let is_fromable = is_transformable(method_attrs[index]);
-            if is_fromable {
-                quote! { ::alohomora::tarpc::traits::Fromable::new(#service_ident::#method_ident(self.service, ctx, #(#arg_pats),*).await)}
-            } else {
-                quote! { #service_ident::#method_ident(self.service, ctx, #(#arg_pats),*).await}
-            }
-        }).collect::<Vec<_>>();
 
         quote! {
             impl<S> ::alohomora::tarpc::server::TahiniServe for #server_ident<S>
@@ -601,7 +569,9 @@ impl<'a> ServiceGenerator<'a> {
                             #( #method_cfgs )*
                             #request_ident::#camel_case_idents{ #( #arg_pats ),* } => {
                                 ::core::result::Result::Ok(#response_ident::#camel_case_idents(
-                                        #response_binding
+                                    #service_ident::#method_idents(
+                                        self.service, ctx, #( #arg_pats ),*
+                                    ).await
                                 ))
                             }
                         )*,
@@ -615,10 +585,19 @@ impl<'a> ServiceGenerator<'a> {
                     lock_ref: ::std::sync::Arc<::std::sync::OnceLock<::alohomora::tarpc::transport::TahiniChannelKey>>)
                     -> ::core::result::Result<#response_ident, ::tarpc::ServerError>{
                         match req {
-                            #request_ident::TahiniAttestVariant(client_id) => {
-                                let key = ::alohomora::tarpc::server::get_session_key_for_client(client_id);
-                                lock_ref.set(key);
-                                ::core::result::Result::Ok(#response_ident::TahiniAttestVariant)
+                            #request_ident::TahiniAttestVariant(client_share) => {
+                                let agreement_compute = ::alohomora::tarpc::server::compute_share(client_share);
+                                match agreement_compute {
+                                    Ok((server_key_share, aes_key)) => {
+                                        println!("Setting key in registry");
+                                        lock_ref.set(aes_key);
+                                        println!("Key set, now returning");
+                                        let res_vec = server_key_share.as_ref().to_vec();
+                                        ::core::result::Result::Ok(#response_ident::TahiniAttestVariant(res_vec))
+
+                                    },
+                                    Err(_) => ::core::result::Result::Err(::tarpc::ServerError::new(::std::io::ErrorKind::InvalidData, "Could not complete key exchange".to_string()))
+                                }
                             },
                             _ => ::core::result::Result::Err(::tarpc::ServerError::new(::std::io::ErrorKind::InvalidInput, "Wrong datatype for attestation".to_string()))
                         }
@@ -635,7 +614,7 @@ impl<'a> ServiceGenerator<'a> {
             request_ident,
             camel_case_idents,
             args,
-            // request_names,
+            request_names,
             method_cfgs,
             ..
         } = self;
@@ -650,8 +629,20 @@ impl<'a> ServiceGenerator<'a> {
                     #( #method_cfgs )*
                     #camel_case_idents{ #( #args ),* }
                 ),*,
-                TahiniAttestVariant(usize)
+                TahiniAttestVariant(::std::vec::Vec<u8>)
             }
+            // impl ::tarpc::RequestName for #request_ident {
+            //     fn name(&self) -> &str {
+            //         match self {
+            //             #(
+            //                 #( #method_cfgs )*
+            //                 #request_ident::#camel_case_idents{..} => {
+            //                     #request_names
+            //                 }
+            //             )*
+            //         }
+            //     }
+            // }
         }
     }
 
@@ -662,22 +653,8 @@ impl<'a> ServiceGenerator<'a> {
             response_ident,
             camel_case_idents,
             return_types,
-            method_attrs,
             ..
         } = self;
-
-        let variants = method_attrs
-            .iter()
-            .zip(return_types)
-            .map(|(attrs, ty)| {
-                let is_fromable = is_transformable(attrs);
-                if is_fromable {
-                    quote! {::alohomora::tarpc::traits::Fromable<#ty>}
-                } else {
-                    quote! {#ty}
-                }
-            })
-            .collect::<Vec<_>>();
 
         quote! {
             /// The response sent over the wire from the server to the client.
@@ -685,13 +662,12 @@ impl<'a> ServiceGenerator<'a> {
             #[derive(::serde::Deserialize, ::alohomora::TahiniType, Clone, Debug)]
             #derives
             #vis enum #response_ident {
-                #( #camel_case_idents(#variants) ),*,
-                TahiniAttestVariant
+                #( #camel_case_idents(#return_types) ),*,
+                TahiniAttestVariant(::std::vec::Vec<u8>)
             }
         }
     }
 
-    #[cfg(feature="tahini_client")]
     fn struct_client(&self) -> TokenStream2 {
         let &Self {
             vis,
@@ -706,24 +682,20 @@ impl<'a> ServiceGenerator<'a> {
             #[derive(Clone)]
             /// The client stub that makes RPC calls to the server. All request methods return
             /// [Futures](::core::future::Future).
-            #vis struct #client_ident(::alohomora::tarpc::client::TahiniChannel<#request_ident, #response_ident>, bool);
+            #vis struct #client_ident(::alohomora::tarpc::client::TahiniChannel<#request_ident, #response_ident>);
         }
     }
 
-    #[cfg(feature = "tahini_client")]
     fn impl_client_new(&self) -> TokenStream2 {
         let &Self {
             client_ident,
             vis,
             request_ident,
             response_ident,
-            service_ident,
             ..
         } = self;
 
         let rpc_impl = self.impl_client_rpc_methods();
-        let service_ident_str = service_ident.to_string();
-        let service_ident_str = service_ident_str.as_str();
 
         quote! {
             impl #client_ident {
@@ -739,32 +711,54 @@ impl<'a> ServiceGenerator<'a> {
                 {
                     let new_client = ::alohomora::tarpc::client::new(config, transport);
                     ::alohomora::tarpc::client::TahiniNewClient {
-                        client: #client_ident(new_client.client, false),
+                        client: #client_ident(new_client.client),
                         dispatch: new_client.dispatch,
                     }
                 }
                 #rpc_impl
             }
+
             impl ::alohomora::tarpc::client::TahiniStubWrapper for #client_ident
             where
             {
                 type Channel = ::alohomora::tarpc::client::TahiniChannel<#request_ident, #response_ident>;
 
                 async fn attest_on_launch(&self) {
-                    let in_closure = |client_id| {#request_ident::TahiniAttestVariant(client_id)};
-                    let res = self.0.attest_to_remote(::tarpc::context::Context::current(), #service_ident_str , in_closure).await;
+                    let in_closure = |vec| {#request_ident::TahiniAttestVariant(vec)};
+                    let out_closure = |out| {
+                        match out {
+                            #response_ident::TahiniAttestVariant(vec) => vec,
+                            _ => ::core::unreachable!("Wrong pairing of response for attestation call")
+                        }
+                    };
+                    let res = self.0.attest_to_remote(::tarpc::context::Context::current(), in_closure, out_closure).await;
                     match res {
-                        ::core::result::Result::Ok(_) => println!("Server set session as expected"),
-                        ::core::result::Result::Err(_) => println!("Server returned an error that got silently shutdown")
+                        Ok(_) => println!("Server returned the key as expected"),
+                        Err(_) => println!("Server returned an error that got silently shutdown")
                     }
                 }
             }
+
+            //     TODO(douk): Determine if it's worth keeping? I would believe so, we just didn't
+            //     take into account the stub trait for the client (we entirely bypass it) and thus
+            //     don't need to interact with the stub at all
+        //     impl<Stub> ::core::convert::From<Stub> for #client_ident<Stub>
+        //         where Stub: ::tarpc::client::stub::Stub<
+        //             Req = #request_ident,
+        //             Resp = #response_ident>
+        //     {
+        //         /// Returns a new client stub that sends requests over the given transport.
+        //         fn from(stub: Stub) -> Self {
+        //             #client_ident(stub)
+        //         }
+        //
+        //     }
         }
     }
 
     fn impl_client_rpc_methods(&self) -> TokenStream2 {
         let &Self {
-            service_ident,
+            client_ident,
             request_ident,
             response_ident,
             method_attrs,
@@ -787,33 +781,40 @@ impl<'a> ServiceGenerator<'a> {
             camel_case_idents_str.push(var.as_str());
         }
 
-        // let arg_pats = arg_pats.iter().map(|x| x[0]).collect::<Vec<_>>();
-        let service_ident_str = service_ident.to_string();
-        let context_builders = method_idents
-            .iter()
-            .map(|x| format!("{}.{}", service_ident_str.clone(), x.to_string()))
-            .collect::<Vec<_>>();
+        // self.method_idents.iter().zip(self.method_attrs.iter()).map(
+        //     // | (method_ident, attrs)| {
+        //     //     match check_if_protected_rpc(attrs) {
+        //     //         true =>     
+        //     //
+        //     //     }
+        //     // }
+        // )
 
-        let mut bodies = Vec::new();
-        for index in 0..method_idents.iter().len() {
-            bodies.push(impl_rpc_method(
-                request_ident,
-                response_ident,
-                method_attrs[index],
-                vis,
-                method_idents[index],
-                args[index],
-                return_types[index],
-                &arg_pats[index],
-                &camel_case_idents[index],
-                camel_case_idents_str[index],
-                &context_builders[index],
-            ));
-        }
+
+        //TODO(douk):Do we actually need a dedicated stub? I don't believe though
         quote! {
-            #(
-                #bodies
-            )*
+            // impl<Stub> #client_ident<Stub>
+            //     where Stub: ::tarpc::client::stub::Stub<
+            //         Req = #request_ident,
+            //         Resp = #response_ident>
+            // {
+
+                #(
+                    #[allow(unused)]
+                    #( #method_attrs )*
+                    #vis fn #method_idents(&self, ctx: ::tarpc::context::Context, #( #args ),*)
+                        -> impl ::core::future::Future<Output = ::core::result::Result<#return_types, ::tarpc::client::RpcError>> + '_ {
+                        let request = #request_ident::#camel_case_idents { #( #arg_pats ),* };
+                        let resp = self.0.call(ctx, #camel_case_idents_str, request);
+                        async move {
+                            match resp.await? {
+                                #response_ident::#camel_case_idents(msg) => ::core::result::Result::Ok(msg),
+                                _ => ::core::unreachable!(),
+                            }
+                        }
+                    }
+                )*
+            // }
         }
     }
 
@@ -822,107 +823,19 @@ impl<'a> ServiceGenerator<'a> {
     }
 }
 
-fn is_transformable(attrs: &[Attribute]) -> bool {
-    attrs
-        .iter()
-        .any(|attr: &Attribute| attr.path().is_ident("allow_client_transform"))
-}
-
-fn impl_rpc_method(
-    request_ident: &Ident,
-    response_ident: &Ident,
-    method_attrs: &[Attribute],
-    vis: &Visibility,
-    method_ident: &Ident,
-    args: &[PatType],
-    return_type: &Type,
-    arg_pats: &[&Pat],
-    camel_case_ident: &Ident,
-    camel_case_ident_str: &str,
-    context_builder: &str,
-) -> TokenStream2 {
-    let is_transformable = is_transformable(method_attrs);
-    let input_arg_types = args.iter().map(|x| &(*x.ty)).collect::<Vec<_>>();
-    let local_args = args
-        .iter()
-        .map(|arg| match *arg.pat {
-            Pat::Ident(ref ident) => {
-                let arg_ident = ident.ident.to_string();
-                format_ident!("{}LocalType", snake_to_camel(arg_ident.as_str()))
-            }
-            _ => panic!("Type written is not a an indentifier"),
-        })
-        .collect::<Vec<_>>();
-    let generics = input_arg_types.iter().zip(local_args.clone()).map(|(ty, gen_ident)| {
-        quote!{ #gen_ident: ::alohomora::tarpc::traits::TahiniTransformInto<#ty> + 'static + Send}
-    }).collect::<Vec<_>>();
-
-    let closure_args = args
-        .iter()
-        .enumerate()
-        .map(|(i, _)| format_ident!("x{}", i))
-        .collect::<Vec<_>>();
-
-    if is_transformable {
-        quote! {
-            #[allow(unused)]
-            #( #method_attrs )*
-            #vis fn #method_ident<#(#generics),* >(&self, ctx: ::tarpc::context::Context, #(#arg_pats: #local_args),* )
-            -> impl ::core::future::Future<
-                Output = ::core::result::Result<::alohomora::tarpc::traits::Fromable<#return_type>, ::tarpc::client::RpcError>
-                > + '_ {
-                    let input_closure = |(#(#closure_args),*): (#(#input_arg_types),*)| {#request_ident::#camel_case_ident {#(#arg_pats: #closure_args),* }};
-                    let output_closure = |resp: #response_ident| {
-                        match resp {
-                            #response_ident::#camel_case_ident(msg) => msg,
-                            _ => ::core::unreachable!("RPC response does not match client-side RPC")
-
-                        }
-                    };
-                    self.0.transform_with_fromable::<(#(#input_arg_types),*), (#(#local_args),*), _, #return_type, _>(ctx, #camel_case_ident_str, #context_builder, (#(#arg_pats),*), input_closure, output_closure)
-            }
-        }
-    } else {
-        quote! {
-        #[allow(unused)]
-        #( #method_attrs )*
-        #vis fn #method_ident<#(#generics),* >(&self, ctx: ::tarpc::context::Context, #(#arg_pats: #local_args),* )
-        -> impl ::core::future::Future<
-            Output = ::core::result::Result<#return_type, ::tarpc::client::RpcError>
-            > + '_ {
-                let input_closure = |(#(#closure_args),*): (#(#input_arg_types),*)| {#request_ident::#camel_case_ident {#(#arg_pats: #closure_args),* }};
-                let resp = self.0.transform_only_egress::<(#(#input_arg_types),*), (#(#local_args),*), _>(ctx, #camel_case_ident_str, #context_builder, (#(#arg_pats),*), input_closure);
-                async move {
-                    match resp.await? {
-                        #response_ident::#camel_case_ident(msg) => ::core::result::Result::Ok(msg),
-                        _ => ::core::unreachable!(),
-                    }
-                }
-        }
-        }
-    }
-}
-
 impl<'a> ToTokens for ServiceGenerator<'a> {
     fn to_tokens(&self, output: &mut TokenStream2) {
-        let mut tokens = vec![
+        output.extend(vec![
             self.trait_service(),
+            self.struct_server(),
+            self.impl_serve_for_server(),
             self.enum_request(),
             self.enum_response(),
+            self.struct_client(),
+            self.impl_client_new(),
+            // self.impl_client_rpc_methods(),
             self.emit_warnings(),
-        ];
-        #[cfg(feature="tahini_server")]
-        {
-            tokens.push(self.struct_server());
-            tokens.push(self.impl_serve_for_server());
-        }
-        #[cfg(feature="tahini_client")]
-        {
-            tokens.push(self.struct_client());
-            tokens.push(self.impl_client_new());
-        }
-
-        output.extend(tokens);
+        ]);
     }
 }
 

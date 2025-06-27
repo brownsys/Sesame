@@ -11,7 +11,6 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 
-use rocket::form::FromFormField;
 use rocket::http::uncased::AsUncased;
 use rocket::Either;
 

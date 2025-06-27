@@ -1,12 +1,7 @@
-use std::fmt::Write;
 use std::future::Future;
-use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::Poll;
-use std::{
-    any::Any,
-    fmt::{Debug, Formatter},
-};
+use std::{any::Any, fmt::Debug};
 
 use either::Either;
 use mysql::chrono;

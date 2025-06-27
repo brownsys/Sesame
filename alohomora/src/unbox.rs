@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use crate::AlohomoraType;
 use crate::context::{Context, ContextData};
 use crate::fold::fold;

@@ -91,6 +91,15 @@ impl Parse for Service {
                     )
                 );
             }
+            if rpc.ident == "tahini_attest" {
+                extend_errors!(
+                    ident_errors,
+                    syn::Error::new(
+                        rpc.ident.span(),
+                        format!("method name conflicts with the tahini attestation protocol")
+                    )
+                );
+            }
         }
         ident_errors?;
 
@@ -503,7 +512,8 @@ impl<'a> ServiceGenerator<'a> {
             );
 
         let stub_doc = format!("The stub trait for service [`{service_ident}`].");
-        quote! {
+        #[cfg(feature = "tahini_server")]
+        return quote! {
             #( #attrs )*
             #vis trait #service_ident: ::core::marker::Sized + Clone {
                 #( #rpc_fns )*
@@ -515,9 +525,26 @@ impl<'a> ServiceGenerator<'a> {
                 }
             }
 
+        };
+        #[cfg(feature = "tahini_client")]
+        return quote! {
+            #( #attrs )*
+            #vis trait #service_ident: ::core::marker::Sized + Clone {
+                #( #rpc_fns )*
+
+            }
+        };
+
+        //Default on client-side
+        return quote! {
+            #vis trait #service_ident: ::core::marker::Sized + Clone {
+                #( #rpc_fns )*
+
+            }
         }
     }
 
+    #[cfg(feature="tahini_server")]
     fn struct_server(&self) -> TokenStream2 {
         let &Self {
             vis, server_ident, ..
@@ -532,6 +559,7 @@ impl<'a> ServiceGenerator<'a> {
         }
     }
 
+    #[cfg(feature="tahini_server")]
     fn impl_serve_for_server(&self) -> TokenStream2 {
         let &Self {
             request_ident,
@@ -565,8 +593,25 @@ impl<'a> ServiceGenerator<'a> {
                                     ).await
                                 ))
                             }
-                        )*
+                        )*,
+                        #request_ident::TahiniAttestVariant(_) => {::core::result::Result::Err(::tarpc::ServerError::new(::std::io::ErrorKind::InvalidInput, "Can not serve request before attestation".to_string()))}
                     }
+                }
+
+                async fn attest_serve(self,
+                    ctx: ::tarpc::context::Context,
+                    req: #request_ident,
+                    lock_ref: ::std::sync::Arc<::std::sync::OnceLock<::alohomora::tarpc::transport::TahiniChannelKey>>)
+                    -> ::core::result::Result<#response_ident, ::tarpc::ServerError>{
+                        match req {
+                            #request_ident::TahiniAttestVariant(client_id) => {
+                                let key = ::alohomora::tarpc::server::get_session_key_for_client(client_id);
+                                lock_ref.set(key);
+                                ::core::result::Result::Ok(#response_ident::TahiniAttestVariant)
+                            },
+                            _ => ::core::result::Result::Err(::tarpc::ServerError::new(::std::io::ErrorKind::InvalidInput, "Wrong datatype for attestation".to_string()))
+                        }
+
                 }
             }
         }
@@ -587,13 +632,14 @@ impl<'a> ServiceGenerator<'a> {
         quote! {
             /// The request sent over the wire from the client to the server.
             #[allow(missing_docs)]
-            #[derive(::serde::Deserialize, ::alohomora::TahiniType, Clone)]
+            #[derive(::serde::Deserialize, ::alohomora::TahiniType, Clone, Debug)]
             #derives
             #vis enum #request_ident {
                 #(
                     #( #method_cfgs )*
                     #camel_case_idents{ #( #args ),* }
-                ),*
+                ),*,
+                TahiniAttestVariant(usize)
             }
             // impl ::tarpc::RequestName for #request_ident {
             //     fn name(&self) -> &str {
@@ -623,14 +669,16 @@ impl<'a> ServiceGenerator<'a> {
         quote! {
             /// The response sent over the wire from the server to the client.
             #[allow(missing_docs)]
-            #[derive(::serde::Deserialize, ::alohomora::TahiniType, Clone)]
+            #[derive(::serde::Deserialize, ::alohomora::TahiniType, Clone, Debug)]
             #derives
             #vis enum #response_ident {
-                #( #camel_case_idents(#return_types) ),*
+                #( #camel_case_idents(#return_types) ),*,
+                TahiniAttestVariant
             }
         }
     }
 
+    #[cfg(feature="tahini_client")]
     fn struct_client(&self) -> TokenStream2 {
         let &Self {
             vis,
@@ -649,16 +697,20 @@ impl<'a> ServiceGenerator<'a> {
         }
     }
 
+    #[cfg(feature="tahini_client")]
     fn impl_client_new(&self) -> TokenStream2 {
         let &Self {
             client_ident,
             vis,
             request_ident,
             response_ident,
+            service_ident,
             ..
         } = self;
 
         let rpc_impl = self.impl_client_rpc_methods();
+        let service_ident_str = service_ident.to_string();
+        let service_ident_str = service_ident_str.as_str();
 
         quote! {
             impl #client_ident {
@@ -666,10 +718,10 @@ impl<'a> ServiceGenerator<'a> {
                 #vis fn new<T>(config: ::tarpc::client::Config, transport: T)
                 -> ::alohomora::tarpc::client::TahiniNewClient<
                     Self,
-                    ::alohomora::tarpc::client::TahiniRequestDispatch<#request_ident, #response_ident, T>
+                    ::alohomora::tarpc::client::TahiniRequestDispatch<#request_ident, #response_ident, T::InnerChannelType>
                     >
                 where
-                    T: ::tarpc::Transport<::tarpc::ClientMessage<::alohomora::tarpc::enums::TahiniSafeWrapper<#request_ident>>,
+                    T: ::alohomora::tarpc::transport::TahiniTransportTrait<::tarpc::ClientMessage<::alohomora::tarpc::enums::TahiniSafeWrapper<#request_ident>>,
                     ::tarpc::Response<#response_ident>>
                 {
                     let new_client = ::alohomora::tarpc::client::new(config, transport);
@@ -679,6 +731,21 @@ impl<'a> ServiceGenerator<'a> {
                     }
                 }
                 #rpc_impl
+            }
+
+            impl ::alohomora::tarpc::client::TahiniStubWrapper for #client_ident
+            where
+            {
+                type Channel = ::alohomora::tarpc::client::TahiniChannel<#request_ident, #response_ident>;
+
+                async fn attest_on_launch(&self) {
+                    let in_closure = |client_id| {#request_ident::TahiniAttestVariant(client_id)};
+                    let res = self.0.attest_to_remote(::tarpc::context::Context::current(), #service_ident_str , in_closure).await;
+                    match res {
+                        ::core::result::Result::Ok(_) => println!("Server set session as expected"),
+                        ::core::result::Result::Err(_) => println!("Server returned an error that got silently shutdown")
+                    }
+                }
             }
 
             //     TODO(douk): Determine if it's worth keeping? I would believe so, we just didn't
@@ -767,17 +834,24 @@ impl<'a> ServiceGenerator<'a> {
 
 impl<'a> ToTokens for ServiceGenerator<'a> {
     fn to_tokens(&self, output: &mut TokenStream2) {
-        output.extend(vec![
+        let mut tokens = vec![
             self.trait_service(),
-            self.struct_server(),
-            self.impl_serve_for_server(),
             self.enum_request(),
             self.enum_response(),
-            self.struct_client(),
-            self.impl_client_new(),
-            // self.impl_client_rpc_methods(),
             self.emit_warnings(),
-        ]);
+        ];
+        #[cfg(feature="tahini_server")]
+        {
+            tokens.push(self.struct_server());
+            tokens.push(self.impl_serve_for_server());
+        }
+        #[cfg(feature="tahini_client")]
+        {
+            tokens.push(self.struct_client());
+            tokens.push(self.impl_client_new());
+        }
+
+        output.extend(tokens);
     }
 }
 

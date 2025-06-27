@@ -1,6 +1,5 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, Policy, Reason};
-use serde::{Serialize, de::DeserializeOwned};
 
 #[derive(Clone)]
 pub struct RefPolicy<'a, P: Policy + ?Sized> {

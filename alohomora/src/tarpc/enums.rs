@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-use serde::ser::{
-    SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTupleVariant,
-};
 use crate::bbox::BBox;
 use crate::policy::TahiniPolicy;
 use crate::tarpc::traits::{TahiniError, TahiniType};
+use serde::ser::{SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTupleVariant};
+use std::collections::HashMap;
 
 pub enum TahiniEnum {
     Value(Box<dyn erased_serde::Serialize>),
@@ -30,7 +28,7 @@ fn serialize_enum<S: serde::Serializer>(
     variant: &TahiniVariantsEnum,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
-    match variant{
+    match variant {
         TahiniVariantsEnum::Unit => {
             serializer.serialize_unit_variant(enum_name, *index, variant_name)
         }
@@ -58,7 +56,6 @@ fn serialize_enum<S: serde::Serializer>(
         }
     }
 }
-
 
 //Private struct for specific TahiniEnum leaves.
 struct PrivEnumWrapper<'a>(&'a TahiniEnum);
@@ -99,9 +96,10 @@ impl<'a> serde::Serialize for PrivEnumWrapper<'a> {
                 None => None::<PrivEnumWrapper>.serialize(serializer),
                 Some(val) => Some(PrivEnumWrapper(&val)).serialize(serializer),
             },
-            TahiniEnum::Result(res) => {
-                res.as_ref().map(|v| PrivEnumWrapper(v)).serialize(serializer)
-            }
+            TahiniEnum::Result(res) => res
+                .as_ref()
+                .map(|v| PrivEnumWrapper(v))
+                .serialize(serializer),
         }
     }
 }
@@ -110,7 +108,6 @@ impl<'a> serde::Serialize for PrivEnumWrapper<'a> {
 //The real reason is that it gives explicit typing to our structs.
 //It's open to debate whether we want to have two layers :shrug:
 
-//See the type, but no touchy to what's inside!
 pub struct TahiniSafeWrapper<T: TahiniType>(pub(crate) T);
 impl<T: TahiniType + Sized> serde::Serialize for TahiniSafeWrapper<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

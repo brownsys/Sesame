@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
