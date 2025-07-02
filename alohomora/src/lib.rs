@@ -1,7 +1,6 @@
 #![feature(box_into_inner)]
 #![feature(specialization)]
 #![feature(core_intrinsics)]
-#![feature(once_wait)]
 #![feature(slice_pattern)]
 #![feature(type_changing_struct_update)]
 

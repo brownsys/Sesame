@@ -5,11 +5,13 @@ use crate::tarpc::enums::TahiniSafeWrapper;
 // };
 use crate::tarpc::traits::{Fromable, TahiniTransformInto, TahiniType};
 use pin_project_lite::pin_project;
-use tahini_attest::client::DynamicAttestationVerifier;
-use tahini_attest::types::DynamicAttestationData;
 use std::fs::File;
+use std::thread::sleep;
+use std::time::Duration;
 use std::future::Future;
 use std::path::Path;
+use tahini_attest::client::DynamicAttestationVerifier;
+use tahini_attest::types::DynamicAttestationData;
 use tarpc::client::Channel as TarpcChannel;
 use tarpc::client::NewClient as TarpcNewClient;
 use tarpc::client::RequestDispatch as TarpcRequestDispatch;
@@ -87,15 +89,12 @@ pub trait TahiniStub {
         input_transform: EgressTransform,
     ) -> Result<Self::Resp, RpcError>;
 
-    async fn attest_to_remote<
-        KeyShareWrapClosure: FnOnce(usize) -> Self::Req,
-    >(
+    async fn attest_to_remote<KeyShareWrapClosure: FnOnce(usize) -> Self::Req>(
         &self,
         ctx: context::Context,
         service_name: &'static str,
         wrap_closure: KeyShareWrapClosure,
     ) -> Result<bool, RpcError>;
-
 }
 
 impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req, Resp> {
@@ -110,12 +109,15 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
     ) -> Result<Self::Resp, RpcError> {
         //Ensure the key has been initialized to avoid subsequent requests from doubling the key
         //exchange
-        // println!("Waiting indefinitely on key engine");
-        self.engine.key.wait();
-        // if self.engine.key.get().is_none() {
-        //     println!("Engine is none");
-        //     sleep(Duration::from_secs(2));
-        // }
+        //FIXME: Even if Sesame compiles with the below line, applications that try to use it
+        //can't.
+        //I even removed the "once_wait" feature from lib.rs, and it still compiles.
+        //So for now, spin lock, unless we can bump the whole toolchain to 1.85 nightly
+        // self.engine.key.wait();
+        if self.engine.key.get().is_none() {
+            println!("Engine is none");
+            sleep(Duration::from_secs(2));
+        }
         let request = TahiniSafeWrapper(request);
         let response = self.channel.call(ctx, request_name, request).await?;
         Ok(response)
@@ -173,17 +175,19 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
         self.call(ctx, request_name, wrapped).await
     }
 
-    async fn attest_to_remote<
-        KeyShareWrapClosure: FnOnce(usize) -> Self::Req,
-    >(
+    async fn attest_to_remote<KeyShareWrapClosure: FnOnce(usize) -> Self::Req>(
         &self,
         ctx: context::Context,
         service_name: &'static str,
         wrap_closure: KeyShareWrapClosure,
     ) -> Result<bool, RpcError> {
         let client_attest_config = Path::new("./client_attestation_config.toml");
-        let attest_verifier = DynamicAttestationVerifier::from_config(client_attest_config).expect("Couldn't load config");
-        match attest_verifier.verify_binary(service_name.to_string().into()).await {
+        let attest_verifier = DynamicAttestationVerifier::from_config(client_attest_config)
+            .expect("Couldn't load config");
+        match attest_verifier
+            .verify_binary(service_name.to_string().into())
+            .await
+        {
             Ok((client_id, aes_key)) => {
                 let request_name = "tahini_attest";
                 let req = wrap_closure(client_id.into());
@@ -191,12 +195,16 @@ impl<Req: TahiniType + Clone, Resp: TahiniType> TahiniStub for TahiniChannel<Req
                     .channel
                     .call(ctx, request_name, TahiniSafeWrapper(req))
                     .await?;
-                    self.engine.key
-                        .set(aes_key)
-                        .expect("Key is already initialized for this session");
-                    self.engine.passthrough.set(true).expect("Attestation should be running only once");
-                    Ok(true)
-            },
+                self.engine
+                    .key
+                    .set(aes_key)
+                    .expect("Key is already initialized for this session");
+                self.engine
+                    .passthrough
+                    .set(true)
+                    .expect("Attestation should be running only once");
+                Ok(true)
+            }
             Err(e) => {
                 println!("Got error {:?}", e);
                 Err(RpcError::Shutdown)

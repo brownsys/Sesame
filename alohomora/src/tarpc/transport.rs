@@ -177,7 +177,6 @@ where
                         TahiniChannelLayerError::wrapper_err("Payload serialization error")
                     })?;
                     let mut cipher_buf = Vec::from(res);
-                    println!("Key is : {:?}", key);
                     let nonce = key
                         .seal_in_place_append_tag(Aad::empty(), &mut cipher_buf)
                         .map_err(|_| TahiniChannelLayerError::wrapper_err("Encryption error"))?;
@@ -212,14 +211,9 @@ where
         let key_opt = arc_cloned.get();
         match key_opt {
             None => {
-                println!("Assessing that we are without a key");
                 let a = C::deserialize(self.project().inner_channel, src).map_err(|_| {
                     TahiniChannelLayerError::wrapper_err("Remote Keyshare deserialization error");
                 });
-                match a {
-                    Ok(_) => println!("We successfully deserialize key share"),
-                    Err(_) => println!("We fail at deserializing the keyshare"),
-                };
                 a.map_err(|_| {
                     TahiniChannelLayerError::wrapper_err(
                         "Failed at deserializing the remote key share",
@@ -227,23 +221,18 @@ where
                 })
             }
             Some(key) => {
-                println!("Assessing we have a key for decryption!");
                 let ciphertext: SerializedCipher = serde_json::from_slice(src).map_err(|_| {
                     TahiniChannelLayerError::wrapper_err("Ciphertext deserialization error")
                 })?;
-                println!("Successfully got the ciphertext struct");
                 let nonce = Nonce::from(&ciphertext.nonce);
                 let mut cipher = ciphertext.bytes;
-                println!("Key is : {:?}", key);
                 let plaintext_slice: &[u8] = key
                     .open_in_place(nonce, Aad::empty(), &mut cipher)
                     .map_err(|_| TahiniChannelLayerError::wrapper_err("Decryption error"))?;
-                println!("Successfully deciphered");
                 let plaintext_bytes = BytesMut::from(plaintext_slice);
                 let res = C::deserialize(self.project().inner_channel, &plaintext_bytes).map_err(|_| {
                     TahiniChannelLayerError::wrapper_err("Plaintext payload deserialization error")
                 })?;
-                println!("We got struct {:?}", res);
                 Ok(res)
             }
         }
