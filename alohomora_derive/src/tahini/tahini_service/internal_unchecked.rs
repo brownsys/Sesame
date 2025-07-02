@@ -743,7 +743,7 @@ impl<'a> ServiceGenerator<'a> {
                     let res = self.0.attest_to_remote(::tarpc::context::Context::current(), #service_ident_str , in_closure).await;
                     match res {
                         ::core::result::Result::Ok(_) => println!("Server set session as expected"),
-                        ::core::result::Result::Err(_) => println!("Server returned an error that got silently shutdown")
+                        ::core::result::Result::Err(_) => panic!("Server encountered an attestation error")
                     }
                 }
             }
