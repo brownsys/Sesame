@@ -24,6 +24,7 @@ mod manage;
 mod policies;
 mod predict;
 mod questions;
+mod log;
 
 pub use args::parse_args;
 

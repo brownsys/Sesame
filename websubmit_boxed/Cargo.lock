@@ -3,27 +3,6 @@
 version = 3
 
 [[package]]
-name = "abomonation"
-version = "0.7.3"
-source = "git+https://github.com/KinanBab/abomonation?rev=5c1a3f31407bda9f386909978e8ed65f2d14f610#5c1a3f31407bda9f386909978e8ed65f2d14f610"
-dependencies = [
- "derive",
- "memoffset 0.9.1",
- "paste",
-]
-
-[[package]]
-name = "abomonation_derive"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e50e2a046af56a864c62d97b7153fda72c596e646be1b0c7963736821f6e1efa"
-dependencies = [
- "proc-macro2",
- "quote",
- "synstructure",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -848,16 +827,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
-]
-
-[[package]]
-name = "derive"
-version = "0.1.0"
-source = "git+https://github.com/KinanBab/abomonation?rev=5c1a3f31407bda9f386909978e8ed65f2d14f610#5c1a3f31407bda9f386909978e8ed65f2d14f610"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.95",
 ]
 
 [[package]]
@@ -2141,15 +2110,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "memoffset"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
-dependencies = [
- "autocfg 1.2.0",
-]
-
-[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2405,7 +2365,7 @@ dependencies = [
  "cc",
  "cfg-if 1.0.0",
  "libc",
- "memoffset 0.6.5",
+ "memoffset",
 ]
 
 [[package]]
@@ -3769,6 +3729,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_logger"
+version = "0.1.0"
+source = "git+https://github.com/KinanBab/serde_logger.git#057873f18a125eef302a261700876da9eb30a7a1"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_logger_derive",
+]
+
+[[package]]
+name = "serde_logger_derive"
+version = "0.1.0"
+source = "git+https://github.com/KinanBab/serde_logger.git#057873f18a125eef302a261700876da9eb30a7a1"
+dependencies = [
+ "quote",
+ "syn 2.0.95",
+]
+
+[[package]]
+name = "serde_remote_converter"
+version = "0.1.0"
+source = "git+https://github.com/KinanBab/serde_remote_converter.git#52520552b5cb96e25290ed9782896ec4e0792a6c"
+dependencies = [
+ "quote",
+ "syn 2.0.95",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4903,8 +4891,6 @@ dependencies = [
 name = "websubmit_boxed"
 version = "0.1.0"
 dependencies = [
- "abomonation",
- "abomonation_derive",
  "alohomora",
  "alohomora_build",
  "chrono",
@@ -4924,6 +4910,8 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "serde_logger",
+ "serde_remote_converter",
  "slog",
  "slog-term",
  "toml 0.2.1",

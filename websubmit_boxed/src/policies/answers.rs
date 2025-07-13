@@ -10,7 +10,7 @@ use rocket::http::Cookie;
 use rocket::Request;
 use std::sync::{Arc, Mutex};
 
-use abomonation_derive::Abomonation;
+use serde_derive::Serialize;
 
 // Access control policy.
 #[schema_policy(table = "answers", column = 0)] // email
@@ -22,7 +22,7 @@ use abomonation_derive::Abomonation;
 // grade, WHY CAN DISCUSSION LEADER SEE GRADE
 // We can add multiple #[schema_policy(...)] definitions
 // here to reuse the policy across tables/columns.
-#[derive(Clone, Abomonation)]
+#[derive(Clone, Serialize)]
 pub struct AnswerAccessPolicy {
     owner: Option<String>, // even if no owner, admins may access
     lec_id: Option<u64>,   // no lec_id when Policy for multiple Answers from different lectures

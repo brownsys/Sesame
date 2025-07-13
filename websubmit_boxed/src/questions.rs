@@ -7,8 +7,7 @@ use chrono::Local;
 use mysql::Value;
 use rocket::State;
 
-use abomonation::external::external_abomoniate;
-use abomonation::log::external_log;
+use serde_logger::remote_serde_log;
 
 use crate::admin::Admin;
 use alohomora::bbox::{BBox, BBoxRender};
@@ -16,7 +15,7 @@ use alohomora::context::Context;
 use alohomora::db::{from_value, from_value_or_null};
 use alohomora::fold::fold;
 use alohomora::pcr::{PrivacyCriticalRegion, Signature};
-use alohomora::policy::{AnyPolicy, NoPolicy, Policy};
+use alohomora::policy::{AnyPolicy, NoPolicy};
 use alohomora::pure::{execute_pure, PrivacyPureRegion};
 use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxTemplate, FromBBoxForm};
 use alohomora::unbox::unbox;
@@ -28,6 +27,7 @@ use crate::config::Config;
 use crate::email;
 use crate::helpers::{left_join, JoinIdx};
 use crate::policies::{AnswerAccessPolicy, ContextData};
+use crate::log::BBoxDef;
 
 // TODO (allen): is this NoPolicy because it came from the user and we're going to write it (not for reading yet?)
 #[derive(FromBBoxForm)]
@@ -401,8 +401,6 @@ pub(crate) fn questions(
     BBoxTemplate::render("questions", &ctx, context)
 }
 
-external_abomoniate!(BBox, <T, P: Policy>, (T, P));
-
 #[post("/<num>", data = "<data>")]
 pub(crate) fn questions_submit(
     apikey: ApiKey,
@@ -436,10 +434,8 @@ pub(crate) fn questions_submit(
         let data = (data.answers.clone(), num, apikey.user);
 
         for v in data.0.values() {
-            // Obtain logged data.
-            let logged_data = external_log::<BBoxAbomonated<_, _>>(v);
             // Log private data.
-            println!("{}", logged_data);
+            remote_serde_log::<BBoxDef<_, _>, _>(v);
         }
 
 

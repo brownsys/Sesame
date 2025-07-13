@@ -27,8 +27,8 @@ serde_derive = "1.0"
 serde_json = "1.0"
 websubmit_boxed_sandboxes = { path = "../websubmit_boxed_sandboxes" }
 
-abomonation = { git = "https://github.com/KinanBab/abomonation", rev = "5c1a3f31407bda9f386909978e8ed65f2d14f610" }
-abomonation_derive = { version = "0.5.0" }
+serde_remote_converter = { git = "https://github.com/KinanBab/serde_remote_converter.git" }
+serde_logger = { git = "https://github.com/KinanBab/serde_logger.git" }
 
 [dependencies.rocket_dyn_templates]
 git = "https://github.com/KinanBab/Rocket.git"
