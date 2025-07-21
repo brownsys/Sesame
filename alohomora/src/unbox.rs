@@ -3,7 +3,7 @@ use crate::fold::fold;
 use crate::pcr::PrivacyCriticalRegion;
 use crate::policy::CloneableAny;
 use crate::unbox::UnboxError::{FoldError, PolicyViolation};
-use crate::AlohomoraType;
+use crate::SesameType;
 
 #[derive(Debug)]
 pub enum UnboxError {
@@ -12,9 +12,9 @@ pub enum UnboxError {
 }
 
 pub fn unbox<
-    S: AlohomoraType,
+    S: SesameType,
     D: ContextData,
-    C: Clone + AlohomoraType,
+    C: Clone + SesameType,
     O,
     F: FnOnce(S::Out, C::Out) -> O,
 >(

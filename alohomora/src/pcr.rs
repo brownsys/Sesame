@@ -1,6 +1,6 @@
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
-use crate::AlohomoraType;
+use crate::SesameType;
 
 // Creation of this must be signed.
 #[derive(Clone, Copy)]
@@ -17,7 +17,7 @@ impl<F> PrivacyCriticalRegion<F> {
 }
 
 // Executes a PCR over some boxed type.
-pub fn execute_pcr<S: AlohomoraType, C, O, F: FnOnce(S::Out, AnyPolicy, C) -> O>(
+pub fn execute_pcr<S: SesameType, C, O, F: FnOnce(S::Out, AnyPolicy, C) -> O>(
     data: S,
     functor: PrivacyCriticalRegion<F>,
     arg: C,

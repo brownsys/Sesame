@@ -1,4 +1,4 @@
-use alohomora::AlohomoraType;
+use alohomora::SesameType;
 use cookie::Cookie;
 use mysql::{from_value, Value};
 use rocket::Request;
@@ -20,7 +20,7 @@ impl Policy for ACLPolicy {
         String::from("ACLPolicy")
     }
     fn check(&self, context: &UnprotectedContext, _: Reason) -> bool {
-        type ContextDataOut = <ContextData as AlohomoraType>::Out;
+        type ContextDataOut = <ContextData as SesameType>::Out;
         let r: &ContextDataOut = context.downcast_ref().unwrap();
         match r {
             None => false,
@@ -38,7 +38,7 @@ impl Policy for ACLPolicy {
     }
 }
 impl SchemaPolicy for ACLPolicy {
-    fn from_row(table_name: &str, row: &Vec<Value>) -> Self
+    fn from_row(_table_name: &str, row: &Vec<Value>) -> Self
     where
         Self: Sized,
     {
@@ -94,7 +94,7 @@ impl Policy for WritePolicy {
         match reason {
             Reason::DB(stmt, _) => {
                 if stmt.starts_with("INSERT") {
-                    type ContextDataOut = <ContextData as AlohomoraType>::Out;
+                    type ContextDataOut = <ContextData as SesameType>::Out;
                     let r: &ContextDataOut = context.downcast_ref().unwrap();
                     match r {
                         None => false,

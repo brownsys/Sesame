@@ -1,6 +1,7 @@
+use std::any::Any;
 // BBox
 use crate::db::{BBoxParams, BBoxQueryResult};
-use crate::{AlohomoraType, AlohomoraTypeEnum};
+use crate::{SesameTypeDyn, SesameTypeEnumDyn};
 
 // mysql imports.
 use crate::context::{Context, ContextData};
@@ -124,14 +125,14 @@ impl BBoxConn {
 }
 
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl AlohomoraType for BBoxConn {
+impl SesameTypeDyn<dyn Any> for BBoxConn {
     type Out = mysql::Conn;
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::Value(Box::new(self))
+    fn to_enum(self) -> SesameTypeEnumDyn<dyn Any> {
+        SesameTypeEnumDyn::Value(Box::new(self))
     }
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnumDyn<dyn Any>) -> Result<Self::Out, ()> {
         match e {
-            AlohomoraTypeEnum::Value(db) => match db.downcast::<BBoxConn>() {
+            SesameTypeEnumDyn::Value(db) => match db.downcast::<BBoxConn>() {
                 Ok(db) => Ok(db.conn),
                 Err(_) => Err(()),
             },
