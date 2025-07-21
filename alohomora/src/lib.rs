@@ -28,6 +28,7 @@ pub mod fold;
 pub mod pcr;
 pub mod pure;
 pub mod unbox;
+pub mod extension;
 
 #[cfg(feature = "tahini")]
 pub mod tarpc;
@@ -41,3 +42,4 @@ pub use alohomora_derive::AlohomoraType;
 
 #[cfg(feature = "tahini")]
 pub use alohomora_derive::{TahiniType, tahini_service, allow_client_transform};
+

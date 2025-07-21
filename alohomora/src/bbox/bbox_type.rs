@@ -13,7 +13,7 @@ use crate::pure::PrivacyPureRegion;
 
 use crate::bbox::obfuscated_pointer::ObPtr;
 use crate::fold::fold;
-use crate::AlohomoraType;
+use crate::{extension, AlohomoraType};
 use pin_project_lite::pin_project;
 
 // Privacy Container type.
@@ -159,6 +159,16 @@ impl<T, P: Policy> BBox<T, P> {
     pub fn into_ppr<O, F: FnOnce(T) -> O>(self, functor: PrivacyPureRegion<F>) -> BBox<O, P> {
         let functor = functor.get_functor();
         BBox::new(functor(self.fb.mov()), self.p)
+    }
+
+    pub fn apply_extension_mut<R>(self, extension: &mut impl extension::SesamePConExtension<T, P, R>) -> R {
+        let (t, p) = self.consume();
+        extension.apply_mut(t, p)
+    }
+
+    pub fn apply_extension<R>(self, extension: &impl extension::SesamePConExtension<T, P, R>) -> R {
+        let (t, p) = self.consume();
+        extension.apply(t, p)
     }
 }
 
