@@ -5,8 +5,15 @@ use crate::policy::{NoPolicy, Policy};
 pub trait SesamePConExtension<T, P: Policy, R> {
     // type ExtensionClosure: Fn(T, P) -> R;
     // fn apply_once(self, data: T, policy: P) -> R;
-    fn apply_mut(&mut self, data: T, policy: P) -> R;
-    fn apply(&self, data: T, policy: P) -> R;
+    fn apply_mut(&mut self, data: T, policy: P) -> R {
+        todo!()
+    }
+    fn apply(&self, data: T, policy: P) -> R {
+        todo!()
+    }
+    fn apply_ref(&self, data: &T, policy: &P) -> R {
+        todo!()
+    }
 }
 
 
@@ -23,26 +30,3 @@ pub trait SesamePConExtension<T, P: Policy, R> {
 //Aren't we reinventing some other form of closure that is simply trusted? 
 //I guess the goal here is to have some type of core trusted transformation for libraries to be
 //able to rely upon. 
-
-pub struct TahiniEncryptLayer {
-    key_manager: String
-}
-
-
-impl<T, P> SesamePConExtension<T, P, Vec<u8>> for TahiniEncryptLayer 
-where 
-    T: Into<Vec<u8>>,
-    P: Policy
-{
-    // type ExtensionClosure = PconExtensionClosure<T, P, Vec<u8>>;
-    // fn apply_once(self, data: T, policy: P) -> Vec<u8> {
-    //     data.into()
-    // }
-    fn apply(&self, data: T, policy: P) -> Vec<u8> {
-        todo!()
-    }
-
-    fn apply_mut(&mut self, data: T, policy: P) -> Vec<u8> {
-        todo!()
-    }
-}

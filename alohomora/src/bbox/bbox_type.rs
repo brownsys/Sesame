@@ -34,6 +34,7 @@ impl<T: Clone, P: Policy + Clone> Clone for BBox<T, P> {
             p: self.p.clone(),
         }
     }
+
 }
 
 // Basic API: does not assume anything about data or policy.
@@ -169,6 +170,13 @@ impl<T, P: Policy> BBox<T, P> {
     pub fn apply_extension<R>(self, extension: &impl extension::SesamePConExtension<T, P, R>) -> R {
         let (t, p) = self.consume();
         extension.apply(t, p)
+    }
+
+    pub fn apply_extension_ref<R>(&self, extension: &impl extension::SesamePConExtension<T, P, R>) -> R {
+        let t = self.data();
+        let p = self.policy();
+        extension.apply_ref(t, p)
+
     }
 }
 
