@@ -1,9 +1,9 @@
 use std::fs;
 use std::io::{Error, ErrorKind, Read};
 use toml;
-use alohomora::AlohomoraType;
+use alohomora::SesameTypeDyn;
 
-#[derive(AlohomoraType, Debug, Clone)]
+#[derive(SesameTypeDyn, Debug, Clone)]
 #[alohomora_out_type(to_derive = [Debug, Clone])]
 pub struct Config {
     /// user for the mySQL database

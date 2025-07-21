@@ -4,7 +4,7 @@ use std::time::Instant;
 use crate::bbox::BBox;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
-use crate::AlohomoraType;
+use crate::SesameType;
 
 // Expose alohomora_sandbox API that controls the interface outside sandbox.
 pub use alohomora_sandbox::{
@@ -18,7 +18,7 @@ pub use alohomora_derive::{AlohomoraSandbox, FastTransfer};
 /// and copies the result value and returns it.
 pub fn execute_sandbox<S, T, R>(t: T) -> SandboxOut<BBox<R, AnyPolicy>>
 where
-    T: AlohomoraType,
+    T: SesameType,
     T::Out: SandboxableType,
     R: SandboxableType,
     S: AlohomoraSandbox<T::Out, R>,

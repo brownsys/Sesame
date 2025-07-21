@@ -1,14 +1,14 @@
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
-use crate::AlohomoraType;
+use crate::SesameType;
 
-pub fn fold<S: AlohomoraType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
+pub fn fold<S: SesameType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
     let (v, p) = Foldable::unsafe_fold(s)?;
     Ok(BBox::new(v, p))
 }
 
 // Private trait that implements folding out nested BBoxes.
-pub(crate) trait Foldable: AlohomoraType {
+pub(crate) trait Foldable: SesameType {
     fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()>
     where
         Self: Sized;
@@ -16,7 +16,7 @@ pub(crate) trait Foldable: AlohomoraType {
 
 // The general, unoptimized implementation of folding that works for all `AlohomoraType` types.
 // It's marked with the `default` keyword so we can override it with optimized implementations for specific types.
-impl<T: AlohomoraType> Foldable for T {
+impl<T: SesameType> Foldable for T {
     default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicy), ()>
     where
         Self: Sized,
@@ -31,7 +31,7 @@ impl<T: AlohomoraType> Foldable for T {
 }
 
 // A more optimized version of unwrap for a simple vec of BBoxes.
-impl<T: Clone + 'static, P: Policy + Clone + 'static> Foldable for Vec<BBox<T, P>> {
+impl<T: Clone + std::any::Any + 'static, P: Policy + Clone + 'static> Foldable for Vec<BBox<T, P>> {
     fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()>
     where
         Self: Sized,
@@ -139,10 +139,11 @@ impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P
 mod tests {
     use crate::bbox::BBox;
     use crate::policy::{AnyPolicy, OptionPolicy, Policy, PolicyAnd, Reason};
-    use crate::r#type::{AlohomoraType, AlohomoraTypeEnum};
+    use crate::{SesameTypeDyn, SesameTypeEnumDyn};
     use crate::testing::TestPolicy;
 
     use crate::context::UnprotectedContext;
+    use std::any::Any;
     use std::collections::{HashMap, HashSet};
     use std::iter::FromIterator;
 
@@ -203,19 +204,19 @@ mod tests {
     }
 
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-    impl AlohomoraType for BoxedStruct {
+    impl SesameTypeDyn<dyn Any> for BoxedStruct {
         type Out = BoxedStructLite;
-        fn to_enum(self) -> AlohomoraTypeEnum {
+        fn to_enum(self) -> SesameTypeEnumDyn<dyn Any> {
             let hashmap = HashMap::from([
                 (String::from("x"), self.x.to_enum()),
                 (String::from("y"), self.y.to_enum()),
                 (String::from("z"), self.z.to_enum()),
             ]);
-            AlohomoraTypeEnum::Struct(hashmap)
+            SesameTypeEnumDyn::Struct(hashmap)
         }
-        fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+        fn from_enum(e: SesameTypeEnumDyn<dyn Any>) -> Result<Self::Out, ()> {
             match e {
-                AlohomoraTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
+                SesameTypeEnumDyn::Struct(mut hashmap) => Ok(Self::Out {
                     x: BBox::<u64, TestPolicy<ACLPolicy>>::from_enum(hashmap.remove("x").unwrap())?,
                     y: BBox::<String, TestPolicy<ACLPolicy>>::from_enum(
                         hashmap.remove("y").unwrap(),

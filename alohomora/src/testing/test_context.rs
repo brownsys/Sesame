@@ -1,8 +1,9 @@
+use std::any::Any;
 use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};
 use crate::policy::NoPolicy;
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
-use crate::{AlohomoraType, AlohomoraTypeEnum};
+use crate::{SesameTypeDyn, SesameTypeEnumDyn};
 
 #[derive(Clone)]
 pub struct TestContextData<T: 'static>(BBox<T, NoPolicy>);
@@ -14,15 +15,15 @@ impl<T: Send + 'static> TestContextData<T> {
 }
 
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<T: Send + 'static> AlohomoraType for TestContextData<T> {
+impl<T: Send + 'static> SesameTypeDyn<dyn Any> for TestContextData<T> {
     type Out = T;
 
-    fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::BBox(self.0.into_any())
+    fn to_enum(self) -> SesameTypeEnumDyn<dyn Any> {
+        SesameTypeEnumDyn::BBox(self.0.into_any())
     }
 
-    fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
-        if let AlohomoraTypeEnum::Value(t) = e {
+    fn from_enum(e: SesameTypeEnumDyn<dyn Any>) -> Result<Self::Out, ()> {
+        if let SesameTypeEnumDyn::Value(t) = e {
             return match t.downcast() {
                 Ok(t) => Ok(*t),
                 Err(_) => Err(()),

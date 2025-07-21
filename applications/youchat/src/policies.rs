@@ -1,7 +1,7 @@
 use mysql::prelude::Queryable;
 
 use alohomora::policy::{schema_policy, AnyPolicy, Policy, PolicyAnd, SchemaPolicy, Reason};
-use alohomora::AlohomoraType;
+use alohomora::SesameType;
 use alohomora::context::UnprotectedContext;
 use alohomora::db::BBoxParam;
 use crate::context::*;
@@ -44,7 +44,7 @@ impl Policy for ChatAccessPolicy {
             return true;
         }
     
-        type ContextDataOut = <ContextData as AlohomoraType>::Out;
+        type ContextDataOut = <ContextData as SesameType>::Out;
         let context: &ContextDataOut = context.downcast_ref().unwrap();
 
         let user: &Option<String> = &context.user;

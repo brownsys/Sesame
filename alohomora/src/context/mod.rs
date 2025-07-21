@@ -2,14 +2,15 @@ use crate::fold::fold;
 use crate::rocket::{
     BBoxRequest, BBoxRequestOutcome, FromBBoxData, FromBBoxRequest, FromBBoxRequestAndData,
 };
-use crate::AlohomoraType;
+use crate::SesameType;
+
 use rocket::http::Status;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
 use std::any::Any;
 
 // Context Data must satisfy these requirements.
-pub trait ContextData: AlohomoraType + Send + 'static {}
-impl<D: AlohomoraType + Send + 'static> ContextData for D {}
+pub trait ContextData: SesameType + Send + 'static {}
+impl<D: SesameType + Send + 'static> ContextData for D {}
 
 // Context is generic over some developer defined data.
 #[derive(Debug, Clone)]

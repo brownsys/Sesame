@@ -1,3 +1,4 @@
+// TODO(babman): clean this up, and make it work for different super traits and dyns.
 extern crate proc_macro2;
 extern crate quote;
 extern crate syn;
@@ -97,7 +98,7 @@ fn construct_out_fields(input: &ItemStruct, attrs: &AlohomoraTypeArgs) -> Result
                         let ty = &field.ty;
                         if !attrs.is_verbatim(&field.ident.as_ref().unwrap().to_string()) {
                             field.ty = Type::Verbatim(quote! {
-                                <#ty as ::alohomora::AlohomoraType>::Out
+                                <#ty as ::alohomora::SesameTypeDyn<::std::any::Any>>::Out
                             });
                         }
                         field
@@ -193,20 +194,20 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> Result<TokenStream, Err
 
         #[automatically_derived]
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-        impl #impl_generics ::alohomora::AlohomoraType for #input_ident #ty_generics #where_clause {
+        impl #impl_generics ::alohomora::SesameTypeDyn<dyn ::std::any::Any> for #input_ident #ty_generics #where_clause {
             type Out = #out_ident;
-            fn to_enum(self) -> ::alohomora::AlohomoraTypeEnum {
-                let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::AlohomoraTypeEnum> = ::std::collections::HashMap::new();
-                ::alohomora::AlohomoraTypeEnum::Struct(::std::collections::HashMap::from([
-                    #((String::from(#alohomora_fields_strings), <#alohomora_fields_types as AlohomoraType>::to_enum(self.#alohomora_fields_idents)),)*
-                    #((String::from(#verbatim_fields_strings), ::alohomora::AlohomoraTypeEnum::Value(Box::new(self.#verbatim_fields_idents))),)*
+            fn to_enum(self) -> ::alohomora::SesameTypeEnum {
+                let mut map: ::std::collections::HashMap<::std::string::String, ::alohomora::SesameTypeEnum> = ::std::collections::HashMap::new();
+                ::alohomora::SesameTypeEnum::Struct(::std::collections::HashMap::from([
+                    #((String::from(#alohomora_fields_strings), <#alohomora_fields_types as ::alohomora::SesameTypeDyn<dyn ::std::any::Any>>::to_enum(self.#alohomora_fields_idents)),)*
+                    #((String::from(#verbatim_fields_strings), ::alohomora::SesameTypeEnum::Value(Box::new(self.#verbatim_fields_idents))),)*
                 ]))
             }
-            fn from_enum(e: ::alohomora::AlohomoraTypeEnum) -> Result<Self::Out, ()> {
+            fn from_enum(e: ::alohomora::SesameTypeEnum) -> Result<Self::Out, ()> {
                 match e {
-                    ::alohomora::AlohomoraTypeEnum::Struct(mut hashmap) => {
+                    ::alohomora::SesameTypeEnum::Struct(mut hashmap) => {
                         Ok(Self::Out {
-                            #(#alohomora_fields_idents: <#alohomora_fields_types as ::alohomora::AlohomoraType>::from_enum(hashmap.remove(#alohomora_fields_strings).unwrap())?,)*
+                            #(#alohomora_fields_idents: <#alohomora_fields_types as ::alohomora::SesameTypeDyn<dyn ::std::any::Any>>::from_enum(hashmap.remove(#alohomora_fields_strings).unwrap())?,)*
                             #(#verbatim_fields_idents: hashmap.remove(#verbatim_fields_strings).unwrap().coerce()?,)*
                         })
                     },

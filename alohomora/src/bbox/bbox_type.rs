@@ -13,7 +13,8 @@ use crate::pure::PrivacyPureRegion;
 
 use crate::bbox::obfuscated_pointer::ObPtr;
 use crate::fold::fold;
-use crate::AlohomoraType;
+use crate::SesameType;
+
 use pin_project_lite::pin_project;
 
 // Privacy Container type.
@@ -84,7 +85,7 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Unbox with policy checks.
-    pub fn unbox<'a, D: ContextData, C: Clone + AlohomoraType, O, F: FnOnce(&'a T, C::Out) -> O>(
+    pub fn unbox<'a, D: ContextData, C: Clone + SesameType, O, F: FnOnce(&'a T, C::Out) -> O>(
         &'a self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
@@ -105,7 +106,7 @@ impl<T, P: Policy> BBox<T, P> {
             Err(())
         }
     }
-    pub fn into_unbox<D: ContextData, C: Clone + AlohomoraType, O, F: FnOnce(T, C::Out) -> O>(
+    pub fn into_unbox<D: ContextData, C: Clone + SesameType, O, F: FnOnce(T, C::Out) -> O>(
         self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,

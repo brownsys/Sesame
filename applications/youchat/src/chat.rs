@@ -7,14 +7,13 @@ use crate::backend::MySqlBackend;
 use crate::common::*;
 use crate::context::*;
 
-
 #[get("/<name>")]
 pub(crate) fn show_chat(name: BBox<String, NoPolicy>, 
                         backend: &State<Arc<Mutex<MySqlBackend>>>,
                         context: YouChatContext) -> BBoxResponseEnum {
     // check that the user is known
     let mut bg = backend.lock().unwrap();
-    let user_res: BBoxQueryResult = (*bg).handle
+    let user_res: BBoxQueryResult<_> = (*bg).handle
         .prep_exec_iter(
             "SELECT * FROM users WHERE user_name = ?", 
             vec![name.clone()], 

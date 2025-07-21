@@ -32,10 +32,10 @@ pub mod sandbox;
 pub mod testing;
 pub mod unbox;
 
-// Export this directly under alohomora::
-mod r#type;
+// Export this directly under sesame::
+mod sesame_type;
 
-pub use r#type::*;
+pub use sesame_type::{r#enum::{SesameTypeEnum, SesameTypeEnumDyn}, r#type::{SesameType, SesameTypeDyn}, dyns};
 
 #[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::AlohomoraType;
+pub use alohomora_derive::SesameTypeDyn;

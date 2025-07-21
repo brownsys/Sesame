@@ -14,13 +14,13 @@ impl Policy for MyPolicy {
     fn name(&self) -> String {
         todo!()
     }
-    fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
+    fn check(&self, _context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
         todo!()
     }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, other: Self) -> Result<Self, ()>
+    fn join_logic(&self, _other: Self) -> Result<Self, ()>
     where
         Self: Sized,
     {
@@ -41,7 +41,6 @@ impl ORMPolicy for MyPolicy {
 }
 
 mod grade {
-    use crate::MyPolicy;
     use alohomora::bbox::BBox;
     use alohomora::policy::NoPolicy;
     use sea_orm::entity::prelude::*;
