@@ -1,26 +1,28 @@
-use std::collections::HashMap;
+use itertools::Itertools;
 use std::any::Any;
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use itertools::Itertools;
 
-use crate::bbox::{BBox};
+use crate::bbox::BBox;
 use crate::policy::{AnyPolicy, Policy};
 
-pub fn compose_policies(policy1: Result<Option<AnyPolicy>, ()>, policy2: Result<Option<AnyPolicy>, ()>) -> Result<Option<AnyPolicy>, ()> {
+pub fn compose_policies(
+    policy1: Result<Option<AnyPolicy>, ()>,
+    policy2: Result<Option<AnyPolicy>, ()>,
+) -> Result<Option<AnyPolicy>, ()> {
     let policy1 = policy1?;
     let policy2 = policy2?;
     match (policy1, policy2) {
         (None, policy2) => Ok(policy2),
         (policy1, None) => Ok(policy1),
-        (Some(policy1), Some(policy2)) =>
-            Ok(Some(policy1.join(policy2)?)),
+        (Some(policy1), Some(policy2)) => Ok(Some(policy1.join(policy2)?)),
     }
 }
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum AlohomoraTypeEnum {
+pub enum AlohomoraTypeEnum<T> {
     BBox(BBox<Box<dyn Any>, AnyPolicy>),
     Value(Box<dyn Any>),
     Vec(Vec<AlohomoraTypeEnum>),
@@ -32,16 +34,12 @@ impl AlohomoraTypeEnum {
     pub fn policy(&self) -> Result<Option<AnyPolicy>, ()> {
         match self {
             AlohomoraTypeEnum::Value(_) => Ok(None),
-            AlohomoraTypeEnum::BBox(bbox) => {
-                Ok(Some(bbox.policy().clone()))
-            },
-            AlohomoraTypeEnum::Vec(vec)  => {
-                vec
-                    .into_iter()
-                    .map(|e| e.policy())
-                    .reduce(compose_policies)
-                    .unwrap_or(Ok(None))
-            }
+            AlohomoraTypeEnum::BBox(bbox) => Ok(Some(bbox.policy().clone())),
+            AlohomoraTypeEnum::Vec(vec) => vec
+                .into_iter()
+                .map(|e| e.policy())
+                .reduce(compose_policies)
+                .unwrap_or(Ok(None)),
             AlohomoraTypeEnum::Struct(hashmap) => {
                 // iterate over hashmap, collect policies
                 hashmap
@@ -58,12 +56,9 @@ impl AlohomoraTypeEnum {
         match self {
             AlohomoraTypeEnum::Value(val) => AlohomoraTypeEnum::Value(val),
             AlohomoraTypeEnum::BBox(bbox) => AlohomoraTypeEnum::Value(bbox.consume().0),
-            AlohomoraTypeEnum::Vec(vec) => AlohomoraTypeEnum::Vec(
-                vec
-                    .into_iter()
-                    .map(|e| e.remove_bboxes())
-                    .collect()
-            ),
+            AlohomoraTypeEnum::Vec(vec) => {
+                AlohomoraTypeEnum::Vec(vec.into_iter().map(|e| e.remove_bboxes()).collect())
+            }
             AlohomoraTypeEnum::Struct(hashmap) => AlohomoraTypeEnum::Struct(
                 hashmap
                     .into_iter()
@@ -88,7 +83,7 @@ impl AlohomoraTypeEnum {
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to
 // sandboxes.
 pub trait AlohomoraType {
-    type Out;     // Unboxed form of struct
+    type Out; // Unboxed form of struct
     fn to_enum(self) -> AlohomoraTypeEnum;
     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()>;
 }
@@ -99,7 +94,7 @@ macro_rules! alohomora_type_impl {
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
         impl AlohomoraType for $T {
             type Out = $T;
-            fn to_enum(self) -> AlohomoraTypeEnum{
+            fn to_enum(self) -> AlohomoraTypeEnum {
                 AlohomoraTypeEnum::Value(Box::new(self))
             }
             fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
@@ -190,7 +185,11 @@ impl<S: AlohomoraType> AlohomoraType for Vec<S> {
 impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for HashMap<K, S> {
     type Out = HashMap<K, S::Out>;
     fn to_enum(self) -> AlohomoraTypeEnum {
-        AlohomoraTypeEnum::Struct(self.into_iter().map(|(k, v)| (k.to_string(), v.to_enum())).collect())
+        AlohomoraTypeEnum::Struct(
+            self.into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_enum()))
+                .collect(),
+        )
     }
     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
         match e {
@@ -200,10 +199,8 @@ impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for Hash
                     match K::from_str(&k) {
                         Ok(k) => {
                             result.insert(k, S::from_enum(v)?);
-                        },
-                        Err(_) => {
-                            return Err(())
                         }
+                        Err(_) => return Err(()),
                     }
                 }
                 Ok(result)
@@ -212,7 +209,6 @@ impl<K: ToString + FromStr + Hash + Eq, S: AlohomoraType> AlohomoraType for Hash
         }
     }
 }
-
 
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl AlohomoraType for () {
@@ -292,7 +288,8 @@ alohomora_type_tuple_impl!(
     [H, 7],
     [I, 8],
     [J, 9]
-);alohomora_type_tuple_impl!(
+);
+alohomora_type_tuple_impl!(
     [A, 0],
     [B, 1],
     [C, 2],

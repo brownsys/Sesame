@@ -1,12 +1,14 @@
-use std::any::Any;
-use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxData, FromBBoxRequest, FromBBoxRequestAndData};
+use crate::fold::fold;
+use crate::rocket::{
+    BBoxRequest, BBoxRequestOutcome, FromBBoxData, FromBBoxRequest, FromBBoxRequestAndData,
+};
+use crate::AlohomoraType;
 use rocket::http::Status;
 use rocket::outcome::Outcome::{Failure, Forward, Success};
-use crate::AlohomoraType;
-use crate::fold::fold;
+use std::any::Any;
 
 // Context Data must satisfy these requirements.
-pub trait ContextData : AlohomoraType + Send + 'static {}
+pub trait ContextData: AlohomoraType + Send + 'static {}
 impl<D: AlohomoraType + Send + 'static> ContextData for D {}
 
 // Context is generic over some developer defined data.
@@ -38,7 +40,7 @@ impl<D: ContextData> Context<D> {
 
     // Only for testing.
     pub fn data(&self) -> Option<&D> {
-       self.data.as_ref()
+        self.data.as_ref()
     }
 }
 
@@ -70,7 +72,8 @@ impl<'a, 'r, D: ContextData + FromBBoxRequest<'a, 'r>> FromBBoxRequest<'a, 'r> f
 }
 
 #[rocket::async_trait]
-impl<'a, 'r, T, D: ContextData> FromBBoxRequestAndData<'a, 'r, T> for Context<D> where
+impl<'a, 'r, T, D: ContextData> FromBBoxRequestAndData<'a, 'r, T> for Context<D>
+where
     T: FromBBoxData<'a, 'r> + Sync,
     D: FromBBoxRequestAndData<'a, 'r, T>,
 {
@@ -80,7 +83,10 @@ impl<'a, 'r, T, D: ContextData> FromBBoxRequestAndData<'a, 'r, T> for Context<D>
         request: BBoxRequest<'a, 'r>,
         data: &T,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        match (request.route(), D::from_bbox_request_and_data(request, data).await) {
+        match (
+            request.route(),
+            D::from_bbox_request_and_data(request, data).await,
+        ) {
             (None, _) => Failure((Status::InternalServerError, ContextError::Unconstructible)),
             (Some(route), Success(data)) => Success(Context::new(route.uri.to_string(), data)),
             (_, Failure((status, _))) => Failure((status, ContextError::Unconstructible)),
@@ -101,7 +107,7 @@ impl UnprotectedContext {
             data: match context.data {
                 None => Box::new(Option::<()>::None),
                 Some(data) => Box::new(fold(data).unwrap().consume().0),
-            }
+            },
         }
     }
     pub fn downcast_ref<D: 'static>(&self) -> Option<&D> {

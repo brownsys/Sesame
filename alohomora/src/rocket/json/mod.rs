@@ -1,12 +1,12 @@
 use std::ops::{Deref, DerefMut};
 
+mod json;
 mod request;
 mod response;
-mod json;
 
+pub use json::*;
 pub use request::*;
 pub use response::*;
-pub use json::*;
 
 // Can use this as an argument or return this from route functions.
 pub struct BBoxJson<T>(pub T);

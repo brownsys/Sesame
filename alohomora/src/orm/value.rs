@@ -1,9 +1,9 @@
-use sea_orm::{ColIdx, ColumnType, DbErr, QueryResult, TryFromU64, TryGetable, TryGetError, Value};
 use sea_orm::sea_query::{ArrayType, Nullable, ValueType, ValueTypeErr};
+use sea_orm::{ColIdx, ColumnType, DbErr, QueryResult, TryFromU64, TryGetError, TryGetable, Value};
 
 use crate::bbox::BBox;
-use crate::policy::{NoPolicy, Policy};
 use crate::orm::ORMPolicy;
+use crate::policy::Policy;
 
 // Now, BBox<T, Policy> can be used in models.
 impl<T: TryGetable, P: Policy + ORMPolicy> TryGetable for BBox<T, P> {

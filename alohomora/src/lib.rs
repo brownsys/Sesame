@@ -38,4 +38,4 @@ mod r#type;
 pub use r#type::*;
 
 #[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::{AlohomoraType};
+pub use alohomora_derive::AlohomoraType;

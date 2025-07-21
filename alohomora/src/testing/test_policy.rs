@@ -1,7 +1,7 @@
-use std::fmt::{Debug, Formatter};
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
 use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
+use std::fmt::{Debug, Formatter};
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
@@ -19,7 +19,9 @@ impl<P: 'static + Policy + Clone> TestPolicy<P> {
     }
 }
 impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
-    fn name(&self) -> String { format!("TestPolicy<{}>", self.p.name()) }
+    fn name(&self) -> String {
+        format!("TestPolicy<{}>", self.p.name())
+    }
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p.check(context, reason)
     }
@@ -38,18 +40,25 @@ impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
 
 impl<P: 'static + Policy + SchemaPolicy + Clone> SchemaPolicy for TestPolicy<P> {
     fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
-        TestPolicy { p: P::from_row(table_name, row) }
+        TestPolicy {
+            p: P::from_row(table_name, row),
+        }
     }
 }
 impl<P: 'static + Policy + FrontendPolicy + Clone> FrontendPolicy for TestPolicy<P> {
     fn from_request(request: &rocket::Request<'_>) -> Self {
-        TestPolicy { p: P::from_request(request) }
+        TestPolicy {
+            p: P::from_request(request),
+        }
     }
     fn from_cookie<'a, 'r>(
         name: &str,
         cookie: &'a rocket::http::Cookie<'static>,
-        request: &'a rocket::Request<'r>) -> Self {
-        Self { p: P::from_cookie(name, cookie, request) }
+        request: &'a rocket::Request<'r>,
+    ) -> Self {
+        Self {
+            p: P::from_cookie(name, cookie, request),
+        }
     }
 }
 
@@ -80,7 +89,10 @@ impl<T: PartialEq, P: 'static + Policy + Clone + PartialEq> PartialEq for BBox<T
     }
 }
 
-impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<T, TestPolicy<P>> {}
+impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq
+    for BBox<T, TestPolicy<P>>
+{
+}
 
 // Same but for RefPolicy<TestPolicy>
 impl<'a, T, P: 'static + Policy + Clone> BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
@@ -88,7 +100,9 @@ impl<'a, T, P: 'static + Policy + Clone> BBox<&'a T, RefPolicy<'a, TestPolicy<P>
         self.consume().0
     }
 }
-impl<'a, T: Debug, P: 'static + Policy + Clone + Debug> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: Debug, P: 'static + Policy + Clone + Debug> Debug
+    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BBox")
             .field("data", self.data())
@@ -96,9 +110,14 @@ impl<'a, T: Debug, P: 'static + Policy + Clone + Debug> Debug for BBox<&'a T, Re
             .finish()
     }
 }
-impl<'a, T: PartialEq, P: 'static + Policy + Clone + PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: PartialEq, P: 'static + Policy + Clone + PartialEq> PartialEq
+    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
+{
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
-impl<'a, T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {}
+impl<'a, T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq
+    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
+{
+}

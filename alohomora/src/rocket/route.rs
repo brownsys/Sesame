@@ -73,7 +73,8 @@ impl rocket::route::Handler for BBoxRouteHandlerWrapper {
         request: &'a rocket::request::Request<'_>,
         data: rocket::data::Data<'a>,
     ) -> rocket::route::Outcome<'a> {
-        let result_future: BBoxResponseOutcome<'a> = (self.bbox_handler)(BBoxRequest::new(request), BBoxData::new(data)).await;
+        let result_future: BBoxResponseOutcome<'a> =
+            (self.bbox_handler)(BBoxRequest::new(request), BBoxData::new(data)).await;
         match result_future {
             BBoxResponseOutcome::Success(response) => {
                 rocket::outcome::Outcome::Success(response.get_response())

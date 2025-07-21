@@ -1,7 +1,7 @@
-use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
+use crate::AlohomoraType;
 
 // Creation of this must be checked for purity.
 #[derive(Clone, Copy)]
@@ -18,7 +18,10 @@ impl<F> PrivacyPureRegion<F> {
 }
 
 // Executes a PCR over some boxed type.
-pub fn execute_pure<S: AlohomoraType, O, F: Fn(S::Out) -> O>(data: S,  functor: PrivacyPureRegion<F>) -> Result<BBox<O, AnyPolicy>, ()> {
+pub fn execute_pure<S: AlohomoraType, O, F: Fn(S::Out) -> O>(
+    data: S,
+    functor: PrivacyPureRegion<F>,
+) -> Result<BBox<O, AnyPolicy>, ()> {
     let data = fold(data)?;
     let (t, p) = data.consume();
     let functor = functor.get_functor();

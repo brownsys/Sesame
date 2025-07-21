@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{Policy, AnyPolicy, PolicyAnd, Reason};
+use crate::policy::{AnyPolicy, Policy, PolicyAnd, Reason};
 
 #[derive(Clone)]
 pub enum OptionPolicy<P: Policy + Clone + 'static> {
@@ -21,7 +21,9 @@ impl<P: Policy + Clone + 'static> Policy for OptionPolicy<P> {
     }
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         if other.is::<Self>() {
-            Ok(AnyPolicy::new(self.join_logic(other.specialize().unwrap())?))
+            Ok(AnyPolicy::new(
+                self.join_logic(other.specialize().unwrap())?,
+            ))
         } else {
             Ok(AnyPolicy::new(PolicyAnd::new(self.clone(), other)))
         }

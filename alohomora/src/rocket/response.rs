@@ -1,8 +1,8 @@
-use std::result::Result;
 use crate::bbox::BBox;
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::policy::{Policy, Reason};
 use crate::rocket::{BBoxRedirect, BBoxTemplate};
+use std::result::Result;
 
 use crate::rocket::data::BBoxData;
 use crate::rocket::request::BBoxRequest;
@@ -62,7 +62,9 @@ impl<T, P: Policy, D: ContextData> From<(BBox<T, P>, Context<D>)> for ContextRes
     }
 }
 
-impl<'a, 'r, 'o: 'a, T: rocket::response::Responder<'a, 'o>, P: Policy, D: ContextData> BBoxResponder<'a, 'r, 'o> for ContextResponse<T, P, D> {
+impl<'a, 'r, 'o: 'a, T: rocket::response::Responder<'a, 'o>, P: Policy, D: ContextData>
+    BBoxResponder<'a, 'r, 'o> for ContextResponse<T, P, D>
+{
     fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
         let (bbox, context) = (self.0, self.1);
         let (t, p) = bbox.consume();
@@ -70,9 +72,7 @@ impl<'a, 'r, 'o: 'a, T: rocket::response::Responder<'a, 'o>, P: Policy, D: Conte
         if p.check(&context, Reason::Response) {
             Ok(BBoxResponse::new(t.respond_to(request.get_request())?))
         } else {
-            Err(rocket::http::Status {
-                code: 555,
-            })
+            Err(rocket::http::Status { code: 555 })
         }
     }
 }

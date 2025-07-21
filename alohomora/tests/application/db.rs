@@ -1,8 +1,8 @@
-use alohomora::bbox::BBox;
-use alohomora::db::{BBoxConn, BBoxOpts, BBoxResult, from_value};
-use alohomora::policy::Policy;
 use crate::application::context::AppContext;
 use crate::application::models::Grade;
+use alohomora::bbox::BBox;
+use alohomora::db::{from_value, BBoxConn, BBoxOpts, BBoxResult};
+use alohomora::policy::Policy;
 
 pub struct DB {
     conn: BBoxConn,
@@ -11,7 +11,9 @@ pub struct DB {
 impl DB {
     pub fn connect() -> DB {
         let opts = BBoxOpts::from_url("mysql://root:@127.0.0.1/").unwrap();
-        DB { conn: BBoxConn::new(opts).unwrap() }
+        DB {
+            conn: BBoxConn::new(opts).unwrap(),
+        }
     }
 
     pub fn prime(&mut self) {
@@ -22,12 +24,15 @@ impl DB {
         }
     }
 
-    pub fn read_by_user<P: Policy + Clone + 'static>(&mut self, user: BBox<String, P>, context: AppContext) -> Vec<Grade> {
-        let result = self.conn.prep_exec_iter(
-            "SELECT * FROM grades WHERE name = ?",
-            (user, ),
-            context,
-        ).unwrap();
+    pub fn read_by_user<P: Policy + Clone + 'static>(
+        &mut self,
+        user: BBox<String, P>,
+        context: AppContext,
+    ) -> Vec<Grade> {
+        let result = self
+            .conn
+            .prep_exec_iter("SELECT * FROM grades WHERE name = ?", (user,), context)
+            .unwrap();
 
         let result = result.map(|row| {
             let row = row.unwrap();
@@ -42,11 +47,10 @@ impl DB {
     }
 
     pub fn read_all(&mut self, context: AppContext) -> Vec<Grade> {
-        let result = self.conn.prep_exec_iter(
-            "SELECT * FROM grades",
-            (),
-            context,
-        ).unwrap();
+        let result = self
+            .conn
+            .prep_exec_iter("SELECT * FROM grades", (), context)
+            .unwrap();
 
         let result = result.map(|row| {
             let row = row.unwrap();
@@ -61,14 +65,15 @@ impl DB {
     }
 
     pub fn insert<P1: Policy + Clone + 'static, P2: Policy + Clone + 'static>(
-        &mut self, user: BBox<String, P1>,
+        &mut self,
+        user: BBox<String, P1>,
         grade: BBox<u64, P2>,
-        context: AppContext
+        context: AppContext,
     ) -> BBoxResult<()> {
         self.conn.prep_exec_drop(
             "INSERT INTO grades(name, grade) VALUES (?, ?)",
             (user, grade),
-            context
+            context,
         )
     }
 }

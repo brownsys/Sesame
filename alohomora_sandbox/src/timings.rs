@@ -1,5 +1,9 @@
 use std::fmt::{Debug, Formatter};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+#[cfg(target_arch = "wasm32")]
+use std::time::Instant;
+
 use crate::{SandboxInstance, SandboxableType};
 
 #[cfg(not(target_arch = "wasm32"))]

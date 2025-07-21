@@ -1,14 +1,15 @@
-use std::{fmt::Debug};
-
+#[cfg(feature = "sandbox_timing")]
 use std::time::Instant;
 
-use crate::AlohomoraType;
 use crate::bbox::BBox;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
+use crate::AlohomoraType;
 
 // Expose alohomora_sandbox API that controls the interface outside sandbox.
-pub use alohomora_sandbox::{AlohomoraSandbox, SandboxableType, FastTransfer, IdentityFastTransfer, SandboxOut};
+pub use alohomora_sandbox::{
+    AlohomoraSandbox, FastTransfer, IdentityFastTransfer, SandboxOut, SandboxableType,
+};
 
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::{AlohomoraSandbox, FastTransfer};

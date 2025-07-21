@@ -1,13 +1,16 @@
-use std::collections::HashMap;
 use alohomora::policy::{AnyPolicy, FrontendPolicy, NoPolicy, Policy, Reason};
+use std::collections::HashMap;
 
-use rocket::http::{ContentType, Cookie, Status};
-use rocket::Request;
 use alohomora::bbox::BBox;
 use alohomora::context::{Context, UnprotectedContext};
-use alohomora::rocket::{BBoxData, BBoxJson, BBoxRequest, BBoxResponseOutcome, BBoxRocket, FromBBoxData, InputBBoxValue, JsonResponse, OutputBBoxValue, RequestBBoxJson, ResponseBBoxJson};
+use alohomora::rocket::{
+    BBoxData, BBoxJson, BBoxRequest, BBoxResponseOutcome, BBoxRocket, FromBBoxData, InputBBoxValue,
+    JsonResponse, OutputBBoxValue, RequestBBoxJson, ResponseBBoxJson,
+};
 use alohomora::test_route;
 use alohomora::testing::{BBoxClient, TestPolicy};
+use rocket::http::{ContentType, Cookie, Status};
+use rocket::Request;
 
 #[derive(Clone)]
 pub struct UserPolicy {
@@ -23,18 +26,29 @@ impl Policy for UserPolicy {
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+    fn join_logic(&self, _other: Self) -> Result<Self, ()>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
 impl FrontendPolicy for UserPolicy {
     fn from_request(request: &'_ Request<'_>) -> Self {
         let user = request.cookies().get("user").unwrap();
-        UserPolicy { name: String::from(user.value()) }
+        UserPolicy {
+            name: String::from(user.value()),
+        }
     }
-    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, request: &'a Request<'r>) -> Self {
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a Cookie<'static>,
+        request: &'a Request<'r>,
+    ) -> Self {
         let user = request.cookies().get("user").unwrap();
-        UserPolicy { name: String::from(user.value()) }
+        UserPolicy {
+            name: String::from(user.value()),
+        }
     }
 }
 
@@ -44,7 +58,10 @@ struct MyJsonData {
     pub email: BBox<String, TestPolicy<NoPolicy>>,
 }
 impl RequestBBoxJson for MyJsonData {
-    fn from_json(mut value: InputBBoxValue, request: BBoxRequest<'_, '_>) -> Result<Self, &'static str> {
+    fn from_json(
+        mut value: InputBBoxValue,
+        request: BBoxRequest<'_, '_>,
+    ) -> Result<Self, &'static str> {
         Ok(MyJsonData {
             id: value.get("id")?.into_json(request)?,
             email: value.get("email")?.into_json(request)?,
@@ -60,7 +77,10 @@ impl ResponseBBoxJson for MyJsonData {
     }
 }
 
-pub async fn route<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {
+pub async fn route<'a, 'r>(
+    request: BBoxRequest<'a, 'r>,
+    data: BBoxData<'a>,
+) -> BBoxResponseOutcome<'a> {
     let json = BBoxJson::<MyJsonData>::from_data(request, data).await;
     let json = json.unwrap().into_inner();
     assert_eq!(*json.id.as_ref().discard_box(), 100);
@@ -68,7 +88,10 @@ pub async fn route<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>) -> 
 
     let response = MyJsonData {
         id: BBox::new(250, json.id.policy().clone()),
-        email: BBox::new(String::from("email@response.com"), json.email.policy().clone()),
+        email: BBox::new(
+            String::from("email@response.com"),
+            json.email.policy().clone(),
+        ),
     };
 
     BBoxResponseOutcome::from(request, JsonResponse::from((response, Context::test(()))))
@@ -77,15 +100,12 @@ pub async fn route<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>) -> 
 #[test]
 fn test_json() {
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build()
-        .mount(
-            "/",
-            vec![test_route!(Post, "/", route)]
-        );
+    let rocket = BBoxRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
 
     // Create a client.
     let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
-    let response = client.post("/")
+    let response = client
+        .post("/")
         .header(ContentType::JSON)
         .cookie(Cookie::new("user", "Kinan"))
         .body("{\"id\": 100, \"email\": \"email@email.com\"}")
@@ -95,21 +115,21 @@ fn test_json() {
 
     let json: serde_json::Value = response.into_json().unwrap();
     assert_eq!(json.get("id").unwrap().as_u64(), Some(250));
-    assert_eq!(json.get("email").unwrap().as_str(), Some("email@response.com"));
+    assert_eq!(
+        json.get("email").unwrap().as_str(),
+        Some("email@response.com")
+    );
 }
 
 #[test]
 fn test_json_failed_policy() {
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build()
-        .mount(
-            "/",
-            vec![test_route!(Post, "/", route)]
-        );
+    let rocket = BBoxRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
 
     // Create a client.
     let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
-    let response = client.post("/")
+    let response = client
+        .post("/")
         .header(ContentType::JSON)
         .cookie(Cookie::new("user", "Artem"))
         .body("{\"id\": 100, \"email\": \"email@email.com\"}")

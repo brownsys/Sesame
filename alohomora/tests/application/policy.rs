@@ -1,8 +1,8 @@
-use std::collections::HashSet;
+use alohomora::AlohomoraType;
 use cookie::Cookie;
 use mysql::{from_value, Value};
 use rocket::Request;
-use alohomora::AlohomoraType;
+use std::collections::HashSet;
 
 use alohomora::context::UnprotectedContext;
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
@@ -30,17 +30,20 @@ impl Policy for ACLPolicy {
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+    fn join_logic(&self, _other: Self) -> Result<Self, ()>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
 impl SchemaPolicy for ACLPolicy {
-    fn from_row(table_name: &str, row: &Vec<Value>) -> Self where Self: Sized { 
+    fn from_row(table_name: &str, row: &Vec<Value>) -> Self
+    where
+        Self: Sized,
+    {
         ACLPolicy {
-            users: HashSet::from([
-                String::from("admin"),
-                from_value(row[1].clone()),
-            ]),
+            users: HashSet::from([String::from("admin"), from_value(row[1].clone())]),
         }
     }
 }
@@ -61,7 +64,10 @@ impl Policy for AuthenticationCookiePolicy {
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+    fn join_logic(&self, _other: Self) -> Result<Self, ()>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
@@ -69,7 +75,11 @@ impl FrontendPolicy for AuthenticationCookiePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {
         AuthenticationCookiePolicy {}
     }
-    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self {
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a Cookie<'static>,
+        _request: &'a Request<'r>,
+    ) -> Self {
         AuthenticationCookiePolicy {}
     }
 }
@@ -93,14 +103,17 @@ impl Policy for WritePolicy {
                 } else {
                     true
                 }
-            },
+            }
             _ => false,
         }
     }
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+    fn join_logic(&self, _other: Self) -> Result<Self, ()>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
@@ -108,7 +121,11 @@ impl FrontendPolicy for WritePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {
         WritePolicy {}
     }
-    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self {
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a Cookie<'static>,
+        _request: &'a Request<'r>,
+    ) -> Self {
         WritePolicy {}
     }
 }

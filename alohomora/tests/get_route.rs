@@ -1,13 +1,16 @@
 use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, Reason};
 
-use rocket::http::{ContentType, Cookie, Status};
-use rocket::Request;
 use alohomora::bbox::BBox;
 use alohomora::context::{Context, UnprotectedContext};
 use alohomora::pure::PrivacyPureRegion;
-use alohomora::rocket::{BBoxCookie, BBoxData, BBoxRequest, BBoxResponseOutcome, BBoxRocket, ContextResponse, FromBBoxFormField};
+use alohomora::rocket::{
+    BBoxCookie, BBoxData, BBoxRequest, BBoxResponseOutcome, BBoxRocket, ContextResponse,
+    FromBBoxFormField,
+};
 use alohomora::test_route;
 use alohomora::testing::{BBoxClient, TestPolicy};
+use rocket::http::{ContentType, Cookie, Status};
+use rocket::Request;
 
 #[derive(Clone)]
 pub struct UserPolicy {
@@ -23,18 +26,29 @@ impl Policy for UserPolicy {
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+    fn join_logic(&self, _other: Self) -> Result<Self, ()>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
 impl FrontendPolicy for UserPolicy {
     fn from_request(request: &'_ Request<'_>) -> Self {
         let user = request.cookies().get("user").unwrap();
-        UserPolicy { name: String::from(user.value()) }
+        UserPolicy {
+            name: String::from(user.value()),
+        }
     }
-    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, request: &'a Request<'r>) -> Self {
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a Cookie<'static>,
+        request: &'a Request<'r>,
+    ) -> Self {
         let user = request.cookies().get("user").unwrap();
-        UserPolicy { name: String::from(user.value()) }
+        UserPolicy {
+            name: String::from(user.value()),
+        }
     }
 }
 
@@ -50,18 +64,36 @@ impl Policy for HardcodedPolicy {
     fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> where Self: Sized {
+    fn join_logic(&self, _other: Self) -> Result<Self, ()>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
 impl FrontendPolicy for HardcodedPolicy {
-    fn from_request<'a, 'r>(_request: &'a Request<'r>) -> Self where Self: Sized { todo!() }
-    fn from_cookie<'a, 'r>(_name: &str, _cookie: &'a Cookie<'static>, _request: &'a Request<'r>) -> Self
-        where Self: Sized
-    { todo!() }
+    fn from_request<'a, 'r>(_request: &'a Request<'r>) -> Self
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+    fn from_cookie<'a, 'r>(
+        _name: &str,
+        _cookie: &'a Cookie<'static>,
+        _request: &'a Request<'r>,
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
 }
 
-pub async fn route<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {
+pub async fn route<'a, 'r>(
+    request: BBoxRequest<'a, 'r>,
+    _data: BBoxData<'a>,
+) -> BBoxResponseOutcome<'a> {
     // Look at managed guarded, e.g. config data.
     let guard: &rocket::State<String> = request.guard().await.unwrap();
 
@@ -117,9 +149,7 @@ pub async fn route<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'a>) ->
     assert!(request.cookies().add(cookie2, Context::test(())).is_err());
 
     // Return post request.
-    let param = string.into_ppr(
-        PrivacyPureRegion::new(|v| format!("Result is {}", &v))
-    );
+    let param = string.into_ppr(PrivacyPureRegion::new(|v| format!("Result is {}", &v)));
 
     BBoxResponseOutcome::from(request, ContextResponse::from((param, Context::test(()))))
 }
@@ -129,16 +159,15 @@ fn test_get() {
     let guard = String::from("MyGuard");
 
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build()
-        .manage(guard)
-        .mount(
-            "/",
-            vec![test_route!(Get, "/route/<num>/<string>?<a>&<b>", route)]
-        );
+    let rocket = BBoxRocket::build().manage(guard).mount(
+        "/",
+        vec![test_route!(Get, "/route/<num>/<string>?<a>&<b>", route)],
+    );
 
     // Create a client.
     let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
-    let response = client.get("/route/10/hello?a=A&b.a=1&b.b=2")
+    let response = client
+        .get("/route/10/hello?a=A&b.a=1&b.b=2")
         .header(ContentType::Form)
         .cookie(Cookie::new("user", "Kinan"))
         .cookie(Cookie::new("mycookie", "myvalue"))
@@ -150,7 +179,10 @@ fn test_get() {
 
     // Check response body and status are correct.
     assert_eq!(response.status(), Status::new(200));
-    assert_eq!(response.into_string().unwrap(), String::from("Result is hello"));
+    assert_eq!(
+        response.into_string().unwrap(),
+        String::from("Result is hello")
+    );
 }
 
 #[test]
@@ -158,16 +190,15 @@ fn test_get_failed_policy() {
     let guard = String::from("MyGuard");
 
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build()
-        .manage(guard)
-        .mount(
-            "/",
-            vec![test_route!(Get, "/route/<num>/<string>?<a>&<b>", route)]
-        );
+    let rocket = BBoxRocket::build().manage(guard).mount(
+        "/",
+        vec![test_route!(Get, "/route/<num>/<string>?<a>&<b>", route)],
+    );
 
     // Create a client.
     let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
-    let response = client.get("/route/10/hello?a=A&b.a=1&b.b=2")
+    let response = client
+        .get("/route/10/hello?a=A&b.a=1&b.b=2")
         .cookie(Cookie::new("user", "Unauthorized user"))
         .cookie(Cookie::new("mycookie", "myvalue"))
         .dispatch();

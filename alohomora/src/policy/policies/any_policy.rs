@@ -1,8 +1,8 @@
+use crate::context::UnprotectedContext;
+use crate::fold_in::RuntimeFoldIn;
+use crate::policy::{Policy, Reason};
 use std::any::{Any, TypeId};
 use std::fmt::{Debug, Formatter};
-use crate::context::UnprotectedContext;
-use crate::policy::{Policy, Reason};
-use crate::fold_in::RuntimeFoldIn;
 
 // Any (owned) Policy.
 pub(crate) trait TypeIdPolicyTrait: Policy + Any {
@@ -71,14 +71,17 @@ impl Policy for AnyPolicy {
     fn join_logic(&self, other: Self) -> Result<Self, ()> {
         self.policy.join(other)
     }
-    fn into_any(self) -> AnyPolicy where Self: Sized {
+    fn into_any(self) -> AnyPolicy
+    where
+        Self: Sized,
+    {
         self
     }
 }
 impl Clone for AnyPolicy {
     fn clone(&self) -> Self {
         Self {
-            policy: self.policy.clone_boxed()
+            policy: self.policy.clone_boxed(),
         }
     }
 }
@@ -89,7 +92,7 @@ impl Debug for AnyPolicy {
 }
 
 impl PartialEq for AnyPolicy {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         true
     }
 }

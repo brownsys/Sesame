@@ -4,9 +4,7 @@ macro_rules! test_route {
         ::alohomora::rocket::BBoxRoute::from(::alohomora::rocket::BBoxRouteInfo {
             method: ::rocket::http::Method::$method,
             uri: $uri,
-            bbox_handler: |request, data| {
-                ::std::boxed::Box::pin($handler(request, data))
-            },
+            bbox_handler: |request, data| ::std::boxed::Box::pin($handler(request, data)),
         })
     };
 }

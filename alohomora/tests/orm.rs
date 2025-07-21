@@ -1,7 +1,7 @@
-use sea_orm::{DatabaseBackend, DbErr, QueryOrder, Set};
-use sea_orm::entity::prelude::*;
 use alohomora::bbox::BBox;
 use alohomora::context::UnprotectedContext;
+use sea_orm::entity::prelude::*;
+use sea_orm::{DatabaseBackend, DbErr, QueryOrder, Set};
 
 use alohomora::orm::{BBoxDatabase, BBoxDatabaseConnection, BBoxSchema, ORMPolicy};
 use alohomora::policy::{AnyPolicy, NoPolicy, Policy, Reason};
@@ -20,25 +20,32 @@ impl Policy for MyPolicy {
     fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
         todo!()
     }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> where Self: Sized {
+    fn join_logic(&self, other: Self) -> Result<Self, ()>
+    where
+        Self: Sized,
+    {
         todo!()
     }
 }
 impl ORMPolicy for MyPolicy {
     fn from_result(result: &QueryResult) -> Self {
-        MyPolicy { name: result.try_get("", "name").unwrap() }
+        MyPolicy {
+            name: result.try_get("", "name").unwrap(),
+        }
     }
     fn empty() -> Self {
-        MyPolicy { name: String::from("") }
+        MyPolicy {
+            name: String::from(""),
+        }
     }
 }
 
 mod grade {
-    use std::convert::TryInto;
-    use sea_orm::entity::prelude::*;
+    use crate::MyPolicy;
     use alohomora::bbox::BBox;
     use alohomora::policy::NoPolicy;
-    use crate::MyPolicy;
+    use sea_orm::entity::prelude::*;
+    use std::convert::TryInto;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
     #[sea_orm(table_name = "cake")]
@@ -62,9 +69,7 @@ async fn setup_schema(db: &BBoxDatabaseConnection) {
     let stmt = schema.create_table_from_entity(grade::Entity);
 
     // Execute create table statement
-    let result = db
-        .execute(db.get_database_backend().build(&stmt))
-        .await;
+    let result = db.execute(db.get_database_backend().build(&stmt)).await;
 
     assert!(result.is_ok());
 }
@@ -95,21 +100,46 @@ async fn test() -> Result<(), DbErr> {
     assert!(result.is_ok());
 
     // Select them
-    let result = grade::Entity::find().order_by_desc(grade::Column::Id).all(&db).await.unwrap();
-    assert_eq!(result, vec![
-        grade::Model { id: bbox(2), name: BBox::new("Artem".to_owned(), NoPolicy {}) },
-        grade::Model { id: bbox(1), name: BBox::new("Kinan".to_owned(), NoPolicy {}) },
-    ]);
+    let result = grade::Entity::find()
+        .order_by_desc(grade::Column::Id)
+        .all(&db)
+        .await
+        .unwrap();
+    assert_eq!(
+        result,
+        vec![
+            grade::Model {
+                id: bbox(2),
+                name: BBox::new("Artem".to_owned(), NoPolicy {})
+            },
+            grade::Model {
+                id: bbox(1),
+                name: BBox::new("Kinan".to_owned(), NoPolicy {})
+            },
+        ]
+    );
 
     let result = grade::Entity::find_by_id(bbox(2)).one(&db).await.unwrap();
-    assert_eq!(result.unwrap(), grade::Model { id: bbox(2), name: BBox::new("Artem".to_owned(), NoPolicy {}) });
+    assert_eq!(
+        result.unwrap(),
+        grade::Model {
+            id: bbox(2),
+            name: BBox::new("Artem".to_owned(), NoPolicy {})
+        }
+    );
 
     let result = grade::Entity::find()
         .filter(grade::Column::Name.eq("Kinan"))
         .all(&db)
         .await
         .unwrap();
-    assert_eq!(result, vec![grade::Model { id: bbox(1), name: BBox::new("Kinan".to_owned(), NoPolicy {}) }]);
+    assert_eq!(
+        result,
+        vec![grade::Model {
+            id: bbox(1),
+            name: BBox::new("Kinan".to_owned(), NoPolicy {})
+        }]
+    );
 
     Ok(())
 }

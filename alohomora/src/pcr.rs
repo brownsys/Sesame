@@ -1,6 +1,6 @@
-use crate::AlohomoraType;
 use crate::fold::fold;
 use crate::policy::AnyPolicy;
+use crate::AlohomoraType;
 
 // Creation of this must be signed.
 #[derive(Clone, Copy)]
@@ -8,8 +8,7 @@ pub struct PrivacyCriticalRegion<F> {
     f: F,
 }
 impl<F> PrivacyCriticalRegion<F> {
-    pub const fn new(f: F,
-                    _fn_reviewer: Signature) -> Self {
+    pub const fn new(f: F, _fn_reviewer: Signature) -> Self {
         PrivacyCriticalRegion { f }
     }
     pub fn get_functor(self) -> F {
@@ -19,9 +18,10 @@ impl<F> PrivacyCriticalRegion<F> {
 
 // Executes a PCR over some boxed type.
 pub fn execute_pcr<S: AlohomoraType, C, O, F: FnOnce(S::Out, AnyPolicy, C) -> O>(
-        data: S,
-        functor: PrivacyCriticalRegion<F>,
-        arg: C) -> Result<O, ()> {
+    data: S,
+    functor: PrivacyCriticalRegion<F>,
+    arg: C,
+) -> Result<O, ()> {
     let data = fold(data)?;
     let (t, p) = data.consume();
     let functor = functor.get_functor();

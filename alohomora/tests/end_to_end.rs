@@ -1,14 +1,14 @@
-use std::env;
-use std::str::FromStr;
-use std::sync::{Arc, Mutex};
-use rocket::http::{ContentType, Status};
-use rocket_cors::{AllowedOrigins, CorsOptions};
-use rocket_dyn_templates::Template;
+use crate::application::db::DB;
+use crate::application::routes::{login, post_grade, read_all_grades, read_grades};
 use alohomora::rocket::BBoxRocket;
 use alohomora::test_route;
 use alohomora::testing::BBoxClient;
-use crate::application::db::DB;
-use crate::application::routes::{login, post_grade, read_all_grades, read_grades};
+use rocket::http::{ContentType, Status};
+use rocket_cors::{AllowedOrigins, CorsOptions};
+use rocket_dyn_templates::Template;
+use std::env;
+use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 const ALL_GRADES: &'static str = "<html>
   <body>
@@ -89,12 +89,15 @@ fn test_end_to_end_application() {
         .manage(Arc::new(Mutex::new(db)))
         .attach(cors.clone())
         .mount("/", alohomora::rocket::catch_all_options_routes())
-        .mount("/", vec![
-            test_route!(Get, "/login/<user>", login),
-            test_route!(Post, "/submit", post_grade),
-            test_route!(Get, "/read_grades", read_grades),
-            test_route!(Get, "/all", read_all_grades),
-        ]);
+        .mount(
+            "/",
+            vec![
+                test_route!(Get, "/login/<user>", login),
+                test_route!(Post, "/submit", post_grade),
+                test_route!(Get, "/read_grades", read_grades),
+                test_route!(Get, "/all", read_all_grades),
+            ],
+        );
 
     // Create a client.
     let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
@@ -105,21 +108,24 @@ fn test_end_to_end_application() {
     assert_eq!(response.into_string().unwrap(), String::from("success"));
 
     // Write some grades.
-    let response = client.post("/submit")
+    let response = client
+        .post("/submit")
         .header(ContentType::Form)
         .body("0=kinan&1=90")
         .dispatch();
     assert_eq!(response.status(), Status::new(200));
     assert_eq!(response.into_string().unwrap(), String::from("success"));
 
-    let response = client.post("/submit")
+    let response = client
+        .post("/submit")
         .header(ContentType::Form)
         .body("0=kinan&1=80")
         .dispatch();
     assert_eq!(response.status(), Status::new(200));
     assert_eq!(response.into_string().unwrap(), String::from("success"));
 
-    let response = client.post("/submit")
+    let response = client
+        .post("/submit")
         .header(ContentType::Form)
         .body("0=artem&1=100")
         .dispatch();
@@ -144,7 +150,8 @@ fn test_end_to_end_application() {
     let response = client.get("/all").dispatch();
     assert_eq!(response.status(), Status::new(500));
 
-    let response = client.post("/submit")
+    let response = client
+        .post("/submit")
         .header(ContentType::Form)
         .body("0=kinan&1=100")
         .dispatch();

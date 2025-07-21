@@ -2,12 +2,12 @@ extern crate futures;
 
 use futures::future::BoxFuture;
 use rocket::http::ContentType;
+use rocket_firebase_auth::{BearerToken, FirebaseAuth, FirebaseToken};
+use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use std::option::Option;
 use std::result::Result;
-use rocket_firebase_auth::{BearerToken, FirebaseAuth, FirebaseToken};
-use std::convert::TryFrom;
 
 use crate::bbox::BBox;
 use crate::policy::{FrontendPolicy, Policy};
@@ -56,8 +56,10 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
         BBoxHeaderMap::new(self.request, self.request.headers())
     }
 
-    pub async fn firebase_token<P: FrontendPolicy>(&self, firebase_auth: &FirebaseAuth)
-    -> Option<BBox<FirebaseToken, P>> {
+    pub async fn firebase_token<P: FrontendPolicy>(
+        &self,
+        firebase_auth: &FirebaseAuth,
+    ) -> Option<BBox<FirebaseToken, P>> {
         let header = self.request.headers().get_one("Authorization")?;
         match BearerToken::try_from(header) {
             Err(_) => None,
@@ -83,7 +85,10 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
     {
         let res = self.request.param::<String>(n)?;
         let res = res.unwrap();
-        Some(T::from_bbox_param(BBox::new(res, P::from_request(self.request))))
+        Some(T::from_bbox_param(BBox::new(
+            res,
+            P::from_request(self.request),
+        )))
     }
 
     // Retrieve (boxed) get parameter(s) that has given name (e.g. /endpoint/<id>?a=<THIS>)
@@ -217,9 +222,8 @@ impl_param_via_fromstr!(
 
 // Implement FromBBoxParam for a few other types that rocket controls safely
 // outside application reach.
+use crate::rocket::{BBoxHeaderMap, FromBBoxData};
 use std::path::PathBuf;
-use rocket::data::Outcome;
-use crate::rocket::{BBoxData, BBoxHeaderMap, FromBBoxData};
 
 impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;
@@ -284,18 +288,22 @@ impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<SocketAddr, P> 
 
 // TODO(babman): look at technical debt issue on github.
 #[rocket::async_trait]
-impl<'a, 'r, T: rocket::request::FromRequest<'a>, P: Policy + FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<T, P> {
+impl<'a, 'r, T: rocket::request::FromRequest<'a>, P: Policy + FrontendPolicy>
+    FromBBoxRequest<'a, 'r> for BBox<T, P>
+{
     type BBoxError = ();
     async fn from_bbox_request(
         request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         match <T as rocket::request::FromRequest>::from_request(request.get_request()).await {
-            rocket::request::Outcome::Success(t) => BBoxRequestOutcome::Success(BBox::new(t, P::from_request(request.get_request()))),
+            rocket::request::Outcome::Success(t) => {
+                BBoxRequestOutcome::Success(BBox::new(t, P::from_request(request.get_request())))
+            }
             rocket::request::Outcome::Forward(()) => BBoxRequestOutcome::Forward(()),
             rocket::request::Outcome::Failure((status, error)) => {
                 println!("Error {} {:?}", status, error);
                 BBoxRequestOutcome::Failure((status, ()))
-            },
+            }
         }
     }
 }

@@ -1,13 +1,13 @@
-use std::fmt::{Debug, Formatter};
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
+use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use std::fmt::{Debug, Formatter};
 
 // NoPolicy can be directly discarded.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NoPolicy {}
 impl NoPolicy {
-    pub fn new () -> Self {
+    pub fn new() -> Self {
         Self {}
     }
 }
@@ -39,7 +39,10 @@ impl FrontendPolicy for NoPolicy {
     fn from_cookie<'a, 'r>(
         _name: &str,
         _cookie: &'a rocket::http::Cookie<'static>,
-        _request: &'a rocket::Request<'r>) -> Self { Self {}}
+        _request: &'a rocket::Request<'r>,
+    ) -> Self {
+        Self {}
+    }
 }
 
 impl Default for NoPolicy {
@@ -47,8 +50,6 @@ impl Default for NoPolicy {
         NoPolicy {}
     }
 }
-
-
 
 // NoPolicy can be discarded, logged, etc
 impl<T> BBox<T, NoPolicy> {
@@ -58,9 +59,7 @@ impl<T> BBox<T, NoPolicy> {
 }
 impl<T: Debug> Debug for BBox<T, NoPolicy> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BBox")
-            .field("data", self.data())
-            .finish()
+        f.debug_struct("BBox").field("data", self.data()).finish()
     }
 }
 impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {

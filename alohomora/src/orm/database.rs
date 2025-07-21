@@ -1,6 +1,9 @@
-use sea_orm::{ConnectionTrait, ConnectOptions, DatabaseBackend, DbBackend, DbErr};
+use sea_orm::{ConnectOptions, ConnectionTrait, DatabaseBackend, DbBackend, DbErr};
 
-pub use sea_orm::{Schema as BBoxSchema, Statement as BBoxStatement, ExecResult as BBoxExecResult, QueryResult as BBoxQueryResult};
+pub use sea_orm::{
+    ExecResult as BBoxExecResult, QueryResult as BBoxQueryResult, Schema as BBoxSchema,
+    Statement as BBoxStatement,
+};
 
 // Use this to connect.
 pub struct BBoxDatabase {}
@@ -92,6 +95,8 @@ impl ConnectionTrait for BBoxDatabaseConnection {
 
 impl Default for BBoxDatabaseConnection {
     fn default() -> Self {
-        BBoxDatabaseConnection { conn: sea_orm::DatabaseConnection::default() }
+        BBoxDatabaseConnection {
+            conn: sea_orm::DatabaseConnection::default(),
+        }
     }
 }

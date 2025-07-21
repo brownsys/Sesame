@@ -81,15 +81,17 @@ impl<P: Policy + Clone + 'static> RuntimeFoldIn for OptionPolicy<P> {
 // Unit tests.
 #[cfg(test)]
 mod tests {
-    use crate::policy::{AnyPolicy, NoPolicy, Policy, RefPolicy, PolicyAnd, PolicyOr, OptionPolicy, Reason};
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
+    use crate::policy::{
+        AnyPolicy, NoPolicy, OptionPolicy, Policy, PolicyAnd, PolicyOr, Reason, RefPolicy,
+    };
     use crate::testing::TestPolicy;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct NoFoldPolicy {}
 
-    impl !FoldInAllowed for NoFoldPolicy{}
+    impl !FoldInAllowed for NoFoldPolicy {}
 
     impl Policy for NoFoldPolicy {
         fn name(&self) -> String {
@@ -135,7 +137,6 @@ mod tests {
         let policy = NoFoldPolicy {};
         let refpolicy = RefPolicy::new(&policy);
         assert_eq!(refpolicy.can_fold_in(), false);
-
     }
 
     #[test]
@@ -143,7 +144,10 @@ mod tests {
         assert_impl_any!(PolicyAnd<NoPolicy, NoPolicy>: FoldInAllowed);
         assert_not_impl_any!(PolicyAnd<NoFoldPolicy, NoFoldPolicy>: FoldInAllowed);
         assert_eq!(PolicyAnd::new(NoPolicy {}, NoPolicy {}).can_fold_in(), true);
-        assert_eq!(PolicyAnd::new(NoFoldPolicy {}, NoFoldPolicy {}).can_fold_in(), false);
+        assert_eq!(
+            PolicyAnd::new(NoFoldPolicy {}, NoFoldPolicy {}).can_fold_in(),
+            false
+        );
     }
 
     #[test]
@@ -151,7 +155,10 @@ mod tests {
         assert_impl_any!(PolicyOr<NoPolicy, NoPolicy>: FoldInAllowed);
         assert_not_impl_any!(PolicyOr<NoFoldPolicy, NoFoldPolicy>: FoldInAllowed);
         assert_eq!(PolicyOr::new(NoPolicy {}, NoPolicy {}).can_fold_in(), true);
-        assert_eq!(PolicyOr::new(NoFoldPolicy {}, NoFoldPolicy {}).can_fold_in(), false);
+        assert_eq!(
+            PolicyOr::new(NoFoldPolicy {}, NoFoldPolicy {}).can_fold_in(),
+            false
+        );
     }
 
     #[test]

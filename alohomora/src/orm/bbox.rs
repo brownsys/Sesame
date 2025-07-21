@@ -1,6 +1,6 @@
-use std::fmt::{Debug, Formatter};
 use crate::bbox::BBox;
 use crate::policy::Policy;
+use std::fmt::{Debug, Formatter};
 
 impl<T: Debug, P: Policy + Debug> Debug for BBox<T, P> {
     default fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

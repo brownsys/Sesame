@@ -1,15 +1,15 @@
 extern crate mysql;
 
-mod value;
+mod connection;
 mod param;
 mod params;
-mod row;
 mod result;
-mod connection;
+mod row;
+mod value;
 
-pub use value::*;
+pub use connection::*;
 pub use param::*;
 pub use params::*;
-pub use row::*;
 pub use result::*;
-pub use connection::*;
+pub use row::*;
+pub use value::*;

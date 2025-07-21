@@ -31,10 +31,16 @@ impl<'a> Renderable<'a> {
     ) -> Result<FValue, figment::Error> {
         match self {
             Renderable::BBox(bbox) => {
-                if bbox.policy().check(context, Reason::TemplateRender(template)) {
+                if bbox
+                    .policy()
+                    .check(context, Reason::TemplateRender(template))
+                {
                     FValue::serialize(*bbox.data())
                 } else {
-                    Err(figment::Error::from(format!("Policy check failed {}", bbox.policy().name())))
+                    Err(figment::Error::from(format!(
+                        "Policy check failed {}",
+                        bbox.policy().name()
+                    )))
                 }
             }
             Renderable::Serialize(obj) => FValue::serialize(obj),
@@ -120,8 +126,8 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
 // Unit tests.
 #[cfg(test)]
 mod tests {
-    use crate::policy::NoPolicy;
     use super::*;
+    use crate::policy::NoPolicy;
 
     #[test]
     fn test_renderable_serialize() {

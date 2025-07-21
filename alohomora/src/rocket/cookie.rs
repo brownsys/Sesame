@@ -126,7 +126,11 @@ impl<'a, 'r> BBoxCookieJar<'a, 'r> {
         BBoxCookieJar { jar, request }
     }
 
-    pub fn add<P: FrontendPolicy, D: ContextData>(&self, cookie: BBoxCookie<'static, P>, ctx: Context<D>) -> Result<(), ()> {
+    pub fn add<P: FrontendPolicy, D: ContextData>(
+        &self,
+        cookie: BBoxCookie<'static, P>,
+        ctx: Context<D>,
+    ) -> Result<(), ()> {
         let ctx = UnprotectedContext::from(ctx);
         if cookie.policy.check(&ctx, Reason::Cookie(cookie.name())) {
             self.jar.add(cookie.cookie);
@@ -143,7 +147,7 @@ impl<'a, 'r> BBoxCookieJar<'a, 'r> {
                     cookie: cookie.clone(),
                     policy: p,
                 })
-            },
+            }
         }
     }
     pub fn remove<P: FrontendPolicy>(&self, cookie: BBoxCookie<'static, P>) {

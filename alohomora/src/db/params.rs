@@ -30,16 +30,14 @@ impl BBoxParams {
                         EitherBBox::Value(v) => unboxed.push(v),
                         EitherBBox::BBox(bbox) => {
                             if !bbox.policy().check(&context, reason.clone()) {
-                                return Err(mysql::Error::from(
-                                    MySqlError {
-                                        state: String::from(""),
-                                        message: String::from("Failed policy check"),
-                                        code: 0,
-                                    }
-                                ));
+                                return Err(mysql::Error::from(MySqlError {
+                                    state: String::from(""),
+                                    message: String::from("Failed policy check"),
+                                    code: 0,
+                                }));
                             }
                             unboxed.push(bbox.consume().0)
-                        },
+                        }
                     }
                 }
                 Ok(mysql::params::Params::Positional(unboxed))
@@ -50,7 +48,8 @@ impl BBoxParams {
     pub(super) fn to_reason<'a>(self) -> Vec<mysql::Value> {
         match self {
             BBoxParams::Empty => Vec::new(),
-            BBoxParams::Positional(v) => v.into_iter()
+            BBoxParams::Positional(v) => v
+                .into_iter()
                 .map(|either| match either {
                     EitherBBox::Value(value) => value,
                     EitherBBox::BBox(bbox) => bbox.consume().0,
@@ -128,7 +127,8 @@ into_params_impl!(
     [H, h],
     [I, i],
     [J, j]
-);into_params_impl!(
+);
+into_params_impl!(
     [A, a],
     [B, b],
     [C, c],
@@ -189,13 +189,13 @@ into_params_impl!(
 
 #[cfg(test)]
 mod tests {
-    use std::boxed::Box;
-    use mysql::Params;
-    use mysql::prelude::FromValue;
     use crate::bbox::{BBox, EitherBBox};
     use crate::context::Context;
     use crate::db::{BBoxParam, BBoxParams};
     use crate::policy::{AnyPolicy, NoPolicy, Reason};
+    use mysql::prelude::FromValue;
+    use mysql::Params;
+    use std::boxed::Box;
 
     fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicy>, t: T) -> bool {
         mysql::from_value::<T>(b.data().clone()) == t
@@ -215,14 +215,20 @@ mod tests {
         // Test construction.
         assert!(matches!(&params, BBoxParams::Positional(v) if v.len() == 4));
         if let BBoxParams::Positional(vec) = &params {
-            assert!(matches!(vec[0].clone().get(), EitherBBox::BBox(b) if helper1(&b, String::from("kinan"))));
+            assert!(
+                matches!(vec[0].clone().get(), EitherBBox::BBox(b) if helper1(&b, String::from("kinan")))
+            );
             assert!(matches!(vec[1].clone().get(), EitherBBox::BBox(b) if helper1(&b, 10i32)));
             assert!(matches!(vec[2].clone().get(), EitherBBox::Value(b) if helper2(&b, 100i32)));
-            assert!(matches!(vec[3].clone().get(), EitherBBox::Value(b) if helper2(&b, String::from("test"))));
+            assert!(
+                matches!(vec[3].clone().get(), EitherBBox::Value(b) if helper2(&b, String::from("test")))
+            );
         }
 
         // Test unboxing.
-        let params = params.transform(Context::test(()), Reason::Custom(Box::new(()))).unwrap();
+        let params = params
+            .transform(Context::test(()), Reason::Custom(Box::new(())))
+            .unwrap();
         assert!(matches!(&params, Params::Positional(v) if v.len() == 4));
         if let Params::Positional(vec) = &params {
             assert_eq!(mysql::from_value::<String>(vec[0].clone()), "kinan");

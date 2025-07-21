@@ -1,8 +1,8 @@
 use crate::bbox::{BBox, EitherBBox};
 use crate::policy::{Policy, Reason, RefPolicy};
 
-use std::string::ToString;
 use crate::context::{Context, ContextData, UnprotectedContext};
+use std::string::ToString;
 
 // Lightweight: reference to both data and policy.
 type RefEitherParam<'a> = EitherBBox<&'a dyn ToString, RefPolicy<'a, dyn Policy + 'a>>;
@@ -28,8 +28,9 @@ impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a EitherBBox<T, P>
     fn get(self) -> RefEitherParam<'a> {
         match self {
             EitherBBox::Value(t) => EitherBBox::Value(t),
-            EitherBBox::BBox(bbox) =>
-                EitherBBox::BBox(BBox::new(bbox.data(), RefPolicy::new(bbox.policy()))),
+            EitherBBox::BBox(bbox) => {
+                EitherBBox::BBox(BBox::new(bbox.data(), RefPolicy::new(bbox.policy())))
+            }
         }
     }
 }
@@ -47,7 +48,9 @@ pub trait IntoRedirectParams {
 // Can make Params from empty tuple.
 impl IntoRedirectParams for () {
     fn into<D: ContextData>(self, _url: &str, _context: Context<D>) -> RedirectParams {
-        RedirectParams { parameters: Vec::new() }
+        RedirectParams {
+            parameters: Vec::new(),
+        }
     }
 }
 
@@ -123,7 +126,8 @@ into_params_impl!(
     [H, h, 'h],
     [I, i, 'i],
     [J, j, 'j]
-);into_params_impl!(
+);
+into_params_impl!(
     [A, a, 'a],
     [B, b, 'b],
     [C, c, 'c],

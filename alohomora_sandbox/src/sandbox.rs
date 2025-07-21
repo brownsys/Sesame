@@ -1,4 +1,6 @@
+#[cfg(feature = "sandbox_timing")]
 use std::time::Instant;
+
 #[cfg(not(target_arch = "wasm32"))]
 use crate::SandboxInstance;
 use crate::SandboxableType;

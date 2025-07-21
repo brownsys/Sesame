@@ -7,7 +7,10 @@ pub struct BBoxHeaderMap<'a, 'r> {
 }
 
 impl<'a, 'r> BBoxHeaderMap<'a, 'r> {
-    pub fn new(request: &'a rocket::Request<'r>, map: &'a rocket::http::HeaderMap<'r>) -> BBoxHeaderMap<'a, 'r> {
+    pub fn new(
+        request: &'a rocket::Request<'r>,
+        map: &'a rocket::http::HeaderMap<'r>,
+    ) -> BBoxHeaderMap<'a, 'r> {
         BBoxHeaderMap { request, map }
     }
     pub fn get_one<P: FrontendPolicy>(&self, name: &str) -> Option<BBox<String, P>> {

@@ -1,8 +1,8 @@
-use crate::{AlohomoraType, AlohomoraTypeEnum};
 use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};
 use crate::policy::NoPolicy;
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
+use crate::{AlohomoraType, AlohomoraTypeEnum};
 
 #[derive(Clone)]
 pub struct TestContextData<T: 'static>(BBox<T, NoPolicy>);
@@ -35,7 +35,9 @@ impl<T: Send + 'static> AlohomoraType for TestContextData<T> {
 #[rocket::async_trait]
 impl<'a, 'r, T: Send + 'static> FromBBoxRequest<'a, 'r> for TestContextData<T> {
     type BBoxError = ();
-    async fn from_bbox_request(_request: BBoxRequest<'a, 'r>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    async fn from_bbox_request(
+        _request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         todo!()
     }
 }

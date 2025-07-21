@@ -1,5 +1,5 @@
-use std::ops::Deref;
 use crate::rocket::BBoxRocket;
+use std::ops::Deref;
 
 pub struct BBoxClient {
     client: rocket::local::blocking::Client,

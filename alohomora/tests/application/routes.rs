@@ -1,31 +1,41 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use rocket::State;
-use alohomora::bbox::BBox;
-use alohomora::rocket::{BBoxCookie, BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxTemplate, FromBBoxData};
 use crate::application::context::AppContext;
 use crate::application::db::DB;
 use crate::application::policy::{AuthenticationCookiePolicy, WritePolicy};
+use alohomora::bbox::BBox;
+use alohomora::rocket::{
+    BBoxCookie, BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxTemplate, FromBBoxData,
+};
+use rocket::State;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 // Logins in as a user.
-pub async fn login<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {
+pub async fn login<'a, 'r>(
+    request: BBoxRequest<'a, 'r>,
+    _data: BBoxData<'a>,
+) -> BBoxResponseOutcome<'a> {
     let context: AppContext = request.guard().await.unwrap();
 
     let username: BBox<String, AuthenticationCookiePolicy> = request.param(1).unwrap().unwrap();
-    request.cookies().add(BBoxCookie::new("user", username), context).unwrap();
+    request
+        .cookies()
+        .add(BBoxCookie::new("user", username), context)
+        .unwrap();
 
     BBoxResponseOutcome::from(request, "success")
 }
 
 // Post a grade: have to be admin.
-pub async fn post_grade<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {
+pub async fn post_grade<'a, 'r>(
+    request: BBoxRequest<'a, 'r>,
+    data: BBoxData<'a>,
+) -> BBoxResponseOutcome<'a> {
     // Get context.
     let context: AppContext = request.guard().await.unwrap();
 
     // Get grade from post parameter.
     type MyForm = BBoxForm<(BBox<String, WritePolicy>, BBox<u64, WritePolicy>)>;
-    let (user, grade) =
-        MyForm::from_data(request, data).await.unwrap().into_inner();
+    let (user, grade) = MyForm::from_data(request, data).await.unwrap().into_inner();
 
     // Post them!
     let db: &State<Arc<Mutex<DB>>> = request.guard().await.unwrap();
@@ -37,9 +47,11 @@ pub async fn post_grade<'a, 'r>(request: BBoxRequest<'a, 'r>, data: BBoxData<'a>
     BBoxResponseOutcome::from(request, "success")
 }
 
-
 // Read a grade: for the signed in user.
-pub async fn read_grades<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {
+pub async fn read_grades<'a, 'r>(
+    request: BBoxRequest<'a, 'r>,
+    _data: BBoxData<'a>,
+) -> BBoxResponseOutcome<'a> {
     // Get context.
     let context: AppContext = request.guard().await.unwrap();
     let db: &State<Arc<Mutex<DB>>> = request.guard().await.unwrap();
@@ -58,7 +70,10 @@ pub async fn read_grades<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'
 }
 
 // Post a grade: for the signed in user.
-pub async fn read_all_grades<'a, 'r>(request: BBoxRequest<'a, 'r>, _data: BBoxData<'a>) -> BBoxResponseOutcome<'a> {
+pub async fn read_all_grades<'a, 'r>(
+    request: BBoxRequest<'a, 'r>,
+    _data: BBoxData<'a>,
+) -> BBoxResponseOutcome<'a> {
     // Get context.
     let context: AppContext = request.guard().await.unwrap();
     let db: &State<Arc<Mutex<DB>>> = request.guard().await.unwrap();

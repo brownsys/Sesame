@@ -1,13 +1,13 @@
 // BBox
-use crate::{AlohomoraType, AlohomoraTypeEnum};
 use crate::db::{BBoxParams, BBoxQueryResult};
+use crate::{AlohomoraType, AlohomoraTypeEnum};
 
 // mysql imports.
-use mysql::prelude::Queryable;
-pub use mysql::{Opts as BBoxOpts};
-pub use mysql::Result as BBoxResult;
 use crate::context::{Context, ContextData};
 use crate::policy::Reason;
+use mysql::prelude::Queryable;
+pub use mysql::Opts as BBoxOpts;
+pub use mysql::Result as BBoxResult;
 
 // BBox DB connection
 pub struct BBoxConn {
@@ -30,7 +30,9 @@ impl From<String> for BBoxStatement {
 impl BBoxConn {
     // Creating a new DBConn is the same as creating a new mysql::Conn.
     pub fn new<T: Into<BBoxOpts>>(opts: T) -> BBoxResult<BBoxConn> {
-        Ok(BBoxConn { conn: mysql::Conn::new(opts)? })
+        Ok(BBoxConn {
+            conn: mysql::Conn::new(opts)?,
+        })
     }
 
     // Test ping.
@@ -64,7 +66,9 @@ impl BBoxConn {
         };
 
         let params = params.into();
-        let params = params.clone().transform(context, Reason::DB(&stmt_str, params.to_reason()))?;
+        let params = params
+            .clone()
+            .transform(context, Reason::DB(&stmt_str, params.to_reason()))?;
         self.conn.exec_drop(statement, params)
     }
 
@@ -91,7 +95,9 @@ impl BBoxConn {
         };
 
         let params = params.into();
-        let params = params.clone().transform(context, Reason::DB(&stmt_str, params.to_reason()))?;
+        let params = params
+            .clone()
+            .transform(context, Reason::DB(&stmt_str, params.to_reason()))?;
         let result = self.conn.exec_iter(statement, params)?;
         Ok(BBoxQueryResult { result })
     }
@@ -121,17 +127,15 @@ impl BBoxConn {
 impl AlohomoraType for BBoxConn {
     type Out = mysql::Conn;
     fn to_enum(self) -> AlohomoraTypeEnum {
-      AlohomoraTypeEnum::Value(Box::new(self))
+        AlohomoraTypeEnum::Value(Box::new(self))
     }
     fn from_enum(e: AlohomoraTypeEnum) -> Result<Self::Out, ()> {
         match e {
-            AlohomoraTypeEnum::Value(db) => {
-                match db.downcast::<BBoxConn>() {
-                  Ok(db) => Ok(db.conn),
-                  Err(_) => Err(()),
-                }
-            }
+            AlohomoraTypeEnum::Value(db) => match db.downcast::<BBoxConn>() {
+                Ok(db) => Ok(db.conn),
+                Err(_) => Err(()),
+            },
             _ => Err(()),
         }
-    } 
+    }
 }

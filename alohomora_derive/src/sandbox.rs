@@ -3,8 +3,8 @@ extern crate quote;
 extern crate syn;
 
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
-use syn::{FnArg, Ident, ItemFn, ReturnType, Token};
+use quote::{quote, quote_spanned, ToTokens};
+use syn::{FnArg, Ident, ItemFn, ReturnType};
 
 pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     let function_signature = input.sig;

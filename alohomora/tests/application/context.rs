@@ -1,8 +1,8 @@
-use rocket::async_trait;
-use alohomora::{AlohomoraType, AlohomoraTypeEnum};
 use alohomora::bbox::BBox;
 use alohomora::context::Context;
 use alohomora::rocket::{BBoxCookie, BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
+use alohomora::{AlohomoraType, AlohomoraTypeEnum};
+use rocket::async_trait;
 
 use crate::application::policy::AuthenticationCookiePolicy;
 
@@ -30,11 +30,11 @@ impl AlohomoraType for ContextData {
 impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
     type BBoxError = ();
 
-    async fn from_bbox_request(request: BBoxRequest<'a, 'r>) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    async fn from_bbox_request(
+        request: BBoxRequest<'a, 'r>,
+    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
         let cookie: Option<BBoxCookie<AuthenticationCookiePolicy>> = request.cookies().get("user");
-        let user = cookie.map(|cookie| {
-            cookie.value().to_owned_policy().into_bbox()
-        });
+        let user = cookie.map(|cookie| cookie.value().to_owned_policy().into_bbox());
         BBoxRequestOutcome::Success(ContextData { user })
     }
 }

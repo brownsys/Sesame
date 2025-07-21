@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
+use crate::application::policy::ACLPolicy;
 use alohomora::bbox::{BBox, BBoxRender, Renderable};
 use alohomora::policy::NoPolicy;
-use crate::application::policy::ACLPolicy;
+use std::collections::BTreeMap;
 
 pub struct Grade {
     pub id: BBox<u64, NoPolicy>,

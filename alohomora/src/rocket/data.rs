@@ -4,9 +4,9 @@ use rocket::data::Capped;
 
 use crate::bbox::BBox;
 use crate::policy::{FrontendPolicy, Policy};
-use crate::rocket::{BBoxDataField, BBoxValueField};
 use crate::rocket::form::{BBoxForm, FromBBoxForm};
 use crate::rocket::request::BBoxRequest;
+use crate::rocket::{BBoxDataField, BBoxValueField};
 
 // For multipart encoded bodies.
 pub struct BBoxData<'a> {
@@ -22,7 +22,10 @@ impl<'a> BBoxData<'a> {
         limit: rocket::data::ByteUnit,
         request: BBoxRequest<'a, 'r>,
     ) -> BBox<rocket::data::DataStream<'a>, P> {
-        BBox::new(self.data.open(limit), P::from_request(request.get_request()))
+        BBox::new(
+            self.data.open(limit),
+            P::from_request(request.get_request()),
+        )
     }
     pub async fn peek<'r, P: FrontendPolicy>(
         &mut self,
@@ -41,8 +44,11 @@ impl<'a> BBoxData<'a> {
 }
 
 // Trait to construct stuff from data.
-pub type BBoxDataOutcome<'a, 'r, T> =
-    rocket::outcome::Outcome<T, (rocket::http::Status, <T as FromBBoxData<'a, 'r>>::BBoxError), BBoxData<'a>>;
+pub type BBoxDataOutcome<'a, 'r, T> = rocket::outcome::Outcome<
+    T,
+    (rocket::http::Status, <T as FromBBoxData<'a, 'r>>::BBoxError),
+    BBoxData<'a>,
+>;
 
 #[rocket::async_trait]
 pub trait FromBBoxData<'a, 'r>: Sized {
@@ -55,23 +61,23 @@ pub trait FromBBoxData<'a, 'r>: Sized {
 
 // If T implements FromBBoxForm, then BBoxForm<T> implements FromBBoxData.
 #[rocket::async_trait]
-impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T>{
+impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T> {
     type BBoxError = rocket::form::Errors<'a>;
     async fn from_data(
         req: BBoxRequest<'a, 'r>,
         data: BBoxData<'a>,
     ) -> BBoxDataOutcome<'a, 'r, Self> {
-        use rocket::Either;
-        use rocket::outcome::Outcome;
         use rocket::form::parser::Parser;
+        use rocket::outcome::Outcome;
+        use rocket::Either;
         let mut parser = match Parser::new(req.get_request(), data.get_data()).await {
             Outcome::Success(parser) => parser,
             Outcome::Failure(error) => {
                 return BBoxDataOutcome::Failure(error);
-            },
+            }
             Outcome::Forward(data) => {
                 return BBoxDataOutcome::Forward(BBoxData::new(data));
-            },
+            }
         };
 
         let mut context = T::bbox_init(rocket::form::Options::Lenient);
@@ -79,10 +85,10 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T>{
             match field {
                 Ok(Either::Left(value)) => {
                     T::bbox_push_value(&mut context, BBoxValueField::from_rocket(value), req)
-                },
+                }
                 Ok(Either::Right(data)) => {
                     T::bbox_push_data(&mut context, BBoxDataField::from_rocket(data), req).await
-                },
+                }
                 Err(e) => T::bbox_push_error(&mut context, e),
             }
         }
