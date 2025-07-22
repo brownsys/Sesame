@@ -162,17 +162,12 @@ impl<T, P: Policy> BBox<T, P> {
         BBox::new(functor(self.fb.mov()), self.p)
     }
 
-    pub fn apply_extension_mut<R>(self, extension: &mut impl extension::SesamePConExtension<T, P, R>) -> R {
-        let (t, p) = self.consume();
-        extension.apply_mut(t, p)
-    }
-
-    pub fn apply_extension<R>(self, extension: &impl extension::SesamePConExtension<T, P, R>) -> R {
+    pub fn apply_extension<R>(self, extension: impl extension::SesamePConExtension<T, P, R>) -> R {
         let (t, p) = self.consume();
         extension.apply(t, p)
     }
 
-    pub fn apply_extension_ref<R>(&self, extension: &impl extension::SesamePConExtension<T, P, R>) -> R {
+    pub fn apply_extension_ref<R>(&self, extension: impl extension::SesamePConExtension<T, P, R>) -> R {
         let t = self.data();
         let p = self.policy();
         extension.apply_ref(t, p)

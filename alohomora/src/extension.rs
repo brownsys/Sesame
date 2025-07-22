@@ -2,18 +2,22 @@ use crate::policy::{NoPolicy, Policy};
 // pub type PconExtensionClosure<T, P, R> = fn(T, P) -> R;
 
 
-pub trait SesamePConExtension<T, P: Policy, R> {
-    // type ExtensionClosure: Fn(T, P) -> R;
-    // fn apply_once(self, data: T, policy: P) -> R;
-    fn apply_mut(&mut self, data: T, policy: P) -> R {
-        todo!()
-    }
-    fn apply(&self, data: T, policy: P) -> R {
-        todo!()
-    }
-    fn apply_ref(&self, data: &T, policy: &P) -> R {
-        todo!()
-    }
+//The reasoning behind only offering these two APIs is that the other option suddenly becomes to
+//have 6 methods :
+//- Owned data and self
+//- Owned data, borrowed immut self
+//- Owned data, borrowed mutable self
+//- Borrowed data, owned self
+//- Borrowed data, borrowed immut self
+//- Borrowed data, borrowed mutable self
+//
+//Here instead, extensions can be defined over both base types and their references.
+//Because extensions are to be used sparingly and are expected to be written by the Tahini team
+//(or at least reviewed by them), we consider this an okay effort.
+pub trait SesamePConExtension<T, P: Policy, R> 
+where Self: Sized {
+    fn apply(self, data: T, policy: P) -> R;
+    fn apply_ref(self, data: &T, policy: &P) -> R;
 }
 
 
