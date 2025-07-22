@@ -2,17 +2,18 @@ use std::any::Any;
 use std::collections::HashMap;
 use crate::bbox::BBox;
 use crate::policy::AnyPolicy;
+use crate::sesame_type::dyns::{SesameDynType, SesameTypeDynTypes};
 use crate::sesame_type::helpers::compose_policies;
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum SesameTypeEnumDyn<T: ?Sized> {
+pub enum SesameTypeEnumDyn<T: SesameDynType + ?Sized> {
     BBox(BBox<Box<T>, AnyPolicy>),
     Value(Box<T>),
     Vec(Vec<SesameTypeEnumDyn<T>>),
     Struct(HashMap<String, SesameTypeEnumDyn<T>>),
 }
 
-impl<T: ?Sized> SesameTypeEnumDyn<T> {
+impl<T: SesameDynType + ?Sized> SesameTypeEnumDyn<T> {
     // Combines the policies of all the BBox inside this type.
     pub fn policy(&self) -> Result<Option<AnyPolicy>, ()> {
         match self {
@@ -51,9 +52,13 @@ impl<T: ?Sized> SesameTypeEnumDyn<T> {
         }
     }
 
-    pub fn value(self) -> Result<Box<T>, ()> {
+    // Coerces self into the given type provided it is a Value(...) of that type.
+    pub fn coerce<R: SesameTypeDynTypes<T> + 'static>(self) -> Result<R, ()> {
         match self {
-            SesameTypeEnumDyn::Value(val) => Ok(val),
+            SesameTypeEnumDyn::Value(v) => match v.upcast_box().downcast() {
+                Ok(t) => Ok(*t),
+                Err(_) => Err(()),
+            },
             _ => Err(()),
         }
     }

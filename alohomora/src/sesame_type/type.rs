@@ -1,26 +1,12 @@
 use std::any::Any;
 
-use erased_serde::Serialize;
-
 use crate::sesame_type::r#enum::{SesameTypeEnum, SesameTypeEnumDyn};
+use crate::sesame_type::dyns::{SesameDynType};
 
-// Traits that we care about preserving inside SesameType.
-pub trait AnySerialize: Serialize + Any {
-    fn upcast_any(&self) -> &dyn Any;
-    fn upcast_any_box(self: Box<Self>) -> Box<dyn Any>;
-}
-impl<T: Serialize + Any> AnySerialize for T {
-    fn upcast_any(&self) -> &dyn Any {
-        self
-    }
-    fn upcast_any_box(self: Box<Self>) -> Box<dyn Any> {
-        Box::new(*self)
-    }
-}
 
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to
 // sandboxes.
-pub trait SesameTypeDyn<T: ?Sized> {
+pub trait SesameTypeDyn<T: SesameDynType + ?Sized> {
     type Out; // Unboxed form of struct
     fn to_enum(self) -> SesameTypeEnumDyn<T>;
     fn from_enum(e: SesameTypeEnumDyn<T>) -> Result<Self::Out, ()>;

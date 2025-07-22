@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use alohomora::AlohomoraType;
+use alohomora::SesameTypeDyn;
 use alohomora::{bbox::BBox, policy::NoPolicy};
 use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use alohomora::context::Context;
@@ -8,7 +8,7 @@ use rocket::State;
 use crate::config::Config; 
 
 // the actual context data (just our backend)
-#[derive(AlohomoraType)]
+#[derive(SesameTypeDyn)]
 #[alohomora_out_type(verbatim = [config])]
 pub struct ContextData {
     pub user: Option<BBox<String, NoPolicy>>,

@@ -31,7 +31,7 @@ impl<T: SesameType> Foldable for T {
 }
 
 // A more optimized version of unwrap for a simple vec of BBoxes.
-impl<T: Clone + 'static, P: Policy + Clone + 'static> Foldable for Vec<BBox<T, P>> {
+impl<T: Clone + std::any::Any + 'static, P: Policy + Clone + 'static> Foldable for Vec<BBox<T, P>> {
     fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()>
     where
         Self: Sized,

@@ -81,7 +81,7 @@ pub fn routes(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(AlohomoraType, attributes(alohomora_out_type))]
+#[proc_macro_derive(SesameTypeDyn, attributes(alohomora_out_type))]
 pub fn derive_alohomora_type(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match alohomora_type::derive_alohomora_type_impl(input) {
