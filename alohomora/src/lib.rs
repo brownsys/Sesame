@@ -30,16 +30,9 @@ pub mod pure;
 pub mod unbox;
 pub mod extension;
 
-#[cfg(feature = "tahini")]
-pub mod tarpc;
-
 // Export this directly under alohomora::
 mod r#type;
 pub use r#type::*;
 
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::AlohomoraType;
-
-#[cfg(feature = "tahini")]
-pub use alohomora_derive::{TahiniType, tahini_service, allow_client_transform};
-
