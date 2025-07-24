@@ -13,8 +13,8 @@ pub trait SesameDynType {
 // TODO(babman): this is almost right, but cannot be implemented in foreign crates even for their
 // own traits. Need to perhaps flip T and Self! Look at youchat for an example.
 // TODO(babman): make sure fold tests pass!
-pub trait SesameTypeDynTypes<T: SesameDynType + ?Sized> {
-    fn box_me(self) -> Box<T>;
+pub trait SesameTypeDynTypes<T> where Self: SesameDynType {
+    fn box_me(t: T) -> Box<Self>;
 }
 
 // Example: Now we can preserve Serialize + Any through SesameType transformations.
@@ -51,9 +51,9 @@ impl SesameDynType for dyn AnySerialize {
     }
 }
 
-impl<T: Any + Serialize> SesameTypeDynTypes<dyn AnySerialize> for T {
-    fn box_me(self) -> Box<dyn AnySerialize> {
-        Box::new(self)
+impl<T: Any + Serialize> SesameTypeDynTypes<T> for dyn AnySerialize {
+    fn box_me(t: T) -> Box<dyn AnySerialize> {
+        Box::new(t)
     }
 }
 // End of Macro.
@@ -67,9 +67,9 @@ impl SesameDynType for dyn Any {
         self
     }
 }
-impl<T: Any> SesameTypeDynTypes<dyn Any> for T {
-    fn box_me(self) -> Box<dyn Any> {
-        Box::new(self)
+impl<T: Any> SesameTypeDynTypes<T> for dyn Any {
+    fn box_me(t: T) -> Box<dyn Any> {
+        Box::new(t)
     }
 }
 // End provided impls.

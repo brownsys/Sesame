@@ -1,5 +1,5 @@
 extern crate rocket;
-
+/*
 use youchat::build_server;
 
 #[rocket::main]
@@ -12,4 +12,11 @@ async fn main() {
         drop(e);
     };
     
+}
+*/
+
+mod example;
+
+fn main() {
+    example::example();
 }

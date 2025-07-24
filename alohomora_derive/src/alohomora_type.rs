@@ -208,7 +208,7 @@ pub fn derive_alohomora_type_impl(input: DeriveInput) -> Result<TokenStream, Err
                     ::alohomora::SesameTypeEnum::Struct(mut hashmap) => {
                         Ok(Self::Out {
                             #(#alohomora_fields_idents: <#alohomora_fields_types as ::alohomora::SesameTypeDyn<dyn ::std::any::Any>>::from_enum(hashmap.remove(#alohomora_fields_strings).unwrap())?,)*
-                            #(#verbatim_fields_idents: *hashmap.remove(#verbatim_fields_strings).unwrap().value()?.downcast().unwrap(),)*
+                            #(#verbatim_fields_idents: hashmap.remove(#verbatim_fields_strings).unwrap().coerce()?,)*
                         })
                     },
                     _ => Err(()),

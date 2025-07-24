@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::bbox::BBox;
 use crate::dyns::{SesameDynType, SesameTypeDynTypes};
-use crate::policy::Policy;
+use crate::policy::{AnyPolicy, Policy};
 use crate::sesame_type::r#enum::SesameTypeEnumDyn;
 use crate::sesame_type::r#type::{SesameTypeDyn};
 
@@ -15,10 +15,10 @@ use crate::sesame_type::r#type::{SesameTypeDyn};
 macro_rules! sesame_type_value_impl {
     ($T: ty) => {
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-        impl<DT: SesameDynType + ?Sized> SesameTypeDyn<DT> for $T where $T: SesameTypeDynTypes<DT> {
+        impl<DT: SesameDynType + ?Sized> SesameTypeDyn<DT> for $T where DT: SesameTypeDynTypes<$T> {
             type Out = $T;
             fn to_enum(self) -> SesameTypeEnumDyn<DT> {
-                SesameTypeEnumDyn::Value(self.box_me())
+                SesameTypeEnumDyn::Value(DT::box_me(self))
             }
             fn from_enum(e: SesameTypeEnumDyn<DT>) -> Result<Self::Out, ()> {
                 match e {
@@ -47,11 +47,11 @@ sesame_type_value_impl!(String);
 
 // Implement SesameType for BBox<T, P>
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<DT: SesameDynType + ?Sized, T: SesameTypeDynTypes<DT> + Any, P: Policy + Clone + 'static> SesameTypeDyn<DT> for BBox<T, P> {
+impl<T: Any, DT: SesameDynType + ?Sized + SesameTypeDynTypes<T> + Any, P: Policy + Clone + 'static> SesameTypeDyn<DT> for BBox<T, P> {
     type Out = T;
     fn to_enum(self) -> SesameTypeEnumDyn<DT> {
         let (t, p) = self.consume();
-        SesameTypeEnumDyn::BBox(BBox::new(t.box_me(), p.into_any()))
+        SesameTypeEnumDyn::BBox(BBox::new(DT::box_me(t), AnyPolicy::new(p)))
     }
     fn from_enum(e: SesameTypeEnumDyn<DT>) -> Result<Self::Out, ()> {
         match e {
@@ -136,7 +136,7 @@ impl<A: SesameDynType + ?Sized, K: ToString + FromStr + Hash + Eq, S: SesameType
 }
 
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<A: SesameDynType + ?Sized> SesameTypeDyn<A> for () where (): SesameTypeDynTypes<A> {
+impl<A: SesameDynType + ?Sized> SesameTypeDyn<A> for () where A: SesameTypeDynTypes<()> {
     type Out = ();
     fn to_enum(self) -> SesameTypeEnumDyn<A> {
         SesameTypeEnumDyn::Vec(Vec::new())

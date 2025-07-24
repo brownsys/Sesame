@@ -53,7 +53,7 @@ impl<T: SesameDynType + ?Sized> SesameTypeEnumDyn<T> {
     }
 
     // Coerces self into the given type provided it is a Value(...) of that type.
-    pub fn coerce<R: SesameTypeDynTypes<T> + 'static>(self) -> Result<R, ()> {
+    pub fn coerce<R: Any>(self) -> Result<R, ()> where T: SesameTypeDynTypes<R> {
         match self {
             SesameTypeEnumDyn::Value(v) => match v.upcast_box().downcast() {
                 Ok(t) => Ok(*t),
