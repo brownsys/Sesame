@@ -401,6 +401,7 @@ pub(crate) fn questions(
     BBoxTemplate::render("questions", &ctx, context)
 }
 
+#[sniffer::encapsulation(pcon)]
 #[post("/<num>", data = "<data>")]
 pub(crate) fn questions_submit(
     apikey: ApiKey,
