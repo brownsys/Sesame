@@ -1,16 +1,16 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, AnyPolicyClone, AnyPolicyTrait, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
 use std::fmt::{Debug, Formatter};
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct TestPolicy<P: 'static + Policy + Clone> {
+pub struct TestPolicy<P: AnyPolicyTrait> {
     p: P,
 }
 
-impl<P: 'static + Policy + Clone> TestPolicy<P> {
+impl<P: AnyPolicyTrait> TestPolicy<P> {
     pub fn new(p: P) -> Self {
         Self { p }
     }
@@ -18,19 +18,19 @@ impl<P: 'static + Policy + Clone> TestPolicy<P> {
         &self.p
     }
 }
-impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
+impl<P: AnyPolicyTrait> Policy for TestPolicy<P> {
     fn name(&self) -> String {
         format!("TestPolicy<{}>", self.p.name())
     }
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p.check(context, reason)
     }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         if other.is::<TestPolicy<P>>() {
             let other = other.specialize::<TestPolicy<P>>().unwrap();
-            Ok(AnyPolicy::new(self.join_logic(other)?))
+            Ok(AnyPolicyBB::new(self.join_logic(other)?))
         } else {
-            Ok(AnyPolicy::new(TestPolicy::new(self.p.join(other)?)))
+            Ok(AnyPolicyBB::new(TestPolicy::new(self.p.join(other)?)))
         }
     }
     fn join_logic(&self, other: Self) -> Result<Self, ()> {
@@ -38,14 +38,14 @@ impl<P: 'static + Policy + Clone> Policy for TestPolicy<P> {
     }
 }
 
-impl<P: 'static + Policy + SchemaPolicy + Clone> SchemaPolicy for TestPolicy<P> {
+impl<P: AnyPolicyTrait + SchemaPolicy> SchemaPolicy for TestPolicy<P> {
     fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
         TestPolicy {
             p: P::from_row(table_name, row),
         }
     }
 }
-impl<P: 'static + Policy + FrontendPolicy + Clone> FrontendPolicy for TestPolicy<P> {
+impl<P: AnyPolicyTrait + FrontendPolicy> FrontendPolicy for TestPolicy<P> {
     fn from_request(request: &rocket::Request<'_>) -> Self {
         TestPolicy {
             p: P::from_request(request),
@@ -62,7 +62,7 @@ impl<P: 'static + Policy + FrontendPolicy + Clone> FrontendPolicy for TestPolicy
     }
 }
 
-impl<P: 'static + Policy + Clone> From<P> for TestPolicy<P> {
+impl<P: AnyPolicyTrait> From<P> for TestPolicy<P> {
     fn from(value: P) -> Self {
         TestPolicy::new(value)
     }
@@ -75,7 +75,7 @@ impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
     }
 }
 
-impl<T: Debug, P: 'static + Policy + Clone + Debug> Debug for BBox<T, TestPolicy<P>> {
+impl<T: Debug, P: AnyPolicyTrait + Debug> Debug for BBox<T, TestPolicy<P>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BBox")
             .field("data", self.data())
@@ -83,26 +83,21 @@ impl<T: Debug, P: 'static + Policy + Clone + Debug> Debug for BBox<T, TestPolicy
             .finish()
     }
 }
-impl<T: PartialEq, P: 'static + Policy + Clone + PartialEq> PartialEq for BBox<T, TestPolicy<P>> {
+impl<T: PartialEq, P: AnyPolicyTrait + PartialEq> PartialEq for BBox<T, TestPolicy<P>> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
 
-impl<T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq
-    for BBox<T, TestPolicy<P>>
-{
-}
+impl<T: Eq, P: AnyPolicyTrait + Eq> Eq for BBox<T, TestPolicy<P>> {}
 
 // Same but for RefPolicy<TestPolicy>
-impl<'a, T, P: 'static + Policy + Clone> BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T, P: AnyPolicyTrait> BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     pub fn discard_box(self) -> &'a T {
         self.consume().0
     }
 }
-impl<'a, T: Debug, P: 'static + Policy + Clone + Debug> Debug
-    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
-{
+impl<'a, T: Debug, P: AnyPolicyTrait + Debug> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BBox")
             .field("data", self.data())
@@ -110,14 +105,9 @@ impl<'a, T: Debug, P: 'static + Policy + Clone + Debug> Debug
             .finish()
     }
 }
-impl<'a, T: PartialEq, P: 'static + Policy + Clone + PartialEq> PartialEq
-    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
-{
+impl<'a, T: PartialEq, P: AnyPolicyTrait + PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
-impl<'a, T: PartialEq + Eq, P: 'static + Policy + PartialEq + Eq + Clone> Eq
-    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
-{
-}
+impl<'a, T: Eq, P: AnyPolicyTrait + Eq> Eq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {}

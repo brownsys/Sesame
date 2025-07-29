@@ -8,7 +8,7 @@ use mysql::chrono;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
-use crate::policy::{AnyPolicy, CloneableAny, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy};
+use crate::policy::{AnyPolicyDyn, PolicyDyn, PolicyDynRelation, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy, AnyPolicyable, AnyPolicyClone, AnyPolicyTrait, AnyPolicyCC, AnyPolicyBB};
 use crate::pure::PrivacyPureRegion;
 
 use crate::bbox::obfuscated_pointer::ObPtr;
@@ -85,20 +85,26 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Unbox with policy checks.
-    pub fn unbox<'a, D: ContextData, C: Clone + SesameType, O, F: FnOnce(&'a T, C::Out) -> O>(
+    pub fn unbox<
+        'a,
+        D: ContextData,
+        C: SesameType,
+        O,
+        F: FnOnce(&'a T, C::Out) -> O
+    >(
         &'a self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
         arg: C,
     ) -> Result<O, ()>
     where
-        C::Out: CloneableAny + Clone,
+        C::Out: Any,
     {
-        let arg_out = fold(arg.clone()).unwrap().consume().0;
+        let arg_out = fold(arg).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
         if self
             .p
-            .check(&context, Reason::Custom(Box::new(arg_out.clone())))
+            .check(&context, Reason::Custom(&arg_out))
         {
             let functor = functor.get_functor();
             Ok(functor(self.fb.get(), arg_out))
@@ -106,20 +112,25 @@ impl<T, P: Policy> BBox<T, P> {
             Err(())
         }
     }
-    pub fn into_unbox<D: ContextData, C: Clone + SesameType, O, F: FnOnce(T, C::Out) -> O>(
+    pub fn into_unbox<
+        D: ContextData,
+        C: SesameType,
+        O,
+        F: FnOnce(T, C::Out) -> O
+    >(
         self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
         arg: C,
     ) -> Result<O, ()>
     where
-        C::Out: CloneableAny + Clone,
+        C::Out: Any,
     {
         let arg_out = fold(arg).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
         if self
             .p
-            .check(&context, Reason::Custom(Box::new(arg_out.clone())))
+            .check(&context, Reason::Custom(&arg_out))
         {
             let functor = functor.get_functor();
             Ok(functor(self.fb.mov(), arg_out))
@@ -178,14 +189,19 @@ impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
 }
 
 // Up casting to std::any::Any and AnyPolicy.
-impl<T: 'static, P: Policy + Clone + 'static> BBox<T, P> {
-    pub fn into_any(self) -> BBox<Box<dyn Any>, AnyPolicy> {
-        BBox::new(Box::new(self.fb.mov()), AnyPolicy::new(self.p))
+impl<T: Any, P: AnyPolicyClone> BBox<T, P> {
+    pub fn into_any_cloneable(self) -> BBox<Box<dyn Any>, AnyPolicyCC> {
+        BBox::new(Box::new(self.fb.mov()), AnyPolicyCC::new(self.p))
+    }
+}
+impl<T: Any, P: AnyPolicyable> BBox<T, P> {
+    pub fn into_any_no_clone(self) -> BBox<Box<dyn Any>, AnyPolicyBB> {
+        BBox::new(Box::new(self.fb.mov()), AnyPolicyBB::new(self.p))
     }
 }
 
 // Specializing OptionPolicy.
-impl<T, P: Policy + Clone + 'static> BBox<T, OptionPolicy<P>> {
+impl<T, P: AnyPolicyable> BBox<T, OptionPolicy<P>> {
     pub fn specialize(self) -> Either<BBox<T, NoPolicy>, BBox<T, P>> {
         let (t, p) = self.consume();
         match p {
@@ -195,27 +211,57 @@ impl<T, P: Policy + Clone + 'static> BBox<T, OptionPolicy<P>> {
     }
 }
 
-// Up and downcasting policy with AnyPolicy.
-impl<T, P: Policy + Clone + 'static> BBox<T, P> {
-    pub fn into_any_policy(self) -> BBox<T, AnyPolicy> {
+// Upcasting to AnyPolicy.
+impl<T, P: AnyPolicyClone> BBox<T, P> {
+    pub fn into_any_policy(self) -> BBox<T, AnyPolicyCC> {
         BBox {
             fb: self.fb,
-            p: AnyPolicy::new(self.p),
+            p: AnyPolicyCC::new(self.p),
         }
     }
 }
-impl<T> BBox<T, AnyPolicy> {
-    pub fn is_policy<P: Policy + 'static>(&self) -> bool {
+impl<T, P: AnyPolicyable> BBox<T, P> {
+    pub fn into_any_policy_no_clone(self) -> BBox<T, AnyPolicyBB> {
+        BBox {
+            fb: self.fb,
+            p: AnyPolicyBB::new(self.p),
+        }
+    }
+}
+
+// Downcasting to AnyPolicy.
+impl<T, DynP: PolicyDyn + ?Sized> BBox<T, AnyPolicyDyn<DynP>> {
+    pub fn is_policy<P: AnyPolicyable>(&self) -> bool
+    where DynP: PolicyDynRelation<P> {
         self.p.is::<P>()
     }
-    pub fn specialize_policy<P: Policy + 'static>(self) -> Result<BBox<T, P>, String> {
+
+    pub fn specialize_policy<P: AnyPolicyable>(self) -> Result<BBox<T, P>, String>
+    where DynP: PolicyDynRelation<P>  {
         Ok(BBox {
             fb: self.fb,
             p: self.p.specialize()?,
         })
     }
+
+    pub fn specialize_policy_ref<P: AnyPolicyable>(&self) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
+    where DynP: PolicyDynRelation<P>  {
+        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.specialize_ref()?)))
+    }
+}
+impl<'a, T, DynP: PolicyDyn + ?Sized> BBox<T, RefPolicy<'a, AnyPolicyDyn<DynP>>> {
+    pub fn is_policy<P: AnyPolicyable>(&self) -> bool
+    where DynP: PolicyDynRelation<P> {
+        self.p.policy().is::<P>()
+    }
+
+    pub fn specialize_policy_ref<P: AnyPolicyable>(&self) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
+    where DynP: PolicyDynRelation<P>  {
+        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.policy().specialize_ref()?)))
+    }
 }
 
+// Future.
 impl<'a, T: Future + Unpin, P: Policy + Clone> Future for BBox<T, P> {
     type Output = BBox<T::Output, P>;
 
@@ -228,6 +274,7 @@ impl<'a, T: Future + Unpin, P: Policy + Clone> Future for BBox<T, P> {
     }
 }
 
+// Default.
 impl<T: Default, P: Policy + Default> Default for BBox<T, P> {
     fn default() -> Self {
         BBox::new(T::default(), P::default())
@@ -236,6 +283,7 @@ impl<T: Default, P: Policy + Default> Default for BBox<T, P> {
 
 // For datetime.
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime, ParseResult};
+
 impl<P: Policy> BBox<String, P> {
     pub fn into_date_time(self, fmt: &str) -> ParseResult<BBox<NaiveDateTime, P>> {
         let (t, p) = self.consume();
@@ -271,8 +319,8 @@ mod tests {
         fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
-            Ok(AnyPolicy::new(self.clone()))
+        fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
+            Ok(AnyPolicyBB::new(self.clone()))
         }
         fn join_logic(&self, _other: Self) -> Result<Self, ()> {
             Ok(ExamplePolicy {

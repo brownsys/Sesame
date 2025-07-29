@@ -1,12 +1,13 @@
+use std::any::Any;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, Policy, PolicyAnd, Reason};
+use crate::policy::{AnyPolicyBB, AnyPolicyable, Policy, Reason};
 
 #[derive(Clone)]
-pub enum OptionPolicy<P: Policy + Clone + 'static> {
+pub enum OptionPolicy<P: AnyPolicyable> {
     NoPolicy,
     Policy(P),
 }
-impl<P: Policy + Clone + 'static> Policy for OptionPolicy<P> {
+impl<P: Any + Policy> Policy for OptionPolicy<P> {
     fn name(&self) -> String {
         match self {
             Self::NoPolicy => format!("OptionPolicy(Empty)"),
@@ -19,20 +20,10 @@ impl<P: Policy + Clone + 'static> Policy for OptionPolicy<P> {
             Self::Policy(p) => p.check(context, reason),
         }
     }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        if other.is::<Self>() {
-            Ok(AnyPolicy::new(
-                self.join_logic(other.specialize().unwrap())?,
-            ))
-        } else {
-            Ok(AnyPolicy::new(PolicyAnd::new(self.clone(), other)))
-        }
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
+        todo!()
     }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        match (self, other) {
-            (Self::NoPolicy, other) => Ok(other),
-            (_, Self::NoPolicy) => Ok(self.clone()),
-            (Self::Policy(p1), Self::Policy(p2)) => Ok(Self::Policy(p1.join_logic(p2)?)),
-        }
+    fn join_logic(&self, _other: Self) -> Result<Self, ()> {
+        todo!()
     }
 }

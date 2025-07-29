@@ -4,23 +4,27 @@ use erased_serde::Serialize;
 // You should implement this for combination of traits you can about preserving through
 // SesameType from_enum and into_enum transformation.
 // E.g., Tahini should implement this for Serialize + Debug.
-pub trait SesameDynType {
-    //type DynType;
+pub trait SesameDyn: Any {
     fn upcast_ref(&self) -> &dyn Any;
     fn upcast_box(self: Box<Self>) -> Box<dyn Any>;
 }
 
-// TODO(babman): this is almost right, but cannot be implemented in foreign crates even for their
-// own traits. Need to perhaps flip T and Self! Look at youchat for an example.
-// TODO(babman): make sure fold tests pass!
-pub trait SesameTypeDynTypes<T> where Self: SesameDynType {
-    fn box_me(t: T) -> Box<Self>;
+// Relates a type T to the corresponding SesameDyn trait object.
+// E.g. related every T: Any to dyn Any.
+pub trait SesameDynRelation<T: Any> : SesameDyn {
+    fn boxed_dyn(t: T) -> Box<Self>;
 }
 
 // Example: Now we can preserve Serialize + Any through SesameType transformations.
-// Traits that we care about preserving inside SesameType.
-// This part should be macro-ed:
-pub trait AnySerialize: Serialize + Any {
+// This part should be macro-ed for custom combinations of Any + <traits>.
+mod private1 {
+    use std::any::Any;
+    use erased_serde::Serialize;
+
+    pub trait Sealed {}
+    impl<T: Any + Serialize> Sealed for T {}
+}
+pub trait AnySerialize: Any + Serialize + private1::Sealed {
     // These upcasts would be unneeded with trait object upcasting but we are not using a new
     // enough Rust version :(
     fn upcast_any(&self) -> &dyn Any;
@@ -28,7 +32,7 @@ pub trait AnySerialize: Serialize + Any {
     fn upcast_serialize(&self) -> &dyn Serialize;
     fn upcast_serialize_box(self: Box<Self>) -> Box<dyn Serialize>;
 }
-impl<T: Serialize + Any> AnySerialize for T {
+impl<T: Any + Serialize> AnySerialize for T {
     fn upcast_any(&self) -> &dyn Any {
         self
     }
@@ -42,7 +46,7 @@ impl<T: Serialize + Any> AnySerialize for T {
         Box::new(*self)
     }
 }
-impl SesameDynType for dyn AnySerialize {
+impl SesameDyn for dyn AnySerialize {
     fn upcast_ref(&self) -> &dyn Any {
         self.upcast_any()
     }
@@ -51,15 +55,15 @@ impl SesameDynType for dyn AnySerialize {
     }
 }
 
-impl<T: Any + Serialize> SesameTypeDynTypes<T> for dyn AnySerialize {
-    fn box_me(t: T) -> Box<dyn AnySerialize> {
+impl<T: Any + Serialize> SesameDynRelation<T> for dyn AnySerialize {
+    fn boxed_dyn(t: T) -> Box<dyn AnySerialize> {
         Box::new(t)
     }
 }
 // End of Macro.
 
 // Provided implementations for types we care about
-impl SesameDynType for dyn Any {
+impl SesameDyn for dyn Any {
     fn upcast_ref(&self) -> &dyn Any {
         self
     }
@@ -67,8 +71,8 @@ impl SesameDynType for dyn Any {
         self
     }
 }
-impl<T: Any> SesameTypeDynTypes<T> for dyn Any {
-    fn box_me(t: T) -> Box<dyn Any> {
+impl<T: Any> SesameDynRelation<T> for dyn Any {
+    fn boxed_dyn(t: T) -> Box<dyn Any> {
         Box::new(t)
     }
 }

@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::policy::{AnyPolicy, NoPolicy, PolicyAnd, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, NoPolicy, PolicyAnd, SchemaPolicy};
 
 // Global static singleton.
-type SchemaPolicyFactory = dyn (Fn(&Vec<mysql::Value>) -> AnyPolicy) + Send + Sync;
+type SchemaPolicyFactory = dyn (Fn(&Vec<mysql::Value>) -> AnyPolicyBB) + Send + Sync;
 type SchemaPolicyMap = HashMap<(String, usize), Vec<Box<SchemaPolicyFactory>>>;
 lazy_static! {
     static ref SCHEMA_POLICIES: RwLock<SchemaPolicyMap> = RwLock::new(SchemaPolicyMap::new());
 }
 
 // Helper to fold an iterator of policies into an AndPolicy.
-fn fold_policies<I: Iterator<Item = AnyPolicy>>(mut policies: I) -> AnyPolicy {
+fn fold_policies<I: Iterator<Item = AnyPolicyBB>>(mut policies: I) -> AnyPolicyBB {
     match policies.next() {
-        None => AnyPolicy::new(NoPolicy {}),
+        None => AnyPolicyBB::new(NoPolicy {}),
         Some(mut policy) => {
             for next in policies {
-                policy = AnyPolicy::new(PolicyAnd::new(policy, next));
+                policy = AnyPolicyBB::new(PolicyAnd::new(policy, next));
             }
             policy
         }
@@ -28,10 +28,10 @@ pub fn get_schema_policies(
     table_name: String,
     column: usize,
     row: &Vec<mysql::Value>,
-) -> AnyPolicy {
+) -> AnyPolicyBB {
     let map = SCHEMA_POLICIES.read().unwrap();
     match (*map).get(&(table_name, column)) {
-        Option::None => AnyPolicy::new(NoPolicy {}),
+        Option::None => AnyPolicyBB::new(NoPolicy {}),
         Option::Some(factories) => fold_policies(factories.iter().map(|factory| factory(row))),
     }
 }
@@ -45,6 +45,6 @@ pub fn add_schema_policy<T: SchemaPolicy + Clone + 'static>(table_name: String, 
     map.entry((table_name.clone(), column))
         .or_default()
         .push(Box::new(move |row: &Vec<mysql::Value>| {
-            AnyPolicy::new(T::from_row(&table_name, row))
+            AnyPolicyBB::new(T::from_row(&table_name, row))
         }));
 }

@@ -3,14 +3,14 @@ use mysql::MySqlError;
 use crate::bbox::EitherBBox;
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::db::BBoxParam;
-use crate::policy::{AnyPolicy, Policy, Reason};
+use crate::policy::{AnyPolicyBB, Policy, Reason};
 
 // Our params could be mixed boxed and clear.
-#[derive(Clone)]
+//#[derive(Clone)]
 pub enum BBoxParams {
     Empty,
     // Named(HashMap<String, Value>),
-    Positional(Vec<EitherBBox<mysql::Value, AnyPolicy>>),
+    Positional(Vec<EitherBBox<mysql::Value, AnyPolicyBB>>),
 }
 
 // private helper function.
@@ -45,14 +45,14 @@ impl BBoxParams {
         }
     }
 
-    pub(super) fn to_reason<'a>(self) -> Vec<mysql::Value> {
+    pub(super) fn to_reason(&self) -> Vec<mysql::Value> {
         match self {
             BBoxParams::Empty => Vec::new(),
             BBoxParams::Positional(v) => v
                 .into_iter()
                 .map(|either| match either {
-                    EitherBBox::Value(value) => value,
-                    EitherBBox::BBox(bbox) => bbox.consume().0,
+                    EitherBBox::Value(value) => value.clone(),
+                    EitherBBox::BBox(bbox) => bbox.data().clone(),
                 })
                 .collect(),
         }
@@ -192,12 +192,12 @@ mod tests {
     use crate::bbox::{BBox, EitherBBox};
     use crate::context::Context;
     use crate::db::{BBoxParam, BBoxParams};
-    use crate::policy::{AnyPolicy, NoPolicy, Reason};
+    use crate::policy::{AnyPolicyBB, NoPolicy, Reason};
     use mysql::prelude::FromValue;
     use mysql::Params;
     use std::boxed::Box;
 
-    fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicy>, t: T) -> bool {
+    fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicyBB>, t: T) -> bool {
         mysql::from_value::<T>(b.data().clone()) == t
     }
     fn helper2<T: FromValue + Eq>(b: &mysql::Value, t: T) -> bool {
@@ -216,18 +216,18 @@ mod tests {
         assert!(matches!(&params, BBoxParams::Positional(v) if v.len() == 4));
         if let BBoxParams::Positional(vec) = &params {
             assert!(
-                matches!(vec[0].clone().get(), EitherBBox::BBox(b) if helper1(&b, String::from("kinan")))
+                matches!(&vec[0], EitherBBox::BBox(b) if helper1(&b, String::from("kinan")))
             );
-            assert!(matches!(vec[1].clone().get(), EitherBBox::BBox(b) if helper1(&b, 10i32)));
-            assert!(matches!(vec[2].clone().get(), EitherBBox::Value(b) if helper2(&b, 100i32)));
+            assert!(matches!(&vec[1], EitherBBox::BBox(b) if helper1(&b, 10i32)));
+            assert!(matches!(&vec[2], EitherBBox::Value(b) if helper2(&b, 100i32)));
             assert!(
-                matches!(vec[3].clone().get(), EitherBBox::Value(b) if helper2(&b, String::from("test")))
+                matches!(&vec[3], EitherBBox::Value(b) if helper2(&b, String::from("test")))
             );
         }
 
         // Test unboxing.
         let params = params
-            .transform(Context::test(()), Reason::Custom(Box::new(())))
+            .transform(Context::test(()), Reason::Custom(&Box::new(())))
             .unwrap();
         assert!(matches!(&params, Params::Positional(v) if v.len() == 4));
         if let Params::Positional(vec) = &params {

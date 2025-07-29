@@ -18,3 +18,4 @@ impl<T: PartialEq, P: Policy + PartialEq> PartialEq for BBox<T, P> {
 }
 
 impl<T: PartialEq + Eq, P: Policy + PartialEq + Eq> Eq for BBox<T, P> {}
+

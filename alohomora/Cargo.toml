@@ -32,6 +32,7 @@ cookie = { version = "0.15", features = ["percent-encode"] }
 time = { version = "0.2.11", default-features = false, features = ["std"] }
 indexmap = "1.7.0"
 itertools = "0.12.1"
+dyn-clone = "1.0.20"
 
 [dev-dependencies]
 tokio = "1.37.0"

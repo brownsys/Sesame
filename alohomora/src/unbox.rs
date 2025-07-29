@@ -1,7 +1,7 @@
+use std::any::Any;
 use crate::context::{Context, ContextData};
 use crate::fold::fold;
 use crate::pcr::PrivacyCriticalRegion;
-use crate::policy::CloneableAny;
 use crate::unbox::UnboxError::{FoldError, PolicyViolation};
 use crate::SesameType;
 
@@ -14,7 +14,7 @@ pub enum UnboxError {
 pub fn unbox<
     S: SesameType,
     D: ContextData,
-    C: Clone + SesameType,
+    C: SesameType,
     O,
     F: FnOnce(S::Out, C::Out) -> O,
 >(
@@ -24,7 +24,7 @@ pub fn unbox<
     arg: C,
 ) -> Result<O, UnboxError>
 where
-    C::Out: CloneableAny + Clone,
+    C::Out: Any,
 {
     match fold(data) {
         Ok(data) => match data.into_unbox(context, functor, arg) {

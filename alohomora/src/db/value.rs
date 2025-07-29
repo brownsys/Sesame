@@ -1,21 +1,22 @@
+use std::any::Any;
 // BBox
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicy, Policy};
+use crate::policy::{AnyPolicyBB, AnyPolicyable, SchemaPolicy};
 
 // mysql imports.
 pub use mysql::prelude::FromValue as BBoxFromValue;
 
 // What is a (return) value.
-pub type BBoxValue = BBox<mysql::Value, AnyPolicy>;
+pub type BBoxValue = BBox<mysql::Value, AnyPolicyBB>;
 
 // Type modification.
-pub fn from_value<T: BBoxFromValue, P: Policy + 'static>(
+pub fn from_value<T: BBoxFromValue, P: AnyPolicyable + SchemaPolicy>(
     v: BBoxValue,
 ) -> Result<BBox<T, P>, String> {
     let (t, p) = v.consume();
     Ok(BBox::new(mysql::from_value(t), p.specialize()?))
 }
-pub fn from_value_or_null<T: BBoxFromValue, P: Policy + 'static>(
+pub fn from_value_or_null<T: BBoxFromValue, P: Any + SchemaPolicy>(
     v: BBoxValue,
 ) -> Result<BBox<Option<T>, P>, String> {
     let (t, p) = v.consume();

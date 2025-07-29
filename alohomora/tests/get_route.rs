@@ -1,4 +1,4 @@
-use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, Reason};
+use alohomora::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason};
 
 use alohomora::bbox::BBox;
 use alohomora::context::{Context, UnprotectedContext};
@@ -23,7 +23,7 @@ impl Policy for UserPolicy {
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.name == String::from("Kinan")
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         todo!()
     }
     fn join_logic(&self, _other: Self) -> Result<Self, ()>
@@ -61,7 +61,7 @@ impl Policy for HardcodedPolicy {
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.0
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         todo!()
     }
     fn join_logic(&self, _other: Self) -> Result<Self, ()>

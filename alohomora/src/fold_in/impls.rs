@@ -40,9 +40,7 @@ mod tests {
     use crate::bbox::BBox;
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
-    use crate::policy::{
-        AnyPolicy, NoPolicy, OptionPolicy, Policy, PolicyAnd, PolicyOr, Reason, RefPolicy,
-    };
+    use crate::policy::{AnyPolicyBB, AnyPolicyCC, NoPolicy, OptionPolicy, Policy, PolicyAnd, PolicyOr, Reason, RefPolicy};
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct NoFoldPolicy {}
@@ -56,8 +54,8 @@ mod tests {
         fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
-            Ok(AnyPolicy::new(self.clone()))
+        fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
+            Ok(AnyPolicyBB::new(self.clone()))
         }
         fn join_logic(&self, _other: Self) -> Result<Self, ()> {
             Ok(NoFoldPolicy {})
@@ -93,55 +91,43 @@ mod tests {
         let pcon: BBox<Vec<u64>, NoPolicy> = BBox::new(vec![10u64, 11u64, 12u64], NoPolicy {});
         let pcon = pcon.into_any_policy();
         assert_eq!(true, pcon.policy().can_fold_in());
-        let vec: Vec<BBox<u64, AnyPolicy>> = pcon.fold_in();
+        let vec: Vec<BBox<u64, AnyPolicyCC>> = pcon.fold_in();
         assert_eq!(vec.len(), 3);
         assert_eq!(
-            vec[0].clone().specialize_policy().unwrap(),
-            BBox::new(10u64, NoPolicy {})
+            vec[0].specialize_policy_ref().unwrap(),
+            BBox::new(10u64, NoPolicy {}).as_ref()
         );
         assert_eq!(
-            vec[1].clone().specialize_policy().unwrap(),
-            BBox::new(11u64, NoPolicy {})
+            vec[1].specialize_policy_ref().unwrap(),
+            BBox::new(11u64, NoPolicy {}).as_ref()
         );
         assert_eq!(
-            vec[2].clone().specialize_policy().unwrap(),
-            BBox::new(12u64, NoPolicy {})
+            vec[2].specialize_policy_ref().unwrap(),
+            BBox::new(12u64, NoPolicy {}).as_ref()
         );
     }
 
     #[test]
     fn test_fold_in_allowed_any_policy_complex() {
-        let policy = AnyPolicy::new(NoPolicy {});
+        let policy = AnyPolicyCC::new(NoPolicy {});
         let refpolicy = RefPolicy::new(&policy);
-        let pcon: BBox<Vec<u64>, RefPolicy<AnyPolicy>> =
+        let pcon: BBox<Vec<u64>, RefPolicy<AnyPolicyCC>> =
             BBox::new(vec![10u64, 11u64, 12u64], refpolicy);
 
         assert_eq!(true, pcon.policy().can_fold_in());
-        let vec: Vec<BBox<u64, RefPolicy<AnyPolicy>>> = pcon.fold_in();
+        let vec: Vec<BBox<u64, RefPolicy<AnyPolicyCC>>> = pcon.fold_in();
         assert_eq!(vec.len(), 3);
         assert_eq!(
-            vec[0]
-                .clone()
-                .to_owned_policy()
-                .specialize_policy()
-                .unwrap(),
-            BBox::new(10u64, NoPolicy {})
+            vec[0].specialize_policy_ref().unwrap(),
+            BBox::new(10u64, NoPolicy {}).as_ref()
         );
         assert_eq!(
-            vec[1]
-                .clone()
-                .to_owned_policy()
-                .specialize_policy()
-                .unwrap(),
-            BBox::new(11u64, NoPolicy {})
+            vec[1].specialize_policy_ref().unwrap(),
+            BBox::new(11u64, NoPolicy {}).as_ref()
         );
         assert_eq!(
-            vec[2]
-                .clone()
-                .to_owned_policy()
-                .specialize_policy()
-                .unwrap(),
-            BBox::new(12u64, NoPolicy {})
+            vec[2].specialize_policy_ref().unwrap(),
+            BBox::new(12u64, NoPolicy {}).as_ref()
         );
     }
 
@@ -150,13 +136,13 @@ mod tests {
     fn test_fold_in_not_allowed_any_policy() {
         let pcon: BBox<Vec<u64>, NoFoldPolicy> = BBox::new(vec![10u64], NoFoldPolicy {});
         let pcon = pcon.into_any_policy();
-        let _vec_of_pcon: Vec<BBox<u64, AnyPolicy>> = pcon.fold_in(); // correctly panics
+        let _vec_of_pcon: Vec<BBox<u64, _>> = pcon.fold_in(); // correctly panics
     }
 
     #[test]
     #[should_panic]
     fn test_fold_in_not_allowed_any_policy_complex() {
-        let policy = AnyPolicy::new(PolicyAnd::new(NoFoldPolicy {}, NoFoldPolicy {}));
+        let policy = AnyPolicyCC::new(PolicyAnd::new(NoFoldPolicy {}, NoFoldPolicy {}));
         let refpolicy = RefPolicy::new(&policy);
 
         let pcon: BBox<Vec<u64>, _> = BBox::new(vec![10u64], refpolicy);

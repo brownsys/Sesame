@@ -1,6 +1,7 @@
+use std::any::Any;
 use crate::bbox::BBox;
 use crate::fold::fold;
-use crate::policy::AnyPolicy;
+use crate::policy::{AnyPolicyDyn, PolicyDyn};
 use crate::SesameType;
 
 // Creation of this must be checked for purity.
@@ -18,10 +19,10 @@ impl<F> PrivacyPureRegion<F> {
 }
 
 // Executes a PCR over some boxed type.
-pub fn execute_pure<S: SesameType, O, F: Fn(S::Out) -> O>(
+pub fn execute_pure<PDyn: PolicyDyn + ?Sized, S: SesameType<dyn Any, PDyn>, O, F: Fn(S::Out) -> O>(
     data: S,
     functor: PrivacyPureRegion<F>,
-) -> Result<BBox<O, AnyPolicy>, ()> {
+) -> Result<BBox<O, AnyPolicyDyn<PDyn>>, ()> {
     let data = fold(data)?;
     let (t, p) = data.consume();
     let functor = functor.get_functor();

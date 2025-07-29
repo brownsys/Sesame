@@ -1,61 +1,55 @@
 use std::any::Any;
 use std::collections::HashMap;
 use crate::bbox::BBox;
-use crate::policy::AnyPolicy;
-use crate::sesame_type::dyns::{SesameDynType, SesameTypeDynTypes};
+use crate::policy::{AnyPolicyDyn, AnyPolicyTrait, PolicyDyn};
+use crate::sesame_type::dyns::{SesameDyn, SesameDynRelation};
 use crate::sesame_type::helpers::compose_policies;
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum SesameTypeEnumDyn<T: SesameDynType + ?Sized> {
-    BBox(BBox<Box<T>, AnyPolicy>),
+pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dyn AnyPolicyTrait> {
+    BBox(BBox<Box<T>, AnyPolicyDyn<P>>),
     Value(Box<T>),
-    Vec(Vec<SesameTypeEnumDyn<T>>),
-    Struct(HashMap<String, SesameTypeEnumDyn<T>>),
+    Vec(Vec<SesameTypeEnum<T, P>>),
+    Struct(HashMap<String, SesameTypeEnum<T, P>>),
 }
 
-impl<T: SesameDynType + ?Sized> SesameTypeEnumDyn<T> {
-    // Combines the policies of all the BBox inside this type.
-    pub fn policy(&self) -> Result<Option<AnyPolicy>, ()> {
+impl<T: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameTypeEnum<T, P> {
+    pub fn remove_bboxes2(self) -> (Self, Result<Option<AnyPolicyDyn<P>>, ()>) {
         match self {
-            SesameTypeEnumDyn::Value(_) => Ok(None),
-            SesameTypeEnumDyn::BBox(bbox) => Ok(Some(bbox.policy().clone())),
-            SesameTypeEnumDyn::Vec(vec) => vec
-                .into_iter()
-                .map(|e| e.policy())
-                .reduce(compose_policies)
-                .unwrap_or(Ok(None)),
-            SesameTypeEnumDyn::Struct(hashmap) => {
-                // iterate over hashmap, collect policies
-                hashmap
-                    .into_iter()
-                    .map(|(_, e)| e.policy())
-                    .reduce(compose_policies)
-                    .unwrap_or(Ok(None))
+            SesameTypeEnum::Value(val) => {
+                (SesameTypeEnum::Value(val), Ok(None))
+            },
+            SesameTypeEnum::BBox(bbox) => {
+                let (t, p) = bbox.consume();
+                (SesameTypeEnum::Value(t), Ok(Some(p)))
+            },
+            SesameTypeEnum::Vec(vec) => {
+                let mut ts = Vec::with_capacity(vec.len());
+                let mut ps = Ok(None);
+                for e in vec {
+                    let (t, p) = e.remove_bboxes2();
+                    ts.push(t);
+                    ps = compose_policies(ps, p);
+                }
+                (SesameTypeEnum::Vec(ts), ps)
             }
-        }
-    }
-
-    // Transforms the Enum to an unboxed enum.
-    pub(crate) fn remove_bboxes(self) -> Self {
-        match self {
-            SesameTypeEnumDyn::Value(val) => SesameTypeEnumDyn::Value(val),
-            SesameTypeEnumDyn::BBox(bbox) => SesameTypeEnumDyn::Value(bbox.consume().0),
-            SesameTypeEnumDyn::Vec(vec) => {
-                SesameTypeEnumDyn::Vec(vec.into_iter().map(|e| e.remove_bboxes()).collect())
-            }
-            SesameTypeEnumDyn::Struct(hashmap) => SesameTypeEnumDyn::Struct(
-                hashmap
-                    .into_iter()
-                    .map(|(key, val)| (key, val.remove_bboxes()))
-                    .collect(),
-            ),
+            SesameTypeEnum::Struct(hashmap) => {
+                let mut ts = HashMap::with_capacity(hashmap.len());
+                let mut ps = Ok(None);
+                for (k, e) in hashmap {
+                    let (t, p) = e.remove_bboxes2();
+                    ts.insert(k, t);
+                    ps = compose_policies(ps, p);
+                }
+                (SesameTypeEnum::Struct(ts), ps)
+            },
         }
     }
 
     // Coerces self into the given type provided it is a Value(...) of that type.
-    pub fn coerce<R: Any>(self) -> Result<R, ()> where T: SesameTypeDynTypes<R> {
+    pub fn coerce<R: Any>(self) -> Result<R, ()> where T: SesameDynRelation<R> {
         match self {
-            SesameTypeEnumDyn::Value(v) => match v.upcast_box().downcast() {
+            SesameTypeEnum::Value(v) => match v.upcast_box().downcast() {
                 Ok(t) => Ok(*t),
                 Err(_) => Err(()),
             },
@@ -63,6 +57,3 @@ impl<T: SesameDynType + ?Sized> SesameTypeEnumDyn<T> {
         }
     }
 }
-
-// Alias for ease of use.
-pub type SesameTypeEnum = SesameTypeEnumDyn<dyn Any>;

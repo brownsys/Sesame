@@ -1,9 +1,10 @@
+use std::any::Any;
 #[cfg(feature = "sandbox_timing")]
 use std::time::Instant;
 
 use crate::bbox::BBox;
 use crate::fold::fold;
-use crate::policy::AnyPolicy;
+use crate::policy::{AnyPolicyBB, AnyPolicyDyn, PolicyDyn};
 use crate::SesameType;
 
 // Expose alohomora_sandbox API that controls the interface outside sandbox.
@@ -16,9 +17,10 @@ pub use alohomora_derive::{AlohomoraSandbox, FastTransfer};
 
 /// Copies `t` into a sandbox and executes the specified function on it,
 /// and copies the result value and returns it.
-pub fn execute_sandbox<S, T, R>(t: T) -> SandboxOut<BBox<R, AnyPolicy>>
+pub fn execute_sandbox<S, T, R, PDyn>(t: T) -> SandboxOut<BBox<R, AnyPolicyDyn<PDyn>>>
 where
-    T: SesameType,
+    PDyn: PolicyDyn + ?Sized,
+    T: SesameType<dyn Any, PDyn>,
     T::Out: SandboxableType,
     R: SandboxableType,
     S: AlohomoraSandbox<T::Out, R>,

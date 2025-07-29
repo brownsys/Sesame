@@ -97,7 +97,7 @@ impl_base_types!(NaiveTime);
 // BBox of anything that is ResponseBBoxJson is also ResponseBBoxJson.
 impl<T: ResponseBBoxJson, P: Policy + Clone + 'static> ResponseBBoxJson for BBox<T, P> {
     fn to_json(self) -> OutputBBoxValue {
-        let (t, p) = self.into_any_policy().consume();
+        let (t, p) = self.into_any_policy_no_clone().consume();
         OutputBBoxValue::BBox(BBox::new(Box::new(t.to_json()), p))
     }
 }

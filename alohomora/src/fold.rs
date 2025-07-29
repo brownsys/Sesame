@@ -1,38 +1,41 @@
+use std::any::Any;
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicy, NoPolicy, OptionPolicy, Policy};
+use crate::policy::{AnyPolicyDyn, AnyPolicyable, NoPolicy, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation};
+use crate::sesame_type_dyns::{SesameDyn, SesameDynRelation};
 use crate::SesameType;
 
-pub fn fold<S: SesameType>(s: S) -> Result<BBox<S::Out, AnyPolicy>, ()> {
+pub fn fold<P: PolicyDyn + ?Sized, S: SesameType<dyn Any, P>>(s: S) -> Result<BBox<S::Out, AnyPolicyDyn<P>>, ()> {
     let (v, p) = Foldable::unsafe_fold(s)?;
     Ok(BBox::new(v, p))
 }
 
 // Private trait that implements folding out nested BBoxes.
-pub(crate) trait Foldable: SesameType {
-    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()>
+pub(crate) trait Foldable<P: PolicyDyn + ?Sized>: SesameType<dyn Any, P> {
+    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicyDyn<P>), ()>
     where
         Self: Sized;
 }
 
 // The general, unoptimized implementation of folding that works for all `AlohomoraType` types.
 // It's marked with the `default` keyword so we can override it with optimized implementations for specific types.
-impl<T: SesameType> Foldable for T {
-    default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicy), ()>
+impl<P: PolicyDyn + ?Sized, T: SesameType<dyn Any, P>> Foldable<P> for T {
+    default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicyDyn<P>), ()>
     where
         Self: Sized,
     {
         let e = self.to_enum();
-        let composed_policy = match e.policy()? {
-            None => AnyPolicy::new(NoPolicy {}),
+        let (t, p) = e.remove_bboxes2();
+        let composed_policy = match p? {
+            None => todo!("NoPolicy"),
             Some(policy) => policy,
         };
-        Ok((Self::from_enum(e.remove_bboxes())?, composed_policy))
+        Ok((Self::from_enum(t)?, composed_policy))
     }
 }
 
 // A more optimized version of unwrap for a simple vec of BBoxes.
-impl<T: Clone + std::any::Any + 'static, P: Policy + Clone + 'static> Foldable for Vec<BBox<T, P>> {
-    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()>
+impl<T: Any, P: AnyPolicyable, PDyn: PolicyDyn + ?Sized + PolicyDynRelation<P>> Foldable<PDyn> for Vec<BBox<T, P>> {
+    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicyDyn<PDyn>), ()>
     where
         Self: Sized,
     {
@@ -51,8 +54,8 @@ impl<T: Clone + std::any::Any + 'static, P: Policy + Clone + 'static> Foldable f
         });
 
         match p {
-            OptionPolicy::NoPolicy => Ok((v, AnyPolicy::new(NoPolicy {}))),
-            OptionPolicy::Policy(p) => Ok((v, AnyPolicy::new(p))),
+            OptionPolicy::NoPolicy => Ok((v, AnyPolicyDyn::new(todo!("NoPolicy")))),
+            OptionPolicy::Policy(p) => Ok((v, AnyPolicyDyn::new(p))),
         }
     }
 }
@@ -60,10 +63,12 @@ impl<T: Clone + std::any::Any + 'static, P: Policy + Clone + 'static> Foldable f
 // Expands to code that optimizes folding for simple vecs with tuples of bboxes. -- Eg. `Vec<(BBox<T, P>,)>`
 macro_rules! optimized_tup_fold {
     ($([$A:tt,$P:tt]),*) => (
-        impl<$($A: Clone + 'static,)* $($P: Policy + Clone + 'static,)*> Foldable for Vec<($(BBox<$A, $P>,)*)> {
-            fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy), ()> where Self: Sized {
+        impl<$($A: Any,)* $($P: AnyPolicyable,)* PDyn: PolicyDyn + ?Sized> Foldable<PDyn> for Vec<($(BBox<$A, $P>,)*)>
+        where $(PDyn: PolicyDynRelation<$P>,)* {
+            fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicyDyn<PDyn>), ()> where Self: Sized {
                 let mut v: Vec<($($A,)*)> = Vec::with_capacity(self.len());
-                let mut p = AnyPolicy::new(NoPolicy {});
+                // TODO(babman): same issue with NoPolicy.
+                let mut p: AnyPolicyDyn<PDyn> = todo!("NoPolicy");
                 for tup in self {
                     #[allow(non_snake_case)]
                     let ($($A,)*) = tup;
@@ -71,14 +76,17 @@ macro_rules! optimized_tup_fold {
                     let ($(($A, $P),)*) = ($($A.consume(),)*);
 
                     v.push(($($A,)*));
+                    // TODO(babman): same issue with join.
+                    /*
                     p = p.join(
-                        IntoIterator::into_iter([$(AnyPolicy::new($P),)*]).fold(
-                            AnyPolicy::new(NoPolicy {}),
-                            |p: AnyPolicy, ep: AnyPolicy| {
+                        IntoIterator::into_iter([$(AnyPolicyDyn::new($P),)*]).fold(
+                            AnyPolicyDyn::new(NoPolicy {})
+                            |p: AnyPolicyDyn<PDyn>, ep: AnyPolicyDyn<PDyn>| {
                                 p.join(ep).expect("Cannot fold vector in; unsatisfiable policy")
                             }
                         )
                     )?;
+                     */
                 }
                 Ok((v, p))
             }
@@ -113,7 +121,7 @@ optimized_tup_fold!(
 );
 
 // Fold bbox from inside vector to the outside. Same as generic fold(...) but preserves policy type.
-impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>> {
+impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>> {
     fn from(v: Vec<BBox<T, P>>) -> BBox<Vec<T>, OptionPolicy<P>> {
         let accum = (Vec::new(), OptionPolicy::NoPolicy);
         let result = v.into_iter().fold(accum, |accum, e| {
@@ -138,8 +146,8 @@ impl<T, P: Policy + Clone> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P
 #[cfg(test)]
 mod tests {
     use crate::bbox::BBox;
-    use crate::policy::{AnyPolicy, OptionPolicy, Policy, PolicyAnd, Reason};
-    use crate::{SesameTypeDyn, SesameTypeEnumDyn};
+    use crate::policy::{AnyPolicyBB, OptionPolicy, Policy, PolicyAnd, Reason};
+    use crate::{SesameType, SesameTypeEnum};
     use crate::testing::TestPolicy;
 
     use crate::context::UnprotectedContext;
@@ -165,12 +173,12 @@ mod tests {
         fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+        fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
             if other.is::<ACLPolicy>() {
                 let other = other.specialize::<ACLPolicy>().unwrap();
-                Ok(AnyPolicy::new(self.join_logic(other)?))
+                Ok(AnyPolicyBB::new(self.join_logic(other)?))
             } else {
-                Ok(AnyPolicy::new(PolicyAnd::new(self.clone(), other)))
+                Ok(AnyPolicyBB::new(PolicyAnd::new(self.clone(), other)))
             }
         }
         fn join_logic(&self, other: Self) -> Result<Self, ()> {
@@ -204,19 +212,19 @@ mod tests {
     }
 
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-    impl SesameTypeDyn<dyn Any> for BoxedStruct {
+    impl SesameType for BoxedStruct {
         type Out = BoxedStructLite;
-        fn to_enum(self) -> SesameTypeEnumDyn<dyn Any> {
+        fn to_enum(self) -> SesameTypeEnum {
             let hashmap = HashMap::from([
                 (String::from("x"), self.x.to_enum()),
                 (String::from("y"), self.y.to_enum()),
                 (String::from("z"), self.z.to_enum()),
             ]);
-            SesameTypeEnumDyn::Struct(hashmap)
+            SesameTypeEnum::Struct(hashmap)
         }
-        fn from_enum(e: SesameTypeEnumDyn<dyn Any>) -> Result<Self::Out, ()> {
+        fn from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
             match e {
-                SesameTypeEnumDyn::Struct(mut hashmap) => Ok(Self::Out {
+                SesameTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
                     x: BBox::<u64, TestPolicy<ACLPolicy>>::from_enum(hashmap.remove("x").unwrap())?,
                     y: BBox::<String, TestPolicy<ACLPolicy>>::from_enum(
                         hashmap.remove("y").unwrap(),
@@ -232,7 +240,7 @@ mod tests {
     fn test_join_policies() {
         let policy1 = TestPolicy::new(ACLPolicy::new(&[10, 20]));
         let policy2 = TestPolicy::new(ACLPolicy::new(&[10, 30]));
-        let joined = policy1.join(AnyPolicy::new(policy2)).unwrap();
+        let joined = policy1.join(AnyPolicyBB::new(policy2)).unwrap();
         let joined: TestPolicy<ACLPolicy> = joined.specialize().unwrap();
         assert_eq!(joined.policy().owners, HashSet::from_iter([10]));
     }
@@ -288,7 +296,7 @@ mod tests {
             BBox::new(30, policy3),
         ];
 
-        let bbox = super::fold(vec).unwrap();
+        let bbox: BBox<_, AnyPolicyBB> = super::fold(vec).unwrap();
         let bbox = bbox.specialize_policy::<TestPolicy<ACLPolicy>>().unwrap();
         assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
@@ -334,7 +342,7 @@ mod tests {
             BBox::new(30, policy3),
         ];
 
-        let _ = super::fold(vec).unwrap();
+        let _: BBox<_, AnyPolicyBB> = super::fold(vec).unwrap();
     }
 
     #[test]

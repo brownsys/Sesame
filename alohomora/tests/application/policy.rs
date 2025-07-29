@@ -5,7 +5,7 @@ use rocket::Request;
 use std::collections::HashSet;
 
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use alohomora::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy};
 use alohomora_derive::schema_policy;
 
 use crate::application::context::ContextData;
@@ -27,7 +27,7 @@ impl Policy for ACLPolicy {
             Some(user) => self.users.contains(user),
         }
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         todo!()
     }
     fn join_logic(&self, _other: Self) -> Result<Self, ()>
@@ -61,7 +61,7 @@ impl Policy for AuthenticationCookiePolicy {
             _ => false,
         }
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         todo!()
     }
     fn join_logic(&self, _other: Self) -> Result<Self, ()>
@@ -107,7 +107,7 @@ impl Policy for WritePolicy {
             _ => false,
         }
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         todo!()
     }
     fn join_logic(&self, _other: Self) -> Result<Self, ()>

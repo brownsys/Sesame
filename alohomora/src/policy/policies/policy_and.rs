@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy};
 
 #[derive(Clone)]
 pub struct PolicyAnd<P1: Policy, P2: Policy> {
@@ -29,7 +29,7 @@ impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
         self.p1.check(context, reason.clone()) && self.p2.check(context, reason)
     }
     // TODO(babman): find ways to make joining work under PolicyAnd
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         todo!()
     }
     fn join_logic(&self, _other: Self) -> Result<Self, ()> {

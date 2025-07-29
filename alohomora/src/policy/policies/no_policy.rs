@@ -1,6 +1,6 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy};
 use std::fmt::{Debug, Formatter};
 
 // NoPolicy can be directly discarded.
@@ -18,7 +18,7 @@ impl Policy for NoPolicy {
     fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
         true
     }
-    fn join(&self, other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         Ok(other)
     }
     fn join_logic(&self, other: Self) -> Result<Self, ()> {

@@ -1,6 +1,6 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicy, NoPolicy, Policy, Reason};
+use crate::policy::{AnyPolicyBB, NoPolicy, Policy, Reason};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -27,7 +27,7 @@ impl<'a, P: Policy + ?Sized> Policy for RefPolicy<'a, P> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.policy.check(context, reason)
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
+    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         todo!()
     }
     fn join_logic(&self, _other: Self) -> Result<Self, ()> {

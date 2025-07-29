@@ -1,4 +1,4 @@
-use crate::policy::{AnyPolicy, OptionPolicy, Policy, PolicyAnd, PolicyOr, RefPolicy};
+use crate::policy::{AnyPolicyDyn, OptionPolicy, Policy, PolicyAnd, PolicyDyn, PolicyOr, RefPolicy};
 use crate::testing::TestPolicy;
 
 // Every type (including policy types) are FoldInAllowed by default
@@ -7,12 +7,12 @@ use crate::testing::TestPolicy;
 pub auto trait FoldInAllowed {}
 
 // Need to manually implement this for AnyPolicy due to AnyPolicy using a dyn trait object.
-impl FoldInAllowed for AnyPolicy {}
+impl<P: PolicyDyn + ?Sized> FoldInAllowed for AnyPolicyDyn<P> {}
 
 // Marks which types are not a policy container.
 // Needed for specialization of RuntimeFoldIn to work.
 pub(crate) auto trait NotAPolicyContainer {}
-impl !NotAPolicyContainer for AnyPolicy {}
+impl<P: PolicyDyn + ?Sized> !NotAPolicyContainer for AnyPolicyDyn<P> {}
 impl<P: Policy> !NotAPolicyContainer for TestPolicy<P> {}
 impl<'a, P: Policy + ?Sized> !NotAPolicyContainer for RefPolicy<'a, P> {}
 impl<P1: Policy, P2: Policy> !NotAPolicyContainer for PolicyAnd<P1, P2> {}
@@ -44,9 +44,9 @@ impl<P: Policy + NotAPolicyContainer + ?Sized + FoldInAllowed> RuntimeFoldIn for
 }
 
 // Manually implement RuntimeFoldIn for types that are !NotAPolicyContainer.
-impl RuntimeFoldIn for AnyPolicy {
+impl<P: PolicyDyn + ?Sized> RuntimeFoldIn for AnyPolicyDyn<P> {
     fn can_fold_in(&self) -> bool {
-        self.policy().can_fold_in_boxed()
+        self.inner().can_fold_in_erased()
     }
 }
 impl<P: 'static + Policy + Clone> RuntimeFoldIn for TestPolicy<P> {
@@ -83,9 +83,7 @@ impl<P: Policy + Clone + 'static> RuntimeFoldIn for OptionPolicy<P> {
 mod tests {
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
-    use crate::policy::{
-        AnyPolicy, NoPolicy, OptionPolicy, Policy, PolicyAnd, PolicyOr, Reason, RefPolicy,
-    };
+    use crate::policy::{AnyPolicyBB, AnyPolicyCC, AnyPolicyClone, AnyPolicyDyn, AnyPolicyTrait, NoPolicy, OptionPolicy, Policy, PolicyAnd, PolicyOr, Reason, RefPolicy};
     use crate::testing::TestPolicy;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -100,8 +98,8 @@ mod tests {
         fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
-            Ok(AnyPolicy::new(self.clone()))
+        fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
+            Ok(AnyPolicyBB::new(self.clone()))
         }
         fn join_logic(&self, _other: Self) -> Result<Self, ()> {
             Ok(NoFoldPolicy {})
@@ -114,7 +112,18 @@ mod tests {
         assert_impl_any!(NoPolicy: FoldInAllowed);
         assert_not_impl_any!(NoFoldPolicy: FoldInAllowed);
         assert_eq!(NoPolicy {}.can_fold_in(), true);
-        assert_eq!(NoFoldPolicy {}.can_fold_in(), false);
+    }
+
+    #[test]
+    fn test_any_policy_no_fold_in() {
+        let any = AnyPolicyBB::new(NoPolicy {});
+        assert_eq!(any.can_fold_in(), true);
+        let any = AnyPolicyCC::new(NoPolicy {});
+        assert_eq!(any.can_fold_in(), true);
+        let any = AnyPolicyBB::new(NoFoldPolicy {});
+        assert_eq!(any.can_fold_in(), false);
+        let any = AnyPolicyCC::new(NoFoldPolicy {});
+        assert_eq!(any.can_fold_in(), false);
     }
 
     #[test]
