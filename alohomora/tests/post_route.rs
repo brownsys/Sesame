@@ -6,7 +6,7 @@ use alohomora::pure::PrivacyPureRegion;
 use alohomora::rocket::{
     BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxRocket, ContextResponse, FromBBoxData,
 };
-use alohomora::test_route;
+use alohomora::{test_route, Unjoinable};
 use alohomora::testing::{BBoxClient, TestPolicy};
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -15,21 +15,15 @@ use rocket::Request;
 pub struct UserPolicy {
     pub name: String,
 }
+
+Unjoinable!(UserPolicy);
+
 impl Policy for UserPolicy {
     fn name(&self) -> String {
         String::from("UserPolicy")
     }
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.name == String::from("Kinan")
-    }
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
-        todo!()
     }
 }
 impl FrontendPolicy for UserPolicy {

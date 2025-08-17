@@ -39,7 +39,7 @@ impl<'a, 'r, T: Send + Any> FromBBoxRequest<'a, 'r> for TestContextData<T> {
     async fn from_bbox_request(
         _request: BBoxRequest<'a, 'r>,
     ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        todo!()
+        todo!("TestContextData should not be actually constructed FromBBoxRequest because it is only used for testing")
     }
 }
 

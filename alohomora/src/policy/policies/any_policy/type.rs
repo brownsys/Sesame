@@ -1,11 +1,23 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, AnyPolicyTrait, Policy, Reason};
+use crate::policy::{AnyPolicyTrait, Direction, Joinable, Policy, Reason};
 use std::any::TypeId;
 use dyn_clone::DynClone;
+use serde::Serialize;
 use crate::policy::{AnyPolicyable, PolicyDyn, PolicyDynRelation};
+
+// Marker trait we use for specialization.
+pub(super) trait AnyPolicyMarker<P: PolicyDyn + ?Sized> {
+    fn into_inner(self) -> Box<P>;
+}
+impl<P: PolicyDyn + ?Sized> AnyPolicyMarker<P> for AnyPolicyDyn<P> {
+    fn into_inner(self) -> Box<P> {
+        self.into_inner()
+    }
+}
 
 // Type-erased AnyPolicy that can pose dyn trait object obligations
 // on the policy inside of it.
+#[derive(Serialize)]
 pub struct AnyPolicyDyn<P: PolicyDyn + ?Sized> {
     policy: Box<P>,
 }
@@ -53,6 +65,29 @@ impl<P: PolicyDyn + ?Sized> AnyPolicyDyn<P> {
     }
 }
 
+// Joining AnyPolicyDyns.
+// TODO(babman): make any policy joinable.
+impl<P: PolicyDyn + ?Sized> Joinable for AnyPolicyDyn<P> {
+    fn direction_to<P2: AnyPolicyable>(&self, p: &P2) -> Direction
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+    fn join_in<P2: AnyPolicyable>(&mut self, p: &mut P2, direction: Direction) -> bool
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+    fn join_direct(&mut self, p: &mut Self) -> bool
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+}
+
 // AnyPolicyDyn is a Policy.
 impl<P: PolicyDyn + ?Sized> Policy for AnyPolicyDyn<P> {
     fn name(&self) -> String {
@@ -60,15 +95,6 @@ impl<P: PolicyDyn + ?Sized> Policy for AnyPolicyDyn<P> {
     }
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.policy.upcast_pref().check(context, reason)
-    }
-    fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        self.policy.upcast_pref().join(other)
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-        // we can implement this by making AndPolicy<P1, P2> satisfy any PolicyDynRelation
-        // both elements satisfy.
-        // Then, we can do join here and do some type-erasure to get a Self.
-        todo!()
     }
 }
 
@@ -84,5 +110,11 @@ impl <P: PolicyDyn + ?Sized> AnyPolicyDyn<P> {
     pub fn upcast_super_box(self) -> AnyPolicyDyn<dyn AnyPolicyTrait> {
         let policy = self.policy;
         AnyPolicyDyn { policy: policy.upcast_super() }
+    }
+}
+
+impl <P: PolicyDyn + ?Sized> Default for AnyPolicyDyn<P> {
+    fn default() -> Self {
+        Self { policy: P::no_policy() }
     }
 }

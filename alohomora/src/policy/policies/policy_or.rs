@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy, Unjoinable};
 
 #[derive(Clone)]
 pub struct PolicyOr<P1: Policy, P2: Policy> {
@@ -20,6 +20,9 @@ impl<P1: Policy, P2: Policy> PolicyOr<P1, P2> {
         (&self.p1, &self.p2)
     }
 }
+
+Unjoinable!(PolicyOr<P1, P2> where P1: Policy, P2: Policy);
+
 impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     fn name(&self) -> String {
         format!("({} OR {})", self.p1.name(), self.p2.name())
@@ -27,14 +30,8 @@ impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p1.check(context, reason.clone()) || self.p2.check(context, reason)
     }
-    // TODO(babman): find ways to make join work under PolicyOr
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-        todo!()
-    }
 }
+
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
     fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
         Self {

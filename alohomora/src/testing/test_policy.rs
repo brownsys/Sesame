@@ -1,6 +1,6 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, AnyPolicyClone, AnyPolicyTrait, FrontendPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, AnyPolicyClone, AnyPolicyTrait, AnyPolicyable, Direction, FrontendPolicy, Joinable, Policy, Reason, RefPolicy, SchemaPolicy};
 use std::fmt::{Debug, Formatter};
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
@@ -18,6 +18,29 @@ impl<P: AnyPolicyTrait> TestPolicy<P> {
         &self.p
     }
 }
+
+// TODO(babman): Make test policy joinable.
+impl<P: AnyPolicyTrait> Joinable for TestPolicy<P> {
+    fn direction_to<P2: AnyPolicyable>(&self, p: &P2) -> Direction
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+    fn join_in<P2: AnyPolicyable>(&mut self, p: &mut P2, direction: Direction) -> bool
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+    fn join_direct(&mut self, p: &mut Self) -> bool
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+}
+
 impl<P: AnyPolicyTrait> Policy for TestPolicy<P> {
     fn name(&self) -> String {
         format!("TestPolicy<{}>", self.p.name())
@@ -25,6 +48,7 @@ impl<P: AnyPolicyTrait> Policy for TestPolicy<P> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p.check(context, reason)
     }
+    /*
     fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
         if other.is::<TestPolicy<P>>() {
             let other = other.specialize::<TestPolicy<P>>().unwrap();
@@ -36,6 +60,7 @@ impl<P: AnyPolicyTrait> Policy for TestPolicy<P> {
     fn join_logic(&self, other: Self) -> Result<Self, ()> {
         Ok(TestPolicy::new(self.p.join_logic(other.p)?))
     }
+     */
 }
 
 impl<P: AnyPolicyTrait + SchemaPolicy> SchemaPolicy for TestPolicy<P> {

@@ -1,12 +1,15 @@
 use std::any::Any;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, AnyPolicyable, Policy, Reason};
+use crate::policy::{AnyPolicyable, Policy, Reason, Unjoinable};
 
 #[derive(Clone)]
 pub enum OptionPolicy<P: AnyPolicyable> {
     NoPolicy,
     Policy(P),
 }
+
+Unjoinable!(OptionPolicy<P> where P: AnyPolicyable);
+
 impl<P: Any + Policy> Policy for OptionPolicy<P> {
     fn name(&self) -> String {
         match self {
@@ -19,11 +22,5 @@ impl<P: Any + Policy> Policy for OptionPolicy<P> {
             Self::NoPolicy => true,
             Self::Policy(p) => p.check(context, reason),
         }
-    }
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-        todo!()
     }
 }

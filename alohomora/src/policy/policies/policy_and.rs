@@ -1,7 +1,8 @@
+use serde::Serialize;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use crate::policy::{AnyPolicyable, Direction, FrontendPolicy, Joinable, Policy, Reason, SchemaPolicy};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct PolicyAnd<P1: Policy, P2: Policy> {
     p1: P1,
     p2: P2,
@@ -21,19 +22,34 @@ impl<P1: Policy, P2: Policy> PolicyAnd<P1, P2> {
     }
 }
 
+// TODO(babman): find ways to make joining work under PolicyAnd
+impl<P1: Policy, P2: Policy> Joinable for PolicyAnd<P1, P2> {
+    fn direction_to<P: AnyPolicyable>(&self, p: &P) -> Direction
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+    fn join_in<P: AnyPolicyable>(&mut self, p: &mut P, direction: Direction) -> bool
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+    fn join_direct(&mut self, p: &mut Self) -> bool
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+}
+
 impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
     fn name(&self) -> String {
         format!("({} AND {})", self.p1.name(), self.p2.name())
     }
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p1.check(context, reason.clone()) && self.p2.check(context, reason)
-    }
-    // TODO(babman): find ways to make joining work under PolicyAnd
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-        todo!()
     }
 }
 

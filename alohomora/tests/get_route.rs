@@ -7,7 +7,7 @@ use alohomora::rocket::{
     BBoxCookie, BBoxData, BBoxRequest, BBoxResponseOutcome, BBoxRocket, ContextResponse,
     FromBBoxFormField,
 };
-use alohomora::test_route;
+use alohomora::{test_route, Unjoinable};
 use alohomora::testing::{BBoxClient, TestPolicy};
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -16,21 +16,15 @@ use rocket::Request;
 pub struct UserPolicy {
     pub name: String,
 }
+
+Unjoinable!(UserPolicy);
+
 impl Policy for UserPolicy {
     fn name(&self) -> String {
         String::from("UserPolicy")
     }
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.name == String::from("Kinan")
-    }
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
-        todo!()
     }
 }
 impl FrontendPolicy for UserPolicy {
@@ -54,21 +48,15 @@ impl FrontendPolicy for UserPolicy {
 
 #[derive(Clone)]
 pub struct HardcodedPolicy(pub bool);
+
+Unjoinable!(HardcodedPolicy);
+
 impl Policy for HardcodedPolicy {
     fn name(&self) -> String {
         String::from("HardcodedPolicy")
     }
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.0
-    }
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
-        todo!()
     }
 }
 impl FrontendPolicy for HardcodedPolicy {

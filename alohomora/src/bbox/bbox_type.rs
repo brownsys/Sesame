@@ -302,7 +302,7 @@ impl<P: Policy> BBox<String, P> {
 // Unit tests.
 #[cfg(test)]
 mod tests {
-    use crate::policy::NoPolicy;
+    use crate::policy::{NoPolicy, SimplePolicy};
     use crate::testing::{TestContextData, TestPolicy};
 
     use super::*;
@@ -312,20 +312,16 @@ mod tests {
     struct ExamplePolicy {
         pub attr: String,
     }
-    impl Policy for ExamplePolicy {
-        fn name(&self) -> String {
+    impl SimplePolicy for ExamplePolicy {
+        fn simple_name(&self) -> String {
             String::from("ExamplePolicy")
         }
-        fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
+        fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-            Ok(AnyPolicyBB::new(self.clone()))
-        }
-        fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-            Ok(ExamplePolicy {
-                attr: String::from(""),
-            })
+        fn simple_join_direct(&mut self, other: &mut Self) -> bool {
+            self.attr = String::from("");
+            true
         }
     }
 

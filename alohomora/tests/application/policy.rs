@@ -1,11 +1,11 @@
-use alohomora::SesameType;
+use alohomora::{SesameType, Unjoinable};
 use cookie::Cookie;
 use mysql::{from_value, Value};
 use rocket::Request;
 use std::collections::HashSet;
 
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use alohomora::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy, SimplePolicy};
 use alohomora_derive::schema_policy;
 
 use crate::application::context::ContextData;
@@ -15,11 +15,11 @@ use crate::application::context::ContextData;
 pub struct ACLPolicy {
     pub users: HashSet<String>,
 }
-impl Policy for ACLPolicy {
-    fn name(&self) -> String {
+impl SimplePolicy for ACLPolicy {
+    fn simple_name(&self) -> String {
         String::from("ACLPolicy")
     }
-    fn check(&self, context: &UnprotectedContext, _: Reason) -> bool {
+    fn simple_check(&self, context: &UnprotectedContext, _: Reason) -> bool {
         type ContextDataOut = <ContextData as SesameType>::Out;
         let r: &ContextDataOut = context.downcast_ref().unwrap();
         match r {
@@ -27,14 +27,9 @@ impl Policy for ACLPolicy {
             Some(user) => self.users.contains(user),
         }
     }
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
-        todo!()
+    fn simple_join_direct(&mut self, other: &mut Self) -> bool {
+        self.users = self.users.intersection(&other.users).map(Clone::clone).collect();
+        self.users.len() > 0
     }
 }
 impl SchemaPolicy for ACLPolicy {
@@ -50,6 +45,9 @@ impl SchemaPolicy for ACLPolicy {
 
 #[derive(Clone)]
 pub struct AuthenticationCookiePolicy {}
+
+Unjoinable!(AuthenticationCookiePolicy);
+
 impl Policy for AuthenticationCookiePolicy {
     fn name(&self) -> String {
         String::from("InternalPolicy")
@@ -60,15 +58,6 @@ impl Policy for AuthenticationCookiePolicy {
             Reason::DB(query, _) => query.starts_with("SELECT"),
             _ => false,
         }
-    }
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
-        todo!()
     }
 }
 impl FrontendPolicy for AuthenticationCookiePolicy {
@@ -86,6 +75,9 @@ impl FrontendPolicy for AuthenticationCookiePolicy {
 
 #[derive(Clone)]
 pub struct WritePolicy {}
+
+Unjoinable!(WritePolicy);
+
 impl Policy for WritePolicy {
     fn name(&self) -> String {
         String::from("WritePolicy")
@@ -106,15 +98,6 @@ impl Policy for WritePolicy {
             }
             _ => false,
         }
-    }
-    fn join(&self, _other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
-        todo!()
     }
 }
 impl FrontendPolicy for WritePolicy {

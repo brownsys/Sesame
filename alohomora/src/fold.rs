@@ -1,6 +1,6 @@
 use std::any::Any;
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicyDyn, AnyPolicyable, NoPolicy, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation};
+use crate::policy::{join_dyn, join_dyn_any, AnyPolicyDyn, AnyPolicyable, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation};
 use crate::sesame_type_dyns::{SesameDyn, SesameDynRelation};
 use crate::SesameType;
 
@@ -25,11 +25,7 @@ impl<P: PolicyDyn + ?Sized, T: SesameType<dyn Any, P>> Foldable<P> for T {
     {
         let e = self.to_enum();
         let (t, p) = e.remove_bboxes2();
-        let composed_policy = match p? {
-            None => todo!("NoPolicy"),
-            Some(policy) => policy,
-        };
-        Ok((Self::from_enum(t)?, composed_policy))
+        Ok((Self::from_enum(t)?, p?.unwrap_or_default()))
     }
 }
 
@@ -39,23 +35,24 @@ impl<T: Any, P: AnyPolicyable, PDyn: PolicyDyn + ?Sized + PolicyDynRelation<P>> 
     where
         Self: Sized,
     {
-        let accum = (Vec::with_capacity(self.len()), OptionPolicy::NoPolicy);
+        let accum = (Vec::with_capacity(self.len()), None);
         let (v, p) = self.into_iter().fold(accum, |accum, e| {
             let (mut v, p) = accum;
-            let (t, ep) = e.consume();
+            let (t, mut ep) = e.consume();
             v.push(t);
             match p {
-                OptionPolicy::NoPolicy => (v, OptionPolicy::Policy(ep)),
-                OptionPolicy::Policy(p) => match p.join_logic(ep) {
-                    Err(_) => panic!("Cannot unsafe_fold vector [opt]; unsatisfiable policy"),
-                    Ok(p) => (v, OptionPolicy::Policy(p)),
+                None => (v, Some(ep)),
+                Some(mut p) => if p.join_direct(&mut ep) {
+                    (v, Some(p))
+                } else {
+                    panic!("Cannot unsafe_fold vector [opt]; unsatisfiable policy")
                 },
             }
         });
 
         match p {
-            OptionPolicy::NoPolicy => Ok((v, AnyPolicyDyn::new(todo!("NoPolicy")))),
-            OptionPolicy::Policy(p) => Ok((v, AnyPolicyDyn::new(p))),
+            None => Ok((v, AnyPolicyDyn::default())),
+            Some(p) => Ok((v, AnyPolicyDyn::new(p))),
         }
     }
 }
@@ -64,31 +61,33 @@ impl<T: Any, P: AnyPolicyable, PDyn: PolicyDyn + ?Sized + PolicyDynRelation<P>> 
 macro_rules! optimized_tup_fold {
     ($([$A:tt,$P:tt]),*) => (
         impl<$($A: Any,)* $($P: AnyPolicyable,)* PDyn: PolicyDyn + ?Sized> Foldable<PDyn> for Vec<($(BBox<$A, $P>,)*)>
-        where $(PDyn: PolicyDynRelation<$P>,)* {
+        where $(PDyn: PolicyDynRelation<$P>, )* {
             fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicyDyn<PDyn>), ()> where Self: Sized {
                 let mut v: Vec<($($A,)*)> = Vec::with_capacity(self.len());
-                // TODO(babman): same issue with NoPolicy.
-                let mut p: AnyPolicyDyn<PDyn> = todo!("NoPolicy");
+                let mut p: Option<AnyPolicyDyn<PDyn>> = None;
                 for tup in self {
                     #[allow(non_snake_case)]
                     let ($($A,)*) = tup;
                     #[allow(non_snake_case)]
                     let ($(($A, $P),)*) = ($($A.consume(),)*);
 
+                    // Add current data tuple to vector.
                     v.push(($($A,)*));
-                    // TODO(babman): same issue with join.
-                    /*
-                    p = p.join(
-                        IntoIterator::into_iter([$(AnyPolicyDyn::new($P),)*]).fold(
-                            AnyPolicyDyn::new(NoPolicy {})
-                            |p: AnyPolicyDyn<PDyn>, ep: AnyPolicyDyn<PDyn>| {
-                                p.join(ep).expect("Cannot fold vector in; unsatisfiable policy")
-                            }
-                        )
-                    )?;
-                     */
+
+                    // Join all current policy tuples.
+                    let current_p = IntoIterator::into_iter([$(AnyPolicyDyn::<PDyn>::new($P),)*]).reduce(
+                        |p: AnyPolicyDyn<PDyn>, ep: AnyPolicyDyn<PDyn>| {
+                            join_dyn_any(p, ep)
+                        }
+                    ).unwrap();
+
+                    // join current_p (all the policies from the current tuple) with running policy tally (p).
+                    p = match p {
+                        None => Some(current_p),
+                        Some(p) => Some(join_dyn_any(p, current_p)),
+                    }
                 }
-                Ok((v, p))
+                Ok((v, p.unwrap_or_default()))
             }
         }
     );
@@ -126,13 +125,14 @@ impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>
         let accum = (Vec::new(), OptionPolicy::NoPolicy);
         let result = v.into_iter().fold(accum, |accum, e| {
             let (mut v, p) = accum;
-            let (t, ep) = e.consume();
+            let (t, mut ep) = e.consume();
             v.push(t);
             match p {
                 OptionPolicy::NoPolicy => (v, OptionPolicy::Policy(ep)),
-                OptionPolicy::Policy(p) => match p.join_logic(ep) {
-                    Err(_) => panic!("Cannot fold vector in; unsatisfiable policy"),
-                    Ok(p) => (v, OptionPolicy::Policy(p)),
+                OptionPolicy::Policy(mut p) => if p.join_direct(&mut ep) {
+                    (v, OptionPolicy::Policy(p))
+                } else {
+                    panic!("Cannot fold vector in; unsatisfiable policy")
                 },
             }
         });
@@ -146,7 +146,7 @@ impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>
 #[cfg(test)]
 mod tests {
     use crate::bbox::BBox;
-    use crate::policy::{AnyPolicyBB, OptionPolicy, Policy, PolicyAnd, Reason};
+    use crate::policy::{join, AnyPolicyBB, OptionPolicy, Policy, PolicyAnd, Reason, SimplePolicy};
     use crate::{SesameType, SesameTypeEnum};
     use crate::testing::TestPolicy;
 
@@ -166,34 +166,16 @@ mod tests {
             }
         }
     }
-    impl Policy for ACLPolicy {
-        fn name(&self) -> String {
+    impl SimplePolicy for ACLPolicy {
+        fn simple_name(&self) -> String {
             format!("ACLPolicy(owners: {:?})", self.owners)
         }
-        fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
+        fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-            if other.is::<ACLPolicy>() {
-                let other = other.specialize::<ACLPolicy>().unwrap();
-                Ok(AnyPolicyBB::new(self.join_logic(other)?))
-            } else {
-                Ok(AnyPolicyBB::new(PolicyAnd::new(self.clone(), other)))
-            }
-        }
-        fn join_logic(&self, other: Self) -> Result<Self, ()> {
-            let intersection: HashSet<_> = self
-                .owners
-                .intersection(&other.owners)
-                .map(|owner| owner.clone())
-                .collect();
-            if intersection.len() > 0 {
-                Ok(ACLPolicy {
-                    owners: intersection,
-                })
-            } else {
-                Err(())
-            }
+        fn simple_join_direct(&mut self, other: &mut Self) -> bool {
+            self.owners = self.owners.intersection(&other.owners).map(Clone::clone).collect();
+            self.owners.len() > 0
         }
     }
 
@@ -240,7 +222,7 @@ mod tests {
     fn test_join_policies() {
         let policy1 = TestPolicy::new(ACLPolicy::new(&[10, 20]));
         let policy2 = TestPolicy::new(ACLPolicy::new(&[10, 30]));
-        let joined = policy1.join(AnyPolicyBB::new(policy2)).unwrap();
+        let joined = join(policy1, policy2);
         let joined: TestPolicy<ACLPolicy> = joined.specialize().unwrap();
         assert_eq!(joined.policy().owners, HashSet::from_iter([10]));
     }

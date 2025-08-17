@@ -1,29 +1,26 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy, SimplePolicy};
 use std::fmt::{Debug, Formatter};
+use serde::Serialize;
 
 // NoPolicy can be directly discarded.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize)]
 pub struct NoPolicy {}
 impl NoPolicy {
     pub fn new() -> Self {
         Self {}
     }
 }
-impl Policy for NoPolicy {
-    fn name(&self) -> String {
+
+impl SimplePolicy for NoPolicy {
+    fn simple_name(&self) -> String {
         String::from("NoPolicy")
     }
-    fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
+    fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
         true
     }
-    fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        Ok(other)
-    }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        Ok(other)
-    }
+    fn simple_join_direct(&mut self, other: &mut Self) -> bool { true }
 }
 
 impl SchemaPolicy for NoPolicy {

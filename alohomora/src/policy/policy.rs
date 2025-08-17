@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB};
+use crate::policy::{AnyPolicyBB, Joinable};
 use std::any::Any;
 
 // Enum describing why/where the policy check is invoked.
@@ -14,14 +14,9 @@ pub enum Reason<'i> {
 }
 
 // Public facing Policy traits.
-pub trait Policy: Send + Sync {
+pub trait Policy: Joinable + Send + Sync {
     fn name(&self) -> String;
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
-    // TODO(babman): Stream line join, find way to make join combine inside AndPolicy instead of stacking!
-    fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()>;
-    fn join_logic(&self, other: Self) -> Result<Self, ()>
-    where
-        Self: Sized;
 }
 
 // Schema policies can be constructed from DB rows.
@@ -49,7 +44,7 @@ pub trait FrontendPolicy: Policy {
 #[cfg(test)]
 mod tests {
     use crate::context::UnprotectedContext;
-    use crate::policy::{AnyPolicyBB, Policy, PolicyAnd, Reason};
+    use crate::policy::{join, AnyPolicyBB, Policy, PolicyAnd, Reason, SimplePolicy};
     use std::collections::HashSet;
 
     #[derive(Clone)]
@@ -61,32 +56,15 @@ mod tests {
             Self { owner }
         }
     }
-    impl Policy for BasicPolicy {
-        fn name(&self) -> String {
+    impl SimplePolicy for BasicPolicy {
+        fn simple_name(&self) -> String {
             format!("BasicPolicy(owner: {:?})", self.owner)
         }
-        fn check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
+        fn simple_check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             &self.owner == context.downcast_ref::<String>().unwrap()
         }
-        fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-            if other.is::<BasicPolicy>() {
-                //Policies are combinable
-                let other = other.specialize::<BasicPolicy>().unwrap();
-                Ok(AnyPolicyBB::new(self.join_logic(other)?))
-            } else {
-                //Policies must be stacked
-                Ok(AnyPolicyBB::new(PolicyAnd::new(
-                    AnyPolicyBB::new(self.clone()),
-                    other,
-                )))
-            }
-        }
-        fn join_logic(&self, other: Self) -> Result<Self, ()> {
-            if self.owner == other.owner {
-                Ok(Self::new(self.owner.clone()))
-            } else {
-                Err(())
-            }
+        fn simple_join_direct(&mut self, other: &mut Self) -> bool {
+            self.owner == other.owner
         }
     }
 
@@ -94,38 +72,17 @@ mod tests {
     pub struct ACLPolicy {
         owners: HashSet<String>,
     }
-    impl Policy for ACLPolicy {
-        fn name(&self) -> String {
+    impl SimplePolicy for ACLPolicy {
+        fn simple_name(&self) -> String {
             format!("ACLPolicy(owners: {:?})", self.owners)
         }
-        fn check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
+        fn simple_check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             self.owners
                 .contains(context.downcast_ref::<String>().unwrap())
         }
-        fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-            if other.is::<ACLPolicy>() {
-                //Policies are combinable
-                let other = other.specialize::<ACLPolicy>().unwrap();
-                Ok(AnyPolicyBB::new(self.join_logic(other)?))
-            } else {
-                //Policies must be stacked
-                Ok(AnyPolicyBB::new(PolicyAnd::new(
-                    AnyPolicyBB::new(self.clone()),
-                    other,
-                )))
-            }
-        }
-        fn join_logic(&self, other: Self) -> Result<Self, ()> {
-            let intersection: HashSet<_> = self.owners.intersection(&other.owners).collect();
-            let owners: HashSet<String> = intersection
-                .into_iter()
-                .map(|owner| owner.clone())
-                .collect();
-            if owners.len() > 0 {
-                Ok(ACLPolicy { owners })
-            } else {
-                Err(())
-            }
+        fn simple_join_direct(&mut self, other: &mut Self) -> bool {
+            self.owners = self.owners.intersection(&other.owners).map(String::clone).collect();
+            self.owners.len() > 0
         }
     }
 
@@ -141,12 +98,11 @@ mod tests {
             HashSet::from([alice.clone(), admin1.clone(), admin2.clone()]);
         let alice_acl: HashSet<String> = HashSet::from([alice.clone(), bob.clone()]);
 
-        let acl_pol = ACLPolicy { owners: mult_acl };
-        let alice_pol = ACLPolicy { owners: alice_acl };
+        let acl_pol: ACLPolicy = ACLPolicy { owners: mult_acl };
+        let alice_pol: ACLPolicy = ACLPolicy { owners: alice_acl };
 
-        //combine in each direction
-        let combined_pol: AnyPolicyBB = acl_pol.join(AnyPolicyBB::new(alice_pol.clone())).unwrap();
-
+        // combine in each direction
+        let combined_pol = join(acl_pol, alice_pol);
         let specialized = combined_pol.specialize_ref::<ACLPolicy>().unwrap();
 
         // Users are allowed access to aggregated vector as expected
@@ -182,8 +138,8 @@ mod tests {
             owners: HashSet::from([bob.clone()]),
         };
 
-        //should panic - unsatisfiable policy
-        let _combined_pol: AnyPolicyBB = acl_pol.join(AnyPolicyBB::new(bob_pol.clone())).unwrap();
+        // should panic - unsatisfiable policy
+        let _combined_pol: AnyPolicyBB = join(acl_pol, bob_pol);
     }
 
     #[test]
@@ -198,8 +154,8 @@ mod tests {
         let basic_pol = BasicPolicy::new(alice);
 
         //combine in each direction
-        let combined_pol1: AnyPolicyBB = acl_pol.join(AnyPolicyBB::new(basic_pol.clone())).unwrap();
-        let combined_pol2: AnyPolicyBB = basic_pol.join(AnyPolicyBB::new(acl_pol)).unwrap();
+        let combined_pol1: AnyPolicyBB = join(acl_pol.clone(), basic_pol.clone());
+        let combined_pol2: AnyPolicyBB = join(basic_pol.clone(), acl_pol.clone());
 
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));

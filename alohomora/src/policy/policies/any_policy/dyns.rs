@@ -1,8 +1,9 @@
 use std::any::Any;
 use dyn_clone::DynClone;
-use erased_serde::Serialize;
+use erased_serde::{serialize_trait_object, Serialize};
 use crate::fold_in::RuntimeFoldIn;
-use crate::policy::{Policy};
+use crate::policy::{AnyPolicyDyn, NoPolicy, Policy, PolicyAnd};
+use crate::policy::policies::any_policy::r#type::AnyPolicyMarker;
 
 // If a policy meets this bound, then it can be placed inside a type-erased AnyPolicy
 pub trait AnyPolicyable : Any + Policy {}
@@ -19,6 +20,9 @@ pub trait PolicyDyn: AnyPolicyable + Sync + Send {
     fn upcast_pbox(self: Box<Self>) -> Box<dyn Policy>;
     // To avoid type erasure issues.
     fn can_fold_in_erased(&self) -> bool;
+    // default.
+    fn no_policy() -> Box<Self>;
+    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self>;
 }
 
 // Relates a type P to the corresponding PolicyDyn trait object.
@@ -53,9 +57,18 @@ impl PolicyDyn for dyn AnyPolicyTrait {
     fn upcast_pref(&self) -> &dyn Policy { self.upcast_policy() }
     fn upcast_pbox(self: Box<Self>) -> Box<dyn Policy> { self.upcast_policy_box() }
     fn can_fold_in_erased(&self) -> bool { self.can_fold_in_erased() }
+    fn no_policy() -> Box<Self> {
+        Self::boxed_dyn(NoPolicy {})
+    }
+    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
+        AnyPolicyDyn::new(and)
+    }
 }
 impl<P: AnyPolicyable> PolicyDynRelation<P> for dyn AnyPolicyTrait {
-    fn boxed_dyn(t: P) -> Box<dyn AnyPolicyTrait> { Box::new(t) }
+    default fn boxed_dyn(t: P) -> Box<Self> { Box::new(t) }
+}
+impl<P: AnyPolicyable + AnyPolicyMarker<dyn AnyPolicyTrait>> PolicyDynRelation<P> for dyn AnyPolicyTrait {
+    fn boxed_dyn(t: P) -> Box<Self> { t.into_inner() }
 }
 // End basic AnyPolicy impls.
 
@@ -77,9 +90,18 @@ impl PolicyDyn for dyn AnyPolicyClone {
     fn upcast_pref(&self) -> &dyn Policy { self.upcast_any_policy().upcast_policy() }
     fn upcast_pbox(self: Box<Self>) -> Box<dyn Policy> { self.upcast_any_policy_box().upcast_policy_box() }
     fn can_fold_in_erased(&self) -> bool { self.upcast_any_policy().can_fold_in_erased() }
+    fn no_policy() -> Box<Self> {
+        Self::boxed_dyn(NoPolicy {})
+    }
+    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
+        AnyPolicyDyn::new(and)
+    }
 }
 impl<P: AnyPolicyable + DynClone> PolicyDynRelation<P> for dyn AnyPolicyClone {
-    fn boxed_dyn(t: P) -> Box<dyn AnyPolicyClone> { Box::new(t) }
+    default fn boxed_dyn(t: P) -> Box<Self> { Box::new(t) }
+}
+impl<P: AnyPolicyable + DynClone + AnyPolicyMarker<dyn AnyPolicyClone>> PolicyDynRelation<P> for dyn AnyPolicyClone {
+    fn boxed_dyn(t: P) -> Box<Self> { t.into_inner() }
 }
 // End basic AnyPolicy with Clone impls.
 
@@ -112,11 +134,20 @@ impl PolicyDyn for dyn AnyPolicySerialize {
     fn upcast_pref(&self) -> &dyn Policy { self.upcast_any_policy().upcast_policy() }
     fn upcast_pbox(self: Box<Self>) -> Box<dyn Policy> { self.upcast_any_policy_box().upcast_policy_box() }
     fn can_fold_in_erased(&self) -> bool { self.upcast_any_policy().can_fold_in_erased() }
+    fn no_policy() -> Box<Self> {
+        Self::boxed_dyn(NoPolicy {})
+    }
+    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
+        AnyPolicyDyn::new(and)
+    }
 }
-
 impl<P: AnyPolicyTrait + Serialize> PolicyDynRelation<P> for dyn AnyPolicySerialize {
-    fn boxed_dyn(t: P) -> Box<dyn AnyPolicySerialize> {
+    default fn boxed_dyn(t: P) -> Box<Self> {
         Box::new(t)
     }
 }
+impl<P: AnyPolicyTrait + Serialize + AnyPolicyMarker<dyn AnyPolicySerialize>> PolicyDynRelation<P> for dyn AnyPolicySerialize {
+    fn boxed_dyn(t: P) -> Box<Self> { t.into_inner() }
+}
+serialize_trait_object!(AnyPolicySerialize);
 // End of Macro.
