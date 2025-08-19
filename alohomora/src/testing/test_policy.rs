@@ -1,16 +1,17 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, AnyPolicyClone, AnyPolicyTrait, AnyPolicyable, Direction, FrontendPolicy, Joinable, Policy, Reason, RefPolicy, SchemaPolicy};
+use crate::policy::{AnyPolicyTrait, FrontendPolicy, OptionPolicy, Policy, Reason, RefPolicy, ReflexiveJoin, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
 use std::fmt::{Debug, Formatter};
+use serde::Serialize;
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct TestPolicy<P: AnyPolicyTrait> {
+#[derive(Clone, PartialEq, Eq, Debug, Serialize)]
+pub struct TestPolicy<P: Policy> {
     p: P,
 }
 
-impl<P: AnyPolicyTrait> TestPolicy<P> {
+impl<P: Policy> TestPolicy<P> {
     pub fn new(p: P) -> Self {
         Self { p }
     }
@@ -19,29 +20,7 @@ impl<P: AnyPolicyTrait> TestPolicy<P> {
     }
 }
 
-// TODO(babman): Make test policy joinable.
-impl<P: AnyPolicyTrait> Joinable for TestPolicy<P> {
-    fn direction_to<P2: AnyPolicyable>(&self, p: &P2) -> Direction
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
-    fn join_in<P2: AnyPolicyable>(&mut self, p: &mut P2, direction: Direction) -> bool
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
-    fn join_direct(&mut self, p: &mut Self) -> bool
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
-}
-
-impl<P: AnyPolicyTrait> Policy for TestPolicy<P> {
+impl<P: Policy> Policy for TestPolicy<P> {
     fn name(&self) -> String {
         format!("TestPolicy<{}>", self.p.name())
     }
@@ -49,28 +28,55 @@ impl<P: AnyPolicyTrait> Policy for TestPolicy<P> {
         self.p.check(context, reason)
     }
     /*
-    fn join(&self, other: AnyPolicyBB) -> Result<AnyPolicyBB, ()> {
-        if other.is::<TestPolicy<P>>() {
-            let other = other.specialize::<TestPolicy<P>>().unwrap();
-            Ok(AnyPolicyBB::new(self.join_logic(other)?))
-        } else {
-            Ok(AnyPolicyBB::new(TestPolicy::new(self.p.join(other)?)))
-        }
+    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_> {
+        PolicyTypeEnum::TestPolicy(Box::new(self.p.policy_type_enum()))
     }
-    fn join_logic(&self, other: Self) -> Result<Self, ()> {
-        Ok(TestPolicy::new(self.p.join_logic(other.p)?))
+    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool {
+        self.p.can_join_with(p)
+    }
+    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool {
+        self.p.join(p)
     }
      */
 }
 
-impl<P: AnyPolicyTrait + SchemaPolicy> SchemaPolicy for TestPolicy<P> {
+impl<P: Policy + Specializable> Specializable for TestPolicy<P> {
+    fn to_specialization_enum(self) -> SpecializationEnum {
+        SpecializationEnum::TestPolicy(Box::new(self.p.to_specialization_enum()))
+    }
+    fn to_specialization_enum_box(self: Box<Self>) -> SpecializationEnum {
+        self.to_specialization_enum()
+    }
+}
+impl<P: Policy + Specialize> Specialize for TestPolicy<P> {
+    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
+        Ok(TestPolicy::new(P::specialize_leaf(b)?))
+    }
+    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+        Ok(TestPolicy::new(P::specialize_and(b1, b2)?))
+    }
+    fn specialize_or(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+        Ok(TestPolicy::new(P::specialize_or(b1, b2)?))
+    }
+    fn specialize_option(b: Option<Box<SpecializationEnum>>) -> Result<Self, Option<Box<SpecializationEnum>>> {
+        Ok(TestPolicy::new(P::specialize_option(b)?))
+    }
+}
+
+impl<P: ReflexiveJoin> ReflexiveJoin for TestPolicy<P> {
+    fn reflexive_join(&mut self, other: &mut Self) {
+        self.p.reflexive_join(&mut other.p);
+    }
+}
+
+impl<P: SchemaPolicy> SchemaPolicy for TestPolicy<P> {
     fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
         TestPolicy {
             p: P::from_row(table_name, row),
         }
     }
 }
-impl<P: AnyPolicyTrait + FrontendPolicy> FrontendPolicy for TestPolicy<P> {
+impl<P: FrontendPolicy> FrontendPolicy for TestPolicy<P> {
     fn from_request(request: &rocket::Request<'_>) -> Self {
         TestPolicy {
             p: P::from_request(request),
@@ -87,20 +93,20 @@ impl<P: AnyPolicyTrait + FrontendPolicy> FrontendPolicy for TestPolicy<P> {
     }
 }
 
-impl<P: AnyPolicyTrait> From<P> for TestPolicy<P> {
+impl<P: Policy> From<P> for TestPolicy<P> {
     fn from(value: P) -> Self {
         TestPolicy::new(value)
     }
 }
 
 // Test policy can be discarded, logged, etc
-impl<T, P: 'static + Policy + Clone> BBox<T, TestPolicy<P>> {
+impl<T, P: Policy> BBox<T, TestPolicy<P>> {
     pub fn discard_box(self) -> T {
         self.consume().0
     }
 }
 
-impl<T: Debug, P: AnyPolicyTrait + Debug> Debug for BBox<T, TestPolicy<P>> {
+impl<T: Debug, P: Policy + Debug> Debug for BBox<T, TestPolicy<P>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BBox")
             .field("data", self.data())
@@ -108,21 +114,21 @@ impl<T: Debug, P: AnyPolicyTrait + Debug> Debug for BBox<T, TestPolicy<P>> {
             .finish()
     }
 }
-impl<T: PartialEq, P: AnyPolicyTrait + PartialEq> PartialEq for BBox<T, TestPolicy<P>> {
+impl<T: PartialEq, P: Policy + PartialEq> PartialEq for BBox<T, TestPolicy<P>> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
 
-impl<T: Eq, P: AnyPolicyTrait + Eq> Eq for BBox<T, TestPolicy<P>> {}
+impl<T: Eq, P: Policy + Eq> Eq for BBox<T, TestPolicy<P>> {}
 
 // Same but for RefPolicy<TestPolicy>
-impl<'a, T, P: AnyPolicyTrait> BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T, P: Policy> BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     pub fn discard_box(self) -> &'a T {
         self.consume().0
     }
 }
-impl<'a, T: Debug, P: AnyPolicyTrait + Debug> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: Debug, P: Policy + Debug> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BBox")
             .field("data", self.data())
@@ -130,9 +136,30 @@ impl<'a, T: Debug, P: AnyPolicyTrait + Debug> Debug for BBox<&'a T, RefPolicy<'a
             .finish()
     }
 }
-impl<'a, T: PartialEq, P: AnyPolicyTrait + PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: PartialEq, P: Policy + PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
-impl<'a, T: Eq, P: AnyPolicyTrait + Eq> Eq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {}
+impl<'a, T: Eq, P: Policy + Eq> Eq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {}
+
+// Same but for OptionPolicy<TestPolicy>
+impl<T, P: Policy> BBox<T, OptionPolicy<TestPolicy<P>>> {
+    pub fn discard_box(self) -> T {
+        self.consume().0
+    }
+}
+impl<T: Debug, P: Policy + Debug> Debug for BBox<T, OptionPolicy<TestPolicy<P>>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BBox")
+            .field("data", self.data())
+            .field("policy", self.policy())
+            .finish()
+    }
+}
+impl<T: PartialEq, P: Policy + PartialEq> PartialEq for BBox<T, OptionPolicy<TestPolicy<P>>> {
+    fn eq(&self, other: &Self) -> bool {
+        self.data() == other.data() && self.policy() == other.policy()
+    }
+}
+impl<T: Eq, P: Policy + Eq> Eq for BBox<T, OptionPolicy<TestPolicy<P>>> {}

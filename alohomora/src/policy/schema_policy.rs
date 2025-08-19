@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::policy::{AnyPolicyBB, NoPolicy, PolicyAnd, SchemaPolicy};
+use crate::policy::{AnyPolicyBB, AnyPolicyable, NoPolicy, PolicyAnd, SchemaPolicy};
 
 // Global static singleton.
 type SchemaPolicyFactory = dyn (Fn(&Vec<mysql::Value>) -> AnyPolicyBB) + Send + Sync;
@@ -40,7 +40,7 @@ pub fn get_schema_policies(
 // Never use this function directly, instead use the #[schema_policy(...)] macro.
 extern crate small_ctor;
 pub use small_ctor::ctor as register;
-pub fn add_schema_policy<T: SchemaPolicy + Clone + 'static>(table_name: String, column: usize) {
+pub fn add_schema_policy<T: SchemaPolicy + AnyPolicyable>(table_name: String, column: usize) {
     let mut map = SCHEMA_POLICIES.write().unwrap();
     map.entry((table_name.clone(), column))
         .or_default()

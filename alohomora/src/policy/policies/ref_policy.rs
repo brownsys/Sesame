@@ -1,7 +1,8 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{NoPolicy, Policy, Reason, Unjoinable};
+use crate::policy::{NoPolicy, Policy, Reason};
 use std::fmt::{Debug, Formatter};
+use crate::Unjoinable;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RefPolicy<'a, P: Policy + ?Sized> {
@@ -20,8 +21,6 @@ impl<'a, P: Policy + ?Sized> RefPolicy<'a, P> {
     }
 }
 
-Unjoinable!(RefPolicy<'a, P> where P: Policy + ?Sized);
-
 impl<'a, P: Policy + ?Sized> Policy for RefPolicy<'a, P> {
     fn name(&self) -> String {
         format!("RefPolicy({})", self.policy.name())
@@ -29,6 +28,7 @@ impl<'a, P: Policy + ?Sized> Policy for RefPolicy<'a, P> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.policy.check(context, reason)
     }
+    Unjoinable!(!Any);
 }
 
 // Upcast to a ref object.

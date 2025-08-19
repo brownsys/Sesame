@@ -1,4 +1,3 @@
-use std::any::Any;
 // BBox
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicyBB, AnyPolicyable, SchemaPolicy};
@@ -14,9 +13,9 @@ pub fn from_value<T: BBoxFromValue, P: AnyPolicyable + SchemaPolicy>(
     v: BBoxValue,
 ) -> Result<BBox<T, P>, String> {
     let (t, p) = v.consume();
-    Ok(BBox::new(mysql::from_value(t), p.specialize()?))
+    Ok(BBox::new(mysql::from_value(t), p.specialize_top()?))
 }
-pub fn from_value_or_null<T: BBoxFromValue, P: Any + SchemaPolicy>(
+pub fn from_value_or_null<T: BBoxFromValue, P: AnyPolicyable + SchemaPolicy>(
     v: BBoxValue,
 ) -> Result<BBox<Option<T>, P>, String> {
     let (t, p) = v.consume();
@@ -25,6 +24,6 @@ pub fn from_value_or_null<T: BBoxFromValue, P: Any + SchemaPolicy>(
             mysql::Value::NULL => None,
             t => Some(mysql::from_value(t)),
         },
-        p.specialize()?,
+        p.specialize_top()?,
     ))
 }

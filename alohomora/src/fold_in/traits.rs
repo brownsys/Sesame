@@ -98,7 +98,7 @@ mod tests {
         fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn simple_join_direct(&mut self, other: &mut Self) -> bool { true }
+        fn simple_join_direct(&mut self, other: &mut Self) {}
     }
 
     /// These tests ensure that !FoldInAllowed is correctly propagated.

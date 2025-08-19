@@ -1,8 +1,7 @@
 mod dyns;
 mod r#type;
+mod traits;
 
 pub use dyns::*;
 pub use r#type::*;
-
-pub type AnyPolicyCC = AnyPolicyDyn<dyn AnyPolicyClone>;
-pub type AnyPolicyBB = AnyPolicyDyn<dyn AnyPolicyTrait>;
+pub use traits::*;

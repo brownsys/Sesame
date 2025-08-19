@@ -8,7 +8,7 @@ use mysql::chrono;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
-use crate::policy::{AnyPolicyDyn, PolicyDyn, PolicyDynRelation, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy, AnyPolicyable, AnyPolicyClone, AnyPolicyTrait, AnyPolicyCC, AnyPolicyBB};
+use crate::policy::{AnyPolicyDyn, PolicyDyn, PolicyDynRelation, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy, AnyPolicyable, AnyPolicyClone, AnyPolicyTrait, AnyPolicyCC, AnyPolicyBB, Specialize, Specializable, OwnedReflection};
 use crate::pure::PrivacyPureRegion;
 
 use crate::bbox::obfuscated_pointer::ObPtr;
@@ -202,7 +202,7 @@ impl<T: Any, P: AnyPolicyable> BBox<T, P> {
 
 // Specializing OptionPolicy.
 impl<T, P: AnyPolicyable> BBox<T, OptionPolicy<P>> {
-    pub fn specialize(self) -> Either<BBox<T, NoPolicy>, BBox<T, P>> {
+    pub fn specialize_option_policy(self) -> Either<BBox<T, NoPolicy>, BBox<T, P>> {
         let (t, p) = self.consume();
         match p {
             OptionPolicy::NoPolicy => Either::Left(BBox::new(t, NoPolicy {})),
@@ -236,28 +236,39 @@ impl<T, DynP: PolicyDyn + ?Sized> BBox<T, AnyPolicyDyn<DynP>> {
         self.p.is::<P>()
     }
 
-    pub fn specialize_policy<P: AnyPolicyable>(self) -> Result<BBox<T, P>, String>
+    pub fn specialize_top_policy<P: AnyPolicyable>(self) -> Result<BBox<T, P>, String>
     where DynP: PolicyDynRelation<P>  {
         Ok(BBox {
             fb: self.fb,
-            p: self.p.specialize()?,
+            p: self.p.specialize_top()?,
         })
     }
 
     pub fn specialize_policy_ref<P: AnyPolicyable>(&self) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
     where DynP: PolicyDynRelation<P>  {
-        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.specialize_ref()?)))
+        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.specialize_top_ref()?)))
     }
 }
 impl<'a, T, DynP: PolicyDyn + ?Sized> BBox<T, RefPolicy<'a, AnyPolicyDyn<DynP>>> {
-    pub fn is_policy<P: AnyPolicyable>(&self) -> bool
+    pub fn is_policy_ref<P: AnyPolicyable>(&self) -> bool
     where DynP: PolicyDynRelation<P> {
         self.p.policy().is::<P>()
     }
 
     pub fn specialize_policy_ref<P: AnyPolicyable>(&self) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
     where DynP: PolicyDynRelation<P>  {
-        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.policy().specialize_ref()?)))
+        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.policy().specialize_top_ref()?)))
+    }
+}
+
+// Normalized specialize over entire policy via reflection.
+impl<T, P: Specializable> BBox<T, P> {
+    pub fn specialize_policy<P2: Specialize>(self) -> Result<BBox<T, P2>, BBox<T, OwnedReflection<'static>>> {
+        let (fb, p) = (self.fb, self.p);
+        match p.specialize::<P2>() {
+            Ok(p) => Ok(BBox { fb, p }),
+            Err(p) => Err(BBox { fb, p }),
+        }
     }
 }
 
@@ -319,10 +330,7 @@ mod tests {
         fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn simple_join_direct(&mut self, other: &mut Self) -> bool {
-            self.attr = String::from("");
-            true
-        }
+        fn simple_join_direct(&mut self, other: &mut Self) { unreachable!() }
     }
 
     #[test]
@@ -367,7 +375,7 @@ mod tests {
         // Make sure we can specialize.
         assert!(bbox.is_policy::<TestPolicy<ExamplePolicy>>());
         let bbox = bbox
-            .specialize_policy::<TestPolicy<ExamplePolicy>>()
+            .specialize_top_policy::<TestPolicy<ExamplePolicy>>()
             .unwrap();
 
         assert_eq!(

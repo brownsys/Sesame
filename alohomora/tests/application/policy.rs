@@ -27,9 +27,8 @@ impl SimplePolicy for ACLPolicy {
             Some(user) => self.users.contains(user),
         }
     }
-    fn simple_join_direct(&mut self, other: &mut Self) -> bool {
+    fn simple_join_direct(&mut self, other: &mut Self) {
         self.users = self.users.intersection(&other.users).map(Clone::clone).collect();
-        self.users.len() > 0
     }
 }
 impl SchemaPolicy for ACLPolicy {
@@ -46,8 +45,6 @@ impl SchemaPolicy for ACLPolicy {
 #[derive(Clone)]
 pub struct AuthenticationCookiePolicy {}
 
-Unjoinable!(AuthenticationCookiePolicy);
-
 impl Policy for AuthenticationCookiePolicy {
     fn name(&self) -> String {
         String::from("InternalPolicy")
@@ -59,6 +56,7 @@ impl Policy for AuthenticationCookiePolicy {
             _ => false,
         }
     }
+    Unjoinable!();
 }
 impl FrontendPolicy for AuthenticationCookiePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {
@@ -75,8 +73,6 @@ impl FrontendPolicy for AuthenticationCookiePolicy {
 
 #[derive(Clone)]
 pub struct WritePolicy {}
-
-Unjoinable!(WritePolicy);
 
 impl Policy for WritePolicy {
     fn name(&self) -> String {
@@ -99,6 +95,7 @@ impl Policy for WritePolicy {
             _ => false,
         }
     }
+    Unjoinable!();
 }
 impl FrontendPolicy for WritePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {

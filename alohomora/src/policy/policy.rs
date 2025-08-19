@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, Joinable};
+use crate::policy::{AnyPolicyBB, AnyPolicyTrait, AnyPolicyable, AsLeaf, AsNoReflection, MutRefReflection, OwnedReflection, PolicyReflection};
 use std::any::Any;
 
 // Enum describing why/where the policy check is invoked.
@@ -14,9 +14,27 @@ pub enum Reason<'i> {
 }
 
 // Public facing Policy traits.
-pub trait Policy: Joinable + Send + Sync {
+pub trait Policy: Send + Sync {
     fn name(&self) -> String;
+    // Policy check function!
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
+
+    // Reflection.
+    fn reflect_owned<'a>(self) -> OwnedReflection<'a> where Self: 'a, Self: Sized {
+        todo!()
+    }
+    fn reflect_ref<'r, 'a: 'r>(&'r mut self) -> MutRefReflection<'r, 'a> where Self: 'a {
+        todo!()
+    }
+
+    /*
+    // Join.
+    // This is used in Join and in Normalization/Specialization
+    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_>;
+    // Whether we can join with the given policy description
+    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool;
+    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool;
+     */
 }
 
 // Schema policies can be constructed from DB rows.
@@ -44,7 +62,7 @@ pub trait FrontendPolicy: Policy {
 #[cfg(test)]
 mod tests {
     use crate::context::UnprotectedContext;
-    use crate::policy::{join, AnyPolicyBB, Policy, PolicyAnd, Reason, SimplePolicy};
+    use crate::policy::{join, AnyPolicyBB, Policy, Reason, SimplePolicy};
     use std::collections::HashSet;
 
     #[derive(Clone)]
@@ -63,8 +81,10 @@ mod tests {
         fn simple_check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             &self.owner == context.downcast_ref::<String>().unwrap()
         }
-        fn simple_join_direct(&mut self, other: &mut Self) -> bool {
-            self.owner == other.owner
+        fn simple_join_direct(&mut self, other: &mut Self)  {
+            if self.owner != other.owner {
+                panic!("Bad owners");
+            }
         }
     }
 
@@ -80,9 +100,11 @@ mod tests {
             self.owners
                 .contains(context.downcast_ref::<String>().unwrap())
         }
-        fn simple_join_direct(&mut self, other: &mut Self) -> bool {
+        fn simple_join_direct(&mut self, other: &mut Self) {
             self.owners = self.owners.intersection(&other.owners).map(String::clone).collect();
-            self.owners.len() > 0
+            if self.owners.len() == 0 {
+                panic!("Unsat policy");
+            }
         }
     }
 
@@ -103,7 +125,7 @@ mod tests {
 
         // combine in each direction
         let combined_pol = join(acl_pol, alice_pol);
-        let specialized = combined_pol.specialize_ref::<ACLPolicy>().unwrap();
+        let specialized = combined_pol.specialize_top_ref::<ACLPolicy>().unwrap();
 
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));
@@ -153,7 +175,7 @@ mod tests {
         let acl_pol = ACLPolicy { owners: alice_acl };
         let basic_pol = BasicPolicy::new(alice);
 
-        //combine in each direction
+        // combine in each direction
         let combined_pol1: AnyPolicyBB = join(acl_pol.clone(), basic_pol.clone());
         let combined_pol2: AnyPolicyBB = join(basic_pol.clone(), acl_pol.clone());
 

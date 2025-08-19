@@ -2,7 +2,7 @@ use crate::application::context::AppContext;
 use crate::application::models::Grade;
 use alohomora::bbox::BBox;
 use alohomora::db::{from_value, BBoxConn, BBoxOpts, BBoxResult};
-use alohomora::policy::Policy;
+use alohomora::policy::{AnyPolicyable, Policy};
 
 pub struct DB {
     conn: BBoxConn,
@@ -24,7 +24,7 @@ impl DB {
         }
     }
 
-    pub fn read_by_user<P: Policy + Clone + 'static>(
+    pub fn read_by_user<P: AnyPolicyable>(
         &mut self,
         user: BBox<String, P>,
         context: AppContext,
@@ -64,7 +64,7 @@ impl DB {
         result.collect()
     }
 
-    pub fn insert<P1: Policy + Clone + 'static, P2: Policy + Clone + 'static>(
+    pub fn insert<P1: AnyPolicyable, P2: AnyPolicyable>(
         &mut self,
         user: BBox<String, P1>,
         grade: BBox<u64, P2>,

@@ -17,8 +17,6 @@ pub struct UserPolicy {
     pub name: String,
 }
 
-Unjoinable!(UserPolicy);
-
 impl Policy for UserPolicy {
     fn name(&self) -> String {
         String::from("UserPolicy")
@@ -26,6 +24,7 @@ impl Policy for UserPolicy {
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.name == String::from("Kinan")
     }
+    Unjoinable!();
 }
 impl FrontendPolicy for UserPolicy {
     fn from_request(request: &'_ Request<'_>) -> Self {
@@ -49,8 +48,6 @@ impl FrontendPolicy for UserPolicy {
 #[derive(Clone)]
 pub struct HardcodedPolicy(pub bool);
 
-Unjoinable!(HardcodedPolicy);
-
 impl Policy for HardcodedPolicy {
     fn name(&self) -> String {
         String::from("HardcodedPolicy")
@@ -58,6 +55,7 @@ impl Policy for HardcodedPolicy {
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.0
     }
+    Unjoinable!();
 }
 impl FrontendPolicy for HardcodedPolicy {
     fn from_request<'a, 'r>(_request: &'a Request<'r>) -> Self
