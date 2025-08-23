@@ -5,7 +5,7 @@ use rocket::Request;
 use std::collections::HashSet;
 
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, SchemaPolicy, SimplePolicy};
+use alohomora::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy, SimplePolicy};
 use alohomora_derive::schema_policy;
 
 use crate::application::context::ContextData;
@@ -56,7 +56,7 @@ impl Policy for AuthenticationCookiePolicy {
             _ => false,
         }
     }
-    Unjoinable!();
+    Unjoinable!(!Any);
 }
 impl FrontendPolicy for AuthenticationCookiePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {
@@ -95,7 +95,7 @@ impl Policy for WritePolicy {
             _ => false,
         }
     }
-    Unjoinable!();
+    Unjoinable!(!Any);
 }
 impl FrontendPolicy for WritePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {

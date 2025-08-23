@@ -1,26 +1,37 @@
 use std::any::Any;
 use std::boxed::Box;
-use crate::fold_in::NotAPolicyContainer;
+
 use crate::policy::{Policy, AnyPolicyTrait, SpecializationEnum};
 
+// Allows upgrading Box<dyn Policy + 'static> to Box<dyn Policy + Any>.
+mod private {
+    use crate::policy::Policy;
+
+    pub trait Sealed {}
+    impl<P: Policy + Sized> Sealed for P {}
+}
+pub trait UpgradableToAny : private::Sealed {
+    fn upgrade_to_any(&self) -> &dyn AnyPolicyTrait where Self: 'static;
+    fn upgrade_to_any_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait> where Self: 'static;
+}
+impl<P: Policy + Sized> UpgradableToAny for P {
+    fn upgrade_to_any(&self) -> &dyn AnyPolicyTrait where Self: 'static { self }
+    fn upgrade_to_any_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait> where Self: 'static { self }
+}
+
+// Things we can call .Specialize() on (i.e. source of specialization).
 pub trait Specializable: Policy + Any {
-    // TODO(babman): we do not need to have these here.
-    //               we should have a generic reflect() function
-    //               on Policy, which can configured to be
-    //               Owning or Ref-ing.
-    //               With max lifetime that Self outlives.
-    // Allows us to do reflection on policy types.
-    fn to_specialization_enum(self) -> SpecializationEnum;
-    fn to_specialization_enum_box(self: Box<Self>) -> SpecializationEnum;
+    fn specialize<P: Specialize>(self) -> Result<P, SpecializationEnum> where Self: Sized;
+}
+impl<P: Policy + Any> Specializable for P {
     // API that application developers use to specialize.
-    fn specialize<P: Specialize>(self) -> Result<P, SpecializationEnum> where Self: Sized {
-        let e = self.reflect_owned().normalize();
-        e.specialize::<P>()
+    fn specialize<P2: Specialize>(self) -> Result<P2, SpecializationEnum> where Self: Sized {
+        let e: SpecializationEnum = Box::new(self).reflect_static().normalize();
+        e.specialize::<P2>()
     }
 }
 
-type BoxEnum = Box<SpecializationEnum>;
-
+// Types we can specialize to (i.e. destination of specialization).
 pub trait Specialize : Specializable {
     // Constructs instances of the target type.
     #[inline]
@@ -28,40 +39,15 @@ pub trait Specialize : Specializable {
         Err(b)
     }
     #[inline]
-    fn specialize_and(b1: BoxEnum, b2: BoxEnum) -> Result<Self, (BoxEnum, BoxEnum)> where Self: Sized {
+    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> where Self: Sized {
         Err((b1, b2))
     }
     #[inline]
-    fn specialize_or(b1: BoxEnum, b2: BoxEnum) -> Result<Self, (BoxEnum, BoxEnum)> where Self: Sized {
+    fn specialize_or(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> where Self: Sized {
         Err((b1, b2))
     }
     #[inline]
-    fn specialize_option(b: Option<BoxEnum>) -> Result<Self, Option<BoxEnum>> where Self: Sized {
+    fn specialize_option(b: Option<Box<SpecializationEnum>>) -> Result<Self, Option<Box<SpecializationEnum>>> where Self: Sized {
         Err(b)
-    }
-}
-
-impl<P: Policy + Any + NotAPolicyContainer> Specializable for P {
-    fn to_specialization_enum(self) ->SpecializationEnum
-    where
-        Self: Sized
-    {
-        SpecializationEnum::Leaf(Box::new(self))
-    }
-    fn to_specialization_enum_box(self: Box<Self>) -> SpecializationEnum
-    where
-        Self: Sized
-    {
-        self.to_specialization_enum()
-    }
-}
-
-impl<P: Policy + Any + NotAPolicyContainer> Specialize for P {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> where Self: Sized {
-        if b.upcast_any().is::<P>() {
-            Ok(*b.upcast_any_box().downcast::<P>().unwrap())
-        } else {
-            Err(b)
-        }
     }
 }

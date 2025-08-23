@@ -24,7 +24,7 @@ impl Policy for UserPolicy {
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.name == String::from("Kinan")
     }
-    Unjoinable!();
+    Unjoinable!(!Any);
 }
 impl FrontendPolicy for UserPolicy {
     fn from_request(request: &'_ Request<'_>) -> Self {
@@ -55,7 +55,7 @@ impl Policy for HardcodedPolicy {
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.0
     }
-    Unjoinable!();
+    Unjoinable!(!Any);
 }
 impl FrontendPolicy for HardcodedPolicy {
     fn from_request<'a, 'r>(_request: &'a Request<'r>) -> Self

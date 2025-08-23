@@ -1,19 +1,46 @@
-use crate::policy::{NoPolicy, OwnedReflection, PolicyReflection, Specializable, Specialize};
+use std::any::Any;
+use std::ops::DerefMut;
+use crate::context::UnprotectedContext;
+use crate::policy::{AnyPolicyTrait, CheckVisitor, MutRefReflection, NameVisitor, NoPolicy, OwnedReflection, Policy, PolicyReflection, Reason, RefReflection, Reflective, Specializable, Specialize};
 
-pub type SpecializationEnum = OwnedReflection<'static>;
+pub type SpecializationEnum = PolicyReflection<'static, Box<dyn AnyPolicyTrait + 'static>, Box<dyn Policy + 'static>>;
 
-impl Specializable for SpecializationEnum {
-    fn to_specialization_enum(self) -> SpecializationEnum {
-        self
+
+// Mutable reflections are policies (they need to be mutable in order to allow joining them with others).
+impl<'a> Policy for SpecializationEnum {
+    fn name(&self) -> String {
+        let mut v = NameVisitor {};
+        self.postfix_visit_by_ref(&mut v)
     }
-    fn to_specialization_enum_box(self: Box<Self>) -> SpecializationEnum {
-        self.to_specialization_enum()
-    }
 
+    fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
+        let mut v = CheckVisitor::new(context, reason);
+        self.postfix_visit_by_ref(&mut v)
+    }
+    /*
+    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_> {
+        self.deref_mut()
+    }
+    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool {
+        // TODO(babman): make join a similar visitor pattern to specialize so we can reuse it here.
+        false
+    }
+    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool {
+        // TODO(babman): make join a similar visitor pattern to specialize so we can reuse it here.
+        false
+    }
+    */
+}
+
+// We can specialize OwnedReflection (that's the whole point!).
+impl SpecializationEnum {
     // Visitor pattern.
-    fn specialize<P: Specialize>(self) -> Result<P, Self> {
+    pub fn specialize<P: Specialize>(self) -> Result<P, Self> {
         match self {
-            Self::NoReflection(_) => panic!("Specializing something without reflection"),
+            Self::NoReflection(pol) => {
+                let pol: Box<dyn Policy + 'static> = pol;
+                P::specialize_leaf(pol.upgrade_to_any_box()).map_err(Self::Leaf)
+            },
             Self::Leaf(b) => {
                 P::specialize_leaf(b).map_err(Self::Leaf)
             },
@@ -63,6 +90,10 @@ impl Specializable for SpecializationEnum {
                     },
                 }
             },
+            PolicyReflection::PolicyRef(pol, _e) => {
+                let pol: Box<dyn Policy + 'static> = pol;
+                P::specialize_leaf(pol.upgrade_to_any_box()).map_err(Self::Leaf)
+            }
             Self::OptionPolicy(p) => {
                 let p = match P::specialize_option(p) {
                     Ok(p) => { return Ok(p); },

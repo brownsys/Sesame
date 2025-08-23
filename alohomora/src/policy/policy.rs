@@ -1,6 +1,8 @@
-use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, AnyPolicyTrait, AnyPolicyable, AsLeaf, AsNoReflection, MutRefReflection, OwnedReflection, PolicyReflection};
 use std::any::Any;
+
+use crate::context::UnprotectedContext;
+use crate::policy::{AnyPolicyBB, AnyPolicyTrait, AnyPolicyable, AsLeaf, AsNoReflection, Reflective, UpgradableToAny};
+use crate::policy::NotAPolicyContainer;
 
 // Enum describing why/where the policy check is invoked.
 #[derive(Clone)]
@@ -14,19 +16,10 @@ pub enum Reason<'i> {
 }
 
 // Public facing Policy traits.
-pub trait Policy: Send + Sync {
+pub trait Policy: Send + Sync + Reflective + UpgradableToAny {
     fn name(&self) -> String;
     // Policy check function!
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
-
-    // Reflection.
-    fn reflect_owned<'a>(self) -> OwnedReflection<'a> where Self: 'a, Self: Sized {
-        todo!()
-    }
-    fn reflect_ref<'r, 'a: 'r>(&'r mut self) -> MutRefReflection<'r, 'a> where Self: 'a {
-        todo!()
-    }
-
     /*
     // Join.
     // This is used in Join and in Normalization/Specialization

@@ -1,6 +1,6 @@
 use serde::Serialize;
 use crate::context::UnprotectedContext;
-use crate::policy::{FrontendPolicy, Policy, Reason, ReflexiveJoin, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
+use crate::policy::{FrontendPolicy, MutRefReflection, OwnedReflection, Policy, PolicyOr, Reason, RefReflection, Reflective, ReflexiveJoin, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
 
 #[derive(Clone, Serialize, PartialEq, Eq, Debug)]
 pub struct PolicyAnd<P1: Policy, P2: Policy> {
@@ -17,8 +17,10 @@ impl<P1: Policy, P2: Policy> PolicyAnd<P1, P2> {
     pub fn policy2(&self) -> &P2 {
         &self.p2
     }
-    pub fn policies(&self) -> (&P1, &P2) {
-        (&self.p1, &self.p2)
+    pub fn policies(&self) -> (&P1, &P2) { (&self.p1, &self.p2) }
+    pub fn mut_policies(&mut self) -> (&mut P1, &mut P2) { (&mut self.p1, &mut self.p2) }
+    pub fn into_inner(self) -> (P1, P2) {
+        (self.p1, self.p2)
     }
 }
 
@@ -74,33 +76,6 @@ impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
         }
     }
      */
-}
-
-// Can specialize an And if both its clauses are also specializable.
-impl<P1: Policy + Specializable, P2: Policy + Specializable> Specializable for PolicyAnd<P1, P2> {
-    fn to_specialization_enum(self) -> SpecializationEnum {
-        SpecializationEnum::PolicyAnd(
-            Box::new(self.p1.to_specialization_enum()),
-            Box::new(self.p2.to_specialization_enum()),
-        )
-    }
-    fn to_specialization_enum_box(self: Box<Self>) -> SpecializationEnum {
-        self.to_specialization_enum()
-    }
-}
-impl<P1: Policy + Specialize, P2: Policy + Specialize> Specialize for PolicyAnd<P1, P2> {
-    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
-        let r1 = b1.specialize::<P1>();
-        let r2 = b2.specialize::<P2>();
-        match (r1, r2) {
-            (Ok(p1), Ok(p2)) => Ok(PolicyAnd { p1, p2 }),
-            (Err(e1), Err(e2)) => Err((Box::new(e1), Box::new(e2))),
-            (Ok(p1), Err(e2)) =>
-                Err((Box::new(p1.to_specialization_enum().normalize()), Box::new(e2))),
-            (Err(e1), Ok(p2)) =>
-                Err((Box::new(e1), Box::new(p2.to_specialization_enum().normalize()))),
-        }
-    }
 }
 
 // Guarantees we can join PolicyAnd with other instances of the same type.

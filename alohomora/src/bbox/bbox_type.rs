@@ -8,7 +8,7 @@ use mysql::chrono;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
-use crate::policy::{AnyPolicyDyn, PolicyDyn, PolicyDynRelation, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy, AnyPolicyable, AnyPolicyClone, AnyPolicyTrait, AnyPolicyCC, AnyPolicyBB, Specialize, Specializable, OwnedReflection};
+use crate::policy::{AnyPolicyDyn, PolicyDyn, PolicyDynRelation, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy, AnyPolicyable, AnyPolicyClone, AnyPolicyTrait, AnyPolicyCC, AnyPolicyBB, Specialize, Specializable, OwnedReflection, SpecializationEnum};
 use crate::pure::PrivacyPureRegion;
 
 use crate::bbox::obfuscated_pointer::ObPtr;
@@ -263,7 +263,7 @@ impl<'a, T, DynP: PolicyDyn + ?Sized> BBox<T, RefPolicy<'a, AnyPolicyDyn<DynP>>>
 
 // Normalized specialize over entire policy via reflection.
 impl<T, P: Specializable> BBox<T, P> {
-    pub fn specialize_policy<P2: Specialize>(self) -> Result<BBox<T, P2>, BBox<T, OwnedReflection<'static>>> {
+    pub fn specialize_policy<P2: Specialize>(self) -> Result<BBox<T, P2>, BBox<T, SpecializationEnum>> {
         let (fb, p) = (self.fb, self.p);
         match p.specialize::<P2>() {
             Ok(p) => Ok(BBox { fb, p }),

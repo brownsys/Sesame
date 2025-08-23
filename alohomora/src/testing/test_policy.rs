@@ -1,6 +1,6 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyTrait, FrontendPolicy, OptionPolicy, Policy, Reason, RefPolicy, ReflexiveJoin, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
+use crate::policy::{AnyPolicyTrait, FrontendPolicy, MutRefReflection, OptionPolicy, OwnedReflection, Policy, Reason, RefPolicy, RefReflection, Reflective, ReflexiveJoin, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
 use std::fmt::{Debug, Formatter};
 use serde::Serialize;
 
@@ -18,6 +18,8 @@ impl<P: Policy> TestPolicy<P> {
     pub fn policy(&self) -> &P {
         &self.p
     }
+    pub fn mut_policy(&mut self) -> &mut P { &mut self.p }
+    pub fn into_inner(self) -> P { self.p }
 }
 
 impl<P: Policy> Policy for TestPolicy<P> {
@@ -38,29 +40,6 @@ impl<P: Policy> Policy for TestPolicy<P> {
         self.p.join(p)
     }
      */
-}
-
-impl<P: Policy + Specializable> Specializable for TestPolicy<P> {
-    fn to_specialization_enum(self) -> SpecializationEnum {
-        SpecializationEnum::TestPolicy(Box::new(self.p.to_specialization_enum()))
-    }
-    fn to_specialization_enum_box(self: Box<Self>) -> SpecializationEnum {
-        self.to_specialization_enum()
-    }
-}
-impl<P: Policy + Specialize> Specialize for TestPolicy<P> {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
-        Ok(TestPolicy::new(P::specialize_leaf(b)?))
-    }
-    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
-        Ok(TestPolicy::new(P::specialize_and(b1, b2)?))
-    }
-    fn specialize_or(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
-        Ok(TestPolicy::new(P::specialize_or(b1, b2)?))
-    }
-    fn specialize_option(b: Option<Box<SpecializationEnum>>) -> Result<Self, Option<Box<SpecializationEnum>>> {
-        Ok(TestPolicy::new(P::specialize_option(b)?))
-    }
 }
 
 impl<P: ReflexiveJoin> ReflexiveJoin for TestPolicy<P> {

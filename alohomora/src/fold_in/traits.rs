@@ -1,4 +1,4 @@
-use crate::policy::{AnyPolicyDyn, OptionPolicy, Policy, PolicyAnd, PolicyDyn, PolicyOr, RefPolicy};
+use crate::policy::{AnyPolicyDyn, AsLeaf, AsNoReflection, NotAPolicyContainer, OptionPolicy, Policy, PolicyAnd, PolicyDyn, PolicyOr, RefPolicy};
 use crate::testing::TestPolicy;
 
 // Every type (including policy types) are FoldInAllowed by default
@@ -8,16 +8,6 @@ pub auto trait FoldInAllowed {}
 
 // Need to manually implement this for AnyPolicy due to AnyPolicy using a dyn trait object.
 impl<P: PolicyDyn + ?Sized> FoldInAllowed for AnyPolicyDyn<P> {}
-
-// Marks which types are not a policy container.
-// Needed for specialization of RuntimeFoldIn to work.
-pub(crate) auto trait NotAPolicyContainer {}
-impl<P: PolicyDyn + ?Sized> !NotAPolicyContainer for AnyPolicyDyn<P> {}
-impl<P: Policy> !NotAPolicyContainer for TestPolicy<P> {}
-impl<'a, P: Policy + ?Sized> !NotAPolicyContainer for RefPolicy<'a, P> {}
-impl<P1: Policy, P2: Policy> !NotAPolicyContainer for PolicyAnd<P1, P2> {}
-impl<P1: Policy, P2: Policy> !NotAPolicyContainer for PolicyOr<P1, P2> {}
-impl<P: Policy + Clone + 'static> !NotAPolicyContainer for OptionPolicy<P> {}
 
 // AnyPolicy requires a runtime check for whether folding in is allowed or not due to
 // type erasure.

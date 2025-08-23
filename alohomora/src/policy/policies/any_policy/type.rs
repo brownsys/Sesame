@@ -1,5 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyClone, AnyPolicySerialize, AnyPolicyTrait, Policy, PolicyAnd, PolicyDynInto, PolicyOr, Reason, Specializable, SpecializationEnum, Specialize};
+use crate::policy::{AnyPolicyClone, AnyPolicySerialize, AnyPolicyTrait, MutRefReflection, OwnedReflection, Policy, PolicyAnd, PolicyDynInto, PolicyOr, Reason, RefReflection, Reflective, Specializable, SpecializationEnum, Specialize};
 use std::any::{Any, TypeId};
 use std::ops::Deref;
 use dyn_clone::DynClone;
@@ -57,12 +57,12 @@ impl<P: PolicyDyn + ?Sized> AnyPolicyDyn<P> {
     }
 
     // Accessing internal policy object.
-    pub fn inner(&self) -> &P {
-        self.policy.as_ref()
-    }
+    pub fn inner(&self) -> &P { self.policy.as_ref() }
+    pub fn mut_inner(&mut self) -> &mut P { self.policy.as_mut() }
     pub fn into_inner(self) -> Box<P> {
         self.policy
     }
+    pub fn from_inner(policy: Box<P>) -> Self { Self { policy } }
 
     // Convert between dyns.
     pub fn convert_to<PDyn: PolicyDyn + ?Sized>(self) -> AnyPolicyDyn<PDyn>
@@ -90,64 +90,6 @@ impl<P: PolicyDyn + ?Sized> Policy for AnyPolicyDyn<P> {
         self.policy.join(p)
     }
      */
-}
-
-// Can specialize any kind of AnyPolicy.
-impl<PDyn: PolicyDyn + ?Sized> Specializable for AnyPolicyDyn<PDyn> {
-    fn to_specialization_enum(self) -> SpecializationEnum {
-        let e = self.policy.to_specialization_enum_box();
-        SpecializationEnum::AnyPolicy(Box::new(e))
-    }
-    fn to_specialization_enum_box(self: Box<Self>) -> SpecializationEnum {
-        self.to_specialization_enum()
-    }
-}
-impl Specialize for AnyPolicyBB {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
-        //let x = b.transfer()?;
-        if TypeId::of::<Box<dyn AnyPolicyTrait>>() == TypeId::of::<Box<dyn AnyPolicyTrait>>() {
-            let b: Box<dyn Any> = Box::new(b);
-            let b = b.downcast().unwrap();
-            Ok(AnyPolicyDyn { policy:  *b })
-        } else {
-            Err(b)
-        }
-    }
-    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
-        let r1 = b1.specialize::<Self>();
-        let r2 = b2.specialize::<Self>();
-        match (r1, r2) {
-            (Ok(p1), Ok(p2)) => Ok(<dyn AnyPolicyTrait>::and_policy(PolicyAnd::new(p1, p2))),
-            (Err(e1), Err(e2)) => Err((Box::new(e1), Box::new(e2))),
-            (Ok(p1), Err(e2)) =>
-                Err((Box::new(p1.to_specialization_enum().normalize()), Box::new(e2))),
-            (Err(e1), Ok(p2)) =>
-                Err((Box::new(e1), Box::new(p2.to_specialization_enum().normalize()))),
-        }
-    }
-    fn specialize_or(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
-        let r1 = b1.specialize::<Self>();
-        let r2 = b2.specialize::<Self>();
-        match (r1, r2) {
-            (Ok(p1), Ok(p2)) => Ok(<dyn AnyPolicyTrait>::or_policy(PolicyOr::new(p1, p2))),
-            (Err(e1), Err(e2)) => Err((Box::new(e1), Box::new(e2))),
-            (Ok(p1), Err(e2)) =>
-                Err((Box::new(p1.to_specialization_enum().normalize()), Box::new(e2))),
-            (Err(e1), Ok(p2)) =>
-                Err((Box::new(e1), Box::new(p2.to_specialization_enum().normalize()))),
-        }
-    }
-    fn specialize_option(b: Option<Box<SpecializationEnum>>) -> Result<Self, Option<Box<SpecializationEnum>>> {
-        match b {
-            None => Ok(AnyPolicyDyn::default()),
-            Some(b) => {
-                match b.specialize::<Self>() {
-                    Ok(p) => Ok(p),
-                    Err(b) => Err(Some(Box::new(b))),
-                }
-            },
-        }
-    }
 }
 
 // AnyPolicyDyn is Clone if it obligates trait object to be Clone as well.
