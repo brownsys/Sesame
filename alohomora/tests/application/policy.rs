@@ -1,11 +1,11 @@
-use alohomora::{SesameType};
+use alohomora::SesameType;
 use cookie::Cookie;
 use mysql::{from_value, Value};
 use rocket::Request;
 use std::collections::HashSet;
 
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy, SimplePolicy, Join};
+use alohomora::policy::{FrontendPolicy, Join, Policy, Reason, SchemaPolicy, SimplePolicy};
 use alohomora_derive::schema_policy;
 
 use crate::application::context::ContextData;
@@ -28,7 +28,11 @@ impl SimplePolicy for ACLPolicy {
         }
     }
     fn simple_join_direct(&mut self, other: &mut Self) {
-        self.users = self.users.intersection(&other.users).map(Clone::clone).collect();
+        self.users = self
+            .users
+            .intersection(&other.users)
+            .map(Clone::clone)
+            .collect();
     }
 }
 impl SchemaPolicy for ACLPolicy {

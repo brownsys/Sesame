@@ -191,7 +191,7 @@ into_params_impl!(
 mod tests {
     use crate::bbox::{BBox, EitherBBox};
     use crate::context::Context;
-    use crate::db::{BBoxParam, BBoxParams};
+    use crate::db::{BBoxParams};
     use crate::policy::{AnyPolicyBB, NoPolicy, Reason};
     use mysql::prelude::FromValue;
     use mysql::Params;
@@ -215,14 +215,10 @@ mod tests {
         // Test construction.
         assert!(matches!(&params, BBoxParams::Positional(v) if v.len() == 4));
         if let BBoxParams::Positional(vec) = &params {
-            assert!(
-                matches!(&vec[0], EitherBBox::BBox(b) if helper1(&b, String::from("kinan")))
-            );
+            assert!(matches!(&vec[0], EitherBBox::BBox(b) if helper1(&b, String::from("kinan"))));
             assert!(matches!(&vec[1], EitherBBox::BBox(b) if helper1(&b, 10i32)));
             assert!(matches!(&vec[2], EitherBBox::Value(b) if helper2(&b, 100i32)));
-            assert!(
-                matches!(&vec[3], EitherBBox::Value(b) if helper2(&b, String::from("test")))
-            );
+            assert!(matches!(&vec[3], EitherBBox::Value(b) if helper2(&b, String::from("test"))));
         }
 
         // Test unboxing.

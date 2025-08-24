@@ -1,6 +1,6 @@
 mod dyns;
-mod r#type;
 mod traits;
+mod r#type;
 
 pub use dyns::*;
 pub use r#type::*;

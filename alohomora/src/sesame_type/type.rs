@@ -1,7 +1,7 @@
-use std::any::Any;
 use crate::policy::{AnyPolicyTrait, PolicyDyn};
-use crate::sesame_type::r#enum::SesameTypeEnum;
 use crate::sesame_type::dyns::SesameDyn;
+use crate::sesame_type::r#enum::SesameTypeEnum;
+use std::any::Any;
 
 // Public: client code should derive this for structs that they want to unbox, fold, or pass to
 // sandboxes.

@@ -1,14 +1,18 @@
+use std::any::Any;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
-use std::any::Any;
 
 use either::Either;
 use mysql::chrono;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
-use crate::policy::{AnyPolicyDyn, PolicyDyn, PolicyDynRelation, NoPolicy, OptionPolicy, Policy, Reason, RefPolicy, AnyPolicyable, AnyPolicyClone, AnyPolicyTrait, AnyPolicyCC, AnyPolicyBB, Specialize, Specializable, OwnedReflection, SpecializationEnum};
+use crate::policy::{
+    AnyPolicyBB, AnyPolicyCC, AnyPolicyClone, AnyPolicyDyn, AnyPolicyable,
+    NoPolicy, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation, Reason,
+    RefPolicy, Specializable, SpecializationEnum, Specialize,
+};
 use crate::pure::PrivacyPureRegion;
 
 use crate::bbox::obfuscated_pointer::ObPtr;
@@ -85,13 +89,7 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Unbox with policy checks.
-    pub fn unbox<
-        'a,
-        D: ContextData,
-        C: SesameType,
-        O,
-        F: FnOnce(&'a T, C::Out) -> O
-    >(
+    pub fn unbox<'a, D: ContextData, C: SesameType, O, F: FnOnce(&'a T, C::Out) -> O>(
         &'a self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
@@ -102,22 +100,14 @@ impl<T, P: Policy> BBox<T, P> {
     {
         let arg_out = fold(arg).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self
-            .p
-            .check(&context, Reason::Custom(&arg_out))
-        {
+        if self.p.check(&context, Reason::Custom(&arg_out)) {
             let functor = functor.get_functor();
             Ok(functor(self.fb.get(), arg_out))
         } else {
             Err(())
         }
     }
-    pub fn into_unbox<
-        D: ContextData,
-        C: SesameType,
-        O,
-        F: FnOnce(T, C::Out) -> O
-    >(
+    pub fn into_unbox<D: ContextData, C: SesameType, O, F: FnOnce(T, C::Out) -> O>(
         self,
         context: Context<D>,
         functor: PrivacyCriticalRegion<F>,
@@ -128,10 +118,7 @@ impl<T, P: Policy> BBox<T, P> {
     {
         let arg_out = fold(arg).unwrap().consume().0;
         let context = UnprotectedContext::from(context);
-        if self
-            .p
-            .check(&context, Reason::Custom(&arg_out))
-        {
+        if self.p.check(&context, Reason::Custom(&arg_out)) {
             let functor = functor.get_functor();
             Ok(functor(self.fb.mov(), arg_out))
         } else {
@@ -232,38 +219,60 @@ impl<T, P: AnyPolicyable> BBox<T, P> {
 // Downcasting to AnyPolicy.
 impl<T, DynP: PolicyDyn + ?Sized> BBox<T, AnyPolicyDyn<DynP>> {
     pub fn is_policy<P: AnyPolicyable>(&self) -> bool
-    where DynP: PolicyDynRelation<P> {
+    where
+        DynP: PolicyDynRelation<P>,
+    {
         self.p.is::<P>()
     }
 
     pub fn specialize_top_policy<P: AnyPolicyable>(self) -> Result<BBox<T, P>, String>
-    where DynP: PolicyDynRelation<P>  {
+    where
+        DynP: PolicyDynRelation<P>,
+    {
         Ok(BBox {
             fb: self.fb,
             p: self.p.specialize_top()?,
         })
     }
 
-    pub fn specialize_policy_ref<P: AnyPolicyable>(&self) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
-    where DynP: PolicyDynRelation<P>  {
-        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.specialize_top_ref()?)))
+    pub fn specialize_policy_ref<P: AnyPolicyable>(
+        &self,
+    ) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
+    where
+        DynP: PolicyDynRelation<P>,
+    {
+        Ok(BBox::new(
+            self.fb.get(),
+            RefPolicy::new(self.p.specialize_top_ref()?),
+        ))
     }
 }
 impl<'a, T, DynP: PolicyDyn + ?Sized> BBox<T, RefPolicy<'a, AnyPolicyDyn<DynP>>> {
     pub fn is_policy_ref<P: AnyPolicyable>(&self) -> bool
-    where DynP: PolicyDynRelation<P> {
+    where
+        DynP: PolicyDynRelation<P>,
+    {
         self.p.policy().is::<P>()
     }
 
-    pub fn specialize_policy_ref<P: AnyPolicyable>(&self) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
-    where DynP: PolicyDynRelation<P>  {
-        Ok(BBox::new(self.fb.get(), RefPolicy::new(self.p.policy().specialize_top_ref()?)))
+    pub fn specialize_policy_ref<P: AnyPolicyable>(
+        &self,
+    ) -> Result<BBox<&T, RefPolicy<'_, P>>, String>
+    where
+        DynP: PolicyDynRelation<P>,
+    {
+        Ok(BBox::new(
+            self.fb.get(),
+            RefPolicy::new(self.p.policy().specialize_top_ref()?),
+        ))
     }
 }
 
 // Normalized specialize over entire policy via reflection.
 impl<T, P: Specializable> BBox<T, P> {
-    pub fn specialize_policy<P2: Specialize>(self) -> Result<BBox<T, P2>, BBox<T, SpecializationEnum>> {
+    pub fn specialize_policy<P2: Specialize>(
+        self,
+    ) -> Result<BBox<T, P2>, BBox<T, SpecializationEnum>> {
         let (fb, p) = (self.fb, self.p);
         match p.specialize::<P2>() {
             Ok(p) => Ok(BBox { fb, p }),
@@ -330,7 +339,9 @@ mod tests {
         fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn simple_join_direct(&mut self, other: &mut Self) { unreachable!() }
+        fn simple_join_direct(&mut self, _other: &mut Self) {
+            unreachable!()
+        }
     }
 
     #[test]

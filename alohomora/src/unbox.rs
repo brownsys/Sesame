@@ -1,9 +1,9 @@
-use std::any::Any;
 use crate::context::{Context, ContextData};
 use crate::fold::fold;
 use crate::pcr::PrivacyCriticalRegion;
 use crate::unbox::UnboxError::{FoldError, PolicyViolation};
 use crate::SesameType;
+use std::any::Any;
 
 #[derive(Debug)]
 pub enum UnboxError {
@@ -11,13 +11,7 @@ pub enum UnboxError {
     PolicyViolation,
 }
 
-pub fn unbox<
-    S: SesameType,
-    D: ContextData,
-    C: SesameType,
-    O,
-    F: FnOnce(S::Out, C::Out) -> O,
->(
+pub fn unbox<S: SesameType, D: ContextData, C: SesameType, O, F: FnOnce(S::Out, C::Out) -> O>(
     data: S,
     context: Context<D>,
     functor: PrivacyCriticalRegion<F>,

@@ -1,6 +1,6 @@
-use serde::Serialize;
 use crate::context::UnprotectedContext;
 use crate::policy::{Join, Policy, Reason};
+use serde::Serialize;
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize)]
 pub enum OptionPolicy<P: Policy> {

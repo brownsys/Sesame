@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use crate::bbox::BBox;
 use crate::fold::fold;
-use crate::policy::{AnyPolicyBB, AnyPolicyDyn, PolicyDyn};
+use crate::policy::{AnyPolicyDyn, PolicyDyn};
 use crate::SesameType;
 
 // Expose alohomora_sandbox API that controls the interface outside sandbox.

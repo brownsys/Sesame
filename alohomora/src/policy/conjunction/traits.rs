@@ -1,8 +1,10 @@
-use crate::policy::{AnyPolicyBB, AnyPolicyDyn, AnyPolicyable, MutRefReflection, NoPolicy, Policy, PolicyAnd, PolicyDyn, PolicyDynRelation, Reflective, SimplePolicy};
+use crate::policy::{
+    MutRefReflection, NoPolicy, Policy, PolicyAnd, SimplePolicy,
+};
 use crate::testing::TestPolicy;
 
 // This trait marks that a policy type is safe to join with any instance of the same type.
-pub trait ReflexiveJoin : Policy {
+pub trait ReflexiveJoin: Policy {
     fn reflexive_join(&mut self, other: &mut Self);
 }
 
@@ -31,12 +33,11 @@ impl<P: ReflexiveJoin> ReflexiveJoin for TestPolicy<P> {
 // Trait for specifying how to join things.
 pub trait Join {
     // Whether we can join with the given policy description.
-    fn can_join_with(&mut self, p: &MutRefReflection<'_>) -> bool {
+    fn can_join_with(&mut self, _p: &MutRefReflection<'_>) -> bool {
         false
     }
     // Join in place.
-    fn join_via_reflection(&mut self, p: MutRefReflection<'_>) -> bool {
+    fn join_via_reflection(&mut self, _p: MutRefReflection<'_>) -> bool {
         false
     }
-
 }

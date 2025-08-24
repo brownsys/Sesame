@@ -1,7 +1,7 @@
-use std::any::Any;
 use crate::fold::fold;
 use crate::policy::{AnyPolicyDyn, PolicyDyn};
 use crate::SesameType;
+use std::any::Any;
 
 // Creation of this must be signed.
 #[derive(Clone, Copy)]
@@ -18,7 +18,13 @@ impl<F> PrivacyCriticalRegion<F> {
 }
 
 // Executes a PCR over some boxed type.
-pub fn execute_pcr<PDyn: PolicyDyn + ?Sized, S: SesameType<dyn Any, PDyn>, C, O, F: FnOnce(S::Out, AnyPolicyDyn<PDyn>, C) -> O>(
+pub fn execute_pcr<
+    PDyn: PolicyDyn + ?Sized,
+    S: SesameType<dyn Any, PDyn>,
+    C,
+    O,
+    F: FnOnce(S::Out, AnyPolicyDyn<PDyn>, C) -> O,
+>(
     data: S,
     functor: PrivacyCriticalRegion<F>,
     arg: C,

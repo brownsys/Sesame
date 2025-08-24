@@ -6,16 +6,19 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use crate::bbox::BBox;
-use crate::sesame_type_dyns::{SesameDyn, SesameDynRelation};
-use crate::policy::{AnyPolicyBB, AnyPolicyDyn, AnyPolicyable, PolicyDyn, PolicyDynRelation};
+use crate::policy::{AnyPolicyDyn, AnyPolicyable, PolicyDyn, PolicyDynRelation};
 use crate::sesame_type::r#enum::SesameTypeEnum;
-use crate::sesame_type::r#type::{SesameType};
+use crate::sesame_type::r#type::SesameType;
+use crate::sesame_type_dyns::{SesameDyn, SesameDynRelation};
 
 // Implement SesameType for various primitives.
 macro_rules! sesame_type_dyn_primitives_impl {
     ($T: ty) => {
         #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-        impl<DT: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameType<DT, P> for $T where DT: SesameDynRelation<$T> {
+        impl<DT: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameType<DT, P> for $T
+        where
+            DT: SesameDynRelation<$T>,
+        {
             type Out = $T;
             fn to_enum(self) -> SesameTypeEnum<DT, P> {
                 SesameTypeEnum::Value(DT::boxed_dyn(self))
@@ -47,7 +50,13 @@ sesame_type_dyn_primitives_impl!(String);
 
 // Implement SesameType for BBox<T, P>
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<T: Any, DT: SesameDyn + ?Sized + SesameDynRelation<T> + Any, P: AnyPolicyable, PT: PolicyDyn + ?Sized + PolicyDynRelation<P>> SesameType<DT, PT> for BBox<T, P> {
+impl<
+        T: Any,
+        DT: SesameDyn + ?Sized + SesameDynRelation<T> + Any,
+        P: AnyPolicyable,
+        PT: PolicyDyn + ?Sized + PolicyDynRelation<P>,
+    > SesameType<DT, PT> for BBox<T, P>
+{
     type Out = T;
     fn to_enum(self) -> SesameTypeEnum<DT, PT> {
         let (t, p) = self.consume();
@@ -65,7 +74,9 @@ impl<T: Any, DT: SesameDyn + ?Sized + SesameDynRelation<T> + Any, P: AnyPolicyab
 }
 // Implement SesameType for Option
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P> for Option<T> {
+impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P>
+    for Option<T>
+{
     type Out = Option<T::Out>;
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         match self {
@@ -86,7 +97,9 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
 
 // Implement SesameType for Vec.
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, S: SesameType<A, P>> SesameType<A, P> for Vec<S> {
+impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, S: SesameType<A, P>> SesameType<A, P>
+    for Vec<S>
+{
     type Out = Vec<S::Out>;
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         SesameTypeEnum::Vec(self.into_iter().map(|s| s.to_enum()).collect())
@@ -107,7 +120,13 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, S: SesameType<A, P>> SesameTy
 
 // Implement SesameType for HashMap
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, K: ToString + FromStr + Hash + Eq, S: SesameType<A, P>> SesameType<A, P> for HashMap<K, S> {
+impl<
+        A: SesameDyn + ?Sized,
+        P: PolicyDyn + ?Sized,
+        K: ToString + FromStr + Hash + Eq,
+        S: SesameType<A, P>,
+    > SesameType<A, P> for HashMap<K, S>
+{
     type Out = HashMap<K, S::Out>;
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         SesameTypeEnum::Struct(
@@ -136,7 +155,10 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, K: ToString + FromStr + Hash 
 }
 
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameType<A, P> for () where A: SesameDynRelation<()> {
+impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameType<A, P> for ()
+where
+    A: SesameDynRelation<()>,
+{
     type Out = ();
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         SesameTypeEnum::Vec(Vec::new())
@@ -244,7 +266,9 @@ sesame_type_dyn_tuples_impl!(
 
 // Implement SesameType for Mutex<T>
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P> for Mutex<T> {
+impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P>
+    for Mutex<T>
+{
     type Out = Mutex<T::Out>;
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         let t = self.into_inner().unwrap();
@@ -263,7 +287,9 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
 
 // Implement SesameType for Arc<T>
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
-impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P> for Arc<T> {
+impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P>
+    for Arc<T>
+{
     type Out = Arc<T::Out>;
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         let t = Arc::into_inner(self).unwrap();

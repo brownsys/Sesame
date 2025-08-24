@@ -1,9 +1,13 @@
-use std::ops::Deref;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyTrait, AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, MutRefReflection, NoPolicy, PassType, Policy, PolicyReflection, PostfixOutcome, PostfixVisitor, Reason, RefReflection};
+use crate::policy::{
+    AnyPolicyTrait, AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, MutRefReflection, NoPolicy, Policy, PolicyReflection, PostfixOutcome, PostfixVisitor, Reason, RefReflection,
+};
+use std::ops::Deref;
 
 pub struct NormalizeVisitor {}
-impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> PostfixVisitor<'a, ByMove<'a, L, NR>> for NormalizeVisitor {
+impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> PostfixVisitor<'a, ByMove<'a, L, NR>>
+    for NormalizeVisitor
+{
     type Result = PolicyReflection<'a, L, NR>;
 
     fn visit_no_reflection(&mut self, b: NR) -> PostfixOutcome<Self::Result> {
@@ -12,10 +16,18 @@ impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> PostfixVisitor<'a, ByMove<'a, L, NR>
     fn visit_leaf(&mut self, b: L) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::Leaf(b))
     }
-    fn visit_and(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_and(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::PolicyAnd(Box::new(left), Box::new(right)))
     }
-    fn visit_or(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_or(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::PolicyOr(Box::new(left), Box::new(right)))
     }
     fn visit_ref(&mut self, p: NR, e: RefReflection<'a>) -> PostfixOutcome<Self::Result> {
@@ -33,7 +45,9 @@ impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> PostfixVisitor<'a, ByMove<'a, L, NR>
 }
 
 pub struct NameVisitor {}
-impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> PostfixVisitor<'a, ByRef<'r, 'a, L, NR>> for NameVisitor {
+impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a>
+    PostfixVisitor<'a, ByRef<'r, 'a, L, NR>> for NameVisitor
+{
     type Result = String;
 
     fn visit_no_reflection(&mut self, pol: &NR) -> PostfixOutcome<Self::Result> {
@@ -43,10 +57,18 @@ impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> PostfixVisitor<'a,
         Ok(b.as_ref().name())
     }
 
-    fn visit_and(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_and(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(format!("PolicyAnd({} AND {})", left, right))
     }
-    fn visit_or(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_or(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(format!("PolicyOr({} OR {})", left, right))
     }
 
@@ -77,22 +99,34 @@ impl<'a> CheckVisitor<'a> {
         Self { context, reason }
     }
 }
-impl<'r, 'a: 'r, 'c, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> PostfixVisitor<'a, ByRef<'r, 'a, L, NR>> for CheckVisitor<'c> {
+impl<'r, 'a: 'r, 'c, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a>
+    PostfixVisitor<'a, ByRef<'r, 'a, L, NR>> for CheckVisitor<'c>
+{
     type Result = bool;
 
     fn visit_no_reflection(&mut self, pol: &NR) -> PostfixOutcome<Self::Result> {
         Ok(pol.as_ref().check(self.context, self.reason.clone()))
     }
     fn visit_leaf(&mut self, b: &L) -> PostfixOutcome<Self::Result> {
-        Ok(b.as_ref().upcast_policy().check(self.context, self.reason.clone()))
+        Ok(b.as_ref()
+            .upcast_policy()
+            .check(self.context, self.reason.clone()))
     }
-    fn visit_and(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_and(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(left && right)
     }
-    fn visit_or(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_or(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(left || right)
     }
-    fn visit_ref(&mut self, p: &NR, e: &RefReflection) -> PostfixOutcome<Self::Result> {
+    fn visit_ref(&mut self, p: &NR, _e: &RefReflection) -> PostfixOutcome<Self::Result> {
         Ok(p.as_ref().check(self.context, self.reason.clone()))
     }
     fn visit_option(&mut self, option: Option<Self::Result>) -> PostfixOutcome<Self::Result> {
@@ -107,7 +141,9 @@ impl<'r, 'a: 'r, 'c, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> PostfixVisitor
 }
 
 pub struct IsNoPolicy {}
-impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> PostfixVisitor<'a, ByRef<'r, 'a, L, NR>> for IsNoPolicy {
+impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a>
+    PostfixVisitor<'a, ByRef<'r, 'a, L, NR>> for IsNoPolicy
+{
     type Result = bool;
 
     fn visit_no_reflection(&mut self, _pol: &NR) -> PostfixOutcome<Self::Result> {
@@ -116,10 +152,18 @@ impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> PostfixVisitor<'a,
     fn visit_leaf(&mut self, b: &L) -> PostfixOutcome<Self::Result> {
         Ok(b.as_ref().upcast_any().is::<NoPolicy>())
     }
-    fn visit_and(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_and(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(left && right)
     }
-    fn visit_or(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_or(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(left || right)
     }
     fn visit_ref(&mut self, _p: &NR, e: &RefReflection) -> PostfixOutcome<Self::Result> {
@@ -137,7 +181,9 @@ impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> PostfixVisitor<'a,
 }
 
 pub struct ToRef {}
-impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>> for ToRef {
+impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>>
+    for ToRef
+{
     type Result = RefReflection<'r>;
 
     fn visit_no_reflection(&mut self, b: &'r Box<dyn Policy + 'a>) -> PostfixOutcome<Self::Result> {
@@ -147,15 +193,30 @@ impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<d
         Ok(RefReflection::Leaf(b.deref()))
     }
 
-    fn visit_and(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_and(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(RefReflection::PolicyAnd(Box::new(left), Box::new(right)))
     }
-    fn visit_or(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_or(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(RefReflection::PolicyOr(Box::new(left), Box::new(right)))
     }
-    fn visit_ref(&mut self, p: &'r Box<dyn Policy + 'a>, e: &'r RefReflection<'a>) -> PostfixOutcome<Self::Result> {
+    fn visit_ref(
+        &mut self,
+        p: &'r Box<dyn Policy + 'a>,
+        e: &'r RefReflection<'a>,
+    ) -> PostfixOutcome<Self::Result> {
         let mut v = CloneVisitor {};
-        Ok(RefReflection::PolicyRef(p.deref(), Box::new(e.postfix_visit_by_ref(&mut v))))
+        Ok(RefReflection::PolicyRef(
+            p.deref(),
+            Box::new(e.postfix_visit_by_ref(&mut v)),
+        ))
     }
     fn visit_option(&mut self, option: Option<Self::Result>) -> PostfixOutcome<Self::Result> {
         match option {
@@ -172,25 +233,45 @@ impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<d
 }
 
 pub struct ToMutableRef {}
-impl<'r, 'a: 'r> PostfixVisitor<'a, ByMutRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>> for ToMutableRef {
+impl<'r, 'a: 'r> PostfixVisitor<'a, ByMutRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>>
+    for ToMutableRef
+{
     type Result = MutRefReflection<'r>;
 
-    fn visit_no_reflection(&mut self, b: &'r mut Box<dyn Policy + 'a>) -> PostfixOutcome<Self::Result> {
+    fn visit_no_reflection(
+        &mut self,
+        b: &'r mut Box<dyn Policy + 'a>,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(MutRefReflection::NoReflection(b.as_mut()))
     }
     fn visit_leaf(&mut self, b: &'r mut Box<dyn AnyPolicyTrait>) -> PostfixOutcome<Self::Result> {
         Ok(MutRefReflection::Leaf(b.as_mut()))
     }
 
-    fn visit_and(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_and(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(MutRefReflection::PolicyAnd(Box::new(left), Box::new(right)))
     }
-    fn visit_or(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_or(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(MutRefReflection::PolicyOr(Box::new(left), Box::new(right)))
     }
-    fn visit_ref(&mut self, p: &'r mut Box<dyn Policy + 'a>, e: &'r mut RefReflection<'a>) -> PostfixOutcome<Self::Result> {
+    fn visit_ref(
+        &mut self,
+        p: &'r mut Box<dyn Policy + 'a>,
+        e: &'r mut RefReflection<'a>,
+    ) -> PostfixOutcome<Self::Result> {
         let mut v = CloneVisitor {};
-        Ok(MutRefReflection::PolicyRef(p.as_mut(), Box::new(e.postfix_visit_by_ref(&mut v))))
+        Ok(MutRefReflection::PolicyRef(
+            p.as_mut(),
+            Box::new(e.postfix_visit_by_ref(&mut v)),
+        ))
     }
     fn visit_option(&mut self, option: Option<Self::Result>) -> PostfixOutcome<Self::Result> {
         match option {
@@ -206,26 +287,42 @@ impl<'r, 'a: 'r> PostfixVisitor<'a, ByMutRef<'r, 'a, Box<dyn AnyPolicyTrait>, Bo
     }
 }
 
-
 pub struct CloneVisitor {}
-impl<'a, 'r: 'a> PostfixVisitor<'a, ByRef<'r, 'a, &'a (dyn AnyPolicyTrait), &'a (dyn Policy + 'a)>> for CloneVisitor {
+impl<'a, 'r: 'a> PostfixVisitor<'a, ByRef<'r, 'a, &'a (dyn AnyPolicyTrait), &'a (dyn Policy + 'a)>>
+    for CloneVisitor
+{
     type Result = PolicyReflection<'r, &'a (dyn AnyPolicyTrait), &'a (dyn Policy + 'a)>;
 
-    fn visit_no_reflection(&mut self, b: &'r &'a (dyn Policy + 'a)) -> PostfixOutcome<Self::Result> {
+    fn visit_no_reflection(
+        &mut self,
+        b: &'r &'a (dyn Policy + 'a),
+    ) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::NoReflection(*b))
     }
-    fn visit_leaf(&mut self, b: &'r &'a (dyn AnyPolicyTrait )) -> PostfixOutcome<Self::Result> {
+    fn visit_leaf(&mut self, b: &'r &'a (dyn AnyPolicyTrait)) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::Leaf(*b))
     }
 
-    fn visit_and(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_and(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::PolicyAnd(Box::new(left), Box::new(right)))
     }
-    fn visit_or(&mut self, left: Self::Result, right: Self::Result) -> PostfixOutcome<Self::Result> {
+    fn visit_or(
+        &mut self,
+        left: Self::Result,
+        right: Self::Result,
+    ) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::PolicyOr(Box::new(left), Box::new(right)))
     }
 
-    fn visit_ref(&mut self, p: &'r &'a (dyn Policy + 'a), e: &'r RefReflection<'a>) -> PostfixOutcome<Self::Result> {
+    fn visit_ref(
+        &mut self,
+        p: &'r &'a (dyn Policy + 'a),
+        e: &'r RefReflection<'a>,
+    ) -> PostfixOutcome<Self::Result> {
         let e = e.postfix_visit_by_ref(self);
         Ok(PolicyReflection::PolicyRef(*p, Box::new(e)))
     }

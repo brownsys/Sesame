@@ -1,4 +1,4 @@
-use alohomora::policy::{AnyPolicyBB, FrontendPolicy, Policy, Reason, Join};
+use alohomora::policy::{FrontendPolicy, Join, Policy, Reason};
 
 use alohomora::bbox::BBox;
 use alohomora::context::{Context, UnprotectedContext};
@@ -7,7 +7,7 @@ use alohomora::rocket::{
     BBoxCookie, BBoxData, BBoxRequest, BBoxResponseOutcome, BBoxRocket, ContextResponse,
     FromBBoxFormField,
 };
-use alohomora::{test_route};
+use alohomora::test_route;
 use alohomora::testing::{BBoxClient, TestPolicy};
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;

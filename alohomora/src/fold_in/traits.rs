@@ -1,4 +1,7 @@
-use crate::policy::{AnyPolicyDyn, AsLeaf, AsNoReflection, NotAPolicyContainer, OptionPolicy, Policy, PolicyAnd, PolicyDyn, PolicyOr, RefPolicy};
+use crate::policy::{
+    AnyPolicyDyn, NotAPolicyContainer, OptionPolicy, Policy, PolicyAnd,
+    PolicyDyn, PolicyOr, RefPolicy,
+};
 use crate::testing::TestPolicy;
 
 // Every type (including policy types) are FoldInAllowed by default
@@ -73,7 +76,10 @@ impl<P: Policy + Clone + 'static> RuntimeFoldIn for OptionPolicy<P> {
 mod tests {
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
-    use crate::policy::{AnyPolicyBB, AnyPolicyCC, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy, SimplePolicy};
+    use crate::policy::{
+        AnyPolicyBB, AnyPolicyCC, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy,
+        SimplePolicy,
+    };
     use crate::testing::TestPolicy;
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,7 +94,7 @@ mod tests {
         fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn simple_join_direct(&mut self, other: &mut Self) {}
+        fn simple_join_direct(&mut self, _other: &mut Self) {}
     }
 
     /// These tests ensure that !FoldInAllowed is correctly propagated.

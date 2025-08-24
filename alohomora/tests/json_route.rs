@@ -1,4 +1,4 @@
-use alohomora::policy::{FrontendPolicy, NoPolicy, Policy, Reason, Join};
+use alohomora::policy::{FrontendPolicy, Join, NoPolicy, Policy, Reason};
 use std::collections::HashMap;
 
 use alohomora::bbox::BBox;
@@ -7,7 +7,7 @@ use alohomora::rocket::{
     BBoxData, BBoxJson, BBoxRequest, BBoxResponseOutcome, BBoxRocket, FromBBoxData, InputBBoxValue,
     JsonResponse, OutputBBoxValue, RequestBBoxJson, ResponseBBoxJson,
 };
-use alohomora::{test_route};
+use alohomora::test_route;
 use alohomora::testing::{BBoxClient, TestPolicy};
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;

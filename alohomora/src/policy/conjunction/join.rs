@@ -1,4 +1,6 @@
-use crate::policy::{AnyPolicyBB, AnyPolicyDyn, AnyPolicyable, PolicyAnd, PolicyDyn, PolicyDynRelation};
+use crate::policy::{
+    AnyPolicyBB, AnyPolicyDyn, AnyPolicyable, PolicyAnd, PolicyDyn, PolicyDynRelation,
+};
 
 // Helper functions.
 fn join_helper<P1: AnyPolicyable, P2: AnyPolicyable>(p1: &mut P1, p2: &mut P2) -> bool {
@@ -14,13 +16,15 @@ pub trait JoinAPI: AnyPolicyable + Sized {
     where
         PDyn: PolicyDynRelation<Self>,
         PDyn: PolicyDynRelation<P2>;
-
 }
 impl<P: AnyPolicyable> JoinAPI for P {
     fn join<P2: AnyPolicyable>(self, other: P2) -> AnyPolicyBB {
         self.join_dyn(other)
     }
-    fn join_dyn<P2: AnyPolicyable, PDyn: PolicyDyn + ?Sized>(mut self, mut p2: P2) -> AnyPolicyDyn<PDyn>
+    fn join_dyn<P2: AnyPolicyable, PDyn: PolicyDyn + ?Sized>(
+        mut self,
+        mut p2: P2,
+    ) -> AnyPolicyDyn<PDyn>
     where
         PDyn: PolicyDynRelation<Self>,
         PDyn: PolicyDynRelation<P2>,
@@ -36,7 +40,10 @@ impl<P: AnyPolicyable> JoinAPI for P {
         }
 
         // Stack.
-        PDyn::and_policy(PolicyAnd::new(AnyPolicyDyn::new(self), AnyPolicyDyn::new(p2)))
+        PDyn::and_policy(PolicyAnd::new(
+            AnyPolicyDyn::new(self),
+            AnyPolicyDyn::new(p2),
+        ))
     }
 }
 
@@ -44,7 +51,10 @@ impl<P: AnyPolicyable> JoinAPI for P {
 // Specifically: this function is never needed if the PDyn is concrete, because then the PolicyDynRelation bounds
 // on the previous API become resolved.
 // This is only needed for higher-order generic code where PolicyDynRelation cannot be resolved.
-pub fn join_dyn<PDyn: PolicyDyn + ?Sized>(mut p1: AnyPolicyDyn<PDyn>, mut p2: AnyPolicyDyn<PDyn>) -> AnyPolicyDyn<PDyn> {
+pub fn join_dyn<PDyn: PolicyDyn + ?Sized>(
+    mut p1: AnyPolicyDyn<PDyn>,
+    mut p2: AnyPolicyDyn<PDyn>,
+) -> AnyPolicyDyn<PDyn> {
     // Try to join first direction.
     if join_helper(&mut p1, &mut p2) {
         return p1;
@@ -64,7 +74,10 @@ mod tests {
     use serde::Serialize;
 
     use crate::context::UnprotectedContext;
-    use crate::policy::{Reason, SimplePolicy, AnyPolicySerialize, AnyPolicyClone, AnyPolicyBB, AnyPolicyTrait, Policy, Join, JoinAPI};
+    use crate::policy::{
+        AnyPolicyBB, AnyPolicyClone, AnyPolicySerialize, AnyPolicyTrait, Join, JoinAPI, Policy,
+        Reason, SimplePolicy,
+    };
 
     // Simple and easy to join policies.
     #[derive(Serialize, Clone)]
@@ -75,7 +88,7 @@ mod tests {
         fn simple_name(&self) -> String {
             String::from("SimplePolicy1")
         }
-        fn simple_check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
+        fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             true
         }
         fn simple_join_direct(&mut self, other: &mut Self) {
@@ -91,7 +104,7 @@ mod tests {
         fn simple_name(&self) -> String {
             String::from("SimplePolicy2")
         }
-        fn simple_check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
+        fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             true
         }
         fn simple_join_direct(&mut self, other: &mut Self) {
@@ -106,7 +119,7 @@ mod tests {
         fn name(&self) -> String {
             String::from("NoJoinPolicy")
         }
-        fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
+        fn check(&self, _context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             true
         }
     }
@@ -139,9 +152,15 @@ mod tests {
 
     #[test]
     fn test_join_simple2() {
-        let simple1 = SimplePolicy2 { s: String::from("hi") };
-        let simple2 = SimplePolicy2 { s: String::from("bye") };
-        let simple3 = SimplePolicy2 { s: String::from("good") };
+        let simple1 = SimplePolicy2 {
+            s: String::from("hi"),
+        };
+        let simple2 = SimplePolicy2 {
+            s: String::from("bye"),
+        };
+        let simple3 = SimplePolicy2 {
+            s: String::from("good"),
+        };
 
         let joined = simple1.join_dyn::<_, dyn AnyPolicyClone>(simple2);
         assert!(joined.is::<SimplePolicy2>());
@@ -166,9 +185,15 @@ mod tests {
 
     #[test]
     fn test_join_simple2_via_any() {
-        let simple1 = SimplePolicy2 { s: String::from("hi") };
-        let simple2 = SimplePolicy2 { s: String::from("bye") };
-        let simple3 = SimplePolicy2 { s: String::from("good") };
+        let simple1 = SimplePolicy2 {
+            s: String::from("hi"),
+        };
+        let simple2 = SimplePolicy2 {
+            s: String::from("bye"),
+        };
+        let simple3 = SimplePolicy2 {
+            s: String::from("good"),
+        };
 
         let joined = simple1.join_dyn::<_, dyn AnyPolicyClone>(simple2);
         assert!(joined.is::<SimplePolicy2>());

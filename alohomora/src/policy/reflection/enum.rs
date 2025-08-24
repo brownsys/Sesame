@@ -6,7 +6,7 @@ use crate::policy::{AnyPolicyTrait, AsLeaf, AsNoReflection, IsNoPolicy, Normaliz
 // B: &'r mut dyn AnyPolicyTrait.
 // B: Box<dyn AnyPolicyTrait>
 pub enum PolicyReflection<'a, L: AsLeaf, NR: AsNoReflection<'a>> {
-    NoReflection(NR),  // Something we cannot use reflection on, e.g. a type that is not std::any::Any.
+    NoReflection(NR), // Something we cannot use reflection on, e.g. a type that is not std::any::Any.
     Leaf(L),
     PolicyAnd(Box<Self>, Box<Self>),
     PolicyOr(Box<Self>, Box<Self>),
@@ -19,7 +19,8 @@ pub enum PolicyReflection<'a, L: AsLeaf, NR: AsNoReflection<'a>> {
 
 // Useful Aliases.
 pub type OwnedReflection<'a> = PolicyReflection<'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>;
-pub type MutRefReflection<'a> = PolicyReflection<'a, &'a mut (dyn AnyPolicyTrait), &'a mut (dyn Policy + 'a)>;
+pub type MutRefReflection<'a> =
+    PolicyReflection<'a, &'a mut (dyn AnyPolicyTrait), &'a mut (dyn Policy + 'a)>;
 pub type RefReflection<'a> = PolicyReflection<'a, &'a dyn AnyPolicyTrait, &'a (dyn Policy + 'a)>;
 
 // Normalize a reflection enum (by removing AnyPolicies and TestPolicies)

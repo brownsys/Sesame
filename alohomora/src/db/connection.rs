@@ -1,4 +1,4 @@
-use std::any::Any;
+
 // BBox
 use crate::db::{BBoxParams, BBoxQueryResult};
 use crate::{SesameType, SesameTypeEnum};
@@ -68,7 +68,10 @@ impl BBoxConn {
 
         let params = params.into();
         let param_values = params.to_reason();
-        let params = params.transform(context, Reason::DB(&stmt_str, param_values.iter().collect()))?;
+        let params = params.transform(
+            context,
+            Reason::DB(&stmt_str, param_values.iter().collect()),
+        )?;
         self.conn.exec_drop(statement, params)
     }
 
@@ -96,7 +99,10 @@ impl BBoxConn {
 
         let params = params.into();
         let param_values = params.to_reason();
-        let params = params.transform(context, Reason::DB(&stmt_str, param_values.iter().collect()))?;
+        let params = params.transform(
+            context,
+            Reason::DB(&stmt_str, param_values.iter().collect()),
+        )?;
         let result = self.conn.exec_iter(statement, params)?;
         Ok(BBoxQueryResult { result })
     }

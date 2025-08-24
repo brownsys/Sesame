@@ -1,4 +1,7 @@
-use crate::policy::{AnyPolicyDyn, IsNoPolicy, Join, MutRefReflection, NoPolicy, Policy, PolicyAnd, PolicyDyn, SimplePolicy, SpecializationEnum};
+use crate::policy::{
+    AnyPolicyDyn, IsNoPolicy, Join, MutRefReflection, NoPolicy, Policy, PolicyAnd, PolicyDyn,
+    SimplePolicy,
+};
 use crate::testing::TestPolicy;
 
 // SimpleLeafs.
@@ -7,7 +10,7 @@ impl<P: SimplePolicy> Join for P {
         match p {
             MutRefReflection::Leaf(s) => {
                 s.upcast_any().is::<P>() || s.upcast_any().is::<NoPolicy>()
-            },
+            }
             _ => false,
         }
     }
@@ -24,7 +27,7 @@ impl<P: SimplePolicy> Join for P {
                 } else {
                     false
                 }
-            },
+            }
             _ => false,
         }
     }
@@ -50,10 +53,8 @@ impl<P1: Policy, P2: Policy> Join for PolicyAnd<P1, P2> {
                 (p1.can_join_with(left) && p2.can_join_with(right))
                     || p1.can_join_with(p)
                     || p2.can_join_with(p)
-            },
-            _ => {
-                p1.can_join_with(p) || p2.can_join_with(p)
             }
+            _ => p1.can_join_with(p) || p2.can_join_with(p),
         }
     }
     fn join_via_reflection(&mut self, p: MutRefReflection<'_>) -> bool {
@@ -69,7 +70,7 @@ impl<P1: Policy, P2: Policy> Join for PolicyAnd<P1, P2> {
                 } else {
                     MutRefReflection::PolicyAnd(left, right)
                 }
-            },
+            }
             p => p,
         };
         // Try to join left or then right.

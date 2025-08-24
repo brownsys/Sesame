@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
-use std::ops::Deref;
 use crate::policy::{AsLeaf, AsNoReflection, PolicyReflection, RefReflection};
+use std::marker::PhantomData;
+
 
 // Main visitor trait (does prefix + postfix).
 pub trait PassType<'a> {
@@ -25,7 +25,9 @@ pub struct ByMutRef<'r, 'a: 'r, L: AsLeaf, NR: AsNoReflection<'a>> {
     _data3: PhantomData<L>,
     _data4: PhantomData<NR>,
 }
-impl<'r, 'a: 'r, L: AsLeaf + 'r, NR: AsNoReflection<'a> + 'r> PassType<'a> for ByMutRef<'r, 'a, L, NR> {
+impl<'r, 'a: 'r, L: AsLeaf + 'r, NR: AsNoReflection<'a> + 'r> PassType<'a>
+    for ByMutRef<'r, 'a, L, NR>
+{
     type NoReflection = &'r mut NR;
     type Leaf = &'r mut L;
     type Enum = &'r mut PolicyReflection<'a, L, NR>;
@@ -38,7 +40,9 @@ pub struct ByRef<'r, 'a: 'r, L: AsLeaf, NR: AsNoReflection<'a>> {
     _data3: PhantomData<L>,
     _data4: PhantomData<NR>,
 }
-impl<'r, 'a: 'r, L: AsLeaf + 'r, NR: AsNoReflection<'a> + 'r> PassType<'a> for ByRef<'r, 'a, L, NR> {
+impl<'r, 'a: 'r, L: AsLeaf + 'r, NR: AsNoReflection<'a> + 'r> PassType<'a>
+    for ByRef<'r, 'a, L, NR>
+{
     type NoReflection = &'r NR;
     type Leaf = &'r L;
     type Enum = &'r PolicyReflection<'a, L, NR>;

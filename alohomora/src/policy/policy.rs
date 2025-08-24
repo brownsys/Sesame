@@ -1,9 +1,11 @@
 use std::any::Any;
 
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, AnyPolicyTrait, AnyPolicyable, AsLeaf, AsNoReflection, Join, Reflective, UpgradableToAny};
 use crate::policy::NotAPolicyContainer;
-
+use crate::policy::{
+    Join, Reflective,
+    UpgradableToAny,
+};
 
 // Enum describing why/where the policy check is invoked.
 #[derive(Clone)]
@@ -13,9 +15,8 @@ pub enum Reason<'i> {
     Cookie(&'i str),                    // Cookie name.
     Redirect(&'i str),                  // Redirect path (before substitution).
     Response,                           // Returning a response.
-    Custom(&'i dyn Any),                    // Custom operation (via unbox(..)).
+    Custom(&'i dyn Any),                // Custom operation (via unbox(..)).
 }
-
 
 // Public facing Policy traits.
 pub trait Policy: Send + Sync + Reflective + UpgradableToAny + Join {
@@ -23,7 +24,6 @@ pub trait Policy: Send + Sync + Reflective + UpgradableToAny + Join {
     // Policy check function!
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
 }
-
 
 // Simplified policy interface that application code can implement.
 // Application code should implement this trait unless they have reasons to implement Joinable manually.
@@ -33,7 +33,6 @@ pub trait SimplePolicy: Send + Sync + Any + NotAPolicyContainer {
     fn simple_check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
     fn simple_join_direct(&mut self, other: &mut Self);
 }
-
 
 // Every SimplePolicy is automatically a Policy that can be joined with instances of the same
 // policy.
@@ -68,7 +67,6 @@ pub trait FrontendPolicy: Policy {
         Self: Sized;
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::context::UnprotectedContext;
@@ -91,7 +89,7 @@ mod tests {
         fn simple_check(&self, context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
             &self.owner == context.downcast_ref::<String>().unwrap()
         }
-        fn simple_join_direct(&mut self, other: &mut Self)  {
+        fn simple_join_direct(&mut self, other: &mut Self) {
             if self.owner != other.owner {
                 panic!("Bad owners");
             }
@@ -111,7 +109,11 @@ mod tests {
                 .contains(context.downcast_ref::<String>().unwrap())
         }
         fn simple_join_direct(&mut self, other: &mut Self) {
-            self.owners = self.owners.intersection(&other.owners).map(String::clone).collect();
+            self.owners = self
+                .owners
+                .intersection(&other.owners)
+                .map(String::clone)
+                .collect();
             if self.owners.len() == 0 {
                 panic!("Unsat policy");
             }

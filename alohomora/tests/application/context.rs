@@ -1,9 +1,9 @@
-use std::any::Any;
 use alohomora::bbox::BBox;
 use alohomora::context::Context;
 use alohomora::rocket::{BBoxCookie, BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use alohomora::{SesameType, SesameTypeEnum};
 use rocket::async_trait;
+use std::any::Any;
 
 use crate::application::policy::AuthenticationCookiePolicy;
 

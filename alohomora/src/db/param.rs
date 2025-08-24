@@ -1,6 +1,6 @@
 // BBox
 use crate::bbox::{BBox, EitherBBox};
-use crate::policy::{AnyPolicyBB, AnyPolicyable, Policy};
+use crate::policy::{AnyPolicyBB, AnyPolicyable};
 
 // Our params may be boxed or clear.
 pub trait BBoxParam {

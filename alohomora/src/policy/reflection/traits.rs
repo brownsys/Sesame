@@ -1,7 +1,11 @@
-use std::any::Any;
-use std::ops::Deref;
-use crate::policy::{AnyPolicyDyn, AsLeaf, AsNoReflection, MutRefReflection, OptionPolicy, OwnedReflection, Policy, PolicyAnd, PolicyDyn, PolicyOr, PolicyReflection, RefPolicy, RefReflection, ToMutableRef, ToRef};
+use crate::policy::{
+    AnyPolicyDyn, AsLeaf, AsNoReflection, MutRefReflection, OptionPolicy, OwnedReflection, Policy,
+    PolicyAnd, PolicyDyn, PolicyOr, PolicyReflection, RefPolicy, RefReflection, ToMutableRef,
+    ToRef,
+};
 use crate::testing::TestPolicy;
+use std::any::Any;
+
 
 // Marks which types are not a policy container.
 // Needed for Specialization, Joining, and RuntimeFoldIn to work.
@@ -27,10 +31,14 @@ pub trait Reflective {
     fn reflect_mut_ref(&mut self) -> MutRefReflection<'_>;
     fn reflect_ref(&self) -> RefReflection<'_>;
     // with static lifetime if Self lives long enough.
-    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static> where Self: 'static;
+    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static>
+    where
+        Self: 'static;
 }
 pub trait ReflectiveOwned<'a> {
-    fn reflect_owned(self) -> OwnedReflection<'a> where Self: Sized;
+    fn reflect_owned(self) -> OwnedReflection<'a>
+    where
+        Self: Sized;
     fn reflect_box(self: Box<Self>) -> OwnedReflection<'a>;
 }
 
@@ -62,7 +70,10 @@ impl<'a> ReflectiveOwned<'a> for OwnedReflection<'a> {
 
 // Leafs
 impl<'a, P: Policy + Any + NotAPolicyContainer> ReflectiveOwned<'a> for P {
-    fn reflect_owned(self) -> OwnedReflection<'a> where Self: Sized {
+    fn reflect_owned(self) -> OwnedReflection<'a>
+    where
+        Self: Sized,
+    {
         OwnedReflection::Leaf(Box::new(self))
     }
     fn reflect_box(self: Box<Self>) -> OwnedReflection<'a> {
@@ -82,7 +93,9 @@ impl<P: Policy + Any + NotAPolicyContainer> Reflective for P {
 }
 
 // PolicyAnd.
-impl<'a, P1: Policy + ReflectiveOwned<'a>, P2: Policy + ReflectiveOwned<'a>> ReflectiveOwned<'a> for PolicyAnd<P1, P2> {
+impl<'a, P1: Policy + ReflectiveOwned<'a>, P2: Policy + ReflectiveOwned<'a>> ReflectiveOwned<'a>
+    for PolicyAnd<P1, P2>
+{
     fn reflect_owned(self) -> OwnedReflection<'a> {
         let (p1, p2) = self.into_inner();
         OwnedReflection::PolicyAnd(Box::new(p1.reflect_owned()), Box::new(p2.reflect_owned()))
@@ -94,13 +107,19 @@ impl<'a, P1: Policy + ReflectiveOwned<'a>, P2: Policy + ReflectiveOwned<'a>> Ref
 impl<'a, P1: Policy, P2: Policy> Reflective for PolicyAnd<P1, P2> {
     fn reflect_mut_ref(&mut self) -> MutRefReflection<'_> {
         let (p1, p2) = self.mut_policies();
-        MutRefReflection::PolicyAnd(Box::new(p1.reflect_mut_ref()), Box::new(p2.reflect_mut_ref()))
+        MutRefReflection::PolicyAnd(
+            Box::new(p1.reflect_mut_ref()),
+            Box::new(p2.reflect_mut_ref()),
+        )
     }
     fn reflect_ref(&self) -> RefReflection<'_> {
         let (p1, p2) = self.policies();
         RefReflection::PolicyAnd(Box::new(p1.reflect_ref()), Box::new(p2.reflect_ref()))
     }
-    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static> where Self: 'static {
+    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static>
+    where
+        Self: 'static,
+    {
         let (p1, p2) = self.into_inner();
         let p1 = Box::new(p1);
         let p2 = Box::new(p2);
@@ -109,7 +128,9 @@ impl<'a, P1: Policy, P2: Policy> Reflective for PolicyAnd<P1, P2> {
 }
 
 // PolicyOr.
-impl<'a, P1: Policy + ReflectiveOwned<'a>, P2: Policy + ReflectiveOwned<'a>> ReflectiveOwned<'a> for PolicyOr<P1, P2> {
+impl<'a, P1: Policy + ReflectiveOwned<'a>, P2: Policy + ReflectiveOwned<'a>> ReflectiveOwned<'a>
+    for PolicyOr<P1, P2>
+{
     fn reflect_owned(self) -> OwnedReflection<'a> {
         let (p1, p2) = self.into_inner();
         OwnedReflection::PolicyOr(Box::new(p1.reflect_owned()), Box::new(p2.reflect_owned()))
@@ -121,13 +142,19 @@ impl<'a, P1: Policy + ReflectiveOwned<'a>, P2: Policy + ReflectiveOwned<'a>> Ref
 impl<'a, P1: Policy, P2: Policy> Reflective for PolicyOr<P1, P2> {
     fn reflect_mut_ref(&mut self) -> MutRefReflection<'_> {
         let (p1, p2) = self.mut_policies();
-        MutRefReflection::PolicyOr(Box::new(p1.reflect_mut_ref()), Box::new(p2.reflect_mut_ref()))
+        MutRefReflection::PolicyOr(
+            Box::new(p1.reflect_mut_ref()),
+            Box::new(p2.reflect_mut_ref()),
+        )
     }
     fn reflect_ref(&self) -> RefReflection<'_> {
         let (p1, p2) = self.policies();
         RefReflection::PolicyOr(Box::new(p1.reflect_ref()), Box::new(p2.reflect_ref()))
     }
-    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static> where Self: 'static {
+    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static>
+    where
+        Self: 'static,
+    {
         let (p1, p2) = self.into_inner();
         let p1 = Box::new(p1);
         let p2 = Box::new(p2);
@@ -156,7 +183,10 @@ impl<'a, P: Policy + ?Sized> Reflective for RefPolicy<'a, P> {
     fn reflect_ref(&self) -> RefReflection<'_> {
         RefReflection::PolicyRef(self, Box::new(self.policy().reflect_ref()))
     }
-    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static> where Self: 'static {
+    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static>
+    where
+        Self: 'static,
+    {
         self.reflect_box()
     }
 }
@@ -185,14 +215,15 @@ impl<'a, P: Policy> Reflective for OptionPolicy<P> {
             Self::Policy(p) => RefReflection::OptionPolicy(Some(Box::new(p.reflect_ref()))),
         }
     }
-    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static> where Self: 'static {
+    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static>
+    where
+        Self: 'static,
+    {
         match *self {
             OptionPolicy::NoPolicy => OwnedReflection::OptionPolicy(None),
-            OptionPolicy::Policy(p) => OwnedReflection::OptionPolicy(
-                Some(
-                    (Box::new(Box::new(p).reflect_static()))
-                )
-            ),
+            OptionPolicy::Policy(p) => {
+                OwnedReflection::OptionPolicy(Some(Box::new(Box::new(p).reflect_static())))
+            }
         }
     }
 }
@@ -234,7 +265,10 @@ impl<'a, P: Policy> Reflective for TestPolicy<P> {
     fn reflect_ref(&self) -> RefReflection<'_> {
         RefReflection::TestPolicy(Box::new(self.policy().reflect_ref()))
     }
-    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static> where Self: 'static {
+    fn reflect_static(self: Box<Self>) -> OwnedReflection<'static>
+    where
+        Self: 'static,
+    {
         OwnedReflection::TestPolicy(Box::new(Box::new(self.into_inner()).reflect_static()))
     }
 }

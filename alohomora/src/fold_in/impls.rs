@@ -40,7 +40,9 @@ mod tests {
     use crate::bbox::BBox;
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
-    use crate::policy::{AnyPolicyCC, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy, SimplePolicy};
+    use crate::policy::{
+        AnyPolicyCC, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy, SimplePolicy,
+    };
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     struct NoFoldPolicy {}
@@ -54,7 +56,7 @@ mod tests {
         fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
             true
         }
-        fn simple_join_direct(&mut self, other: &mut Self) {}
+        fn simple_join_direct(&mut self, _other: &mut Self) {}
     }
 
     /// These tests ensure that we can fold in on foldable policies, including ones hiding

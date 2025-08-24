@@ -2,7 +2,7 @@ use std::fmt::{Debug, Formatter};
 
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{NoPolicy, Policy, Reason, Join};
+use crate::policy::{Join, NoPolicy, Policy, Reason};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RefPolicy<'a, P: Policy + ?Sized> {

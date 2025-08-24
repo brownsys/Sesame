@@ -1,5 +1,5 @@
-use std::any::Any;
 use erased_serde::Serialize;
+use std::any::Any;
 
 // You should implement this for combination of traits you can about preserving through
 // SesameType from_enum and into_enum transformation.
@@ -11,15 +11,15 @@ pub trait SesameDyn: Any {
 
 // Relates a type T to the corresponding SesameDyn trait object.
 // E.g. related every T: Any to dyn Any.
-pub trait SesameDynRelation<T: Any> : SesameDyn {
+pub trait SesameDynRelation<T: Any>: SesameDyn {
     fn boxed_dyn(t: T) -> Box<Self>;
 }
 
 // Example: Now we can preserve Serialize + Any through SesameType transformations.
 // This part should be macro-ed for custom combinations of Any + <traits>.
 mod private1 {
-    use std::any::Any;
     use erased_serde::Serialize;
+    use std::any::Any;
 
     pub trait Sealed {}
     impl<T: Any + Serialize> Sealed for T {}

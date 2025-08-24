@@ -3,11 +3,11 @@
 // type erased policies to concrete types.
 
 mod r#enum;
-mod visitor;
 mod leaf;
 mod traits;
+mod visitor;
 
-pub use r#enum::*;
-pub use visitor::*;
 pub use leaf::*;
+pub use r#enum::*;
 pub use traits::*;
+pub use visitor::*;

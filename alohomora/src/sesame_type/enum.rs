@@ -1,12 +1,13 @@
-use std::any::Any;
-use std::collections::HashMap;
 use crate::bbox::BBox;
 use crate::policy::{AnyPolicyDyn, AnyPolicyTrait, PolicyDyn};
 use crate::sesame_type::dyns::{SesameDyn, SesameDynRelation};
 use crate::sesame_type::helpers::compose_policies;
+use std::any::Any;
+use std::collections::HashMap;
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dyn AnyPolicyTrait> {
+pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dyn AnyPolicyTrait>
+{
     BBox(BBox<Box<T>, AnyPolicyDyn<P>>),
     Value(Box<T>),
     Vec(Vec<SesameTypeEnum<T, P>>),
@@ -16,13 +17,11 @@ pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized =
 impl<T: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameTypeEnum<T, P> {
     pub fn remove_bboxes2(self) -> (Self, Result<Option<AnyPolicyDyn<P>>, ()>) {
         match self {
-            SesameTypeEnum::Value(val) => {
-                (SesameTypeEnum::Value(val), Ok(None))
-            },
+            SesameTypeEnum::Value(val) => (SesameTypeEnum::Value(val), Ok(None)),
             SesameTypeEnum::BBox(bbox) => {
                 let (t, p) = bbox.consume();
                 (SesameTypeEnum::Value(t), Ok(Some(p)))
-            },
+            }
             SesameTypeEnum::Vec(vec) => {
                 let mut ts = Vec::with_capacity(vec.len());
                 let mut ps = Ok(None);
@@ -42,12 +41,15 @@ impl<T: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameTypeEnum<T, P> {
                     ps = compose_policies(ps, p);
                 }
                 (SesameTypeEnum::Struct(ts), ps)
-            },
+            }
         }
     }
 
     // Coerces self into the given type provided it is a Value(...) of that type.
-    pub fn coerce<R: Any>(self) -> Result<R, ()> where T: SesameDynRelation<R> {
+    pub fn coerce<R: Any>(self) -> Result<R, ()>
+    where
+        T: SesameDynRelation<R>,
+    {
         match self {
             SesameTypeEnum::Value(v) => match v.upcast_box().downcast() {
                 Ok(t) => Ok(*t),

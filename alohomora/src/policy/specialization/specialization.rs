@@ -1,11 +1,17 @@
-use std::any::Any;
+use crate::policy::{
+    AnyPolicyBB, AnyPolicyDyn, AnyPolicyTrait, NoPolicy, OptionPolicy, Policy, PolicyAnd,
+    PolicyDyn, PolicyOr, RefPolicy, SpecializationEnum, Specialize,
+};
 use crate::policy::{NotAPolicyContainer, ReflectiveOwned};
-use crate::policy::{AnyPolicyBB, AnyPolicyDyn, AnyPolicyTrait, NoPolicy, OptionPolicy, Policy, PolicyAnd, PolicyDyn, PolicyOr, RefPolicy, Reflective, SpecializationEnum, Specialize};
 use crate::testing::TestPolicy;
+use std::any::Any;
 
 // Leafs.
 impl<P: Policy + Any + NotAPolicyContainer> Specialize for P {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> where Self: Sized {
+    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>>
+    where
+        Self: Sized,
+    {
         if b.upcast_any().is::<P>() {
             Ok(*b.upcast_any_box().downcast::<P>().unwrap())
         } else {
@@ -27,30 +33,44 @@ impl<P: Policy + Any> Specialize for RefPolicy<'static, P> {
 
 // Ands and Ors.
 impl<P1: Policy + Specialize, P2: Policy + Specialize> Specialize for PolicyAnd<P1, P2> {
-    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+    fn specialize_and(
+        b1: Box<SpecializationEnum>,
+        b2: Box<SpecializationEnum>,
+    ) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
         let r1 = b1.specialize::<P1>();
         let r2 = b2.specialize::<P2>();
         match (r1, r2) {
             (Ok(p1), Ok(p2)) => Ok(PolicyAnd::new(p1, p2)),
             (Err(e1), Err(e2)) => Err((Box::new(e1), Box::new(e2))),
-            (Ok(p1), Err(e2)) =>
-                Err((Box::new(Box::new(p1).reflect_static().normalize()), Box::new(e2))),
-            (Err(e1), Ok(p2)) =>
-                Err((Box::new(e1), Box::new(Box::new(p2).reflect_static().normalize()))),
+            (Ok(p1), Err(e2)) => Err((
+                Box::new(Box::new(p1).reflect_static().normalize()),
+                Box::new(e2),
+            )),
+            (Err(e1), Ok(p2)) => Err((
+                Box::new(e1),
+                Box::new(Box::new(p2).reflect_static().normalize()),
+            )),
         }
     }
 }
 impl<P1: Specialize, P2: Specialize> Specialize for PolicyOr<P1, P2> {
-    fn specialize_or(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+    fn specialize_or(
+        b1: Box<SpecializationEnum>,
+        b2: Box<SpecializationEnum>,
+    ) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
         let r1 = b1.specialize::<P1>();
         let r2 = b2.specialize::<P2>();
         match (r1, r2) {
             (Ok(p1), Ok(p2)) => Ok(PolicyOr::new(p1, p2)),
             (Err(e1), Err(e2)) => Err((Box::new(e1), Box::new(e2))),
-            (Ok(p1), Err(e2)) =>
-                Err((Box::new(Box::new(p1).reflect_static().normalize()), Box::new(e2))),
-            (Err(e1), Ok(p2)) =>
-                Err((Box::new(e1), Box::new(Box::new(p2).reflect_static().normalize()))),
+            (Ok(p1), Err(e2)) => Err((
+                Box::new(Box::new(p1).reflect_static().normalize()),
+                Box::new(e2),
+            )),
+            (Err(e1), Ok(p2)) => Err((
+                Box::new(e1),
+                Box::new(Box::new(p2).reflect_static().normalize()),
+            )),
         }
     }
 }
@@ -67,15 +87,15 @@ impl<P: Policy + Specialize> Specialize for OptionPolicy<P> {
             Err(b)
         }
     }
-    fn specialize_option(b: Option<Box<SpecializationEnum>>) -> Result<Self, Option<Box<SpecializationEnum>>> {
+    fn specialize_option(
+        b: Option<Box<SpecializationEnum>>,
+    ) -> Result<Self, Option<Box<SpecializationEnum>>> {
         match b {
             None => Ok(OptionPolicy::NoPolicy),
-            Some(b) => {
-                match b.specialize::<P>() {
-                    Ok(p) => Ok(OptionPolicy::Policy(p)),
-                    Err(b) => Err(Some(Box::new(b))),
-                }
-            }
+            Some(b) => match b.specialize::<P>() {
+                Ok(p) => Ok(OptionPolicy::Policy(p)),
+                Err(b) => Err(Some(Box::new(b))),
+            },
         }
     }
 }
@@ -85,38 +105,40 @@ impl Specialize for AnyPolicyBB {
     fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
         Ok(AnyPolicyBB::from_inner(b))
     }
-    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+    fn specialize_and(
+        b1: Box<SpecializationEnum>,
+        b2: Box<SpecializationEnum>,
+    ) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
         let r1 = b1.specialize::<Self>();
         let r2 = b2.specialize::<Self>();
         match (r1, r2) {
             (Ok(p1), Ok(p2)) => Ok(PolicyDyn::and_policy(PolicyAnd::new(p1, p2))),
             (Err(e1), Err(e2)) => Err((Box::new(e1), Box::new(e2))),
-            (Ok(p1), Err(e2)) =>
-                Err((Box::new(p1.reflect_owned().normalize()), Box::new(e2))),
-            (Err(e1), Ok(p2)) =>
-                Err((Box::new(e1), Box::new(p2.reflect_owned().normalize()))),
+            (Ok(p1), Err(e2)) => Err((Box::new(p1.reflect_owned().normalize()), Box::new(e2))),
+            (Err(e1), Ok(p2)) => Err((Box::new(e1), Box::new(p2.reflect_owned().normalize()))),
         }
     }
-    fn specialize_or(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+    fn specialize_or(
+        b1: Box<SpecializationEnum>,
+        b2: Box<SpecializationEnum>,
+    ) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
         let r1 = b1.specialize::<Self>();
         let r2 = b2.specialize::<Self>();
         match (r1, r2) {
             (Ok(p1), Ok(p2)) => Ok(PolicyDyn::or_policy(PolicyOr::new(p1, p2))),
             (Err(e1), Err(e2)) => Err((Box::new(e1), Box::new(e2))),
-            (Ok(p1), Err(e2)) =>
-                Err((Box::new(p1.reflect_owned().normalize()), Box::new(e2))),
-            (Err(e1), Ok(p2)) =>
-                Err((Box::new(e1), Box::new(p2.reflect_owned().normalize()))),
+            (Ok(p1), Err(e2)) => Err((Box::new(p1.reflect_owned().normalize()), Box::new(e2))),
+            (Err(e1), Ok(p2)) => Err((Box::new(e1), Box::new(p2.reflect_owned().normalize()))),
         }
     }
-    fn specialize_option(b: Option<Box<SpecializationEnum>>) -> Result<Self, Option<Box<SpecializationEnum>>> {
+    fn specialize_option(
+        b: Option<Box<SpecializationEnum>>,
+    ) -> Result<Self, Option<Box<SpecializationEnum>>> {
         match b {
             None => Ok(AnyPolicyDyn::default()),
-            Some(b) => {
-                match b.specialize::<Self>() {
-                    Ok(p) => Ok(p),
-                    Err(b) => Err(Some(Box::new(b))),
-                }
+            Some(b) => match b.specialize::<Self>() {
+                Ok(p) => Ok(p),
+                Err(b) => Err(Some(Box::new(b))),
             },
         }
     }
@@ -127,13 +149,21 @@ impl<P: Policy + Specialize> Specialize for TestPolicy<P> {
     fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
         Ok(TestPolicy::new(P::specialize_leaf(b)?))
     }
-    fn specialize_and(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+    fn specialize_and(
+        b1: Box<SpecializationEnum>,
+        b2: Box<SpecializationEnum>,
+    ) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
         Ok(TestPolicy::new(P::specialize_and(b1, b2)?))
     }
-    fn specialize_or(b1: Box<SpecializationEnum>, b2: Box<SpecializationEnum>) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
+    fn specialize_or(
+        b1: Box<SpecializationEnum>,
+        b2: Box<SpecializationEnum>,
+    ) -> Result<Self, (Box<SpecializationEnum>, Box<SpecializationEnum>)> {
         Ok(TestPolicy::new(P::specialize_or(b1, b2)?))
     }
-    fn specialize_option(b: Option<Box<SpecializationEnum>>) -> Result<Self, Option<Box<SpecializationEnum>>> {
+    fn specialize_option(
+        b: Option<Box<SpecializationEnum>>,
+    ) -> Result<Self, Option<Box<SpecializationEnum>>> {
         Ok(TestPolicy::new(P::specialize_option(b)?))
     }
 }

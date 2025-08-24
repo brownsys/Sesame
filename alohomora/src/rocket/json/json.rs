@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicyable, FrontendPolicy, Policy};
+use crate::policy::{AnyPolicyable, FrontendPolicy};
 use crate::rocket::{BBoxRequest, InputBBoxValue, OutputBBoxValue};
 
 // Traits for transformation between JSON data and structs.

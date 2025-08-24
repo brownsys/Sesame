@@ -1,6 +1,8 @@
-use serde::Serialize;
 use crate::context::UnprotectedContext;
-use crate::policy::{FrontendPolicy, MutRefReflection, OwnedReflection, Policy, PolicyOr, Reason, RefReflection, Reflective, ReflexiveJoin, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
+use crate::policy::{
+    FrontendPolicy, Policy, Reason, SchemaPolicy,
+};
+use serde::Serialize;
 
 #[derive(Clone, Serialize, PartialEq, Eq, Debug)]
 pub struct PolicyAnd<P1: Policy, P2: Policy> {
@@ -17,8 +19,12 @@ impl<P1: Policy, P2: Policy> PolicyAnd<P1, P2> {
     pub fn policy2(&self) -> &P2 {
         &self.p2
     }
-    pub fn policies(&self) -> (&P1, &P2) { (&self.p1, &self.p2) }
-    pub fn mut_policies(&mut self) -> (&mut P1, &mut P2) { (&mut self.p1, &mut self.p2) }
+    pub fn policies(&self) -> (&P1, &P2) {
+        (&self.p1, &self.p2)
+    }
+    pub fn mut_policies(&mut self) -> (&mut P1, &mut P2) {
+        (&mut self.p1, &mut self.p2)
+    }
     pub fn into_inner(self) -> (P1, P2) {
         (self.p1, self.p2)
     }

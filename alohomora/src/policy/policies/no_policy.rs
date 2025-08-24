@@ -1,8 +1,8 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{FrontendPolicy, Policy, Reason, ReflexiveJoin, SchemaPolicy};
-use std::fmt::{Debug, Formatter};
+use crate::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy};
 use serde::Serialize;
+use std::fmt::{Debug, Formatter};
 
 // NoPolicy can be directly discarded.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize)]

@@ -1,10 +1,12 @@
+use crate::policy::{
+    AnyPolicyDyn, AnyPolicyTrait, Policy, PolicyAnd, PolicyOr, Specializable,
+};
 use std::any::Any;
-use crate::policy::{AnyPolicyDyn, AnyPolicyTrait, Policy, PolicyAnd, PolicyOr, OwnedReflection, Specializable};
 
 // If a policy meets this bound, then it can be placed inside a type-erased AnyPolicy
-pub trait AnyPolicyable : Any + Policy + Specializable {}
+pub trait AnyPolicyable: Any + Policy + Specializable {}
 
-impl <P: Any + Policy + Specializable> AnyPolicyable for P {}
+impl<P: Any + Policy + Specializable> AnyPolicyable for P {}
 
 // You should implement this for combination of traits you can about preserving through
 // policies inside a SesameType from_enum and into_enum transformation.
@@ -28,7 +30,10 @@ pub trait PolicyDyn: AnyPolicyable + Sync + Send {
 
 // Relates a type P to the corresponding PolicyDyn trait object.
 // E.g. relates every P: Any + Policy to dyn PolicyAnyTrait.
-pub trait PolicyDynRelation<P> : PolicyDyn where P: AnyPolicyable {
+pub trait PolicyDynRelation<P>: PolicyDyn
+where
+    P: AnyPolicyable,
+{
     fn boxed_dyn(t: P) -> Box<Self>;
 }
 
@@ -39,16 +44,23 @@ pub trait PolicyDynInto<PDyn: PolicyDyn + ?Sized> {
     fn policy_dyn_into_boxed(self: Box<Self>) -> Box<PDyn>;
 }
 impl<PDyn: PolicyDyn + ?Sized> PolicyDynInto<PDyn> for PDyn {
-    fn policy_dyn_into_ref(&self) -> &PDyn { self }
-    fn policy_dyn_into_boxed(self: Box<Self>) -> Box<PDyn> { self }
+    fn policy_dyn_into_ref(&self) -> &PDyn {
+        self
+    }
+    fn policy_dyn_into_boxed(self: Box<Self>) -> Box<PDyn> {
+        self
+    }
 }
-
 
 // Marker trait we use for specialization.
 pub(crate) trait AnyPolicyMarker<P: PolicyDyn + ?Sized> {
     fn into_any_policy(self) -> Box<P>;
 }
-impl<P: PolicyDyn + ?Sized, PTarget: PolicyDyn + ?Sized> AnyPolicyMarker<PTarget> for AnyPolicyDyn<P> where P: PolicyDynInto<PTarget> {
+impl<P: PolicyDyn + ?Sized, PTarget: PolicyDyn + ?Sized> AnyPolicyMarker<PTarget>
+    for AnyPolicyDyn<P>
+where
+    P: PolicyDynInto<PTarget>,
+{
     fn into_any_policy(self) -> Box<PTarget> {
         self.convert_to().into_inner()
     }

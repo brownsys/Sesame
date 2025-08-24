@@ -1,8 +1,11 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyTrait, FrontendPolicy, MutRefReflection, OptionPolicy, OwnedReflection, Policy, Reason, RefPolicy, RefReflection, Reflective, ReflexiveJoin, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
-use std::fmt::{Debug, Formatter};
+use crate::policy::{
+    FrontendPolicy, OptionPolicy, Policy,
+    Reason, RefPolicy, SchemaPolicy,
+};
 use serde::Serialize;
+use std::fmt::{Debug, Formatter};
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
@@ -18,8 +21,12 @@ impl<P: Policy> TestPolicy<P> {
     pub fn policy(&self) -> &P {
         &self.p
     }
-    pub fn mut_policy(&mut self) -> &mut P { &mut self.p }
-    pub fn into_inner(self) -> P { self.p }
+    pub fn mut_policy(&mut self) -> &mut P {
+        &mut self.p
+    }
+    pub fn into_inner(self) -> P {
+        self.p
+    }
 }
 
 impl<P: Policy> Policy for TestPolicy<P> {
@@ -98,7 +105,9 @@ impl<'a, T: Debug, P: Policy + Debug> Debug for BBox<&'a T, RefPolicy<'a, TestPo
             .finish()
     }
 }
-impl<'a, T: PartialEq, P: Policy + PartialEq> PartialEq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: PartialEq, P: Policy + PartialEq> PartialEq
+    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
+{
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
