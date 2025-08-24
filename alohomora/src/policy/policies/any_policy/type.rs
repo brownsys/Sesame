@@ -79,17 +79,6 @@ impl<P: PolicyDyn + ?Sized> Policy for AnyPolicyDyn<P> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.policy.upcast_pref().check(context, reason)
     }
-    /*
-    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_> {
-        PolicyTypeEnum::AnyPolicy(Box::new(self.policy.policy_type_enum()))
-    }
-    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool {
-        self.policy.can_join_with(p)
-    }
-    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool {
-        self.policy.join(p)
-    }
-     */
 }
 
 // AnyPolicyDyn is Clone if it obligates trait object to be Clone as well.

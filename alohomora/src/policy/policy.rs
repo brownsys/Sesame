@@ -1,8 +1,9 @@
 use std::any::Any;
 
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyBB, AnyPolicyTrait, AnyPolicyable, AsLeaf, AsNoReflection, Reflective, UpgradableToAny};
+use crate::policy::{AnyPolicyBB, AnyPolicyTrait, AnyPolicyable, AsLeaf, AsNoReflection, Join, Reflective, UpgradableToAny};
 use crate::policy::NotAPolicyContainer;
+
 
 // Enum describing why/where the policy check is invoked.
 #[derive(Clone)]
@@ -15,19 +16,34 @@ pub enum Reason<'i> {
     Custom(&'i dyn Any),                    // Custom operation (via unbox(..)).
 }
 
+
 // Public facing Policy traits.
-pub trait Policy: Send + Sync + Reflective + UpgradableToAny {
+pub trait Policy: Send + Sync + Reflective + UpgradableToAny + Join {
     fn name(&self) -> String;
     // Policy check function!
     fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
-    /*
-    // Join.
-    // This is used in Join and in Normalization/Specialization
-    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_>;
-    // Whether we can join with the given policy description
-    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool;
-    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool;
-     */
+}
+
+
+// Simplified policy interface that application code can implement.
+// Application code should implement this trait unless they have reasons to implement Joinable manually.
+// or if their policy is not Any (e.g. has non-static refs).
+pub trait SimplePolicy: Send + Sync + Any + NotAPolicyContainer {
+    fn simple_name(&self) -> String;
+    fn simple_check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool;
+    fn simple_join_direct(&mut self, other: &mut Self);
+}
+
+
+// Every SimplePolicy is automatically a Policy that can be joined with instances of the same
+// policy.
+impl<P: SimplePolicy> Policy for P {
+    fn name(&self) -> String {
+        self.simple_name()
+    }
+    fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool {
+        self.simple_check(context, reason)
+    }
 }
 
 // Schema policies can be constructed from DB rows.
@@ -52,10 +68,11 @@ pub trait FrontendPolicy: Policy {
         Self: Sized;
 }
 
+
 #[cfg(test)]
 mod tests {
     use crate::context::UnprotectedContext;
-    use crate::policy::{join, AnyPolicyBB, Policy, Reason, SimplePolicy};
+    use crate::policy::{AnyPolicyBB, JoinAPI, Policy, Reason, SimplePolicy};
     use std::collections::HashSet;
 
     #[derive(Clone)]
@@ -117,7 +134,7 @@ mod tests {
         let alice_pol: ACLPolicy = ACLPolicy { owners: alice_acl };
 
         // combine in each direction
-        let combined_pol = join(acl_pol, alice_pol);
+        let combined_pol = acl_pol.join(alice_pol);
         let specialized = combined_pol.specialize_top_ref::<ACLPolicy>().unwrap();
 
         // Users are allowed access to aggregated vector as expected
@@ -154,7 +171,7 @@ mod tests {
         };
 
         // should panic - unsatisfiable policy
-        let _combined_pol: AnyPolicyBB = join(acl_pol, bob_pol);
+        let _combined_pol: AnyPolicyBB = acl_pol.join(bob_pol);
     }
 
     #[test]
@@ -169,8 +186,8 @@ mod tests {
         let basic_pol = BasicPolicy::new(alice);
 
         // combine in each direction
-        let combined_pol1: AnyPolicyBB = join(acl_pol.clone(), basic_pol.clone());
-        let combined_pol2: AnyPolicyBB = join(basic_pol.clone(), acl_pol.clone());
+        let combined_pol1: AnyPolicyBB = acl_pol.clone().join(basic_pol.clone());
+        let combined_pol2: AnyPolicyBB = basic_pol.clone().join(acl_pol.clone());
 
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));

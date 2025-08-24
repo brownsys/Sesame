@@ -31,59 +31,6 @@ impl<P1: Policy, P2: Policy> Policy for PolicyAnd<P1, P2> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p1.check(context, reason.clone()) && self.p2.check(context, reason)
     }
-    /*
-    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_> {
-        PolicyTypeEnum::PolicyAnd(
-            Box::new(self.p1.policy_type_enum()),
-            Box::new(self.p2.policy_type_enum()),
-        )
-    }
-    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool {
-        match p {
-            PolicyTypeEnum::PolicyAnd(left, right) => {
-                (self.p1.can_join_with(left) && self.p2.can_join_with(right))
-                    || self.p1.can_join_with(p)
-                    || self.p2.can_join_with(p)
-            },
-            _ => {
-                self.p1.can_join_with(p) || self.p2.can_join_with(p)
-            }
-        }
-    }
-    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool {
-        // Try to join left with left and right with right.
-        let p = match p {
-            PolicyTypeEnum::PolicyAnd(left, right) => {
-                if self.p1.can_join_with(&left) && self.p2.can_join_with(&right) {
-                    if !self.p1.join(*left) || !self.p2.join(*right) {
-                        panic!("join returned false even though can join returned true");
-                    }
-                    return true;
-                } else {
-                    PolicyTypeEnum::PolicyAnd(left, right)
-                }
-            },
-            p => p,
-        };
-        // Try to join left or then right.
-        if self.p1.can_join_with(&p) {
-            if !self.p1.join(p) {
-                panic!("join returned false even though can join returned true");
-            }
-            true
-        } else {
-            self.p2.join(p)
-        }
-    }
-     */
-}
-
-// Guarantees we can join PolicyAnd with other instances of the same type.
-impl<P1: ReflexiveJoin, P2: ReflexiveJoin> ReflexiveJoin for PolicyAnd<P1, P2> {
-    fn reflexive_join(&mut self, other: &mut Self) {
-        self.p1.reflexive_join(&mut other.p1);
-        self.p2.reflexive_join(&mut other.p2);
-    }
 }
 
 // Can use PolicyAnd with schema and frontend policy associations.

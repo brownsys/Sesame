@@ -1,4 +1,4 @@
-use crate::policy::{Policy, AnyPolicyDyn, PolicyDyn, join_dyn_any};
+use crate::policy::{Policy, AnyPolicyDyn, PolicyDyn, join_dyn};
 
 pub fn compose_policies<P: PolicyDyn + ?Sized>(
     policy1: Result<Option<AnyPolicyDyn<P>>, ()>,
@@ -10,7 +10,7 @@ pub fn compose_policies<P: PolicyDyn + ?Sized>(
         (None, policy2) => Ok(policy2),
         (policy1, None) => Ok(policy1),
         (Some(policy1), Some(policy2)) => {
-            Ok(Some(join_dyn_any(policy1, policy2)))
+            Ok(Some(join_dyn(policy1, policy2)))
         },
     }
 }

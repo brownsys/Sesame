@@ -1,6 +1,6 @@
 use std::any::Any;
 use crate::bbox::BBox;
-use crate::policy::{join_dyn, join_dyn_any, AnyPolicyDyn, AnyPolicyable, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation};
+use crate::policy::{join_dyn, AnyPolicyDyn, AnyPolicyable, JoinAPI, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation};
 use crate::sesame_type_dyns::{SesameDyn, SesameDynRelation};
 use crate::SesameType;
 
@@ -36,7 +36,7 @@ impl<T: Any, P: AnyPolicyable, PDyn: PolicyDyn + ?Sized + PolicyDynRelation<P>> 
                 v.push(t);
                 match p {
                     None => (v, Some(AnyPolicyDyn::new(ep))),
-                    Some(p) => (v, Some(join_dyn_any(p, AnyPolicyDyn::new(ep)))),
+                    Some(p) => (v, Some(join_dyn(p, AnyPolicyDyn::new(ep)))),
                 }
             }
         );
@@ -64,14 +64,14 @@ macro_rules! optimized_tup_fold {
                     // Join all current policy tuples.
                     let current_p = IntoIterator::into_iter([$(AnyPolicyDyn::<PDyn>::new($P),)*]).reduce(
                         |p: AnyPolicyDyn<PDyn>, ep: AnyPolicyDyn<PDyn>| {
-                            join_dyn_any(p, ep)
+                            join_dyn(p, ep)
                         }
                     ).unwrap();
 
                     // join current_p (all the policies from the current tuple) with running policy tally (p).
                     p = match p {
                         None => Some(current_p),
-                        Some(p) => Some(join_dyn_any(p, current_p)),
+                        Some(p) => Some(join_dyn(p, current_p)),
                     }
                 }
                 Ok((v, p.unwrap_or_default()))
@@ -118,11 +118,11 @@ impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>
                 v.push(t);
                 match p {
                     OptionPolicy::NoPolicy => (v, OptionPolicy::Policy(ep)),
-                    OptionPolicy::Policy(mut p) => todo!() //if p.join(ep.policy_type_enum().normalize()) {
-                        //(v, OptionPolicy::Policy(p))
-                    //} else {
-                    //    panic!("Cannot fold vector in; unsatisfiable policy")
-                    //},
+                    OptionPolicy::Policy(mut p) => if p.join_via_reflection(ep.reflect_mut_ref().normalize()) {
+                        (v, OptionPolicy::Policy(p))
+                    } else {
+                        panic!("Cannot fold vector in; unsatisfiable policy")
+                    },
                 }
             }
         );
@@ -136,8 +136,8 @@ impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>
 #[cfg(test)]
 mod tests {
     use crate::bbox::BBox;
-    use crate::policy::{join, AnyPolicyBB, AnyPolicyCC, NoPolicy, OptionPolicy, Policy, PolicyAnd, Reason, SimplePolicy, Specializable};
-    use crate::{SesameType, SesameTypeEnum, Unjoinable};
+    use crate::policy::{AnyPolicyBB, NoPolicy, OptionPolicy, Policy, PolicyAnd, Reason, SimplePolicy, Join, JoinAPI};
+    use crate::{SesameType, SesameTypeEnum};
     use crate::testing::TestPolicy;
 
     use crate::context::UnprotectedContext;
@@ -171,14 +171,13 @@ mod tests {
     }
 
     #[derive(Clone, PartialEq, Eq, Debug)]
-    pub struct Unjoinable {
+    pub struct UnjoinablePolicy {
         pub v: u32,
     }
-    impl Policy for Unjoinable {
+    impl Join for UnjoinablePolicy {}
+    impl Policy for UnjoinablePolicy {
         fn name(&self) -> String { format!("Unjoinable(v: {})", self.v) }
         fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool { true }
-        // This policy is unjoinable.
-        Unjoinable!(!Any);
     }
 
     #[derive(Clone, PartialEq, Debug)]
@@ -224,7 +223,7 @@ mod tests {
     fn test_join_policies() {
         let policy1 = TestPolicy::new(ACLPolicy::new(&[10, 20]));
         let policy2 = TestPolicy::new(ACLPolicy::new(&[10, 30]));
-        let joined = join(policy1, policy2);
+        let joined = policy1.join(policy2);
         let joined: TestPolicy<ACLPolicy> = joined.specialize_top().unwrap();
         assert_eq!(joined.policy().owners, HashSet::from_iter([10]));
     }
@@ -297,11 +296,11 @@ mod tests {
 
     #[test]
     fn test_fold_vec_unjoinable() {
-        type Stacked = PolicyAnd<PolicyAnd<Unjoinable, Unjoinable>, Unjoinable>;
+        type Stacked = PolicyAnd<PolicyAnd<UnjoinablePolicy, UnjoinablePolicy>, UnjoinablePolicy>;
 
-        let policy1 = TestPolicy::new(Unjoinable { v: 1 });
-        let policy2 = TestPolicy::new(Unjoinable { v: 50 });
-        let policy3 = TestPolicy::new(Unjoinable { v: 20 });
+        let policy1 = TestPolicy::new(UnjoinablePolicy { v: 1 });
+        let policy2 = TestPolicy::new(UnjoinablePolicy { v: 50 });
+        let policy3 = TestPolicy::new(UnjoinablePolicy { v: 20 });
 
         let vec = vec![
             BBox::new(10, policy1),

@@ -1,4 +1,4 @@
-use alohomora::policy::{AnyPolicyBB, FrontendPolicy, NoPolicy, Policy, Reason};
+use alohomora::policy::{FrontendPolicy, NoPolicy, Policy, Reason, Join};
 use std::collections::HashMap;
 
 use alohomora::bbox::BBox;
@@ -7,7 +7,7 @@ use alohomora::rocket::{
     BBoxData, BBoxJson, BBoxRequest, BBoxResponseOutcome, BBoxRocket, FromBBoxData, InputBBoxValue,
     JsonResponse, OutputBBoxValue, RequestBBoxJson, ResponseBBoxJson,
 };
-use alohomora::{test_route, Unjoinable};
+use alohomora::{test_route};
 use alohomora::testing::{BBoxClient, TestPolicy};
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -16,7 +16,7 @@ use rocket::Request;
 pub struct UserPolicy {
     pub name: String,
 }
-
+impl Join for UserPolicy {}
 impl Policy for UserPolicy {
     fn name(&self) -> String {
         String::from("UserPolicy")
@@ -24,7 +24,6 @@ impl Policy for UserPolicy {
     fn check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         self.name == String::from("Kinan")
     }
-    Unjoinable!(!Any);
 }
 impl FrontendPolicy for UserPolicy {
     fn from_request(request: &'_ Request<'_>) -> Self {

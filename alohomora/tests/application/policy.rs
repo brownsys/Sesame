@@ -1,11 +1,11 @@
-use alohomora::{SesameType, Unjoinable};
+use alohomora::{SesameType};
 use cookie::Cookie;
 use mysql::{from_value, Value};
 use rocket::Request;
 use std::collections::HashSet;
 
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy, SimplePolicy};
+use alohomora::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy, SimplePolicy, Join};
 use alohomora_derive::schema_policy;
 
 use crate::application::context::ContextData;
@@ -44,7 +44,7 @@ impl SchemaPolicy for ACLPolicy {
 
 #[derive(Clone)]
 pub struct AuthenticationCookiePolicy {}
-
+impl Join for AuthenticationCookiePolicy {}
 impl Policy for AuthenticationCookiePolicy {
     fn name(&self) -> String {
         String::from("InternalPolicy")
@@ -56,7 +56,6 @@ impl Policy for AuthenticationCookiePolicy {
             _ => false,
         }
     }
-    Unjoinable!(!Any);
 }
 impl FrontendPolicy for AuthenticationCookiePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {
@@ -73,7 +72,7 @@ impl FrontendPolicy for AuthenticationCookiePolicy {
 
 #[derive(Clone)]
 pub struct WritePolicy {}
-
+impl Join for WritePolicy {}
 impl Policy for WritePolicy {
     fn name(&self) -> String {
         String::from("WritePolicy")
@@ -95,7 +94,6 @@ impl Policy for WritePolicy {
             _ => false,
         }
     }
-    Unjoinable!(!Any);
 }
 impl FrontendPolicy for WritePolicy {
     fn from_request(_request: &'_ Request<'_>) -> Self {

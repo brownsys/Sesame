@@ -51,3 +51,59 @@ pub trait Specialize : Specializable {
         Err(b)
     }
 }
+
+
+// TODO(babman): add missing tests.
+#[cfg(test)]
+mod tests {
+    use crate::context::UnprotectedContext;
+    use crate::policy::{AnyPolicyBB, AnyPolicyClone, AnyPolicyDyn, NoPolicy, Policy, PolicyAnd, Reason, RefPolicy, ReflectiveOwned, Specializable, Join};
+
+    #[derive(Clone, PartialEq, Eq, Debug)]
+    pub struct UnjoinablePolicy {
+        pub v: u32,
+    }
+    impl Join for UnjoinablePolicy {}
+    impl Policy for UnjoinablePolicy {
+        fn name(&self) -> String { format!("Unjoinable(v: {})", self.v) }
+        fn check(&self, context: &UnprotectedContext, reason: Reason<'_>) -> bool { true }
+        // This policy is unjoinable.
+    }
+
+    #[test]
+    fn my_special_test() {
+        let policy = AnyPolicyDyn::<dyn AnyPolicyClone>::new(
+            AnyPolicyDyn::<dyn AnyPolicyClone>::new(
+                PolicyAnd::new(
+                    AnyPolicyDyn::<dyn AnyPolicyClone>::new(
+                        PolicyAnd::new(
+                            AnyPolicyDyn::<dyn AnyPolicyClone>::new(UnjoinablePolicy { v: 0 }),
+                            AnyPolicyDyn::<dyn AnyPolicyClone>::new(UnjoinablePolicy { v: 50 }),
+                        )
+                    ),
+                    UnjoinablePolicy { v: 20 },
+                )
+            )
+        );
+
+        println!("{}", policy.name());
+
+        type Stacked = PolicyAnd<PolicyAnd<AnyPolicyBB, UnjoinablePolicy>, UnjoinablePolicy>;
+        let e = policy.reflect_owned().normalize();
+        let p = e.specialize::<Stacked>().map_err(|_| ()).unwrap();
+        println!("{}", p.name());
+    }
+
+    #[test]
+    fn specialize_policy_ref() {
+        let policy = NoPolicy {};
+        let policy2 = UnjoinablePolicy { v: 50 };
+        let policy3 = PolicyAnd::new(policy, policy2);
+        let refpolicy: RefPolicy<'static, PolicyAnd<NoPolicy, UnjoinablePolicy>> = RefPolicy::new(unsafe {std::mem::transmute(&policy3) });
+
+        let anypolicy = AnyPolicyBB::new(refpolicy);
+        type Reffed = RefPolicy<'static, PolicyAnd<NoPolicy, UnjoinablePolicy>>;
+        let reffed = anypolicy.specialize::<Reffed>().map_err(|_| ()).unwrap();
+        assert_eq!(reffed.policy().policy2().v, 50);
+    }
+}

@@ -1,7 +1,7 @@
-        use rocket::serde::Serialize;
+use rocket::serde::Serialize;
+
 use crate::context::UnprotectedContext;
-use crate::policy::{FrontendPolicy, MutRefReflection, OwnedReflection, Policy, Reason, RefReflection, Reflective, SchemaPolicy, Specializable, SpecializationEnum, Specialize};
-use crate::Unjoinable;
+use crate::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy, Join};
 
 #[derive(Clone, Serialize, PartialEq, Eq, Debug)]
 pub struct PolicyOr<P1: Policy, P2: Policy> {
@@ -25,6 +25,8 @@ impl<P1: Policy, P2: Policy> PolicyOr<P1, P2> {
     }
 }
 
+impl<P1: Policy, P2: Policy> Join for PolicyOr<P1, P2> {}
+
 impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     fn name(&self) -> String {
         format!("PolicyOr({} OR {})", self.p1.name(), self.p2.name())
@@ -32,7 +34,6 @@ impl<P1: Policy, P2: Policy> Policy for PolicyOr<P1, P2> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p1.check(context, reason.clone()) || self.p2.check(context, reason)
     }
-    Unjoinable!(!Any);
 }
 
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {

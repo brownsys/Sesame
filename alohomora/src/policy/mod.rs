@@ -1,5 +1,4 @@
 mod conjunction;
-mod join;
 mod policies;
 mod policy;
 mod reflection;
@@ -7,7 +6,6 @@ mod schema_policy;
 mod specialization;
 
 pub use conjunction::*;
-pub use join::*;
 pub use policies::*;
 pub use policy::*;
 pub use reflection::*;

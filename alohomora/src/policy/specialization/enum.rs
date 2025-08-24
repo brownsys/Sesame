@@ -1,13 +1,11 @@
-use std::any::Any;
-use std::ops::DerefMut;
 use crate::context::UnprotectedContext;
-use crate::policy::{AnyPolicyTrait, CheckVisitor, MutRefReflection, NameVisitor, NoPolicy, OwnedReflection, Policy, PolicyReflection, Reason, RefReflection, Reflective, Specializable, Specialize};
+use crate::policy::{AnyPolicyTrait, CheckVisitor, Join,  NameVisitor, NoPolicy, Policy, PolicyReflection, Reason,  Specialize};
 
 pub type SpecializationEnum = PolicyReflection<'static, Box<dyn AnyPolicyTrait + 'static>, Box<dyn Policy + 'static>>;
 
 
 // Mutable reflections are policies (they need to be mutable in order to allow joining them with others).
-impl<'a> Policy for SpecializationEnum {
+impl Policy for SpecializationEnum {
     fn name(&self) -> String {
         let mut v = NameVisitor {};
         self.postfix_visit_by_ref(&mut v)
@@ -17,20 +15,10 @@ impl<'a> Policy for SpecializationEnum {
         let mut v = CheckVisitor::new(context, reason);
         self.postfix_visit_by_ref(&mut v)
     }
-    /*
-    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_> {
-        self.deref_mut()
-    }
-    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool {
-        // TODO(babman): make join a similar visitor pattern to specialize so we can reuse it here.
-        false
-    }
-    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool {
-        // TODO(babman): make join a similar visitor pattern to specialize so we can reuse it here.
-        false
-    }
-    */
 }
+
+// Owned Static Reflection Enum is Unjoinable.
+impl Join for SpecializationEnum {}
 
 // We can specialize OwnedReflection (that's the whole point!).
 impl SpecializationEnum {

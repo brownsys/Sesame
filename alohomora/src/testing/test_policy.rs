@@ -29,23 +29,6 @@ impl<P: Policy> Policy for TestPolicy<P> {
     fn check(&self, context: &UnprotectedContext, reason: Reason) -> bool {
         self.p.check(context, reason)
     }
-    /*
-    fn policy_type_enum(&mut self) -> PolicyTypeEnum<'_> {
-        PolicyTypeEnum::TestPolicy(Box::new(self.p.policy_type_enum()))
-    }
-    fn can_join_with(&mut self, p: &PolicyTypeEnum<'_>) -> bool {
-        self.p.can_join_with(p)
-    }
-    fn join(&mut self, p: PolicyTypeEnum<'_>) -> bool {
-        self.p.join(p)
-    }
-     */
-}
-
-impl<P: ReflexiveJoin> ReflexiveJoin for TestPolicy<P> {
-    fn reflexive_join(&mut self, other: &mut Self) {
-        self.p.reflexive_join(&mut other.p);
-    }
 }
 
 impl<P: SchemaPolicy> SchemaPolicy for TestPolicy<P> {
