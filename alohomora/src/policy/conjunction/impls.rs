@@ -1,5 +1,5 @@
 use crate::policy::{
-    AnyPolicyDyn, IsNoPolicy, Join, MutRefReflection, NoPolicy, Policy, PolicyAnd, PolicyDyn,
+    AnyPolicy, IsNoPolicy, Join, MutRefReflection, NoPolicy, Policy, PolicyAnd, PolicyDyn,
     SimplePolicy,
 };
 use crate::testing::TestPolicy;
@@ -86,7 +86,7 @@ impl<P1: Policy, P2: Policy> Join for PolicyAnd<P1, P2> {
 }
 
 // AnyPolicy.
-impl<P: PolicyDyn + ?Sized> Join for AnyPolicyDyn<P> {
+impl<P: PolicyDyn + ?Sized> Join for AnyPolicy<P> {
     fn can_join_with(&mut self, p: &MutRefReflection<'_>) -> bool {
         self.mut_inner().can_join_with(p)
     }

@@ -1,5 +1,5 @@
 use crate::policy::{
-    AnyPolicyBB, AnyPolicyDyn, AnyPolicyTrait, NoPolicy, OptionPolicy, Policy, PolicyAnd,
+    AnyPolicy, AnyPolicyDyn, NoPolicy, OptionPolicy, Policy, PolicyAnd,
     PolicyDyn, PolicyOr, RefPolicy, SpecializationEnum, Specialize,
 };
 use crate::policy::{NotAPolicyContainer, ReflectiveOwned};
@@ -8,7 +8,7 @@ use std::any::Any;
 
 // Leafs.
 impl<P: Policy + Any + NotAPolicyContainer> Specialize for P {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>>
+    fn specialize_leaf(b: Box<dyn AnyPolicyDyn>) -> Result<Self, Box<dyn AnyPolicyDyn>>
     where
         Self: Sized,
     {
@@ -22,7 +22,7 @@ impl<P: Policy + Any + NotAPolicyContainer> Specialize for P {
 
 // RefPolicy with a 'static lifetime is essentially a leaf!
 impl<P: Policy + Any> Specialize for RefPolicy<'static, P> {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
+    fn specialize_leaf(b: Box<dyn AnyPolicyDyn>) -> Result<Self, Box<dyn AnyPolicyDyn>> {
         if b.upcast_any().is::<Self>() {
             Ok(*b.upcast_any_box().downcast().unwrap())
         } else {
@@ -77,7 +77,7 @@ impl<P1: Specialize, P2: Specialize> Specialize for PolicyOr<P1, P2> {
 
 // Option Policy.
 impl<P: Policy + Specialize> Specialize for OptionPolicy<P> {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
+    fn specialize_leaf(b: Box<dyn AnyPolicyDyn>) -> Result<Self, Box<dyn AnyPolicyDyn>> {
         let any = b.upcast_any();
         if any.is::<NoPolicy>() {
             Ok(OptionPolicy::NoPolicy)
@@ -101,9 +101,9 @@ impl<P: Policy + Specialize> Specialize for OptionPolicy<P> {
 }
 
 // AnyPolicyDyn.
-impl Specialize for AnyPolicyBB {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
-        Ok(AnyPolicyBB::from_inner(b))
+impl Specialize for AnyPolicy {
+    fn specialize_leaf(b: Box<dyn AnyPolicyDyn>) -> Result<Self, Box<dyn AnyPolicyDyn>> {
+        Ok(AnyPolicy::from_inner(b))
     }
     fn specialize_and(
         b1: Box<SpecializationEnum>,
@@ -135,7 +135,7 @@ impl Specialize for AnyPolicyBB {
         b: Option<Box<SpecializationEnum>>,
     ) -> Result<Self, Option<Box<SpecializationEnum>>> {
         match b {
-            None => Ok(AnyPolicyDyn::default()),
+            None => Ok(AnyPolicy::default()),
             Some(b) => match b.specialize::<Self>() {
                 Ok(p) => Ok(p),
                 Err(b) => Err(Some(Box::new(b))),
@@ -146,7 +146,7 @@ impl Specialize for AnyPolicyBB {
 
 // TestPolicy.
 impl<P: Policy + Specialize> Specialize for TestPolicy<P> {
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>> {
+    fn specialize_leaf(b: Box<dyn AnyPolicyDyn>) -> Result<Self, Box<dyn AnyPolicyDyn>> {
         Ok(TestPolicy::new(P::specialize_leaf(b)?))
     }
     fn specialize_and(

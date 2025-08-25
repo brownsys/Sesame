@@ -1,5 +1,5 @@
 use crate::policy::{
-    AnyPolicyDyn, AsLeaf, AsNoReflection, MutRefReflection, OptionPolicy, OwnedReflection, Policy,
+    AnyPolicy, AsLeaf, AsNoReflection, MutRefReflection, OptionPolicy, OwnedReflection, Policy,
     PolicyAnd, PolicyDyn, PolicyOr, PolicyReflection, RefPolicy, RefReflection, ToMutableRef,
     ToRef,
 };
@@ -13,7 +13,7 @@ pub auto trait NotAPolicyContainer {}
 
 impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> !NotAPolicyContainer for PolicyReflection<'a, L, NR> {}
 
-impl<P: PolicyDyn + ?Sized> !NotAPolicyContainer for AnyPolicyDyn<P> {}
+impl<P: PolicyDyn + ?Sized> !NotAPolicyContainer for AnyPolicy<P> {}
 
 impl<P: Policy> !NotAPolicyContainer for TestPolicy<P> {}
 
@@ -229,7 +229,7 @@ impl<'a, P: Policy> Reflective for OptionPolicy<P> {
 }
 
 // AnyPolicyDyn
-impl<'a, PDyn: PolicyDyn + ?Sized> ReflectiveOwned<'a> for AnyPolicyDyn<PDyn> {
+impl<'a, PDyn: PolicyDyn + ?Sized> ReflectiveOwned<'a> for AnyPolicy<PDyn> {
     fn reflect_owned(self) -> OwnedReflection<'a> {
         let b = self.into_inner();
         OwnedReflection::AnyPolicy(Box::new(b.reflect_static()))
@@ -238,7 +238,7 @@ impl<'a, PDyn: PolicyDyn + ?Sized> ReflectiveOwned<'a> for AnyPolicyDyn<PDyn> {
         self.reflect_owned()
     }
 }
-impl<'a, PDyn: PolicyDyn + ?Sized> Reflective for AnyPolicyDyn<PDyn> {
+impl<'a, PDyn: PolicyDyn + ?Sized> Reflective for AnyPolicy<PDyn> {
     fn reflect_mut_ref(&mut self) -> MutRefReflection<'_> {
         MutRefReflection::AnyPolicy(Box::new(self.mut_inner().reflect_mut_ref()))
     }

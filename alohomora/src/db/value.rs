@@ -1,12 +1,12 @@
 // BBox
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicyBB, AnyPolicyable, SchemaPolicy};
+use crate::policy::{AnyPolicy, AnyPolicyable, SchemaPolicy};
 
 // mysql imports.
 pub use mysql::prelude::FromValue as BBoxFromValue;
 
 // What is a (return) value.
-pub type BBoxValue = BBox<mysql::Value, AnyPolicyBB>;
+pub type BBoxValue = BBox<mysql::Value, AnyPolicy>;
 
 // Type modification.
 pub fn from_value<T: BBoxFromValue, P: AnyPolicyable + SchemaPolicy>(

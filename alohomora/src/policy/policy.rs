@@ -70,7 +70,7 @@ pub trait FrontendPolicy: Policy {
 #[cfg(test)]
 mod tests {
     use crate::context::UnprotectedContext;
-    use crate::policy::{AnyPolicyBB, JoinAPI, Policy, Reason, SimplePolicy};
+    use crate::policy::{AnyPolicy, JoinAPI, Policy, Reason, SimplePolicy};
     use std::collections::HashSet;
 
     #[derive(Clone)]
@@ -173,7 +173,7 @@ mod tests {
         };
 
         // should panic - unsatisfiable policy
-        let _combined_pol: AnyPolicyBB = acl_pol.join(bob_pol);
+        let _combined_pol: AnyPolicy = acl_pol.join(bob_pol);
     }
 
     #[test]
@@ -188,8 +188,8 @@ mod tests {
         let basic_pol = BasicPolicy::new(alice);
 
         // combine in each direction
-        let combined_pol1: AnyPolicyBB = acl_pol.clone().join(basic_pol.clone());
-        let combined_pol2: AnyPolicyBB = basic_pol.clone().join(acl_pol.clone());
+        let combined_pol1: AnyPolicy = acl_pol.clone().join(basic_pol.clone());
+        let combined_pol2: AnyPolicy = basic_pol.clone().join(acl_pol.clone());
 
         // Users are allowed access to aggregated vector as expected
         let alice = UnprotectedContext::test(String::from("Alice"));

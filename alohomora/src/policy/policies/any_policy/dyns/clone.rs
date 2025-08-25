@@ -1,38 +1,38 @@
 use crate::policy::policies::any_policy::traits::AnyPolicyMarker;
 use crate::policy::{
-    AnyPolicyDyn, AnyPolicyTrait, AnyPolicyable, NoPolicy, Policy, PolicyAnd,
+    AnyPolicy, AnyPolicyDyn, AnyPolicyable, NoPolicy, Policy, PolicyAnd,
     PolicyDyn, PolicyDynInto, PolicyDynRelation, PolicyOr,
 };
 use dyn_clone::DynClone;
 use std::any::Any;
 
 // AnyPolicy with Clone.
-pub trait AnyPolicyClone: AnyPolicyable + DynClone {
+pub trait AnyPolicyCloneDyn: AnyPolicyable + DynClone {
     // These upcasts would be unneeded with trait object upcasting, but we are not using a new
     // enough Rust version :(
-    fn upcast_any_policy(&self) -> &dyn AnyPolicyTrait;
-    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyTrait;
-    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait>;
+    fn upcast_any_policy(&self) -> &dyn AnyPolicyDyn;
+    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyDyn;
+    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyDyn>;
 }
-impl<P: AnyPolicyable + DynClone> AnyPolicyClone for P {
-    fn upcast_any_policy(&self) -> &dyn AnyPolicyTrait {
+impl<P: AnyPolicyable + DynClone> AnyPolicyCloneDyn for P {
+    fn upcast_any_policy(&self) -> &dyn AnyPolicyDyn {
         self
     }
-    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyTrait {
+    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyDyn {
         self
     }
-    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait> {
+    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyDyn> {
         self
     }
 }
-impl PolicyDyn for dyn AnyPolicyClone {
-    fn upcast_super(&self) -> &dyn AnyPolicyTrait {
+impl PolicyDyn for dyn AnyPolicyCloneDyn {
+    fn upcast_super(&self) -> &dyn AnyPolicyDyn {
         self.upcast_any_policy()
     }
-    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyTrait {
+    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyDyn {
         self.upcast_any_policy_mut()
     }
-    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyTrait> {
+    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyDyn> {
         self.upcast_any_policy_box()
     }
     fn upcast_ref(&self) -> &dyn Any {
@@ -56,20 +56,20 @@ impl PolicyDyn for dyn AnyPolicyClone {
     fn no_policy() -> Box<Self> {
         Self::boxed_dyn(NoPolicy {})
     }
-    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
-        AnyPolicyDyn::new(and)
+    fn and_policy(and: PolicyAnd<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self> {
+        AnyPolicy::new(and)
     }
-    fn or_policy(or: PolicyOr<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
-        AnyPolicyDyn::new(or)
+    fn or_policy(or: PolicyOr<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self> {
+        AnyPolicy::new(or)
     }
 }
-impl<P: AnyPolicyable + DynClone> PolicyDynRelation<P> for dyn AnyPolicyClone {
+impl<P: AnyPolicyable + DynClone> PolicyDynRelation<P> for dyn AnyPolicyCloneDyn {
     default fn boxed_dyn(t: P) -> Box<Self> {
         Box::new(t)
     }
 }
-impl<P: AnyPolicyable + DynClone + AnyPolicyMarker<dyn AnyPolicyClone>> PolicyDynRelation<P>
-    for dyn AnyPolicyClone
+impl<P: AnyPolicyable + DynClone + AnyPolicyMarker<dyn AnyPolicyCloneDyn>> PolicyDynRelation<P>
+    for dyn AnyPolicyCloneDyn
 {
     fn boxed_dyn(t: P) -> Box<Self> {
         t.into_any_policy()
@@ -77,20 +77,20 @@ impl<P: AnyPolicyable + DynClone + AnyPolicyMarker<dyn AnyPolicyClone>> PolicyDy
 }
 
 // Convert to AnyPolicyTrait.
-impl PolicyDynInto<dyn AnyPolicyTrait> for dyn AnyPolicyClone {
-    fn policy_dyn_into_ref(&self) -> &dyn AnyPolicyTrait {
+impl PolicyDynInto<dyn AnyPolicyDyn> for dyn AnyPolicyCloneDyn {
+    fn policy_dyn_into_ref(&self) -> &dyn AnyPolicyDyn {
         self.upcast_any_policy()
     }
-    fn policy_dyn_into_boxed(self: Box<Self>) -> Box<dyn AnyPolicyTrait> {
+    fn policy_dyn_into_boxed(self: Box<Self>) -> Box<dyn AnyPolicyDyn> {
         self.upcast_any_policy_box()
     }
 }
 
 mod __validation {
     #[allow(dead_code)]
-    fn example<P: super::AnyPolicyClone>(_p: P) {}
+    fn example<P: super::AnyPolicyCloneDyn>(_p: P) {}
     #[allow(dead_code)]
-    fn test_me(p: super::AnyPolicyDyn<dyn super::AnyPolicyClone>) {
+    fn test_me(p: super::AnyPolicy<dyn super::AnyPolicyCloneDyn>) {
         example(p)
     }
 }

@@ -1,7 +1,8 @@
 use std::convert::Infallible;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use crate::policy::{AnyPolicyTrait, AsLeaf, AsNoReflection, IsNoPolicy, NormalizeVisitor, Policy};
+use crate::policy::{AnyPolicyDyn, AsLeaf, AsNoReflection, IsNoPolicy, NameVisitor, NormalizeVisitor, Policy};
 
 // B: &'r mut dyn AnyPolicyTrait.
 // B: Box<dyn AnyPolicyTrait>
@@ -18,10 +19,10 @@ pub enum PolicyReflection<'a, L: AsLeaf, NR: AsNoReflection<'a>> {
 }
 
 // Useful Aliases.
-pub type OwnedReflection<'a> = PolicyReflection<'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>;
+pub type OwnedReflection<'a> = PolicyReflection<'a, Box<dyn AnyPolicyDyn>, Box<dyn Policy + 'a>>;
 pub type MutRefReflection<'a> =
-    PolicyReflection<'a, &'a mut (dyn AnyPolicyTrait), &'a mut (dyn Policy + 'a)>;
-pub type RefReflection<'a> = PolicyReflection<'a, &'a dyn AnyPolicyTrait, &'a (dyn Policy + 'a)>;
+    PolicyReflection<'a, &'a mut (dyn AnyPolicyDyn), &'a mut (dyn Policy + 'a)>;
+pub type RefReflection<'a> = PolicyReflection<'a, &'a dyn AnyPolicyDyn, &'a (dyn Policy + 'a)>;
 
 // Normalize a reflection enum (by removing AnyPolicies and TestPolicies)
 impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> PolicyReflection<'a, L, NR> {
@@ -35,5 +36,12 @@ impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> PolicyReflection<'a, L, NR> {
     pub fn normalize(self) -> Self {
         let mut v = NormalizeVisitor {};
         self.postfix_visit_by_move(&mut v)
+    }
+}
+
+impl<'a, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a> Debug for PolicyReflection<'a, L, NR> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut v = NameVisitor {};
+        f.write_str(&self.postfix_visit_by_ref(&mut v))
     }
 }

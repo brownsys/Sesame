@@ -1,13 +1,13 @@
 use crate::fold_in::RuntimeFoldIn;
 use crate::policy::policies::any_policy::AnyPolicyMarker;
 use crate::policy::{
-    AnyPolicyDyn, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn, PolicyDynRelation,
+    AnyPolicy, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn, PolicyDynRelation,
     PolicyOr,
 };
 use std::any::Any;
 
 // Basic trait setup for AnyPolicy without any additional obligations on the dyn type.
-pub trait AnyPolicyTrait: AnyPolicyable {
+pub trait AnyPolicyDyn: AnyPolicyable {
     // These upcasts would be unneeded with trait object upcasting, but we are not using a new
     // enough Rust version :(
     fn upcast_any(&self) -> &dyn Any;
@@ -17,7 +17,7 @@ pub trait AnyPolicyTrait: AnyPolicyable {
     fn upcast_policy_box(self: Box<Self>) -> Box<dyn Policy>;
     fn can_fold_in_erased(&self) -> bool;
 }
-impl<P: AnyPolicyable> AnyPolicyTrait for P {
+impl<P: AnyPolicyable> AnyPolicyDyn for P {
     fn upcast_any(&self) -> &dyn Any {
         self
     }
@@ -37,14 +37,14 @@ impl<P: AnyPolicyable> AnyPolicyTrait for P {
         self.can_fold_in()
     }
 }
-impl PolicyDyn for dyn AnyPolicyTrait {
-    fn upcast_super(&self) -> &dyn AnyPolicyTrait {
+impl PolicyDyn for dyn AnyPolicyDyn {
+    fn upcast_super(&self) -> &dyn AnyPolicyDyn {
         self
     }
-    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyTrait {
+    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyDyn {
         self
     }
-    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyTrait> {
+    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyDyn> {
         self
     }
     fn upcast_ref(&self) -> &dyn Any {
@@ -68,20 +68,20 @@ impl PolicyDyn for dyn AnyPolicyTrait {
     fn no_policy() -> Box<Self> {
         Self::boxed_dyn(NoPolicy {})
     }
-    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
-        AnyPolicyDyn::new(and)
+    fn and_policy(and: PolicyAnd<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self> {
+        AnyPolicy::new(and)
     }
-    fn or_policy(or: PolicyOr<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
-        AnyPolicyDyn::new(or)
+    fn or_policy(or: PolicyOr<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self> {
+        AnyPolicy::new(or)
     }
 }
-impl<P: AnyPolicyable> PolicyDynRelation<P> for dyn AnyPolicyTrait {
+impl<P: AnyPolicyable> PolicyDynRelation<P> for dyn AnyPolicyDyn {
     default fn boxed_dyn(t: P) -> Box<Self> {
         Box::new(t)
     }
 }
-impl<P: AnyPolicyable + AnyPolicyMarker<dyn AnyPolicyTrait>> PolicyDynRelation<P>
-    for dyn AnyPolicyTrait
+impl<P: AnyPolicyable + AnyPolicyMarker<dyn AnyPolicyDyn>> PolicyDynRelation<P>
+    for dyn AnyPolicyDyn
 {
     fn boxed_dyn(t: P) -> Box<Self> {
         t.into_any_policy()
@@ -90,9 +90,9 @@ impl<P: AnyPolicyable + AnyPolicyMarker<dyn AnyPolicyTrait>> PolicyDynRelation<P
 
 mod __validation {
     #[allow(dead_code)]
-    fn example<P: super::AnyPolicyTrait>(_p: P) {}
+    fn example<P: super::AnyPolicyDyn>(_p: P) {}
     #[allow(dead_code)]
-    fn test_me(p: super::AnyPolicyDyn<dyn super::AnyPolicyTrait>) {
+    fn test_me(p: super::AnyPolicy<dyn super::AnyPolicyDyn>) {
         example(p)
     }
 }

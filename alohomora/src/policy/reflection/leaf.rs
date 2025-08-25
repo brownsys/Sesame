@@ -1,4 +1,4 @@
-use crate::policy::{AnyPolicyTrait, Policy};
+use crate::policy::{AnyPolicyDyn, Policy};
 
 // Whenever we are doing reflection, the leafs will meet these traits,
 // allowing us immutable access to the underlying leaf policies.
@@ -8,7 +8,7 @@ pub trait AsNoReflection<'a> {
         'a: 'r;
 }
 pub trait AsLeaf {
-    fn as_ref(&self) -> &(dyn AnyPolicyTrait);
+    fn as_ref(&self) -> &(dyn AnyPolicyDyn);
 }
 
 // Mutable version.
@@ -21,12 +21,12 @@ pub trait AsMutNoReflection<'a>: AsNoReflection<'a> + Sync + Send {
         'a: 'r;
 }
 pub trait AsMutLeaf: AsLeaf + Sync + Send {
-    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyTrait);
+    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyDyn);
 }
 
 // Boxes implement both.
-impl AsLeaf for Box<dyn AnyPolicyTrait> {
-    fn as_ref(&self) -> &(dyn AnyPolicyTrait) {
+impl AsLeaf for Box<dyn AnyPolicyDyn> {
+    fn as_ref(&self) -> &(dyn AnyPolicyDyn) {
         &**self
     }
 }
@@ -38,8 +38,8 @@ impl<'a> AsNoReflection<'a> for Box<(dyn Policy + 'a)> {
         &**self
     }
 }
-impl AsMutLeaf for Box<dyn AnyPolicyTrait> {
-    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyTrait) {
+impl AsMutLeaf for Box<dyn AnyPolicyDyn> {
+    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyDyn) {
         &mut **self
     }
 }
@@ -53,8 +53,8 @@ impl<'a> AsMutNoReflection<'a> for Box<(dyn Policy + 'a)> {
 }
 
 // Mutable references implement both.
-impl AsMutLeaf for &mut (dyn AnyPolicyTrait) {
-    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyTrait) {
+impl AsMutLeaf for &mut (dyn AnyPolicyDyn) {
+    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyDyn) {
         &mut **self
     }
 }
@@ -66,8 +66,8 @@ impl<'a> AsMutNoReflection<'a> for &mut (dyn Policy + 'a) {
         &mut **self
     }
 }
-impl AsLeaf for &mut (dyn AnyPolicyTrait) {
-    fn as_ref(&self) -> &(dyn AnyPolicyTrait) {
+impl AsLeaf for &mut (dyn AnyPolicyDyn) {
+    fn as_ref(&self) -> &(dyn AnyPolicyDyn) {
         &**self
     }
 }
@@ -81,8 +81,8 @@ impl<'a> AsNoReflection<'a> for &mut (dyn Policy + 'a) {
 }
 
 // Immutable references implement only immutable traits.
-impl AsLeaf for &(dyn AnyPolicyTrait) {
-    fn as_ref(&self) -> &(dyn AnyPolicyTrait) {
+impl AsLeaf for &(dyn AnyPolicyDyn) {
+    fn as_ref(&self) -> &(dyn AnyPolicyDyn) {
         &**self
     }
 }
@@ -97,7 +97,7 @@ impl<'a> AsNoReflection<'a> for &(dyn Policy + 'a) {
 
 // Immutable refs of things that already implement the immutable traits also implement the immutable trait.
 impl<T: AsLeaf + ?Sized> AsLeaf for &T {
-    fn as_ref(&self) -> &(dyn AnyPolicyTrait) {
+    fn as_ref(&self) -> &(dyn AnyPolicyDyn) {
         T::as_ref(*self)
     }
 }
@@ -112,7 +112,7 @@ impl<'a, T: AsNoReflection<'a> + ?Sized> AsNoReflection<'a> for &T {
 
 // Mutable refs of things already implementing either traits implement that trait.
 impl<T: AsLeaf + ?Sized> AsLeaf for &mut T {
-    fn as_ref(&self) -> &(dyn AnyPolicyTrait) {
+    fn as_ref(&self) -> &(dyn AnyPolicyDyn) {
         T::as_ref(*self)
     }
 }
@@ -125,7 +125,7 @@ impl<'a, T: AsNoReflection<'a> + ?Sized> AsNoReflection<'a> for &mut T {
     }
 }
 impl<T: AsMutLeaf + ?Sized> AsMutLeaf for &mut T {
-    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyTrait) {
+    fn as_mut_ref(&mut self) -> &mut (dyn AnyPolicyDyn) {
         T::as_mut_ref(*self)
     }
 }

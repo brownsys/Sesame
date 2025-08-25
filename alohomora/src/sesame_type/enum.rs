@@ -1,21 +1,21 @@
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicyDyn, AnyPolicyTrait, PolicyDyn};
+use crate::policy::{AnyPolicy, AnyPolicyDyn, PolicyDyn};
 use crate::sesame_type::dyns::{SesameDyn, SesameDynRelation};
 use crate::sesame_type::helpers::compose_policies;
 use std::any::Any;
 use std::collections::HashMap;
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dyn AnyPolicyTrait>
+pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dyn AnyPolicyDyn>
 {
-    BBox(BBox<Box<T>, AnyPolicyDyn<P>>),
+    BBox(BBox<Box<T>, AnyPolicy<P>>),
     Value(Box<T>),
     Vec(Vec<SesameTypeEnum<T, P>>),
     Struct(HashMap<String, SesameTypeEnum<T, P>>),
 }
 
 impl<T: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameTypeEnum<T, P> {
-    pub fn remove_bboxes2(self) -> (Self, Result<Option<AnyPolicyDyn<P>>, ()>) {
+    pub fn remove_bboxes2(self) -> (Self, Result<Option<AnyPolicy<P>>, ()>) {
         match self {
             SesameTypeEnum::Value(val) => (SesameTypeEnum::Value(val), Ok(None)),
             SesameTypeEnum::BBox(bbox) => {

@@ -1,6 +1,6 @@
 use crate::bbox::BBox;
 use crate::policy::{
-    join_dyn, AnyPolicyDyn, AnyPolicyable, OptionPolicy, PolicyDyn,
+    join_dyn, AnyPolicy, AnyPolicyable, OptionPolicy, PolicyDyn,
     PolicyDynRelation,
 };
 
@@ -9,20 +9,20 @@ use std::any::Any;
 
 pub fn fold<P: PolicyDyn + ?Sized, S: SesameType<dyn Any, P>>(
     s: S,
-) -> Result<BBox<S::Out, AnyPolicyDyn<P>>, ()> {
+) -> Result<BBox<S::Out, AnyPolicy<P>>, ()> {
     let (v, p) = Foldable::unsafe_fold(s)?;
     Ok(BBox::new(v, p))
 }
 
 // Private trait that implements folding out nested BBoxes.
 pub(crate) trait Foldable<P: PolicyDyn + ?Sized>: SesameType<dyn Any, P> {
-    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicyDyn<P>), ()>;
+    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy<P>), ()>;
 }
 
 // The general, unoptimized implementation of folding that works for all `AlohomoraType` types.
 // It's marked with the `default` keyword so we can override it with optimized implementations for specific types.
 impl<P: PolicyDyn + ?Sized, T: SesameType<dyn Any, P>> Foldable<P> for T {
-    default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicyDyn<P>), ()> {
+    default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicy<P>), ()> {
         let e = self.to_enum();
         let (t, p) = e.remove_bboxes2();
         Ok((Self::from_enum(t)?, p?.unwrap_or_default()))
@@ -33,15 +33,15 @@ impl<P: PolicyDyn + ?Sized, T: SesameType<dyn Any, P>> Foldable<P> for T {
 impl<T: Any, P: AnyPolicyable, PDyn: PolicyDyn + ?Sized + PolicyDynRelation<P>> Foldable<PDyn>
     for Vec<BBox<T, P>>
 {
-    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicyDyn<PDyn>), ()> {
+    fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy<PDyn>), ()> {
         let accum = (Vec::with_capacity(self.len()), None);
         let (v, p) = self.into_iter().fold(accum, |accum, e| {
             let (mut v, p) = accum;
             let (t, ep) = e.consume();
             v.push(t);
             match p {
-                None => (v, Some(AnyPolicyDyn::new(ep))),
-                Some(p) => (v, Some(join_dyn(p, AnyPolicyDyn::new(ep)))),
+                None => (v, Some(AnyPolicy::new(ep))),
+                Some(p) => (v, Some(join_dyn(p, AnyPolicy::new(ep)))),
             }
         });
         Ok((v, p.unwrap_or_default()))
@@ -53,9 +53,9 @@ macro_rules! optimized_tup_fold {
     ($([$A:tt,$P:tt]),*) => (
         impl<$($A: Any,)* $($P: AnyPolicyable,)* PDyn: PolicyDyn + ?Sized> Foldable<PDyn> for Vec<($(BBox<$A, $P>,)*)>
         where $(PDyn: PolicyDynRelation<$P>, )* {
-            fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicyDyn<PDyn>), ()> {
+            fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy<PDyn>), ()> {
                 let mut v: Vec<($($A,)*)> = Vec::with_capacity(self.len());
-                let mut p: Option<AnyPolicyDyn<PDyn>> = None;
+                let mut p: Option<AnyPolicy<PDyn>> = None;
                 for tup in self {
                     #[allow(non_snake_case)]
                     let ($($A,)*) = tup;
@@ -66,8 +66,8 @@ macro_rules! optimized_tup_fold {
                     v.push(($($A,)*));
 
                     // Join all current policy tuples.
-                    let current_p = IntoIterator::into_iter([$(AnyPolicyDyn::<PDyn>::new($P),)*]).reduce(
-                        |p: AnyPolicyDyn<PDyn>, ep: AnyPolicyDyn<PDyn>| {
+                    let current_p = IntoIterator::into_iter([$(AnyPolicy::<PDyn>::new($P),)*]).reduce(
+                        |p: AnyPolicy<PDyn>, ep: AnyPolicy<PDyn>| {
                             join_dyn(p, ep)
                         }
                     ).unwrap();
@@ -140,7 +140,7 @@ impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>
 mod tests {
     use crate::bbox::BBox;
     use crate::policy::{
-        AnyPolicyBB, Join, JoinAPI, NoPolicy, OptionPolicy, Policy, PolicyAnd, Reason, SimplePolicy,
+        AnyPolicy, Join, JoinAPI, NoPolicy, OptionPolicy, Policy, PolicyAnd, Reason, SimplePolicy,
     };
     use crate::testing::TestPolicy;
     use crate::{SesameType, SesameTypeEnum};
@@ -294,7 +294,7 @@ mod tests {
             BBox::new(30, policy3),
         ];
 
-        let bbox: BBox<_, AnyPolicyBB> = super::fold(vec).unwrap();
+        let bbox: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
         let bbox = bbox
             .specialize_top_policy::<TestPolicy<ACLPolicy>>()
             .unwrap();
@@ -326,7 +326,7 @@ mod tests {
         ];
 
         // fold
-        let bbox: BBox<_, AnyPolicyBB> = super::fold(vec).unwrap();
+        let bbox: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
         let bbox = bbox.specialize_policy::<TestPolicy<Stacked>>();
         let bbox = bbox.map_err(|_| ()).unwrap();
         let stacked_policy = bbox.policy().clone();
@@ -369,7 +369,7 @@ mod tests {
             ),
         ];
 
-        let bbox: BBox<_, AnyPolicyBB> = super::fold(vec).unwrap();
+        let bbox: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
         let bbox = bbox
             .specialize_top_policy::<TestPolicy<ACLPolicy>>()
             .unwrap();
@@ -420,7 +420,7 @@ mod tests {
             BBox::new(30, policy3),
         ];
 
-        let _: BBox<_, AnyPolicyBB> = super::fold(vec).unwrap();
+        let _: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
     }
 
     #[test]

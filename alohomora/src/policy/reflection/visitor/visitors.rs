@@ -1,6 +1,6 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{
-    AnyPolicyTrait, AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, MutRefReflection, NoPolicy, Policy, PolicyReflection, PostfixOutcome, PostfixVisitor, Reason, RefReflection,
+    AnyPolicyDyn, AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, MutRefReflection, NoPolicy, Policy, PolicyReflection, PostfixOutcome, PostfixVisitor, Reason, RefReflection,
 };
 use std::ops::Deref;
 
@@ -181,7 +181,7 @@ impl<'r, 'a: 'r, L: AsLeaf + 'a, NR: AsNoReflection<'a> + 'a>
 }
 
 pub struct ToRef {}
-impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>>
+impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyDyn>, Box<dyn Policy + 'a>>>
     for ToRef
 {
     type Result = RefReflection<'r>;
@@ -189,7 +189,7 @@ impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<d
     fn visit_no_reflection(&mut self, b: &'r Box<dyn Policy + 'a>) -> PostfixOutcome<Self::Result> {
         Ok(RefReflection::NoReflection(b.deref()))
     }
-    fn visit_leaf(&mut self, b: &'r Box<dyn AnyPolicyTrait>) -> PostfixOutcome<Self::Result> {
+    fn visit_leaf(&mut self, b: &'r Box<dyn AnyPolicyDyn>) -> PostfixOutcome<Self::Result> {
         Ok(RefReflection::Leaf(b.deref()))
     }
 
@@ -233,7 +233,7 @@ impl<'r, 'a: 'r> PostfixVisitor<'a, ByRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<d
 }
 
 pub struct ToMutableRef {}
-impl<'r, 'a: 'r> PostfixVisitor<'a, ByMutRef<'r, 'a, Box<dyn AnyPolicyTrait>, Box<dyn Policy + 'a>>>
+impl<'r, 'a: 'r> PostfixVisitor<'a, ByMutRef<'r, 'a, Box<dyn AnyPolicyDyn>, Box<dyn Policy + 'a>>>
     for ToMutableRef
 {
     type Result = MutRefReflection<'r>;
@@ -244,7 +244,7 @@ impl<'r, 'a: 'r> PostfixVisitor<'a, ByMutRef<'r, 'a, Box<dyn AnyPolicyTrait>, Bo
     ) -> PostfixOutcome<Self::Result> {
         Ok(MutRefReflection::NoReflection(b.as_mut()))
     }
-    fn visit_leaf(&mut self, b: &'r mut Box<dyn AnyPolicyTrait>) -> PostfixOutcome<Self::Result> {
+    fn visit_leaf(&mut self, b: &'r mut Box<dyn AnyPolicyDyn>) -> PostfixOutcome<Self::Result> {
         Ok(MutRefReflection::Leaf(b.as_mut()))
     }
 
@@ -288,10 +288,10 @@ impl<'r, 'a: 'r> PostfixVisitor<'a, ByMutRef<'r, 'a, Box<dyn AnyPolicyTrait>, Bo
 }
 
 pub struct CloneVisitor {}
-impl<'a, 'r: 'a> PostfixVisitor<'a, ByRef<'r, 'a, &'a (dyn AnyPolicyTrait), &'a (dyn Policy + 'a)>>
+impl<'a, 'r: 'a> PostfixVisitor<'a, ByRef<'r, 'a, &'a (dyn AnyPolicyDyn), &'a (dyn Policy + 'a)>>
     for CloneVisitor
 {
-    type Result = PolicyReflection<'r, &'a (dyn AnyPolicyTrait), &'a (dyn Policy + 'a)>;
+    type Result = PolicyReflection<'r, &'a (dyn AnyPolicyDyn), &'a (dyn Policy + 'a)>;
 
     fn visit_no_reflection(
         &mut self,
@@ -299,7 +299,7 @@ impl<'a, 'r: 'a> PostfixVisitor<'a, ByRef<'r, 'a, &'a (dyn AnyPolicyTrait), &'a 
     ) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::NoReflection(*b))
     }
-    fn visit_leaf(&mut self, b: &'r &'a (dyn AnyPolicyTrait)) -> PostfixOutcome<Self::Result> {
+    fn visit_leaf(&mut self, b: &'r &'a (dyn AnyPolicyDyn)) -> PostfixOutcome<Self::Result> {
         Ok(PolicyReflection::Leaf(*b))
     }
 

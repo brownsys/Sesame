@@ -1,6 +1,6 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{
-    AnyPolicyClone, AnyPolicySerialize, AnyPolicyTrait, Policy, PolicyDynInto, Reason,
+    AnyPolicyCloneDyn, AnyPolicySerializeDyn, AnyPolicyDyn, Policy, PolicyDynInto, Reason,
 };
 use crate::policy::{AnyPolicyable, PolicyDyn, PolicyDynRelation};
 use dyn_clone::DynClone;
@@ -9,17 +9,16 @@ use std::any::TypeId;
 
 
 // Aliases for ease of use.
-pub type AnyPolicyCC = AnyPolicyDyn<dyn AnyPolicyClone>;
-pub type AnyPolicyBB = AnyPolicyDyn<dyn AnyPolicyTrait>;
-pub type AnyPolicySS = AnyPolicyDyn<dyn AnyPolicySerialize>;
+pub type AnyPolicyClone = AnyPolicy<dyn AnyPolicyCloneDyn>;
+pub type AnyPolicySerialize = AnyPolicy<dyn AnyPolicySerializeDyn>;
 
 // Type-erased AnyPolicy that can pose dyn trait object obligations
 // on the policy inside of it.
 #[derive(Serialize)]
-pub struct AnyPolicyDyn<P: PolicyDyn + ?Sized> {
+pub struct AnyPolicy<P: PolicyDyn + ?Sized = dyn AnyPolicyDyn> {
     policy: Box<P>,
 }
-impl<P: PolicyDyn + ?Sized> AnyPolicyDyn<P> {
+impl<P: PolicyDyn + ?Sized> AnyPolicy<P> {
     // Constructor.
     pub fn new<T: AnyPolicyable>(p: T) -> Self
     where
@@ -83,18 +82,18 @@ impl<P: PolicyDyn + ?Sized> AnyPolicyDyn<P> {
     }
 
     // Convert between dyns.
-    pub fn convert_to<PDyn: PolicyDyn + ?Sized>(self) -> AnyPolicyDyn<PDyn>
+    pub fn convert_to<PDyn: PolicyDyn + ?Sized>(self) -> AnyPolicy<PDyn>
     where
         P: PolicyDynInto<PDyn>,
     {
-        AnyPolicyDyn {
+        AnyPolicy {
             policy: self.policy.policy_dyn_into_boxed(),
         }
     }
 }
 
 // AnyPolicyDyn is a Policy.
-impl<P: PolicyDyn + ?Sized> Policy for AnyPolicyDyn<P> {
+impl<P: PolicyDyn + ?Sized> Policy for AnyPolicy<P> {
     fn name(&self) -> String {
         format!("AnyPolicy({})", self.policy.upcast_pref().name())
     }
@@ -104,7 +103,7 @@ impl<P: PolicyDyn + ?Sized> Policy for AnyPolicyDyn<P> {
 }
 
 // AnyPolicyDyn is Clone if it obligates trait object to be Clone as well.
-impl<P: PolicyDyn + DynClone + ?Sized> Clone for AnyPolicyDyn<P> {
+impl<P: PolicyDyn + DynClone + ?Sized> Clone for AnyPolicy<P> {
     fn clone(&self) -> Self {
         Self {
             policy: dyn_clone::clone_box(self.policy.as_ref()),
@@ -113,17 +112,17 @@ impl<P: PolicyDyn + DynClone + ?Sized> Clone for AnyPolicyDyn<P> {
 }
 
 // Convert to parent.
-impl<P: PolicyDyn + ?Sized> AnyPolicyDyn<P> {
-    pub fn upcast_super_box(self) -> AnyPolicyDyn<dyn AnyPolicyTrait> {
+impl<P: PolicyDyn + ?Sized> AnyPolicy<P> {
+    pub fn upcast_super_box(self) -> AnyPolicy<dyn AnyPolicyDyn> {
         let policy = self.policy;
-        AnyPolicyDyn {
+        AnyPolicy {
             policy: policy.upcast_super_boxed(),
         }
     }
 }
 
 // Can always cast no_policy to AnyPolicyDyn of any kind.
-impl<P: PolicyDyn + ?Sized> Default for AnyPolicyDyn<P> {
+impl<P: PolicyDyn + ?Sized> Default for AnyPolicy<P> {
     fn default() -> Self {
         Self {
             policy: P::no_policy(),
@@ -133,33 +132,33 @@ impl<P: PolicyDyn + ?Sized> Default for AnyPolicyDyn<P> {
 
 #[cfg(test)]
 mod tests {
-    use crate::policy::{AnyPolicyBB, AnyPolicyCC, AnyPolicySS, NoPolicy};
+    use crate::policy::{AnyPolicy, AnyPolicyClone, AnyPolicySerialize, NoPolicy};
 
     #[test]
     fn any_policy_in_any_policy() {
-        let any_policy = AnyPolicyCC::new(NoPolicy {});
+        let any_policy = AnyPolicyClone::new(NoPolicy {});
         assert!(any_policy.is::<NoPolicy>());
         assert!(any_policy.clone().specialize_top::<NoPolicy>().is_ok());
 
-        let any_policy2 = AnyPolicyCC::new(any_policy.clone());
+        let any_policy2 = AnyPolicyClone::new(any_policy.clone());
         assert!(any_policy2.is::<NoPolicy>());
         assert!(any_policy2.specialize_top::<NoPolicy>().is_ok());
 
-        let any_policy3 = AnyPolicyBB::new(any_policy);
+        let any_policy3: AnyPolicy = AnyPolicy::new(any_policy);
         assert!(any_policy3.is::<NoPolicy>());
         assert!(any_policy3.specialize_top::<NoPolicy>().is_ok());
 
-        let any_policy = AnyPolicySS::new(NoPolicy {});
+        let any_policy = AnyPolicySerialize::new(NoPolicy {});
         assert!(any_policy.is::<NoPolicy>());
 
-        let any_policy2 = AnyPolicySS::new(any_policy);
+        let any_policy2 = AnyPolicySerialize::new(any_policy);
         assert!(any_policy2.is::<NoPolicy>());
         assert!(any_policy2.specialize_top::<NoPolicy>().is_ok());
 
-        let any_policy = AnyPolicySS::new(NoPolicy {});
+        let any_policy = AnyPolicySerialize::new(NoPolicy {});
         assert!(any_policy.is::<NoPolicy>());
 
-        let any_policy3 = AnyPolicyBB::new(any_policy);
+        let any_policy3: AnyPolicy = AnyPolicy::new(any_policy);
         assert!(any_policy3.is::<NoPolicy>());
         assert!(any_policy3.specialize_top::<NoPolicy>().is_ok());
     }

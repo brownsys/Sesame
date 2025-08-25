@@ -1,5 +1,5 @@
 use crate::policy::{
-    AnyPolicyDyn, NotAPolicyContainer, OptionPolicy, Policy, PolicyAnd,
+    AnyPolicy, NotAPolicyContainer, OptionPolicy, Policy, PolicyAnd,
     PolicyDyn, PolicyOr, RefPolicy,
 };
 use crate::testing::TestPolicy;
@@ -10,7 +10,7 @@ use crate::testing::TestPolicy;
 pub auto trait FoldInAllowed {}
 
 // Need to manually implement this for AnyPolicy due to AnyPolicy using a dyn trait object.
-impl<P: PolicyDyn + ?Sized> FoldInAllowed for AnyPolicyDyn<P> {}
+impl<P: PolicyDyn + ?Sized> FoldInAllowed for AnyPolicy<P> {}
 
 // AnyPolicy requires a runtime check for whether folding in is allowed or not due to
 // type erasure.
@@ -37,7 +37,7 @@ impl<P: Policy + NotAPolicyContainer + ?Sized + FoldInAllowed> RuntimeFoldIn for
 }
 
 // Manually implement RuntimeFoldIn for types that are !NotAPolicyContainer.
-impl<P: PolicyDyn + ?Sized> RuntimeFoldIn for AnyPolicyDyn<P> {
+impl<P: PolicyDyn + ?Sized> RuntimeFoldIn for AnyPolicy<P> {
     fn can_fold_in(&self) -> bool {
         self.inner().can_fold_in_erased()
     }
@@ -77,7 +77,7 @@ mod tests {
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
     use crate::policy::{
-        AnyPolicyBB, AnyPolicyCC, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy,
+        AnyPolicy, AnyPolicyClone, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy,
         SimplePolicy,
     };
     use crate::testing::TestPolicy;
@@ -107,13 +107,13 @@ mod tests {
 
     #[test]
     fn test_any_policy_no_fold_in() {
-        let any = AnyPolicyBB::new(NoPolicy {});
+        let any: AnyPolicy = AnyPolicy::new(NoPolicy {});
         assert_eq!(any.can_fold_in(), true);
-        let any = AnyPolicyCC::new(NoPolicy {});
+        let any = AnyPolicyClone::new(NoPolicy {});
         assert_eq!(any.can_fold_in(), true);
-        let any = AnyPolicyBB::new(NoFoldPolicy {});
+        let any: AnyPolicy = AnyPolicy::new(NoFoldPolicy {});
         assert_eq!(any.can_fold_in(), false);
-        let any = AnyPolicyCC::new(NoFoldPolicy {});
+        let any = AnyPolicyClone::new(NoFoldPolicy {});
         assert_eq!(any.can_fold_in(), false);
     }
 

@@ -1,7 +1,7 @@
 // BBox
 use crate::bbox::BBox;
 use crate::db::{BBoxFromValue, BBoxValue};
-use crate::policy::{get_schema_policies, AnyPolicyBB};
+use crate::policy::{get_schema_policies, AnyPolicy};
 
 // mysql imports.
 pub use mysql::prelude::ColumnIndex as BBoxColumnIndex;
@@ -20,7 +20,7 @@ impl BBoxRow {
     pub fn get<T: BBoxFromValue, I: BBoxColumnIndex>(
         &self,
         index: I,
-    ) -> Option<BBox<T, AnyPolicyBB>> {
+    ) -> Option<BBox<T, AnyPolicy>> {
         let columns = self.row.columns_ref();
         let idx = index.idx(columns);
         match self.row.get(index) {

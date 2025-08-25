@@ -1,5 +1,5 @@
 use crate::fold::fold;
-use crate::policy::{AnyPolicyDyn, PolicyDyn};
+use crate::policy::{AnyPolicy, PolicyDyn};
 use crate::SesameType;
 use std::any::Any;
 
@@ -23,7 +23,7 @@ pub fn execute_pcr<
     S: SesameType<dyn Any, PDyn>,
     C,
     O,
-    F: FnOnce(S::Out, AnyPolicyDyn<PDyn>, C) -> O,
+    F: FnOnce(S::Out, AnyPolicy<PDyn>, C) -> O,
 >(
     data: S,
     functor: PrivacyCriticalRegion<F>,

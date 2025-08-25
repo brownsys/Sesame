@@ -1,11 +1,11 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{
-    AnyPolicyTrait, CheckVisitor, Join, NameVisitor, NoPolicy, Policy, PolicyReflection, Reason,
+    AnyPolicyDyn, CheckVisitor, Join, NameVisitor, NoPolicy, Policy, PolicyReflection, Reason,
     Specialize,
 };
 
 pub type SpecializationEnum =
-    PolicyReflection<'static, Box<dyn AnyPolicyTrait + 'static>, Box<dyn Policy + 'static>>;
+    PolicyReflection<'static, Box<dyn AnyPolicyDyn + 'static>, Box<dyn Policy + 'static>>;
 
 // Mutable reflections are policies (they need to be mutable in order to allow joining them with others).
 impl Policy for SpecializationEnum {

@@ -1,5 +1,5 @@
 use crate::policy::{
-    AnyPolicyDyn, AnyPolicyTrait, Policy, PolicyAnd, PolicyOr, Specializable,
+    AnyPolicy, AnyPolicyDyn, Policy, PolicyAnd, PolicyOr, Specializable,
 };
 use std::any::Any;
 
@@ -12,9 +12,9 @@ impl<P: Any + Policy + Specializable> AnyPolicyable for P {}
 // policies inside a SesameType from_enum and into_enum transformation.
 // E.g., Tahini should implement this for Any + Policy + Serialize.
 pub trait PolicyDyn: AnyPolicyable + Sync + Send {
-    fn upcast_super(&self) -> &dyn AnyPolicyTrait;
-    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyTrait;
-    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyTrait>;
+    fn upcast_super(&self) -> &dyn AnyPolicyDyn;
+    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyDyn;
+    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyDyn>;
     fn upcast_ref(&self) -> &dyn Any;
     fn upcast_mut(&mut self) -> &mut dyn Any;
     fn upcast_box(self: Box<Self>) -> Box<dyn Any>;
@@ -24,8 +24,8 @@ pub trait PolicyDyn: AnyPolicyable + Sync + Send {
     fn can_fold_in_erased(&self) -> bool;
     // default.
     fn no_policy() -> Box<Self>;
-    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self>;
-    fn or_policy(or: PolicyOr<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self>;
+    fn and_policy(and: PolicyAnd<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self>;
+    fn or_policy(or: PolicyOr<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self>;
 }
 
 // Relates a type P to the corresponding PolicyDyn trait object.
@@ -57,7 +57,7 @@ pub(crate) trait AnyPolicyMarker<P: PolicyDyn + ?Sized> {
     fn into_any_policy(self) -> Box<P>;
 }
 impl<P: PolicyDyn + ?Sized, PTarget: PolicyDyn + ?Sized> AnyPolicyMarker<PTarget>
-    for AnyPolicyDyn<P>
+    for AnyPolicy<P>
 where
     P: PolicyDynInto<PTarget>,
 {

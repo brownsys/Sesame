@@ -9,7 +9,7 @@ use mysql::chrono;
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::policy::{
-    AnyPolicyBB, AnyPolicyCC, AnyPolicyClone, AnyPolicyDyn, AnyPolicyable,
+    AnyPolicy, AnyPolicyClone, AnyPolicyCloneDyn, AnyPolicyable,
     NoPolicy, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation, Reason,
     RefPolicy, Specializable, SpecializationEnum, Specialize,
 };
@@ -176,14 +176,14 @@ impl<'r, T: ToOwned + ?Sized, P: Policy + Clone> BBox<&'r T, RefPolicy<'r, P>> {
 }
 
 // Up casting to std::any::Any and AnyPolicy.
-impl<T: Any, P: AnyPolicyClone> BBox<T, P> {
-    pub fn into_any_cloneable(self) -> BBox<Box<dyn Any>, AnyPolicyCC> {
-        BBox::new(Box::new(self.fb.mov()), AnyPolicyCC::new(self.p))
+impl<T: Any, P: AnyPolicyCloneDyn> BBox<T, P> {
+    pub fn into_any_cloneable(self) -> BBox<Box<dyn Any>, AnyPolicyClone> {
+        BBox::new(Box::new(self.fb.mov()), AnyPolicyClone::new(self.p))
     }
 }
 impl<T: Any, P: AnyPolicyable> BBox<T, P> {
-    pub fn into_any_no_clone(self) -> BBox<Box<dyn Any>, AnyPolicyBB> {
-        BBox::new(Box::new(self.fb.mov()), AnyPolicyBB::new(self.p))
+    pub fn into_any_no_clone(self) -> BBox<Box<dyn Any>, AnyPolicy> {
+        BBox::new(Box::new(self.fb.mov()), AnyPolicy::new(self.p))
     }
 }
 
@@ -199,25 +199,25 @@ impl<T, P: AnyPolicyable> BBox<T, OptionPolicy<P>> {
 }
 
 // Upcasting to AnyPolicy.
-impl<T, P: AnyPolicyClone> BBox<T, P> {
-    pub fn into_any_policy(self) -> BBox<T, AnyPolicyCC> {
+impl<T, P: AnyPolicyCloneDyn> BBox<T, P> {
+    pub fn into_any_policy(self) -> BBox<T, AnyPolicyClone> {
         BBox {
             fb: self.fb,
-            p: AnyPolicyCC::new(self.p),
+            p: AnyPolicyClone::new(self.p),
         }
     }
 }
 impl<T, P: AnyPolicyable> BBox<T, P> {
-    pub fn into_any_policy_no_clone(self) -> BBox<T, AnyPolicyBB> {
+    pub fn into_any_policy_no_clone(self) -> BBox<T, AnyPolicy> {
         BBox {
             fb: self.fb,
-            p: AnyPolicyBB::new(self.p),
+            p: AnyPolicy::new(self.p),
         }
     }
 }
 
 // Downcasting to AnyPolicy.
-impl<T, DynP: PolicyDyn + ?Sized> BBox<T, AnyPolicyDyn<DynP>> {
+impl<T, DynP: PolicyDyn + ?Sized> BBox<T, AnyPolicy<DynP>> {
     pub fn is_policy<P: AnyPolicyable>(&self) -> bool
     where
         DynP: PolicyDynRelation<P>,
@@ -247,7 +247,7 @@ impl<T, DynP: PolicyDyn + ?Sized> BBox<T, AnyPolicyDyn<DynP>> {
         ))
     }
 }
-impl<'a, T, DynP: PolicyDyn + ?Sized> BBox<T, RefPolicy<'a, AnyPolicyDyn<DynP>>> {
+impl<'a, T, DynP: PolicyDyn + ?Sized> BBox<T, RefPolicy<'a, AnyPolicy<DynP>>> {
     pub fn is_policy_ref<P: AnyPolicyable>(&self) -> bool
     where
         DynP: PolicyDynRelation<P>,

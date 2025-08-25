@@ -41,7 +41,7 @@ mod tests {
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
     use crate::policy::{
-        AnyPolicyCC, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy, SimplePolicy,
+        AnyPolicyClone, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy, SimplePolicy,
     };
 
     #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,7 +88,7 @@ mod tests {
         let pcon: BBox<Vec<u64>, NoPolicy> = BBox::new(vec![10u64, 11u64, 12u64], NoPolicy {});
         let pcon = pcon.into_any_policy();
         assert_eq!(true, pcon.policy().can_fold_in());
-        let vec: Vec<BBox<u64, AnyPolicyCC>> = pcon.fold_in();
+        let vec: Vec<BBox<u64, AnyPolicyClone>> = pcon.fold_in();
         assert_eq!(vec.len(), 3);
         assert_eq!(
             vec[0].specialize_policy_ref().unwrap(),
@@ -106,13 +106,13 @@ mod tests {
 
     #[test]
     fn test_fold_in_allowed_any_policy_complex() {
-        let policy = AnyPolicyCC::new(NoPolicy {});
+        let policy = AnyPolicyClone::new(NoPolicy {});
         let refpolicy = RefPolicy::new(&policy);
-        let pcon: BBox<Vec<u64>, RefPolicy<AnyPolicyCC>> =
+        let pcon: BBox<Vec<u64>, RefPolicy<AnyPolicyClone>> =
             BBox::new(vec![10u64, 11u64, 12u64], refpolicy);
 
         assert_eq!(true, pcon.policy().can_fold_in());
-        let vec: Vec<BBox<u64, RefPolicy<AnyPolicyCC>>> = pcon.fold_in();
+        let vec: Vec<BBox<u64, RefPolicy<AnyPolicyClone>>> = pcon.fold_in();
         assert_eq!(vec.len(), 3);
         assert_eq!(
             vec[0].specialize_policy_ref().unwrap(),
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_fold_in_not_allowed_any_policy_complex() {
-        let policy = AnyPolicyCC::new(PolicyAnd::new(NoFoldPolicy {}, NoFoldPolicy {}));
+        let policy = AnyPolicyClone::new(PolicyAnd::new(NoFoldPolicy {}, NoFoldPolicy {}));
         let refpolicy = RefPolicy::new(&policy);
 
         let pcon: BBox<Vec<u64>, _> = BBox::new(vec![10u64], refpolicy);

@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::boxed::Box;
 
-use crate::policy::{AnyPolicyTrait, Policy, SpecializationEnum};
+use crate::policy::{AnyPolicyDyn, Policy, SpecializationEnum};
 
 // Allows upgrading Box<dyn Policy + 'static> to Box<dyn Policy + Any>.
 mod private {
@@ -11,21 +11,21 @@ mod private {
     impl<P: Policy + Sized> Sealed for P {}
 }
 pub trait UpgradableToAny: private::Sealed {
-    fn upgrade_to_any(&self) -> &dyn AnyPolicyTrait
+    fn upgrade_to_any(&self) -> &dyn AnyPolicyDyn
     where
         Self: 'static;
-    fn upgrade_to_any_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait>
+    fn upgrade_to_any_box(self: Box<Self>) -> Box<dyn AnyPolicyDyn>
     where
         Self: 'static;
 }
 impl<P: Policy + Sized> UpgradableToAny for P {
-    fn upgrade_to_any(&self) -> &dyn AnyPolicyTrait
+    fn upgrade_to_any(&self) -> &dyn AnyPolicyDyn
     where
         Self: 'static,
     {
         self
     }
-    fn upgrade_to_any_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait>
+    fn upgrade_to_any_box(self: Box<Self>) -> Box<dyn AnyPolicyDyn>
     where
         Self: 'static,
     {
@@ -54,7 +54,7 @@ impl<P: Policy + Any> Specializable for P {
 pub trait Specialize: Specializable {
     // Constructs instances of the target type.
     #[inline]
-    fn specialize_leaf(b: Box<dyn AnyPolicyTrait>) -> Result<Self, Box<dyn AnyPolicyTrait>>
+    fn specialize_leaf(b: Box<dyn AnyPolicyDyn>) -> Result<Self, Box<dyn AnyPolicyDyn>>
     where
         Self: Sized,
     {
@@ -96,7 +96,7 @@ pub trait Specialize: Specializable {
 mod tests {
     use crate::context::UnprotectedContext;
     use crate::policy::{
-        AnyPolicyBB, AnyPolicyClone, AnyPolicyDyn, Join, NoPolicy, Policy, PolicyAnd, Reason,
+        AnyPolicy, AnyPolicyCloneDyn, Join, NoPolicy, Policy, PolicyAnd, Reason,
         RefPolicy, ReflectiveOwned, Specializable,
     };
 
@@ -117,11 +117,11 @@ mod tests {
 
     #[test]
     fn my_special_test() {
-        let policy = AnyPolicyDyn::<dyn AnyPolicyClone>::new(
-            AnyPolicyDyn::<dyn AnyPolicyClone>::new(PolicyAnd::new(
-                AnyPolicyDyn::<dyn AnyPolicyClone>::new(PolicyAnd::new(
-                    AnyPolicyDyn::<dyn AnyPolicyClone>::new(UnjoinablePolicy { v: 0 }),
-                    AnyPolicyDyn::<dyn AnyPolicyClone>::new(UnjoinablePolicy { v: 50 }),
+        let policy = AnyPolicy::<dyn AnyPolicyCloneDyn>::new(
+            AnyPolicy::<dyn AnyPolicyCloneDyn>::new(PolicyAnd::new(
+                AnyPolicy::<dyn AnyPolicyCloneDyn>::new(PolicyAnd::new(
+                    AnyPolicy::<dyn AnyPolicyCloneDyn>::new(UnjoinablePolicy { v: 0 }),
+                    AnyPolicy::<dyn AnyPolicyCloneDyn>::new(UnjoinablePolicy { v: 50 }),
                 )),
                 UnjoinablePolicy { v: 20 },
             )),
@@ -129,7 +129,7 @@ mod tests {
 
         println!("{}", policy.name());
 
-        type Stacked = PolicyAnd<PolicyAnd<AnyPolicyBB, UnjoinablePolicy>, UnjoinablePolicy>;
+        type Stacked = PolicyAnd<PolicyAnd<AnyPolicy, UnjoinablePolicy>, UnjoinablePolicy>;
         let e = policy.reflect_owned().normalize();
         let p = e.specialize::<Stacked>().map_err(|_| ()).unwrap();
         println!("{}", p.name());
@@ -143,7 +143,7 @@ mod tests {
         let refpolicy: RefPolicy<'static, PolicyAnd<NoPolicy, UnjoinablePolicy>> =
             RefPolicy::new(unsafe { std::mem::transmute(&policy3) });
 
-        let anypolicy = AnyPolicyBB::new(refpolicy);
+        let anypolicy: AnyPolicy = AnyPolicy::new(refpolicy);
         type Reffed = RefPolicy<'static, PolicyAnd<NoPolicy, UnjoinablePolicy>>;
         let reffed = anypolicy.specialize::<Reffed>().map_err(|_| ()).unwrap();
         assert_eq!(reffed.policy().policy2().v, 50);

@@ -1,6 +1,6 @@
 use crate::policy::policies::any_policy::traits::AnyPolicyMarker;
 use crate::policy::{
-    AnyPolicyDyn, AnyPolicyTrait, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn,
+    AnyPolicy, AnyPolicyDyn, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn,
     PolicyDynInto, PolicyDynRelation, PolicyOr,
 };
 use erased_serde::{serialize_trait_object, Serialize};
@@ -8,23 +8,23 @@ use std::any::Any;
 
 // Example: Now we can preserve Any + Policy + Serialize through SesameType transformations.
 // This part should be macro-ed for custom combinations of Any + Policy + <traits>.
-pub trait AnyPolicySerialize: AnyPolicyable + Serialize {
+pub trait AnyPolicySerializeDyn: AnyPolicyable + Serialize {
     // These upcasts would be unneeded with trait object upcasting but we are not using a new
     // enough Rust version :(
-    fn upcast_any_policy(&self) -> &dyn AnyPolicyTrait;
-    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyTrait;
-    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait>;
+    fn upcast_any_policy(&self) -> &dyn AnyPolicyDyn;
+    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyDyn;
+    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyDyn>;
     fn upcast_serialize(&self) -> &dyn Serialize;
     fn upcast_serialize_box(self: Box<Self>) -> Box<dyn Serialize>;
 }
-impl<P: AnyPolicyable + Serialize> AnyPolicySerialize for P {
-    fn upcast_any_policy(&self) -> &dyn AnyPolicyTrait {
+impl<P: AnyPolicyable + Serialize> AnyPolicySerializeDyn for P {
+    fn upcast_any_policy(&self) -> &dyn AnyPolicyDyn {
         self
     }
-    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyTrait {
+    fn upcast_any_policy_mut(&mut self) -> &mut dyn AnyPolicyDyn {
         self
     }
-    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyTrait> {
+    fn upcast_any_policy_box(self: Box<Self>) -> Box<dyn AnyPolicyDyn> {
         self
     }
     fn upcast_serialize(&self) -> &dyn Serialize {
@@ -34,14 +34,14 @@ impl<P: AnyPolicyable + Serialize> AnyPolicySerialize for P {
         self
     }
 }
-impl PolicyDyn for dyn AnyPolicySerialize {
-    fn upcast_super(&self) -> &dyn AnyPolicyTrait {
+impl PolicyDyn for dyn AnyPolicySerializeDyn {
+    fn upcast_super(&self) -> &dyn AnyPolicyDyn {
         self.upcast_any_policy()
     }
-    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyTrait {
+    fn upcast_super_mut(&mut self) -> &mut dyn AnyPolicyDyn {
         self.upcast_any_policy_mut()
     }
-    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyTrait> {
+    fn upcast_super_boxed(self: Box<Self>) -> Box<dyn AnyPolicyDyn> {
         self.upcast_any_policy_box()
     }
     fn upcast_ref(&self) -> &dyn Any {
@@ -65,42 +65,42 @@ impl PolicyDyn for dyn AnyPolicySerialize {
     fn no_policy() -> Box<Self> {
         Self::boxed_dyn(NoPolicy {})
     }
-    fn and_policy(and: PolicyAnd<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
-        AnyPolicyDyn::new(and)
+    fn and_policy(and: PolicyAnd<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self> {
+        AnyPolicy::new(and)
     }
-    fn or_policy(or: PolicyOr<AnyPolicyDyn<Self>, AnyPolicyDyn<Self>>) -> AnyPolicyDyn<Self> {
-        AnyPolicyDyn::new(or)
+    fn or_policy(or: PolicyOr<AnyPolicy<Self>, AnyPolicy<Self>>) -> AnyPolicy<Self> {
+        AnyPolicy::new(or)
     }
 }
-impl<P: AnyPolicyable + Serialize> PolicyDynRelation<P> for dyn AnyPolicySerialize {
+impl<P: AnyPolicyable + Serialize> PolicyDynRelation<P> for dyn AnyPolicySerializeDyn {
     default fn boxed_dyn(t: P) -> Box<Self> {
         Box::new(t)
     }
 }
-impl<P: AnyPolicyable + Serialize + AnyPolicyMarker<dyn AnyPolicySerialize>> PolicyDynRelation<P>
-    for dyn AnyPolicySerialize
+impl<P: AnyPolicyable + Serialize + AnyPolicyMarker<dyn AnyPolicySerializeDyn>> PolicyDynRelation<P>
+    for dyn AnyPolicySerializeDyn
 {
     fn boxed_dyn(t: P) -> Box<Self> {
         t.into_any_policy()
     }
 }
-serialize_trait_object!(AnyPolicySerialize);
+serialize_trait_object!(AnyPolicySerializeDyn);
 
 // Convert to AnyPolicyTrait.
-impl PolicyDynInto<dyn AnyPolicyTrait> for dyn AnyPolicySerialize {
-    fn policy_dyn_into_ref(&self) -> &dyn AnyPolicyTrait {
+impl PolicyDynInto<dyn AnyPolicyDyn> for dyn AnyPolicySerializeDyn {
+    fn policy_dyn_into_ref(&self) -> &dyn AnyPolicyDyn {
         self.upcast_any_policy()
     }
-    fn policy_dyn_into_boxed(self: Box<Self>) -> Box<dyn AnyPolicyTrait> {
+    fn policy_dyn_into_boxed(self: Box<Self>) -> Box<dyn AnyPolicyDyn> {
         self.upcast_any_policy_box()
     }
 }
 
 mod __validation {
     #[allow(dead_code)]
-    fn example<P: super::AnyPolicySerialize>(_p: P) {}
+    fn example<P: super::AnyPolicySerializeDyn>(_p: P) {}
     #[allow(dead_code)]
-    fn test_me(p: super::AnyPolicyDyn<dyn super::AnyPolicySerialize>) {
+    fn test_me(p: super::AnyPolicy<dyn super::AnyPolicySerializeDyn>) {
         example(p)
     }
 }

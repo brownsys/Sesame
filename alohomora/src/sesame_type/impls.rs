@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use crate::bbox::BBox;
-use crate::policy::{AnyPolicyDyn, AnyPolicyable, PolicyDyn, PolicyDynRelation};
+use crate::policy::{AnyPolicy, AnyPolicyable, PolicyDyn, PolicyDynRelation};
 use crate::sesame_type::r#enum::SesameTypeEnum;
 use crate::sesame_type::r#type::SesameType;
 use crate::sesame_type_dyns::{SesameDyn, SesameDynRelation};
@@ -60,7 +60,7 @@ impl<
     type Out = T;
     fn to_enum(self) -> SesameTypeEnum<DT, PT> {
         let (t, p) = self.consume();
-        SesameTypeEnum::BBox(BBox::new(DT::boxed_dyn(t), AnyPolicyDyn::new(p)))
+        SesameTypeEnum::BBox(BBox::new(DT::boxed_dyn(t), AnyPolicy::new(p)))
     }
     fn from_enum(e: SesameTypeEnum<DT, PT>) -> Result<Self::Out, ()> {
         match e {
