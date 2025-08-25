@@ -9,6 +9,7 @@ use crate::policy::Reason;
 use mysql::prelude::Queryable;
 pub use mysql::Opts as BBoxOpts;
 pub use mysql::Result as BBoxResult;
+use crate::sesame_type::r#type::SesameTypeOut;
 
 // BBox DB connection
 pub struct BBoxConn {
@@ -128,9 +129,13 @@ impl BBoxConn {
     }
 }
 
+#[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
+impl SesameTypeOut for BBoxConn {
+    type Out = mysql::Conn;
+}
+
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl SesameType for BBoxConn {
-    type Out = mysql::Conn;
     fn to_enum(self) -> SesameTypeEnum {
         SesameTypeEnum::Value(Box::new(self))
     }

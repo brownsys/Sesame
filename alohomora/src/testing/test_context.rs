@@ -4,6 +4,7 @@ use crate::policy::NoPolicy;
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use crate::{SesameType, SesameTypeEnum};
 use std::any::Any;
+use crate::sesame_type::r#type::SesameTypeOut;
 
 #[derive(Clone)]
 pub struct TestContextData<T: Send + Any>(BBox<T, NoPolicy>);
@@ -14,10 +15,13 @@ impl<T: Send + Any> TestContextData<T> {
     }
 }
 
+#[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
+impl<T: Send + Any> SesameTypeOut for TestContextData<T> {
+    type Out = T;
+}
+
 #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
 impl<T: Send + Any> SesameType for TestContextData<T> {
-    type Out = T;
-
     fn to_enum(self) -> SesameTypeEnum {
         SesameTypeEnum::BBox(self.0.into_any_no_clone())
     }

@@ -1,9 +1,8 @@
 use alohomora::bbox::BBox;
 use alohomora::context::Context;
 use alohomora::rocket::{BBoxCookie, BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
-use alohomora::{SesameType, SesameTypeEnum};
+use alohomora::{SesameType, SesameTypeEnum, SesameTypeOut};
 use rocket::async_trait;
-use std::any::Any;
 
 use crate::application::policy::AuthenticationCookiePolicy;
 
@@ -16,8 +15,10 @@ pub struct ContextData {
 // Application contexts.
 pub type AppContext = Context<ContextData>;
 
-impl SesameType<dyn Any> for ContextData {
+impl SesameTypeOut for ContextData {
     type Out = Option<String>;
+}
+impl SesameType for ContextData {
     fn to_enum(self) -> SesameTypeEnum {
         self.user.to_enum()
     }

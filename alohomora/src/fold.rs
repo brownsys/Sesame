@@ -148,6 +148,7 @@ mod tests {
     use crate::context::UnprotectedContext;
     use std::collections::{HashMap, HashSet};
     use std::iter::FromIterator;
+    use crate::sesame_type::r#type::SesameTypeOut;
 
     #[derive(Clone, PartialEq, Debug)]
     pub struct ACLPolicy {
@@ -207,9 +208,13 @@ mod tests {
         pub z: String,
     }
 
+    #[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
+    impl SesameTypeOut for BoxedStruct {
+        type Out = BoxedStructLite;
+    }
+
     #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
     impl SesameType for BoxedStruct {
-        type Out = BoxedStructLite;
         fn to_enum(self) -> SesameTypeEnum {
             let hashmap = HashMap::from([
                 (String::from("x"), self.x.to_enum()),

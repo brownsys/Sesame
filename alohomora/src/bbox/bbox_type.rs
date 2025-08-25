@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
@@ -278,6 +279,11 @@ impl<T, P: Specializable> BBox<T, P> {
             Ok(p) => Ok(BBox { fb, p }),
             Err(p) => Err(BBox { fb, p }),
         }
+    }
+}
+impl<T> Debug for BBox<T, SpecializationEnum> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.policy().fmt(f)
     }
 }
 
