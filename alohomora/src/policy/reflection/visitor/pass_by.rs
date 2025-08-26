@@ -1,7 +1,6 @@
 use crate::policy::{AsLeaf, AsNoReflection, PolicyReflection, RefReflection};
 use std::marker::PhantomData;
 
-
 // Main visitor trait (does prefix + postfix).
 pub trait PassType<'a> {
     type NoReflection: AsNoReflection<'a>;

@@ -171,7 +171,6 @@ impl<
     }
 }
 
-
 // ()
 #[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
 impl SesameTypeOut for () {

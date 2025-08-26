@@ -6,7 +6,6 @@ use crate::policy::{
 use crate::testing::TestPolicy;
 use std::any::Any;
 
-
 // Marks which types are not a policy container.
 // Needed for Specialization, Joining, and RuntimeFoldIn to work.
 pub auto trait NotAPolicyContainer {}

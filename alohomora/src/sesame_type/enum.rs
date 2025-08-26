@@ -6,8 +6,7 @@ use std::any::Any;
 use std::collections::HashMap;
 
 // This provides a generic representation for values, bboxes, vectors, and structs mixing them.
-pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dyn AnyPolicyDyn>
-{
+pub enum SesameTypeEnum<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dyn AnyPolicyDyn> {
     BBox(BBox<Box<T>, AnyPolicy<P>>),
     Value(Box<T>),
     Vec(Vec<SesameTypeEnum<T, P>>),

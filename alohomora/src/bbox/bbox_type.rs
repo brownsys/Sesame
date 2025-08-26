@@ -10,9 +10,8 @@ use mysql::chrono;
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
 use crate::policy::{
-    AnyPolicy, AnyPolicyClone, AnyPolicyCloneDyn, AnyPolicyable,
-    NoPolicy, OptionPolicy, Policy, PolicyDyn, PolicyDynRelation, Reason,
-    RefPolicy, Specializable, SpecializationEnum, Specialize,
+    AnyPolicy, AnyPolicyClone, AnyPolicyCloneDyn, AnyPolicyable, NoPolicy, OptionPolicy, Policy,
+    PolicyDyn, PolicyDynRelation, Reason, RefPolicy, Specializable, SpecializationEnum, Specialize,
 };
 use crate::pure::PrivacyPureRegion;
 

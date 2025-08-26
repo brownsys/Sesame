@@ -11,8 +11,9 @@ use syn::punctuated::Punctuated;
 use syn::token::{Brace, Bracket, Paren};
 use syn::{
     AngleBracketedGenericArguments, AttrStyle, Attribute, Data, DeriveInput, Fields, FieldsNamed,
-    GenericArgument, GenericParam, ItemStruct, MacroDelimiter, Meta, MetaList, Path,
-    PathArguments, PathSegment, PredicateType, TraitBound, TraitBoundModifier, Type, TypeParam, TypeParamBound, TypePath, WhereClause, WherePredicate,
+    GenericArgument, GenericParam, ItemStruct, MacroDelimiter, Meta, MetaList, Path, PathArguments,
+    PathSegment, PredicateType, TraitBound, TraitBoundModifier, Type, TypeParam, TypeParamBound,
+    TypePath, WhereClause, WherePredicate,
 };
 
 pub type Error = (Span, &'static str);

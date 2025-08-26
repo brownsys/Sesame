@@ -1,6 +1,4 @@
-use crate::policy::{
-    MutRefReflection, NoPolicy, Policy, PolicyAnd, SimplePolicy,
-};
+use crate::policy::{MutRefReflection, NoPolicy, Policy, PolicyAnd, SimplePolicy};
 use crate::testing::TestPolicy;
 
 // This trait marks that a policy type is safe to join with any instance of the same type.

@@ -11,7 +11,7 @@ lazy_static! {
 }
 
 // Helper to fold an iterator of policies into an AndPolicy.
-fn fold_policies<I: Iterator<Item =AnyPolicy>>(mut policies: I) -> AnyPolicy {
+fn fold_policies<I: Iterator<Item = AnyPolicy>>(mut policies: I) -> AnyPolicy {
     match policies.next() {
         None => AnyPolicy::new(NoPolicy {}),
         Some(mut policy) => {

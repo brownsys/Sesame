@@ -1,7 +1,6 @@
 use crate::bbox::BBox;
 use crate::policy::{
-    join_dyn, AnyPolicy, AnyPolicyable, OptionPolicy, PolicyDyn,
-    PolicyDynRelation,
+    join_dyn, AnyPolicy, AnyPolicyable, OptionPolicy, PolicyDyn, PolicyDynRelation,
 };
 
 use crate::SesameType;
@@ -146,9 +145,9 @@ mod tests {
     use crate::{SesameType, SesameTypeEnum};
 
     use crate::context::UnprotectedContext;
+    use crate::sesame_type::r#type::SesameTypeOut;
     use std::collections::{HashMap, HashSet};
     use std::iter::FromIterator;
-    use crate::sesame_type::r#type::SesameTypeOut;
 
     #[derive(Clone, PartialEq, Debug)]
     pub struct ACLPolicy {

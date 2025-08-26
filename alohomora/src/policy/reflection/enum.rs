@@ -2,7 +2,9 @@ use std::convert::Infallible;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use crate::policy::{AnyPolicyDyn, AsLeaf, AsNoReflection, IsNoPolicy, NameVisitor, NormalizeVisitor, Policy};
+use crate::policy::{
+    AnyPolicyDyn, AsLeaf, AsNoReflection, IsNoPolicy, NameVisitor, NormalizeVisitor, Policy,
+};
 
 // B: &'r mut dyn AnyPolicyTrait.
 // B: Box<dyn AnyPolicyTrait>

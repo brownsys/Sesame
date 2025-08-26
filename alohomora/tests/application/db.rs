@@ -2,7 +2,7 @@ use crate::application::context::AppContext;
 use crate::application::models::Grade;
 use alohomora::bbox::BBox;
 use alohomora::db::{from_value, BBoxConn, BBoxOpts, BBoxResult};
-use alohomora::policy::{AnyPolicyable};
+use alohomora::policy::AnyPolicyable;
 
 pub struct DB {
     conn: BBoxConn,

@@ -1,6 +1,4 @@
-use crate::policy::{
-    AnyPolicy, AnyPolicyDyn, Policy, PolicyAnd, PolicyOr, Specializable,
-};
+use crate::policy::{AnyPolicy, AnyPolicyDyn, Policy, PolicyAnd, PolicyOr, Specializable};
 use std::any::Any;
 
 // If a policy meets this bound, then it can be placed inside a type-erased AnyPolicy
@@ -56,8 +54,7 @@ impl<PDyn: PolicyDyn + ?Sized> PolicyDynInto<PDyn> for PDyn {
 pub(crate) trait AnyPolicyMarker<P: PolicyDyn + ?Sized> {
     fn into_any_policy(self) -> Box<P>;
 }
-impl<P: PolicyDyn + ?Sized, PTarget: PolicyDyn + ?Sized> AnyPolicyMarker<PTarget>
-    for AnyPolicy<P>
+impl<P: PolicyDyn + ?Sized, PTarget: PolicyDyn + ?Sized> AnyPolicyMarker<PTarget> for AnyPolicy<P>
 where
     P: PolicyDynInto<PTarget>,
 {

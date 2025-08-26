@@ -41,7 +41,8 @@ mod tests {
     use crate::context::UnprotectedContext;
     use crate::fold_in::{FoldInAllowed, RuntimeFoldIn};
     use crate::policy::{
-        AnyPolicyClone, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy, SimplePolicy,
+        AnyPolicyClone, NoPolicy, OptionPolicy, PolicyAnd, PolicyOr, Reason, RefPolicy,
+        SimplePolicy,
     };
 
     #[derive(Clone, Debug, PartialEq, Eq)]

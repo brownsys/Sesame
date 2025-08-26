@@ -2,10 +2,7 @@ use std::any::Any;
 
 use crate::context::UnprotectedContext;
 use crate::policy::NotAPolicyContainer;
-use crate::policy::{
-    Join, Reflective,
-    UpgradableToAny,
-};
+use crate::policy::{Join, Reflective, UpgradableToAny};
 
 // Enum describing why/where the policy check is invoked.
 #[derive(Clone)]

@@ -1,9 +1,6 @@
 use crate::policy::reflection::visitor::visitor::driver::visit_helper;
 use crate::policy::{AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, PassType, PolicyReflection};
 
-
-
-
 pub type PrefixOutcome<Enum, PrefixResult, PostfixResult> = Result<
     // Continue visiting this node's children. Because data is moved into the visitor,
     // the visitor function must return (1) the children, along with
@@ -147,8 +144,8 @@ impl<'a, L: AsLeaf, NR: AsNoReflection<'a>> PolicyReflection<'a, L, NR> {
 
 mod driver {
     use crate::policy::{
-        AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, PassType,
-        PolicyReflection, PostfixOutcome, Visitor,
+        AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, PassType, PolicyReflection,
+        PostfixOutcome, Visitor,
     };
     use itertools::Itertools;
     use std::convert::Infallible;

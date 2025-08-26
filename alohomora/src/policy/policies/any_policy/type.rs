@@ -1,12 +1,11 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{
-    AnyPolicyCloneDyn, AnyPolicySerializeDyn, AnyPolicyDyn, Policy, PolicyDynInto, Reason,
+    AnyPolicyCloneDyn, AnyPolicyDyn, AnyPolicySerializeDyn, Policy, PolicyDynInto, Reason,
 };
 use crate::policy::{AnyPolicyable, PolicyDyn, PolicyDynRelation};
 use dyn_clone::DynClone;
 use serde::Serialize;
 use std::any::TypeId;
-
 
 // Aliases for ease of use.
 pub type AnyPolicyClone = AnyPolicy<dyn AnyPolicyCloneDyn>;

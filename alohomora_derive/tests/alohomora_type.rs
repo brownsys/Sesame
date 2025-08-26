@@ -5,7 +5,7 @@ use alohomora::context::UnprotectedContext;
 use alohomora::fold::fold;
 use alohomora::policy::{AnyPolicy, AnyPolicyClone, NoPolicy, Policy, Reason, SimplePolicy};
 use alohomora::testing::TestPolicy;
-use alohomora::{SesameTypeOut};
+use alohomora::SesameTypeOut;
 use alohomora_derive::SesameType;
 use serde::Serialize;
 

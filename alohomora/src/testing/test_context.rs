@@ -2,9 +2,9 @@ use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};
 use crate::policy::NoPolicy;
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
+use crate::sesame_type::r#type::SesameTypeOut;
 use crate::{SesameType, SesameTypeEnum};
 use std::any::Any;
-use crate::sesame_type::r#type::SesameTypeOut;
 
 #[derive(Clone)]
 pub struct TestContextData<T: Send + Any>(BBox<T, NoPolicy>);

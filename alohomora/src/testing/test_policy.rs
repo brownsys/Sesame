@@ -1,9 +1,6 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
-use crate::policy::{
-    FrontendPolicy, OptionPolicy, Policy,
-    Reason, RefPolicy, SchemaPolicy,
-};
+use crate::policy::{FrontendPolicy, OptionPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
 use serde::Serialize;
 use std::fmt::{Debug, Formatter};
 

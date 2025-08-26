@@ -1,4 +1,3 @@
-
 // BBox
 use crate::db::{BBoxParams, BBoxQueryResult};
 use crate::{SesameType, SesameTypeEnum};
@@ -6,10 +5,10 @@ use crate::{SesameType, SesameTypeEnum};
 // mysql imports.
 use crate::context::{Context, ContextData};
 use crate::policy::Reason;
+use crate::sesame_type::r#type::SesameTypeOut;
 use mysql::prelude::Queryable;
 pub use mysql::Opts as BBoxOpts;
 pub use mysql::Result as BBoxResult;
-use crate::sesame_type::r#type::SesameTypeOut;
 
 // BBox DB connection
 pub struct BBoxConn {

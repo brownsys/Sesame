@@ -96,8 +96,8 @@ pub trait Specialize: Specializable {
 mod tests {
     use crate::context::UnprotectedContext;
     use crate::policy::{
-        AnyPolicy, AnyPolicyCloneDyn, Join, NoPolicy, Policy, PolicyAnd, Reason,
-        RefPolicy, ReflectiveOwned, Specializable,
+        AnyPolicy, AnyPolicyCloneDyn, Join, NoPolicy, Policy, PolicyAnd, Reason, RefPolicy,
+        ReflectiveOwned, Specializable,
     };
 
     #[derive(Clone, PartialEq, Eq, Debug)]

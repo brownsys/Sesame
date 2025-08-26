@@ -1,6 +1,7 @@
 use crate::context::UnprotectedContext;
 use crate::policy::{
-    AnyPolicyDyn, AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, MutRefReflection, NoPolicy, Policy, PolicyReflection, PostfixOutcome, PostfixVisitor, Reason, RefReflection,
+    AnyPolicyDyn, AsLeaf, AsNoReflection, ByMove, ByMutRef, ByRef, MutRefReflection, NoPolicy,
+    Policy, PolicyReflection, PostfixOutcome, PostfixVisitor, Reason, RefReflection,
 };
 use std::ops::Deref;
 

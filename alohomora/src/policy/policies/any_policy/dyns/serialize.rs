@@ -1,7 +1,7 @@
 use crate::policy::policies::any_policy::traits::AnyPolicyMarker;
 use crate::policy::{
-    AnyPolicy, AnyPolicyDyn, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn,
-    PolicyDynInto, PolicyDynRelation, PolicyOr,
+    AnyPolicy, AnyPolicyDyn, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn, PolicyDynInto,
+    PolicyDynRelation, PolicyOr,
 };
 use erased_serde::{serialize_trait_object, Serialize};
 use std::any::Any;

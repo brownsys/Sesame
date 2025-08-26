@@ -1,7 +1,5 @@
 use crate::context::UnprotectedContext;
-use crate::policy::{
-    FrontendPolicy, Policy, Reason, SchemaPolicy,
-};
+use crate::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy};
 use serde::Serialize;
 
 #[derive(Clone, Serialize, PartialEq, Eq, Debug)]

@@ -1,6 +1,4 @@
-use crate::policy::{
-    AnyPolicy, AnyPolicyable, PolicyAnd, PolicyDyn, PolicyDynRelation,
-};
+use crate::policy::{AnyPolicy, AnyPolicyable, PolicyAnd, PolicyDyn, PolicyDynRelation};
 
 // Helper functions.
 fn join_helper<P1: AnyPolicyable, P2: AnyPolicyable>(p1: &mut P1, p2: &mut P2) -> bool {
@@ -40,10 +38,7 @@ impl<P: AnyPolicyable> JoinAPI for P {
         }
 
         // Stack.
-        PDyn::and_policy(PolicyAnd::new(
-            AnyPolicy::new(self),
-            AnyPolicy::new(p2),
-        ))
+        PDyn::and_policy(PolicyAnd::new(AnyPolicy::new(self), AnyPolicy::new(p2)))
     }
 }
 
@@ -75,7 +70,7 @@ mod tests {
 
     use crate::context::UnprotectedContext;
     use crate::policy::{
-        AnyPolicy, AnyPolicyCloneDyn, AnyPolicySerializeDyn, AnyPolicyDyn, Join, JoinAPI, Policy,
+        AnyPolicy, AnyPolicyCloneDyn, AnyPolicyDyn, AnyPolicySerializeDyn, Join, JoinAPI, Policy,
         Reason, SimplePolicy,
     };
 

@@ -191,7 +191,7 @@ into_params_impl!(
 mod tests {
     use crate::bbox::{BBox, EitherBBox};
     use crate::context::Context;
-    use crate::db::{BBoxParams};
+    use crate::db::BBoxParams;
     use crate::policy::{AnyPolicy, NoPolicy, Reason};
     use mysql::prelude::FromValue;
     use mysql::Params;

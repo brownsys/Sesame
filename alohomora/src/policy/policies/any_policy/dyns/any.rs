@@ -1,8 +1,7 @@
 use crate::fold_in::RuntimeFoldIn;
 use crate::policy::policies::any_policy::AnyPolicyMarker;
 use crate::policy::{
-    AnyPolicy, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn, PolicyDynRelation,
-    PolicyOr,
+    AnyPolicy, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyDyn, PolicyDynRelation, PolicyOr,
 };
 use std::any::Any;
 

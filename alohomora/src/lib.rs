@@ -35,7 +35,9 @@ pub mod unbox;
 // Export this directly under sesame::
 mod sesame_type;
 
-pub use sesame_type::{dyns as sesame_type_dyns, r#enum::SesameTypeEnum, r#type::SesameType, r#type::SesameTypeOut};
+pub use sesame_type::{
+    dyns as sesame_type_dyns, r#enum::SesameTypeEnum, r#type::SesameType, r#type::SesameTypeOut,
+};
 
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::SesameType;

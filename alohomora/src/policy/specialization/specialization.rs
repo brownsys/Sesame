@@ -1,6 +1,6 @@
 use crate::policy::{
-    AnyPolicy, AnyPolicyDyn, NoPolicy, OptionPolicy, Policy, PolicyAnd,
-    PolicyDyn, PolicyOr, RefPolicy, SpecializationEnum, Specialize,
+    AnyPolicy, AnyPolicyDyn, NoPolicy, OptionPolicy, Policy, PolicyAnd, PolicyDyn, PolicyOr,
+    RefPolicy, SpecializationEnum, Specialize,
 };
 use crate::policy::{NotAPolicyContainer, ReflectiveOwned};
 use crate::testing::TestPolicy;

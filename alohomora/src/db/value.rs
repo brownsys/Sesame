@@ -9,9 +9,7 @@ pub use mysql::prelude::FromValue as BBoxFromValue;
 pub type BBoxValue = BBox<mysql::Value, AnyPolicy>;
 
 // Type modification.
-pub fn from_value<T: BBoxFromValue, P: AnyPolicyable>(
-    v: BBoxValue,
-) -> Result<BBox<T, P>, String> {
+pub fn from_value<T: BBoxFromValue, P: AnyPolicyable>(v: BBoxValue) -> Result<BBox<T, P>, String> {
     let (t, p) = v.consume();
     Ok(BBox::new(mysql::from_value(t), p.specialize_top()?))
 }
