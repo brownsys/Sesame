@@ -13,9 +13,7 @@ pub fn parse_input_struct_name(input: DeriveInput) -> Result<Ident, Error> {
     match input.data {
         Data::Enum(_) => Err((input.ident.span(), "derive(NoFoldIn) only works on structs")),
         Data::Union(_) => Err((input.ident.span(), "derive(NoFoldIn) only works on structs")),
-        Data::Struct(_) => Ok(
-            input.ident
-        ),
+        Data::Struct(_) => Ok(input.ident),
     }
 }
 

@@ -193,7 +193,6 @@ impl Parse for DataArg {
     }
 }
 
-
 // with_data = "<data>".
 struct WithDataArg {
     pub parameter: String,

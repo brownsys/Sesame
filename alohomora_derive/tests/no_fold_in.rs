@@ -3,11 +3,10 @@
 #[macro_use]
 extern crate static_assertions;
 
-use alohomora::policy::{SimplePolicy};
-use alohomora_derive::NoFoldIn;
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::Reason; 
-
+use alohomora::policy::Reason;
+use alohomora::policy::SimplePolicy;
+use alohomora_derive::NoFoldIn;
 
 #[derive(NoFoldIn, Clone, Debug, PartialEq, Eq)]
 struct NoFoldPolicy {
@@ -26,7 +25,7 @@ impl SimplePolicy for NoFoldPolicy {
     }
 }
 
-// This correctly fails to compile. 
+// This correctly fails to compile.
 #[test]
 fn test_fold_in_denied() {
     use alohomora::fold_in::FoldInAllowed;

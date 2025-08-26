@@ -2,11 +2,10 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use alohomora::AlohomoraType;
 use alohomora::context::Context;
 use alohomora::policy::NoPolicy;
 use alohomora::testing::TestContextData;
-use alohomora_derive::{AlohomoraType, route, routes, RequestBBoxJson, ResponseBBoxJson};
+use alohomora_derive::{route, routes, RequestBBoxJson, ResponseBBoxJson, SesameType};
 
 // POST request data.
 #[derive(RequestBBoxJson, ResponseBBoxJson, PartialEq, Debug)]
@@ -41,18 +40,20 @@ pub struct Output {
 }
 
 // Context derived from both request and also json post data.
-#[derive(AlohomoraType)]
+#[derive(SesameType)]
 struct ContextData {
-  // we acquire this from the post data via BBoxJson<Simple>.
-  pub f1: alohomora::bbox::BBox<String, NoPolicy>,
-  // we acquire this a cookie via BBoxRequest.
-  pub cookie: alohomora::bbox::BBox<String, NoPolicy>,
+    // we acquire this from the post data via BBoxJson<Simple>.
+    pub f1: alohomora::bbox::BBox<String, NoPolicy>,
+    // we acquire this a cookie via BBoxRequest.
+    pub cookie: alohomora::bbox::BBox<String, NoPolicy>,
 }
 
 // Notice that we need to include *BBoxForm<Simple>* (or BBoxJson<Simple>) in
 // the trait generics, and NOT just Simple.
 #[rocket::async_trait]
-impl<'a, 'r> alohomora::rocket::FromBBoxRequestAndData<'a, 'r, alohomora::rocket::BBoxJson<Simple>> for ContextData {
+impl<'a, 'r> alohomora::rocket::FromBBoxRequestAndData<'a, 'r, alohomora::rocket::BBoxJson<Simple>>
+    for ContextData
+{
     type BBoxError = ();
     async fn from_bbox_request_and_data(
         request: alohomora::rocket::BBoxRequest<'a, 'r>,
@@ -60,7 +61,12 @@ impl<'a, 'r> alohomora::rocket::FromBBoxRequestAndData<'a, 'r, alohomora::rocket
     ) -> alohomora::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
         alohomora::rocket::BBoxRequestOutcome::Success(ContextData {
             f1: form.f1.clone(),
-            cookie: request.cookies().get("mycookie").unwrap().value().to_owned(),
+            cookie: request
+                .cookies()
+                .get("mycookie")
+                .unwrap()
+                .value()
+                .to_owned(),
         })
     }
 }
@@ -76,13 +82,19 @@ fn my_route(
             inner: alohomora::bbox::BBox::new(String::from("bye"), NoPolicy {}),
             vec: vec![
                 alohomora::bbox::BBox::new(-100, NoPolicy {}),
-                alohomora::bbox::BBox::new(200, NoPolicy {})
+                alohomora::bbox::BBox::new(200, NoPolicy {}),
             ],
         },
         f3: alohomora::bbox::BBox::new(55, NoPolicy {}),
         f4: HashMap::from([
-            (String::from("k1"), alohomora::bbox::BBox::new(11, NoPolicy {})),
-            (String::from("k2"), alohomora::bbox::BBox::new(12, NoPolicy {})),
+            (
+                String::from("k1"),
+                alohomora::bbox::BBox::new(11, NoPolicy {}),
+            ),
+            (
+                String::from("k2"),
+                alohomora::bbox::BBox::new(12, NoPolicy {}),
+            ),
         ]),
         f5: None,
     };
@@ -103,7 +115,10 @@ fn my_route(
 
     // assert that context is constructed correctly.
     assert_eq!(context.data().unwrap().f1.as_ref().discard_box(), "hello");
-    assert_eq!(context.data().unwrap().cookie.as_ref().discard_box(), "cookie value!");
+    assert_eq!(
+        context.data().unwrap().cookie.as_ref().discard_box(),
+        "cookie value!"
+    );
 
     println!("test");
     // Return result.
@@ -112,15 +127,17 @@ fn my_route(
 
 #[test]
 fn simple_from_bbox_form_test() {
-    let rocket = alohomora::rocket::BBoxRocket::<::rocket::Build>::build()
-        .mount("/", routes![my_route]);
+    let rocket =
+        alohomora::rocket::BBoxRocket::<::rocket::Build>::build().mount("/", routes![my_route]);
 
     // Create a client.
     let client = alohomora::testing::BBoxClient::tracked(rocket).expect("valid `Rocket`");
-    let response = client.post("/")
+    let response = client
+        .post("/")
         .cookie(rocket::http::Cookie::new("mycookie", "cookie value!"))
         .header(rocket::http::ContentType::JSON)
-        .body("{\
+        .body(
+            "{\
             \"f1\": \"hello\",\
             \"f2\": {\
                 \"inner\": \"bye\",
@@ -131,12 +148,13 @@ fn simple_from_bbox_form_test() {
               \"k1\": 11,
                \"k2\": 12
             }\
-        }")
+        }",
+        )
         .dispatch();
 
     // Validate response.
+    use serde_json::{Map, Number, Value};
     use std::iter::FromIterator;
-    use serde_json::{Map, Value, Number};
     assert_eq!(response.status(), rocket::http::Status::new(200));
 
     let response: Value = response.into_json().unwrap();
@@ -144,17 +162,29 @@ fn simple_from_bbox_form_test() {
         response,
         Value::Object(Map::from_iter([
             (String::from("f1"), Value::String(String::from("hi"))),
-            (String::from("f2"), Value::Object(Map::from_iter([
-                (String::from("inner"), Value::String(String::from("bye"))),
-                (String::from("vec"), Value::Array(vec![
-                    Value::Number(Number::from(-100i64)),
-                    Value::Number(Number::from(200i64)),
-                ])),
-            ]))),
-            (String::from("f3"), Value::Object(Map::from_iter([
-                (String::from("f1"), Value::String(String::from("nestedf1"))),
-                (String::from("f2"), Value::Number(Number::from_f64(22.5f64).unwrap())),
-            ]))),
+            (
+                String::from("f2"),
+                Value::Object(Map::from_iter([
+                    (String::from("inner"), Value::String(String::from("bye"))),
+                    (
+                        String::from("vec"),
+                        Value::Array(vec![
+                            Value::Number(Number::from(-100i64)),
+                            Value::Number(Number::from(200i64)),
+                        ])
+                    ),
+                ]))
+            ),
+            (
+                String::from("f3"),
+                Value::Object(Map::from_iter([
+                    (String::from("f1"), Value::String(String::from("nestedf1"))),
+                    (
+                        String::from("f2"),
+                        Value::Number(Number::from_f64(22.5f64).unwrap())
+                    ),
+                ]))
+            ),
             (String::from("f4"), Value::Null),
             (String::from("f5"), Value::String(String::from("raw"))),
         ]))

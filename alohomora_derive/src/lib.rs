@@ -8,14 +8,14 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parse_macro_input, DeriveInput, Expr, ItemFn, ItemStruct};
 
+mod alohomora_type;
 mod form;
+mod json;
+mod no_fold_in;
 mod policy;
 mod render;
 mod route;
-mod alohomora_type;
 mod sandbox;
-mod json;
-mod no_fold_in;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
@@ -108,7 +108,6 @@ pub fn derive_sandboxable(input: TokenStream) -> TokenStream {
         Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
     }
 }
-
 
 #[proc_macro_derive(RequestBBoxJson)]
 pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {

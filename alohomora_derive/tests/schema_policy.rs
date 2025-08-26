@@ -1,8 +1,8 @@
 use alohomora::policy::{NoPolicy, Policy, Reason, SchemaPolicy, SimplePolicy, Specializable};
 use alohomora_derive::schema_policy;
 
-use mysql::Value;
 use alohomora::context::UnprotectedContext;
+use mysql::Value;
 
 #[schema_policy(table = "my_table", column = 3)]
 #[derive(Clone)]
@@ -14,7 +14,7 @@ impl SimplePolicy for SamplePolicy {
     fn simple_check(&self, _: &UnprotectedContext, _: Reason) -> bool {
         true
     }
-    fn simple_join_direct(&mut self, other: &mut Self) {}
+    fn simple_join_direct(&mut self, _other: &mut Self) {}
 }
 impl SchemaPolicy for SamplePolicy {
     fn from_row(_table: &str, _row: &Vec<Value>) -> Self {

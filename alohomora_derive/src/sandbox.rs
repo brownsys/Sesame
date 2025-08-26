@@ -11,7 +11,8 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     let function_name = function_signature.ident;
 
     let invoke_sandbox_function_name_c = format!("invoke_sandbox_{}_c", function_name);
-    let invoke_sandbox_function_name_c = Ident::new(&invoke_sandbox_function_name_c, function_name.span());
+    let invoke_sandbox_function_name_c =
+        Ident::new(&invoke_sandbox_function_name_c, function_name.span());
 
     let function_name_sandbox = format!("{}_sandbox", function_name);
     let function_name_sandbox = Ident::new(&function_name_sandbox, function_name.span());
@@ -41,13 +42,13 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
     let arg = match params[0] {
         FnArg::Receiver(_) => {
             return quote_spanned!(function_name.span() => compile_error!("Sandbox function should not take self"));
-        },
+        }
         FnArg::Typed(ty) => *ty.ty.clone(),
     };
     let ret = match function_signature.output {
         ReturnType::Default => {
             return quote_spanned!(function_name.span() => compile_error!("Sandbox function must return a `SandboxTransfer` type"));
-        },
+        }
         ReturnType::Type(_, ty) => *ty.clone(),
     };
 
@@ -85,12 +86,17 @@ pub fn sandbox_impl(input: ItemFn) -> TokenStream {
 }
 
 pub fn derive_fast_transfer_impl(
-    input: syn::DeriveInput
+    input: syn::DeriveInput,
 ) -> Result<TokenStream, (proc_macro2::Span, &'static str)> {
     // Check the macro is being used on a struct
     let struct_data = match input.data.clone() {
         syn::Data::Struct(s) => s,
-        _ => return Err((input.ident.span(), "the `FastTransfer` trait can only be derived for structs")),
+        _ => {
+            return Err((
+                input.ident.span(),
+                "the `FastTransfer` trait can only be derived for structs",
+            ))
+        }
     };
 
     let fields = match struct_data.fields.clone() {
@@ -102,21 +108,31 @@ pub fn derive_fast_transfer_impl(
     for field in fields.named.clone() {
         match field.vis {
             syn::Visibility::Public(_) => (),
-            _ => return Err((field.ident.unwrap_or(input.ident).span(), "all fields must be public for `FastTransfer` types")),
+            _ => {
+                return Err((
+                    field.ident.unwrap_or(input.ident).span(),
+                    "all fields must be public for `FastTransfer` types",
+                ))
+            }
         }
     }
 
     // Make sure they're using #[repr(C)]
     let mut uses_repr_c = false;
     for attr in input.attrs {
-        if format!("{}", attr.to_token_stream()) == format!("#[repr(C)]") { uses_repr_c = true; }
+        if format!("{}", attr.to_token_stream()) == format!("#[repr(C)]") {
+            uses_repr_c = true;
+        }
     }
     if !uses_repr_c {
         return Err((input.ident.span(), "`FastTransfer` structs must use the `#[repr(C)]` attribute for a consistent memory layout"));
     }
 
     let struct_name = input.ident.clone();
-    let unswizzled_name = Ident::new(&(struct_name.to_string() + "Unswizzled"), struct_name.span());
+    let unswizzled_name = Ident::new(
+        &(struct_name.to_string() + "Unswizzled"),
+        struct_name.span(),
+    );
 
     let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
 
@@ -125,7 +141,7 @@ pub fn derive_fast_transfer_impl(
     let field_name2 = fields.named.iter().map(|field| &field.ident);
     let field_name3 = fields.named.iter().map(|field| &field.ident);
 
-    Ok(quote!{
+    Ok(quote! {
         #[automatically_derived]
         #[cfg(not(target_arch = "wasm32"))] // the linker doesn't like having these structs for wasm2c
         #[repr(C)]
