@@ -8,14 +8,14 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parse_macro_input, DeriveInput, Expr, ItemFn, ItemStruct};
 
+mod alohomora_type;
 mod form;
+mod json;
+mod no_fold_in;
 mod policy;
 mod render;
 mod route;
-mod alohomora_type;
 mod sandbox;
-mod json;
-mod no_fold_in;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
@@ -81,10 +81,10 @@ pub fn routes(input: TokenStream) -> TokenStream {
     result.into()
 }
 
-#[proc_macro_derive(SesameTypeDyn, attributes(alohomora_out_type))]
-pub fn derive_alohomora_type(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(SesameType, attributes(alohomora_out_type))]
+pub fn derive_sesame_type(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    match alohomora_type::derive_alohomora_type_impl(input) {
+    match alohomora_type::derive_sesame_type_impl(input) {
         Ok(tokens) => tokens.into(),
         Err((span, err)) => quote_spanned!(span => compile_error!(#err)).into(),
     }
@@ -109,7 +109,6 @@ pub fn derive_sandboxable(input: TokenStream) -> TokenStream {
     }
 }
 
-
 #[proc_macro_derive(RequestBBoxJson)]
 pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -128,7 +127,7 @@ pub fn dervie_response_bbox_json(input: TokenStream) -> TokenStream {
     }
 }
 
-#[proc_macro_derive(NoFoldIn, attributes(alohomora_out_type))]
+#[proc_macro_derive(NoFoldIn)]
 pub fn derive_no_fold_in(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match no_fold_in::derive_no_fold_in_impl(input) {

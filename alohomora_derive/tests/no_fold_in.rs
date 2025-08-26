@@ -3,34 +3,29 @@
 #[macro_use]
 extern crate static_assertions;
 
-use alohomora::policy::{Policy, AnyPolicy};
-use alohomora_derive::NoFoldIn;
-use alohomora::bbox::BBox;
 use alohomora::context::UnprotectedContext;
-use alohomora::policy::Reason; 
-
+use alohomora::policy::Reason;
+use alohomora::policy::SimplePolicy;
+use alohomora_derive::NoFoldIn;
 
 #[derive(NoFoldIn, Clone, Debug, PartialEq, Eq)]
 struct NoFoldPolicy {
     pub attr: String,
 }
 
-impl Policy for NoFoldPolicy {
-    fn name(&self) -> String {
+impl SimplePolicy for NoFoldPolicy {
+    fn simple_name(&self) -> String {
         String::from("NoFoldInPolicy")
     }
-    fn check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
+    fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason) -> bool {
         true
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        Ok(AnyPolicy::new(self.clone()))
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()> {
-        Ok(NoFoldPolicy { attr: String::from("") })
+    fn simple_join_direct(&mut self, other: &mut Self) {
+        self.attr = format!("{}+{}", self.attr, other.attr);
     }
 }
 
-// This correctly fails to compile. 
+// This correctly fails to compile.
 #[test]
 fn test_fold_in_denied() {
     use alohomora::fold_in::FoldInAllowed;

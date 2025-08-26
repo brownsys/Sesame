@@ -6,7 +6,10 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Generics, Lifetime, LifetimeParam, Token, Type};
+use syn::{
+    Data, DataStruct, DeriveInput, Field, Fields, GenericParam, Generics, Lifetime, LifetimeParam,
+    Token, Type,
+};
 
 pub fn context_generics(mut generics: Generics) -> Generics {
     let mut r_bound = Punctuated::new();
@@ -68,17 +71,17 @@ pub fn generate_context(
 
     // Getters for every field context.
     let getters = fields.iter().zip(types.iter()).map(|(field, ty)| {
-    let ident = field.ident.as_ref().unwrap();
-    let function_name = Ident::new(&format!("get_{}_ctx", ident), ident.span());
-    quote! {
-      fn #function_name (&mut self) -> &mut #ty::BBoxContext {
-        if let ::std::option::Option::None = self.#ident {
-          self.#ident = ::std::option::Option::Some(#ty::bbox_init(self.__opts));
+        let ident = field.ident.as_ref().unwrap();
+        let function_name = Ident::new(&format!("get_{}_ctx", ident), ident.span());
+        quote! {
+          fn #function_name (&mut self) -> &mut #ty::BBoxContext {
+            if let ::std::option::Option::None = self.#ident {
+              self.#ident = ::std::option::Option::Some(#ty::bbox_init(self.__opts));
+            }
+            self.#ident.as_mut().unwrap()
+          }
         }
-        self.#ident.as_mut().unwrap()
-      }
-    }
-  });
+    });
 
     // Generated context struct must declare the same generics.
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();

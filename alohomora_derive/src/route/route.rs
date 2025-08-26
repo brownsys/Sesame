@@ -37,10 +37,10 @@ type PathParam = (Parameter, usize);
 
 // Types of parameters.
 enum ParamClass {
-    Data,      // Use FromBBoxData.
-    Query,     // Use FromBBoxForm.
-    Path,      // Use FromBBoxParam.
-    DataGuard, // Use FromBBoxRequest.
+    Data,              // Use FromBBoxData.
+    Query,             // Use FromBBoxForm.
+    Path,              // Use FromBBoxParam.
+    DataGuard,         // Use FromBBoxRequest.
     DataGuardWithData, // Use FromBBoxRequestAndData
 }
 
@@ -98,8 +98,8 @@ impl RouteAttribute {
             match &self.data {
                 Some(p) if p == name => Some(ParamClass::Data),
                 _ => match &self.with_data {
-                  Some(p) if p == name => Some(ParamClass::DataGuardWithData),
-                  _ => None,
+                    Some(p) if p == name => Some(ParamClass::DataGuardWithData),
+                    _ => None,
                 },
             }
         }
@@ -208,7 +208,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
     });
 
     // Do post data.
-    let mut with_data = quote!{};
+    let mut with_data = quote! {};
     let post_data = match args.data.as_ref() {
         None => quote! {},
         Some(data) => {

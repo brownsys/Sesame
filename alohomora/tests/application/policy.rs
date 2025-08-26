@@ -1,4 +1,4 @@
-use alohomora::SesameType;
+use alohomora::SesameTypeOut;
 use cookie::Cookie;
 use mysql::{from_value, Value};
 use rocket::Request;
@@ -20,7 +20,7 @@ impl SimplePolicy for ACLPolicy {
         String::from("ACLPolicy")
     }
     fn simple_check(&self, context: &UnprotectedContext, _: Reason) -> bool {
-        type ContextDataOut = <ContextData as SesameType>::Out;
+        type ContextDataOut = <ContextData as SesameTypeOut>::Out;
         let r: &ContextDataOut = context.downcast_ref().unwrap();
         match r {
             None => false,
@@ -85,7 +85,7 @@ impl Policy for WritePolicy {
         match reason {
             Reason::DB(stmt, _) => {
                 if stmt.starts_with("INSERT") {
-                    type ContextDataOut = <ContextData as SesameType>::Out;
+                    type ContextDataOut = <ContextData as SesameTypeOut>::Out;
                     let r: &ContextDataOut = context.downcast_ref().unwrap();
                     match r {
                         None => false,

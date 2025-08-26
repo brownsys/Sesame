@@ -1,8 +1,8 @@
 use alohomora::context::Context;
-use alohomora::policy::{Policy, RefPolicy, NoPolicy};
+use alohomora::pcr::{PrivacyCriticalRegion, Signature};
+use alohomora::policy::{NoPolicy, Policy, RefPolicy};
 use alohomora_derive::BBoxRender;
 use erased_serde::Serialize;
-use alohomora::pcr::{PrivacyCriticalRegion, Signature};
 
 type RefBBox<'a> = alohomora::bbox::BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
@@ -47,9 +47,12 @@ fn bbox_to_string<'a>(bbox: &'a RefBBox<'_>) -> Result<String, ()> {
         context,
         PrivacyCriticalRegion::new(
             |t: &&'a dyn Serialize, _| *t,
-            Signature { username: "", signature: "" },
+            Signature {
+                username: "",
+                signature: "",
+            },
         ),
-        ()
+        (),
     );
     serialize_to_string(result.unwrap())
 }
@@ -103,11 +106,16 @@ fn simple_render_struct() {
             matches!(t4.get("v"), Option::Some(Renderable::Array(_)));
             if let Renderable::Array(v) = t4.get("v").unwrap() {
                 assert_eq!(v.len(), 3);
-                assert!(matches!(&v[0], Renderable::BBox(a) if bbox_to_string(a) == Ok(String::from("100"))));
-                assert!(matches!(&v[1], Renderable::BBox(a) if bbox_to_string(a) == Ok(String::from("110"))));
-                assert!(matches!(&v[2], Renderable::BBox(a) if bbox_to_string(a) == Ok(String::from("200"))));
+                assert!(
+                    matches!(&v[0], Renderable::BBox(a) if bbox_to_string(a) == Ok(String::from("100")))
+                );
+                assert!(
+                    matches!(&v[1], Renderable::BBox(a) if bbox_to_string(a) == Ok(String::from("110")))
+                );
+                assert!(
+                    matches!(&v[2], Renderable::BBox(a) if bbox_to_string(a) == Ok(String::from("200")))
+                );
             }
         }
     }
-
 }
