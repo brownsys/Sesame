@@ -89,14 +89,14 @@ render_serialize_impl!(i8);
 render_serialize_impl!(bool);
 
 // Auto implement BBoxRender for BBox.
-impl<T: Serialize, P: Policy + Clone> BBoxRender for BBox<T, P> {
+impl<T: Serialize, P: Policy> BBoxRender for BBox<T, P> {
     fn render(&self) -> Renderable {
         Renderable::BBox(BBox::new(self.data(), RefPolicy::new(self.policy())))
     }
 }
 
 // Auto implement BBoxRender for EitherBBox.
-impl<T: Serialize, P: Policy + Clone> BBoxRender for EitherBBox<T, P> {
+impl<T: Serialize, P: Policy> BBoxRender for EitherBBox<T, P> {
     fn render(&self) -> Renderable {
         match self {
             EitherBBox::Value(value) => Renderable::Serialize(value),

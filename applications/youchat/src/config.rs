@@ -1,22 +1,23 @@
 use std::fs;
 use std::io::{Error, ErrorKind, Read};
-use toml;
-use alohomora::SesameTypeDyn;
 
-#[derive(SesameTypeDyn, Debug, Clone)]
+use alohomora::SesameType;
+use toml;
+
+#[derive(SesameType, Debug, Clone)]
 #[alohomora_out_type(to_derive = [Debug, Clone])]
 pub struct Config {
     /// user for the mySQL database
-    pub db_user : String,
+    pub db_user: String,
     /// password for the mySQL database
-    pub db_password : String,
+    pub db_password: String,
     /// custom directory for templates
-    pub template_dir : String,
+    pub template_dir: String,
     //whether or not to initialize the mySQL database
     pub prime: bool,
 }
 
-pub(crate) fn parse(path: &str) -> Result<Config, Error>{
+pub(crate) fn parse(path: &str) -> Result<Config, Error> {
     let mut f = fs::File::open(path)?;
     let mut buf = String::new();
 

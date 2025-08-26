@@ -3,23 +3,28 @@ use alohomora::testing::BBoxClient;
 use rocket::http::ContentType;
 use youchat;
 mod common;
-use common::{response_contains, response_redirects, is_redirect, random_string, ResponsePortion};
+use common::{is_redirect, random_string, response_contains, response_redirects, ResponsePortion};
 
 #[test]
-fn users_can_connect(){
+fn users_can_connect() {
     // initialize client connection
     let serv = youchat::build_server();
     let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
-    
+
     // check to make sure we're redirected from root to login
     assert!(response_redirects(&client, "/".to_string(), "/login"));
 
     // check that the login page renders
-    assert!(response_contains(&client, "/login".to_string(), "<h1>Welcome to YouChat!</h1>", ResponsePortion::Any));
+    assert!(response_contains(
+        &client,
+        "/login".to_string(),
+        "<h1>Welcome to YouChat!</h1>",
+        ResponsePortion::Any
+    ));
 }
 
 #[test]
-fn users_can_send_chats(){
+fn users_can_send_chats() {
     // initialize client connection
     let serv = youchat::build_server();
     let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
@@ -33,20 +38,31 @@ fn users_can_send_chats(){
             let recipient = random_string(6);
             let message = random_string(30);
 
-            let response = client.post(format!("/chat/{user}/send")).header(ContentType::Form)//.header("application/x-www-form-urlencoded")
-                            .body(format!("recipient={recipient}&content={}", message.replace(" ", "+"))).dispatch();
-            
+            let response = client
+                .post(format!("/chat/{user}/send"))
+                .header(ContentType::Form) //.header("application/x-www-form-urlencoded")
+                .body(format!(
+                    "recipient={recipient}&content={}",
+                    message.replace(" ", "+")
+                ))
+                .dispatch();
+
             // make sure we get redirected
             assert!(is_redirect(response.status()));
 
             // make sure we can see it in our sent
-            assert!(response_contains(&client, format!("/chat/{user}"), &message, ResponsePortion::SentChats));
+            assert!(response_contains(
+                &client,
+                format!("/chat/{user}"),
+                &message,
+                ResponsePortion::SentChats
+            ));
         }
     }
 }
 
 #[test]
-fn users_can_recieve_chats(){
+fn users_can_recieve_chats() {
     // initialize client connection
     let serv = youchat::build_server();
     let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
@@ -58,41 +74,79 @@ fn users_can_recieve_chats(){
     let barry_message = "hi barry how are you doing?".to_string();
 
     // make sure reciever can see in recieved
-    assert!(response_contains(&client, format!("/chat/daniella"), &daniella_message, ResponsePortion::RecievedChats));
-    assert!(response_contains(&client, format!("/chat/alex"), &alex_message1, ResponsePortion::RecievedChats));
-    assert!(response_contains(&client, format!("/chat/alex"), &alex_message2, ResponsePortion::RecievedChats));
-    assert!(response_contains(&client, format!("/chat/barry"), &barry_message, ResponsePortion::RecievedChats));
+    assert!(response_contains(
+        &client,
+        format!("/chat/daniella"),
+        &daniella_message,
+        ResponsePortion::RecievedChats
+    ));
+    assert!(response_contains(
+        &client,
+        format!("/chat/alex"),
+        &alex_message1,
+        ResponsePortion::RecievedChats
+    ));
+    assert!(response_contains(
+        &client,
+        format!("/chat/alex"),
+        &alex_message2,
+        ResponsePortion::RecievedChats
+    ));
+    assert!(response_contains(
+        &client,
+        format!("/chat/barry"),
+        &barry_message,
+        ResponsePortion::RecievedChats
+    ));
 }
 
 #[test]
-fn users_can_recieve_sent_chats(){
+fn users_can_recieve_sent_chats() {
     // initialize client connection
     let serv = youchat::build_server();
     let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
-    
-    let users = ["alex", "barry", "cher", "charlie", "daniella", "charlie", "barry", "cher", "alex"];
+
+    let users = [
+        "alex", "barry", "cher", "charlie", "daniella", "charlie", "barry", "cher", "alex",
+    ];
 
     // send random messages between people and then check they work
-    for s in 0..users.len()-1 {
+    for s in 0..users.len() - 1 {
         let sender = users[s];
         let recipient = users[s + 1];
         let message = random_string(30);
 
-        let response = client.post(format!("/chat/{sender}/send")).header(ContentType::Form)//.header("application/x-www-form-urlencoded")
-                            .body(format!("recipient={recipient}&content={}", message.replace(" ", "+"))).dispatch();
+        let response = client
+            .post(format!("/chat/{sender}/send"))
+            .header(ContentType::Form) //.header("application/x-www-form-urlencoded")
+            .body(format!(
+                "recipient={recipient}&content={}",
+                message.replace(" ", "+")
+            ))
+            .dispatch();
         // make sure we get redirected
         assert!(is_redirect(response.status()));
 
         // make sure we can see it in our sent
-        assert!(response_contains(&client, format!("/chat/{sender}"), &message, ResponsePortion::SentChats));
+        assert!(response_contains(
+            &client,
+            format!("/chat/{sender}"),
+            &message,
+            ResponsePortion::SentChats
+        ));
 
         // and they can see it in their recieved
-        assert!(response_contains(&client, format!("/chat/{recipient}"), &message, ResponsePortion::RecievedChats));
+        assert!(response_contains(
+            &client,
+            format!("/chat/{recipient}"),
+            &message,
+            ResponsePortion::RecievedChats
+        ));
     }
 }
 
 #[test]
-fn other_users_cant_see_chats(){
+fn other_users_cant_see_chats() {
     // initialize client connection
     let serv = youchat::build_server();
     let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
@@ -103,6 +157,11 @@ fn other_users_cant_see_chats(){
 
     // make sure that other users cannot see it
     for name in other_users {
-        assert!(!response_contains(&client, format!("/chat/{name}"), &message, ResponsePortion::Any));
+        assert!(!response_contains(
+            &client,
+            format!("/chat/{name}"),
+            &message,
+            ResponsePortion::Any
+        ));
     }
 }

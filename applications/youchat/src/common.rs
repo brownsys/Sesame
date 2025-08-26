@@ -1,16 +1,16 @@
 extern crate chrono;
-//use std::any::Any;
 
-use chrono::prelude::*;
 use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::db::{BBoxRow, from_value, BBoxFromValue};
-use alohomora::rocket::{FromBBoxForm, BBoxResponseEnum};
-use alohomora::policy::{AnyPolicy, NoPolicy}; 
-use alohomora::pure::{PrivacyPureRegion, execute_pure};
+use alohomora::db::{from_value, BBoxRow};
+use alohomora::policy::{AnyPolicy, NoPolicy};
+use alohomora::pure::{execute_pure, PrivacyPureRegion};
+use alohomora::rocket::{BBoxResponseEnum, FromBBoxForm};
+use chrono::prelude::*;
+
 use crate::policies::ChatAccessPolicy;
 
 // Response enum that can be either templates or redirects
-pub type AnyBBoxResponse = BBoxResponseEnum; 
+pub type AnyBBoxResponse = BBoxResponseEnum;
 pub struct FromRowError(pub BBoxRow);
 
 pub trait FromBBoxRow {
@@ -21,8 +21,7 @@ pub trait FromBBoxRow {
         match Self::from_row_opt(row) {
             Ok(s) => s,
             Err(FromRowError(_)) => panic!(
-                "Couldn't convert BBoxRow to value"
-                // add better debugging here
+                "Couldn't convert BBoxRow to value" // add better debugging here
             ),
         }
     }
@@ -35,32 +34,16 @@ pub trait FromBBoxRow {
 impl FromBBoxRow for BBoxRow {
     fn from_row(row: BBoxRow) -> Self
     where
-        Self: Sized {
+        Self: Sized,
+    {
         row
     }
 
-    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> 
+    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError>
     where
-        Self: Sized {
+        Self: Sized,
+    {
         Ok(row)
-    }
-}
-
-impl<T> FromBBoxRow for BBox<T, AnyPolicy>
-where T: BBoxFromValue {
-    fn from_row_opt(row: BBoxRow) -> Result<BBox<T, AnyPolicy>, FromRowError> {
-        if  row.clone().unwrap().len() == 1 {
-            let val: Result<BBox<T, AnyPolicy>, String> = from_value(row.clone().get(0).unwrap().clone());
-            match val {
-                Err(e) => {
-                    //panic!("Couldn't convert BBoxRow to value");
-                    Err(FromRowError(row))
-                },
-                Ok(v ) => Ok(v)
-            }
-        } else {
-            Err(FromRowError(row))
-        }
     }
 }
 
@@ -69,10 +52,10 @@ where T: BBoxFromValue {
 pub enum PermissionType {
     Admin,
     Member,
-    None
+    None,
 }
 
-#[derive(BBoxRender, Clone)]
+#[derive(BBoxRender)]
 pub struct Chat {
     pub recipient: BBox<String, ChatAccessPolicy>,
     pub sender: BBox<String, ChatAccessPolicy>,
@@ -86,10 +69,10 @@ impl Chat {
     pub fn new(row: BBoxRow, index: usize) -> Self {
         let b: BBox<mysql::Value, AnyPolicy> = row.get(3).unwrap();
         let t: BBox<String, AnyPolicy> = execute_pure(
-                                    b.clone(), 
-                                    PrivacyPureRegion::new(|val: mysql::Value| 
-                                                { val.as_sql(true).replace("'", "")}))
-                                        .unwrap(); 
+            b,
+            PrivacyPureRegion::new(|val: mysql::Value| val.as_sql(true).replace("'", "")),
+        )
+        .unwrap();
         Chat {
             recipient: from_value(row.get(0).unwrap()).unwrap(),
             sender: from_value(row.get(1).unwrap()).unwrap(),
@@ -97,11 +80,13 @@ impl Chat {
             timestamp: t,
             index: BBox::new(index, NoPolicy::new()),
         }
-    } 
+    }
 }
 
 impl FromBBoxRow for Chat {
-    fn from_row(row: BBoxRow) -> Self { Chat::new(row, 0) }
+    fn from_row(row: BBoxRow) -> Self {
+        Chat::new(row, 0)
+    }
 
     fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> {
         Ok(Chat::new(row, 0))
@@ -117,16 +102,18 @@ pub struct Group {
 
 impl Group {
     pub fn new(row: BBoxRow) -> Self {
-        Group{
+        Group {
             name: from_value(row.get(0).unwrap()).unwrap(),
             admin: from_value(row.get(1).unwrap()).unwrap(),
             access_code: from_value(row.get(2).unwrap()).unwrap(),
         }
-    } 
+    }
 }
 
 impl FromBBoxRow for Group {
-    fn from_row(row: BBoxRow) -> Self { Group::new(row) }
+    fn from_row(row: BBoxRow) -> Self {
+        Group::new(row)
+    }
 
     fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> {
         Ok(Group::new(row))
@@ -141,7 +128,7 @@ pub struct UserCode {
 
 impl UserCode {
     pub fn new(row: BBoxRow) -> Self {
-        UserCode{
+        UserCode {
             user: from_value(row.get(0).unwrap()).unwrap(),
             access_code: from_value(row.get(1).unwrap()).unwrap(),
         }
@@ -149,9 +136,11 @@ impl UserCode {
 }
 
 impl FromBBoxRow for UserCode {
-    fn from_row(row: BBoxRow) -> Self { UserCode::new(row) }
+    fn from_row(row: BBoxRow) -> Self {
+        UserCode::new(row)
+    }
 
-    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> { 
+    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> {
         Ok(UserCode::new(row))
     }
 }
@@ -186,15 +175,13 @@ pub(crate) fn timestamp() -> String {
     let timestamp: u64 = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_secs() - (60 * 60 * 5);
-                    //^subtract 5 hours bc EST is UTC-5:00
-    
-    // Create a NaiveDateTime from the timestamp
-    let naive = NaiveDateTime::from_timestamp_opt(timestamp as i64, 0).unwrap();
-    
-    // Create a normal DateTime from the NaiveDateTime
-    let datetime: DateTime<Utc> = DateTime::from_naive_utc_and_offset(naive, Utc);
-    
+        .as_secs()
+        - (60 * 60 * 5);
+    //^subtract 5 hours bc EST is UTC-5:00
+
+    // Create a DateTime from the timestamp
+    let datetime = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
+
     // Format the datetime how you want
     let newdate = datetime.format("%Y-%m-%d %H:%M:%S");
     newdate.to_string()

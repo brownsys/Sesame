@@ -1,27 +1,27 @@
-#![feature(build_hasher_simple_hash_one)]
-extern crate serde;
 extern crate mysql;
 extern crate rocket;
 extern crate rocket_dyn_templates;
+extern crate serde;
 
-use std::sync::{Mutex, Arc};
+use alohomora::bbox::BBox;
+use alohomora::policy::{AnyPolicy, NoPolicy};
+use alohomora::pure::{execute_pure, PrivacyPureRegion};
+use alohomora::rocket::{get, routes, BBoxRedirect, BBoxRocket};
 use rocket_dyn_templates::Template;
-use alohomora::bbox::BBox; 
-use alohomora::policy::{NoPolicy, AnyPolicy};
-use alohomora::pure::{PrivacyPureRegion, execute_pure};
-use alohomora::rocket::{get, post, routes, BBoxRocket, BBoxRedirect};
-use backend::MySqlBackend;
-use context::YouChatContext;
+use std::sync::{Arc, Mutex};
 
 mod backend;
-mod config;
-mod login;
-mod chat;
 mod buggy;
-mod groupchat;
+mod chat;
 mod common;
-mod policies;
+mod config;
 mod context;
+mod groupchat;
+mod login;
+mod policies;
+
+use backend::MySqlBackend;
+use context::YouChatContext;
 
 // index will redirect to login, which will redirect to chat
 #[get("/")]
@@ -35,10 +35,9 @@ pub(crate) fn to_chat(name: BBox<String, NoPolicy>, context: YouChatContext) -> 
     // sanitize name
     let name_proc: BBox<String, AnyPolicy> = execute_pure(
         name,
-        PrivacyPureRegion::new(|data: String|
-            data.chars().filter(|c| c.is_alphabetic()).collect()
-        )
-    ).unwrap();
+        PrivacyPureRegion::new(|data: String| data.chars().filter(|c| c.is_alphabetic()).collect()),
+    )
+    .unwrap();
 
     BBoxRedirect::to("/chat/{}", (&name_proc,), context)
 }
@@ -56,8 +55,9 @@ pub fn build_server() -> BBoxRocket<rocket::Build> {
             &config.db_user,
             &config.db_password,
             &format!("{}", db_name),
-            config.prime
-        ).unwrap()
+            config.prime,
+        )
+        .unwrap(),
     ));
 
     // then make template
@@ -79,7 +79,15 @@ pub fn build_server() -> BBoxRocket<rocket::Build> {
         .manage(config)
         .mount("/", routes![index, to_chat])
         .mount("/login", routes![login::login])
-        .mount("/chat", routes![chat::show_chat, chat::send, 
-                                groupchat::try_show_gc, groupchat::send, groupchat::try_delete])
+        .mount(
+            "/chat",
+            routes![
+                chat::show_chat,
+                chat::send,
+                groupchat::try_show_gc,
+                groupchat::send,
+                groupchat::try_delete
+            ],
+        )
         .mount("/buggy", routes![buggy::buggy_endpoint, chat::send])
 }
