@@ -1,10 +1,11 @@
+use crate::application::policy::AuthenticationCookiePolicy;
 use alohomora::bbox::BBox;
 use alohomora::context::Context;
+use alohomora::policy::AnyPolicyDyn;
 use alohomora::rocket::{BBoxCookie, BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use alohomora::{SesameType, SesameTypeEnum, SesameTypeOut};
 use rocket::async_trait;
-
-use crate::application::policy::AuthenticationCookiePolicy;
+use std::any::Any;
 
 // Application specific portion of context.
 #[derive(Clone)]
@@ -22,8 +23,13 @@ impl SesameType for ContextData {
     fn to_enum(self) -> SesameTypeEnum {
         self.user.to_enum()
     }
-    fn from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
-        Option::<BBox<String, AuthenticationCookiePolicy>>::from_enum(e)
+    fn from_enum(e: SesameTypeEnum) -> Result<Self, ()> {
+        Ok(ContextData {
+            user: Option::<BBox<String, AuthenticationCookiePolicy>>::from_enum(e)?,
+        })
+    }
+    fn out_from_enum(e: SesameTypeEnum<dyn Any, dyn AnyPolicyDyn>) -> Result<Self::Out, ()> {
+        Option::<BBox<String, AuthenticationCookiePolicy>>::out_from_enum(e)
     }
 }
 

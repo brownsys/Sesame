@@ -24,7 +24,7 @@ impl<P: PolicyDyn + ?Sized, T: SesameType<dyn Any, P>> Foldable<P> for T {
     default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicy<P>), ()> {
         let e = self.to_enum();
         let (t, p) = e.remove_bboxes2();
-        Ok((Self::from_enum(t)?, p?.unwrap_or_default()))
+        Ok((Self::out_from_enum(t)?, p?.unwrap_or_default()))
     }
 }
 
@@ -139,10 +139,12 @@ impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>
 mod tests {
     use crate::bbox::BBox;
     use crate::policy::{
-        AnyPolicy, Join, JoinAPI, NoPolicy, OptionPolicy, Policy, PolicyAnd, Reason, SimplePolicy,
+        AnyPolicy, AnyPolicyDyn, Join, JoinAPI, NoPolicy, OptionPolicy, Policy, PolicyAnd, Reason,
+        SimplePolicy,
     };
     use crate::testing::TestPolicy;
     use crate::{SesameType, SesameTypeEnum};
+    use std::any::Any;
 
     use crate::context::UnprotectedContext;
     use crate::sesame_type::r#type::SesameTypeOut;
@@ -222,14 +224,28 @@ mod tests {
             ]);
             SesameTypeEnum::Struct(hashmap)
         }
-        fn from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
+        fn from_enum(e: SesameTypeEnum<dyn Any, dyn AnyPolicyDyn>) -> Result<Self, ()> {
             match e {
-                SesameTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
+                SesameTypeEnum::Struct(mut hashmap) => Ok(Self {
                     x: BBox::<u64, TestPolicy<ACLPolicy>>::from_enum(hashmap.remove("x").unwrap())?,
                     y: BBox::<String, TestPolicy<ACLPolicy>>::from_enum(
                         hashmap.remove("y").unwrap(),
                     )?,
                     z: String::from_enum(hashmap.remove("z").unwrap())?,
+                }),
+                _ => Err(()),
+            }
+        }
+        fn out_from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
+            match e {
+                SesameTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
+                    x: BBox::<u64, TestPolicy<ACLPolicy>>::out_from_enum(
+                        hashmap.remove("x").unwrap(),
+                    )?,
+                    y: BBox::<String, TestPolicy<ACLPolicy>>::out_from_enum(
+                        hashmap.remove("y").unwrap(),
+                    )?,
+                    z: String::out_from_enum(hashmap.remove("z").unwrap())?,
                 }),
                 _ => Err(()),
             }

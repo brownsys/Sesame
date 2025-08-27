@@ -292,7 +292,6 @@ impl<P: Policy> BBox<Box<dyn Any>, P> {
     }
 }
 
-
 impl<T> Debug for BBox<T, SpecializationEnum> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.policy().fmt(f)

@@ -5,7 +5,7 @@ use alohomora::context::UnprotectedContext;
 use alohomora::fold::fold;
 use alohomora::policy::{AnyPolicy, AnyPolicyClone, NoPolicy, Policy, Reason, SimplePolicy};
 use alohomora::testing::TestPolicy;
-use alohomora::SesameTypeOut;
+use alohomora::{SesameType, SesameTypeEnum, SesameTypeOut};
 use alohomora_derive::SesameType;
 use serde::Serialize;
 
@@ -188,6 +188,61 @@ fn test_nested_boxes() {
         }
     );
     assert_eq!(folded.sum(), 65);
+}
+
+#[test]
+fn test_nested_boxes_enum() {
+    let input = NestedBoxes {
+        f1: NoBoxes {
+            f1: 10,
+            f2: String::from("hello"),
+        },
+        f2: vec![
+            MixedBoxes {
+                f1: BBox::new(1, NoPolicy {}),
+                f2: BBox::new(String::from("v0.f2"), NoPolicy {}),
+                f3: 2,
+                f4: String::from("v0.f4"),
+            },
+            MixedBoxes {
+                f1: BBox::new(3, NoPolicy {}),
+                f2: BBox::new(String::from("v1.f2"), NoPolicy {}),
+                f3: 4,
+                f4: String::from("v1.f4"),
+            },
+            MixedBoxes {
+                f1: BBox::new(5, NoPolicy {}),
+                f2: BBox::new(String::from("v2.f2"), NoPolicy {}),
+                f3: 6,
+                f4: String::from("v2.f4"),
+            },
+        ],
+        f3: HashMap::from([
+            (
+                String::from("k0"),
+                MixedBoxes {
+                    f1: BBox::new(7, NoPolicy {}),
+                    f2: BBox::new(String::from("k0.f2"), NoPolicy {}),
+                    f3: 8,
+                    f4: String::from("k0.f4"),
+                },
+            ),
+            (
+                String::from("k1"),
+                MixedBoxes {
+                    f1: BBox::new(9, NoPolicy {}),
+                    f2: BBox::new(String::from("k1.f2"), NoPolicy {}),
+                    f3: 10,
+                    f4: String::from("k1.f4"),
+                },
+            ),
+        ]),
+    };
+
+    let e: SesameTypeEnum = input.clone().to_enum();
+    let output = NestedBoxes::from_enum(e).unwrap();
+
+    assert_eq!(input, output);
 }
 
 // Struct with verbatim items.

@@ -17,7 +17,9 @@ use crate::policy::Policy;
 // Because extensions are to be used sparingly and are expected to be written by the Tahini team
 // (or at least reviewed by them), we consider this an okay effort.
 pub trait SesamePConExtension<T, P: Policy, R>
-where Self: Sized {
+where
+    Self: Sized,
+{
     fn apply(self, data: T, policy: P) -> R;
     fn apply_ref(self, data: &T, policy: &P) -> R;
 }

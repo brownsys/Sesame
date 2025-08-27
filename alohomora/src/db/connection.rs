@@ -138,7 +138,16 @@ impl SesameType for BBoxConn {
     fn to_enum(self) -> SesameTypeEnum {
         SesameTypeEnum::Value(Box::new(self))
     }
-    fn from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum) -> Result<Self, ()> {
+        match e {
+            SesameTypeEnum::Value(db) => match db.downcast::<BBoxConn>() {
+                Ok(db) => Ok(*db),
+                Err(_) => Err(()),
+            },
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
         match e {
             SesameTypeEnum::Value(db) => match db.downcast::<BBoxConn>() {
                 Ok(db) => Ok(db.conn),
