@@ -25,7 +25,7 @@ figment = "0.10.6"
 lazy_static = "1.4.0"
 erased-serde = "0.3.25"
 mysql = "21.0.2"
-mysql_common = "0.22"
+mysql_common = "0.29"
 dynfmt = { version = "0.1.5", features = ["curly"] }
 small_ctor = "0.1.2"
 cookie = { version = "0.15", features = ["percent-encode"] }
