@@ -106,6 +106,38 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
     }
 }
 
+
+// Implement SesameType for Result
+#[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
+impl<T: SesameTypeOut, E: SesameTypeOut> SesameTypeOut for Result<T, E> {
+    type Out = Result<T::Out, E::Out>;
+}
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>, E: SesameType<A, P>> SesameType<A, P>
+for Result<T, E>
+{
+    fn to_enum(self) -> SesameTypeEnum<A, P> {
+        SesameTypeEnum::Struct(match self {
+            Ok(x) => HashMap::from([(String::from("Ok"), x.to_enum())]),
+            Err(x) => HashMap::from([(String::from("Err"), x.to_enum())]),
+        })
+    }
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+        match e {
+            SesameTypeEnum::Struct(mut map) => {
+                if map.contains_key("Ok") {
+                    let e = map.remove("Ok").unwrap();
+                    Ok(Ok(T::from_enum(e)?))
+                } else {
+                    let e = map.remove("Err").unwrap();
+                    Ok(Err(E::from_enum(e)?))
+                }
+            },
+            _ => Err(()),
+        }
+    }
+}
+
 // Implement SesameType for Vec.
 #[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
 impl<S: SesameTypeOut> SesameTypeOut for Vec<S> {

@@ -51,7 +51,7 @@ impl<PDyn: PolicyDyn + ?Sized> PolicyDynInto<PDyn> for PDyn {
 }
 
 // Marker trait we use for specialization.
-pub(crate) trait AnyPolicyMarker<P: PolicyDyn + ?Sized> {
+pub trait AnyPolicyMarker<P: PolicyDyn + ?Sized> {
     fn into_any_policy(self) -> Box<P>;
 }
 impl<P: PolicyDyn + ?Sized, PTarget: PolicyDyn + ?Sized> AnyPolicyMarker<PTarget> for AnyPolicy<P>

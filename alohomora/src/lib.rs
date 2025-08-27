@@ -20,6 +20,7 @@ extern crate alohomora_sandbox;
 pub mod bbox;
 pub mod context;
 pub mod db;
+pub mod extensions;
 pub mod fold;
 pub mod fold_in;
 #[cfg(feature = "orm")]
@@ -34,7 +35,6 @@ pub mod unbox;
 
 // Export this directly under sesame::
 mod sesame_type;
-mod extensions;
 
 pub use sesame_type::{
     dyns as sesame_type_dyns, r#enum::SesameTypeEnum, r#type::SesameType, r#type::SesameTypeOut,
