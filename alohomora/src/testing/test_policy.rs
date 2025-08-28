@@ -1,12 +1,12 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
 use crate::policy::{FrontendPolicy, OptionPolicy, Policy, Reason, RefPolicy, SchemaPolicy};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
 // TestPolicy<P> is the same as P, except it also allows direct access to boxed data for testing
 // purposes.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct TestPolicy<P: Policy> {
     p: P,
 }
