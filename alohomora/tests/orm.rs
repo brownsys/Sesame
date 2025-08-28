@@ -4,26 +4,20 @@ use sea_orm::entity::prelude::*;
 use sea_orm::{DatabaseBackend, DbErr, QueryOrder, Set};
 
 use alohomora::orm::{BBoxDatabase, BBoxDatabaseConnection, BBoxSchema, ORMPolicy};
-use alohomora::policy::{AnyPolicy, NoPolicy, Policy, Reason};
+use alohomora::policy::{NoPolicy, Reason, SimplePolicy};
 
 #[derive(Clone)]
 pub struct MyPolicy {
     pub name: String,
 }
-impl Policy for MyPolicy {
-    fn name(&self) -> String {
+impl SimplePolicy for MyPolicy {
+    fn simple_name(&self) -> String {
         todo!()
     }
-    fn check(&self, _context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
+    fn simple_check(&self, _context: &UnprotectedContext, _reason: Reason<'_>) -> bool {
         todo!()
     }
-    fn join(&self, _other: AnyPolicy) -> Result<AnyPolicy, ()> {
-        todo!()
-    }
-    fn join_logic(&self, _other: Self) -> Result<Self, ()>
-    where
-        Self: Sized,
-    {
+    fn simple_join_direct(&mut self, _other: &mut Self) {
         todo!()
     }
 }

@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::fmt::{Debug, Formatter};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
@@ -292,8 +291,9 @@ impl<P: Policy> BBox<Box<dyn Any>, P> {
     }
 }
 
-impl<T> Debug for BBox<T, SpecializationEnum> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+#[cfg(not(feature = "orm"))]
+impl<T> std::fmt::Debug for BBox<T, SpecializationEnum> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.policy().fmt(f)
     }
 }
