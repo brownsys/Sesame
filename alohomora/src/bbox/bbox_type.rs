@@ -5,6 +5,7 @@ use std::task::Poll;
 
 use either::Either;
 use mysql::chrono;
+use serde::Deserialize;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::pcr::PrivacyCriticalRegion;
@@ -22,6 +23,7 @@ use pin_project_lite::pin_project;
 
 // Privacy Container type.
 pin_project! {
+    #[derive(Deserialize)]
     pub struct BBox<T, P: Policy> {
         #[pin]
         fb: ObPtr<T>,

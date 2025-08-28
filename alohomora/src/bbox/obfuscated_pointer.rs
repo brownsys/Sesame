@@ -4,6 +4,7 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::Poll;
+use serde::Deserialize;
 
 // Secret to XOR with.
 const SECRET: usize = 2238711266;
@@ -45,6 +46,16 @@ impl<T> ObPtr<T> {
         self.ptr = 0; // Zero it out to avoid double free.
                       // Convert the pointer back to a Box<T>, and give ownership of the value
         unsafe { *Box::from_raw((ptr ^ SECRET) as *mut T) }
+    }
+}
+
+// ObPtr can be deserialized.
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for ObPtr<T>{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        let res = T::deserialize(deserializer)?;
+        Ok(ObPtr::new(res))
     }
 }
 
