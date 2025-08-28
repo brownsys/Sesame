@@ -499,11 +499,22 @@ pub fn derive_sesame_type_impl(input: DeriveInput) -> Result<TokenStream, Error>
                     ),)*
                 ]))
             }
-            fn from_enum(e: ::alohomora::SesameTypeEnum<__TDyn, __PDyn> ) -> Result<Self::Out, ()> {
+            fn from_enum(e: ::alohomora::SesameTypeEnum<__TDyn, __PDyn> ) -> Result<Self, ()> {
+                match e {
+                    ::alohomora::SesameTypeEnum::Struct(mut hashmap) => {
+                        Ok(Self {
+                            #(#alohomora_fields_idents: <#alohomora_fields_types as ::alohomora::SesameType<__TDyn, __PDyn> >::from_enum(hashmap.remove(#alohomora_fields_strings).unwrap())?,)*
+                            #(#verbatim_fields_idents: hashmap.remove(#verbatim_fields_strings).unwrap().coerce()?,)*
+                        })
+                    },
+                    _ => Err(()),
+                }
+            }
+            fn out_from_enum(e: ::alohomora::SesameTypeEnum<__TDyn, __PDyn> ) -> Result<Self::Out, ()> {
                 match e {
                     ::alohomora::SesameTypeEnum::Struct(mut hashmap) => {
                         Ok(Self::Out {
-                            #(#alohomora_fields_idents: <#alohomora_fields_types as ::alohomora::SesameType<__TDyn, __PDyn> >::from_enum(hashmap.remove(#alohomora_fields_strings).unwrap())?,)*
+                            #(#alohomora_fields_idents: <#alohomora_fields_types as ::alohomora::SesameType<__TDyn, __PDyn> >::out_from_enum(hashmap.remove(#alohomora_fields_strings).unwrap())?,)*
                             #(#verbatim_fields_idents: hashmap.remove(#verbatim_fields_strings).unwrap().coerce()?,)*
                         })
                     },

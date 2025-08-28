@@ -1,6 +1,4 @@
-#![feature(box_into_inner)]
 #![feature(specialization)]
-#![feature(core_intrinsics)]
 #![feature(negative_impls)]
 #![feature(auto_traits)]
 
@@ -20,6 +18,7 @@ extern crate alohomora_sandbox;
 pub mod bbox;
 pub mod context;
 pub mod db;
+pub mod extensions;
 pub mod fold;
 pub mod fold_in;
 #[cfg(feature = "orm")]

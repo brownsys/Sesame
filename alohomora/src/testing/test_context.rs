@@ -1,6 +1,6 @@
 use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};
-use crate::policy::NoPolicy;
+use crate::policy::{AnyPolicyDyn, NoPolicy};
 use crate::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 use crate::sesame_type::r#type::SesameTypeOut;
 use crate::{SesameType, SesameTypeEnum};
@@ -25,8 +25,16 @@ impl<T: Send + Any> SesameType for TestContextData<T> {
     fn to_enum(self) -> SesameTypeEnum {
         SesameTypeEnum::BBox(self.0.into_any_no_clone())
     }
-
-    fn from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum) -> Result<Self, ()> {
+        if let SesameTypeEnum::Value(t) = e {
+            return match t.downcast() {
+                Ok(t) => Ok(*t),
+                Err(_) => Err(()),
+            };
+        }
+        Err(())
+    }
+    fn out_from_enum(e: SesameTypeEnum<dyn Any, dyn AnyPolicyDyn>) -> Result<Self::Out, ()> {
         if let SesameTypeEnum::Value(t) = e {
             return match t.downcast() {
                 Ok(t) => Ok(*t),

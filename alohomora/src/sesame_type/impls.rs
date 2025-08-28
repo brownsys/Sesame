@@ -27,7 +27,16 @@ macro_rules! sesame_type_dyn_primitives_impl {
             fn to_enum(self) -> SesameTypeEnum<DT, P> {
                 SesameTypeEnum::Value(DT::boxed_dyn(self))
             }
-            fn from_enum(e: SesameTypeEnum<DT, P>) -> Result<Self::Out, ()> {
+            fn from_enum(e: SesameTypeEnum<DT, P>) -> Result<Self, ()> {
+                match e {
+                    SesameTypeEnum::Value(v) => match v.upcast_box().downcast() {
+                        Err(_) => Err(()),
+                        Ok(v) => Ok(*v),
+                    },
+                    _ => Err(()),
+                }
+            }
+            fn out_from_enum(e: SesameTypeEnum<DT, P>) -> Result<Self::Out, ()> {
                 match e {
                     SesameTypeEnum::Value(v) => match v.upcast_box().downcast() {
                         Err(_) => Err(()),
@@ -69,7 +78,19 @@ impl<
         let (t, p) = self.consume();
         SesameTypeEnum::BBox(BBox::new(DT::boxed_dyn(t), AnyPolicy::new(p)))
     }
-    fn from_enum(e: SesameTypeEnum<DT, PT>) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum<DT, PT>) -> Result<Self, ()> {
+        match e {
+            SesameTypeEnum::BBox(v) => {
+                let (t, p) = v.consume();
+                Ok(BBox::new(
+                    *t.upcast_box().downcast().map_err(|_| ())?,
+                    p.specialize_top().map_err(|_| ())?,
+                ))
+            }
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<DT, PT>) -> Result<Self::Out, ()> {
         match e {
             SesameTypeEnum::Value(v) => match v.upcast_box().downcast() {
                 Ok(v) => Ok(*v),
@@ -95,12 +116,66 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
             Some(t) => SesameTypeEnum::Vec(vec![t.to_enum()]),
         }
     }
-    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self, ()> {
         match e {
             SesameTypeEnum::Vec(mut vec) => match vec.pop() {
                 None => Ok(None),
                 Some(v) => Ok(Some(T::from_enum(v)?)),
             },
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+        match e {
+            SesameTypeEnum::Vec(mut vec) => match vec.pop() {
+                None => Ok(None),
+                Some(v) => Ok(Some(T::out_from_enum(v)?)),
+            },
+            _ => Err(()),
+        }
+    }
+}
+
+// Implement SesameType for Result
+#[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
+impl<T: SesameTypeOut, E: SesameTypeOut> SesameTypeOut for Result<T, E> {
+    type Out = Result<T::Out, E::Out>;
+}
+#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>, E: SesameType<A, P>>
+    SesameType<A, P> for Result<T, E>
+{
+    fn to_enum(self) -> SesameTypeEnum<A, P> {
+        SesameTypeEnum::Struct(match self {
+            Ok(x) => HashMap::from([(String::from("Ok"), x.to_enum())]),
+            Err(x) => HashMap::from([(String::from("Err"), x.to_enum())]),
+        })
+    }
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self, ()> {
+        match e {
+            SesameTypeEnum::Struct(mut map) => {
+                if map.contains_key("Ok") {
+                    let e = map.remove("Ok").unwrap();
+                    Ok(Ok(T::from_enum(e)?))
+                } else {
+                    let e = map.remove("Err").unwrap();
+                    Ok(Err(E::from_enum(e)?))
+                }
+            }
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+        match e {
+            SesameTypeEnum::Struct(mut map) => {
+                if map.contains_key("Ok") {
+                    let e = map.remove("Ok").unwrap();
+                    Ok(Ok(T::out_from_enum(e)?))
+                } else {
+                    let e = map.remove("Err").unwrap();
+                    Ok(Err(E::out_from_enum(e)?))
+                }
+            }
             _ => Err(()),
         }
     }
@@ -118,12 +193,24 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, S: SesameType<A, P>> SesameTy
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         SesameTypeEnum::Vec(self.into_iter().map(|s| s.to_enum()).collect())
     }
-    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self, ()> {
         match e {
             SesameTypeEnum::Vec(v) => {
                 let mut result = Vec::with_capacity(v.len());
                 for e in v.into_iter() {
                     result.push(S::from_enum(e)?);
+                }
+                Ok(result)
+            }
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+        match e {
+            SesameTypeEnum::Vec(v) => {
+                let mut result = Vec::with_capacity(v.len());
+                for e in v.into_iter() {
+                    result.push(S::out_from_enum(e)?);
                 }
                 Ok(result)
             }
@@ -152,7 +239,7 @@ impl<
                 .collect(),
         )
     }
-    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self, ()> {
         match e {
             SesameTypeEnum::Struct(m) => {
                 let mut result = HashMap::new();
@@ -160,6 +247,23 @@ impl<
                     match K::from_str(&k) {
                         Ok(k) => {
                             result.insert(k, S::from_enum(v)?);
+                        }
+                        Err(_) => return Err(()),
+                    }
+                }
+                Ok(result)
+            }
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+        match e {
+            SesameTypeEnum::Struct(m) => {
+                let mut result = HashMap::new();
+                for (k, v) in m.into_iter() {
+                    match K::from_str(&k) {
+                        Ok(k) => {
+                            result.insert(k, S::out_from_enum(v)?);
                         }
                         Err(_) => return Err(()),
                     }
@@ -184,7 +288,13 @@ where
     fn to_enum(self) -> SesameTypeEnum<A, P> {
         SesameTypeEnum::Vec(Vec::new())
     }
-    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self, ()> {
+        match e {
+            SesameTypeEnum::Vec(v) if v.len() == 0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
         match e {
             SesameTypeEnum::Vec(v) if v.len() == 0 => Ok(()),
             _ => Err(()),
@@ -207,12 +317,22 @@ macro_rules! sesame_type_dyn_tuples_impl {
             let ($($A,)*) = ($(self.$i.to_enum(),)*);
             SesameTypeEnum::Vec(vec![$($A,)*])
         }
-        fn from_enum(e: SesameTypeEnum<DYN, PDYN>) -> Result<Self::Out, ()> {
+        fn from_enum(e: SesameTypeEnum<DYN, PDYN>) -> Result<Self, ()> {
             match e {
                 SesameTypeEnum::Vec(v) => {
                     #[allow(non_snake_case)]
                     let ($($A,)*) = v.into_iter().collect_tuple().unwrap();
                     Ok(($($A::from_enum($A)?,)*))
+                },
+                _ => Err(()),
+            }
+        }
+        fn out_from_enum(e: SesameTypeEnum<DYN, PDYN>) -> Result<Self::Out, ()> {
+            match e {
+                SesameTypeEnum::Vec(v) => {
+                    #[allow(non_snake_case)]
+                    let ($($A,)*) = v.into_iter().collect_tuple().unwrap();
+                    Ok(($($A::out_from_enum($A)?,)*))
                 },
                 _ => Err(()),
             }
@@ -302,11 +422,20 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
         let t = self.into_inner().unwrap();
         SesameTypeEnum::Vec(vec![t.to_enum()])
     }
-    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self, ()> {
         match e {
             SesameTypeEnum::Vec(mut v) => {
                 let t = v.pop().unwrap();
                 Ok(Mutex::new(T::from_enum(t)?))
+            }
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+        match e {
+            SesameTypeEnum::Vec(mut v) => {
+                let t = v.pop().unwrap();
+                Ok(Mutex::new(T::out_from_enum(t)?))
             }
             _ => Err(()),
         }
@@ -326,11 +455,20 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
         let t = Arc::into_inner(self).unwrap();
         SesameTypeEnum::Vec(vec![t.to_enum()])
     }
-    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+    fn from_enum(e: SesameTypeEnum<A, P>) -> Result<Self, ()> {
         match e {
             SesameTypeEnum::Vec(mut v) => {
                 let t = v.pop().unwrap();
                 Ok(Arc::new(T::from_enum(t)?))
+            }
+            _ => Err(()),
+        }
+    }
+    fn out_from_enum(e: SesameTypeEnum<A, P>) -> Result<Self::Out, ()> {
+        match e {
+            SesameTypeEnum::Vec(mut v) => {
+                let t = v.pop().unwrap();
+                Ok(Arc::new(T::out_from_enum(t)?))
             }
             _ => Err(()),
         }

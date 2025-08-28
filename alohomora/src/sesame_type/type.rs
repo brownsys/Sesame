@@ -14,5 +14,8 @@ pub trait SesameType<T: SesameDyn + ?Sized = dyn Any, P: PolicyDyn + ?Sized = dy
     SesameTypeOut
 {
     fn to_enum(self) -> SesameTypeEnum<T, P>;
-    fn from_enum(e: SesameTypeEnum<T, P>) -> Result<Self::Out, ()>;
+    fn from_enum(e: SesameTypeEnum<T, P>) -> Result<Self, ()>
+    where
+        Self: Sized;
+    fn out_from_enum(e: SesameTypeEnum<T, P>) -> Result<Self::Out, ()>;
 }

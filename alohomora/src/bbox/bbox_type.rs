@@ -280,6 +280,18 @@ impl<T, P: Specializable> BBox<T, P> {
         }
     }
 }
+
+// Downcast data if the data is Any.
+impl<P: Policy> BBox<Box<dyn Any>, P> {
+    pub fn downcast_data<T: Any>(self) -> Result<BBox<T, P>, Self> {
+        let (t, p) = self.consume();
+        match t.downcast() {
+            Ok(t) => Ok(BBox::new(*t, p)),
+            Err(t) => Err(BBox::new(t, p)),
+        }
+    }
+}
+
 impl<T> Debug for BBox<T, SpecializationEnum> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.policy().fmt(f)
