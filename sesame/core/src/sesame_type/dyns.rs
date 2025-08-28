@@ -24,7 +24,7 @@ mod private1 {
     pub trait Sealed {}
     impl<T: Any + Serialize> Sealed for T {}
 }
-pub trait AnySerialize: Any + Serialize + private1::Sealed {
+pub trait AnySerialize: Any + Serialize + Send + private1::Sealed {
     // These upcasts would be unneeded with trait object upcasting but we are not using a new
     // enough Rust version :(
     fn upcast_any(&self) -> &dyn Any;
@@ -32,7 +32,7 @@ pub trait AnySerialize: Any + Serialize + private1::Sealed {
     fn upcast_serialize(&self) -> &dyn Serialize;
     fn upcast_serialize_box(self: Box<Self>) -> Box<dyn Serialize>;
 }
-impl<T: Any + Serialize> AnySerialize for T {
+impl<T: Any + Serialize + Send> AnySerialize for T {
     fn upcast_any(&self) -> &dyn Any {
         self
     }
@@ -55,7 +55,7 @@ impl SesameDyn for dyn AnySerialize {
     }
 }
 
-impl<T: Any + Serialize> SesameDynRelation<T> for dyn AnySerialize {
+impl<T: Any + Serialize + Send> SesameDynRelation<T> for dyn AnySerialize {
     fn boxed_dyn(t: T) -> Box<dyn AnySerialize> {
         Box::new(t)
     }
