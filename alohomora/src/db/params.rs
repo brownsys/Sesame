@@ -6,7 +6,7 @@ use crate::db::BBoxParam;
 use crate::policy::{AnyPolicyClone, Policy, Reason};
 
 // Our params could be mixed boxed and clear.
-//#[derive(Clone)]
+#[derive(Clone)]
 pub enum BBoxParams {
     Empty,
     // Named(HashMap<String, Value>),
