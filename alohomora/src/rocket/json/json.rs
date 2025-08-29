@@ -81,6 +81,18 @@ macro_rules! impl_base_types {
                 OutputBBoxValue::Value(serde_json::to_value(self).unwrap())
             }
         }
+        impl RequestBBoxJson for $T {
+            fn from_json(
+                value: InputBBoxValue,
+                _request: BBoxRequest<'_, '_>,
+            ) -> Result<Self, &'static str> {
+                let value = value.value;
+                match serde_json::from_value(value) {
+                    Err(_) => Err("Bad JSON"),
+                    Ok(value) => Ok(value),
+                }
+            }
+        }
     };
 }
 impl_base_types!(String);

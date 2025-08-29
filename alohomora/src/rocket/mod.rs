@@ -1,5 +1,5 @@
+mod bad_impls;
 mod cookie;
-
 mod cors;
 mod data;
 mod form;
