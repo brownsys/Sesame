@@ -1,8 +1,9 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
 use crate::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy};
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::fmt::{Debug, Formatter};
+use serde::ser::SerializeStruct;
 
 // NoPolicy can be directly discarded.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize)]
@@ -63,5 +64,18 @@ impl<T: Debug> Debug for BBox<T, NoPolicy> {
 impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data()
+    }
+}
+
+
+impl<T: Serialize> Serialize for BBox<T, NoPolicy> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut bbox_ser = serializer.serialize_struct("BBox", 2)?;
+        bbox_ser.serialize_field("fb", self.data())?;
+        bbox_ser.serialize_field("p", self.policy())?;
+        bbox_ser.end()
     }
 }
