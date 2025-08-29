@@ -43,7 +43,7 @@ impl<P: SimplePolicy> Policy for P {
 }
 
 // Schema policies can be constructed from DB rows.
-pub trait SchemaPolicy: Policy {
+pub trait SchemaPolicy: Policy + Clone + Any {
     fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
     where
         Self: Sized;

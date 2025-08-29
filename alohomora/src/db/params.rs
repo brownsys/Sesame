@@ -3,14 +3,14 @@ use mysql::MySqlError;
 use crate::bbox::EitherBBox;
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::db::BBoxParam;
-use crate::policy::{AnyPolicy, Policy, Reason};
+use crate::policy::{AnyPolicyClone, Policy, Reason};
 
 // Our params could be mixed boxed and clear.
 //#[derive(Clone)]
 pub enum BBoxParams {
     Empty,
     // Named(HashMap<String, Value>),
-    Positional(Vec<EitherBBox<mysql::Value, AnyPolicy>>),
+    Positional(Vec<EitherBBox<mysql::Value, AnyPolicyClone>>),
 }
 
 // private helper function.
@@ -192,12 +192,12 @@ mod tests {
     use crate::bbox::{BBox, EitherBBox};
     use crate::context::Context;
     use crate::db::BBoxParams;
-    use crate::policy::{AnyPolicy, NoPolicy, Reason};
+    use crate::policy::{AnyPolicy, AnyPolicyClone, NoPolicy, Reason};
     use mysql::prelude::FromValue;
     use mysql::Params;
     use std::boxed::Box;
 
-    fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicy>, t: T) -> bool {
+    fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicyClone>, t: T) -> bool {
         mysql::from_value::<T>(b.data().clone()) == t
     }
     fn helper2<T: FromValue + Eq>(b: &mysql::Value, t: T) -> bool {
