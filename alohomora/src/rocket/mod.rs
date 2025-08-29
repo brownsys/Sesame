@@ -31,3 +31,6 @@ pub use crate::rocket::template::*;
 pub use alohomora_derive::{
     get, post, route, routes, FromBBoxForm, RequestBBoxJson, ResponseBBoxJson,
 };
+
+pub use ::rocket::request as RocketRequest;
+pub use ::rocket::http::Cookie as RocketCookie;
