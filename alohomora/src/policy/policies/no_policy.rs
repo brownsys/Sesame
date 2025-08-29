@@ -1,12 +1,12 @@
 use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
 use crate::policy::{FrontendPolicy, Policy, Reason, SchemaPolicy};
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Debug, Formatter};
 use serde::ser::SerializeStruct;
 
 // NoPolicy can be directly discarded.
-#[derive(Clone, PartialEq, Eq, Debug, Serialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct NoPolicy {}
 
 impl NoPolicy {
