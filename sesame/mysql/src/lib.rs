@@ -24,3 +24,5 @@ pub use policy::*;
 pub use result::*;
 pub use row::*;
 pub use value::*;
+
+pub use ::mysql::Value;
