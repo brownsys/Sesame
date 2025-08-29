@@ -31,5 +31,5 @@ pub use sesame_derive::{
     get, post, route, routes, FromPConForm, RequestPConJson, ResponsePConJson,
 };
 
-pub use ::rocket::request as RocketRequest;
+pub use ::rocket::request::Request as RocketRequest;
 pub use ::rocket::http::Cookie as RocketCookie;
