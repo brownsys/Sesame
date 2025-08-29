@@ -294,9 +294,12 @@ impl<P: Policy> BBox<Box<dyn Any>, P> {
 }
 
 #[cfg(not(feature = "orm"))]
-impl<T> std::fmt::Debug for BBox<T, SpecializationEnum> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.policy().fmt(f)
+impl<T, P: Policy> std::fmt::Debug for BBox<T, P> {
+    default fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BBox")
+          .field("data", &"<boxed>")
+          .field("policy", &self.p.name())
+          .finish()
     }
 }
 
