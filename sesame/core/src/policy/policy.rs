@@ -42,6 +42,28 @@ impl<P: SimplePolicy> Policy for P {
     }
 }
 
+// Schema policies can be constructed from DB rows.
+pub trait SchemaPolicy: Policy + Clone + Any {
+    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
+    where
+        Self: Sized;
+}
+
+// Front end policy can be constructed from HTTP requests and from cookies.
+pub trait FrontendPolicy: Policy {
+    fn from_request<'a, 'r>(request: &'a rocket::Request<'r>) -> Self
+    where
+        Self: Sized;
+
+    fn from_cookie<'a, 'r>(
+        name: &str,
+        cookie: &'a rocket::http::Cookie<'static>,
+        request: &'a rocket::Request<'r>,
+    ) -> Self
+    where
+        Self: Sized;
+}
+
 #[cfg(test)]
 mod tests {
     use crate::context::UnprotectedContext;
