@@ -4,7 +4,7 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::Poll;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, Serializer};
 
 // Secret to XOR with.
 const SECRET: usize = 2238711266;
@@ -56,6 +56,14 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for ObPtr<T>{
         D: serde::Deserializer<'de> {
         let res = T::deserialize(deserializer)?;
         Ok(ObPtr::new(res))
+    }
+}
+
+// ObPtr can be serialized (it's ok because BBox is not serialize).
+impl<T: Serialize> Serialize for ObPtr<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        let t = self.get();
+        t.serialize(serializer)
     }
 }
 
