@@ -1,5 +1,6 @@
 use crate::application::context::AppContext;
 use crate::application::models::Grade;
+<<<<<<< HEAD:sesame/rocket/tests/application/db.rs
 
 use sesame::pcon::PCon;
 use sesame::policy::AnyPolicyable;
@@ -26,7 +27,7 @@ impl DB {
         }
     }
 
-    pub fn read_by_user<P: AnyPolicyable>(
+    pub fn read_by_user<P: AnyPolicyCloneDyn>(
         &mut self,
         user: PCon<String, P>,
         context: AppContext,
@@ -66,7 +67,7 @@ impl DB {
         result.collect()
     }
 
-    pub fn insert<P1: AnyPolicyable, P2: AnyPolicyable>(
+    pub fn insert<P1: AnyPolicyCloneDyn, P2: AnyPolicyCloneDyn>(
         &mut self,
         user: PCon<String, P1>,
         grade: PCon<u64, P2>,
