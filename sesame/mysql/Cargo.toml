@@ -1,0 +1,23 @@
+[package]
+name = "sesame_mysql"
+version = "0.1.0"
+authors = ["Kinan Dak Albab <kinan_dak_albab@alumni.brown.edu>"]
+edition = "2018"
+
+[lib]
+name = "sesame_mysql"
+path = "src/lib.rs"
+
+[dependencies]
+sesame = { path = "../core" }
+alohomora_derive = { path = "../../alohomora_derive", optional = true }
+lazy_static = "1.4.0"
+mysql = "21.0.2"
+small_ctor = "0.1.2"
+
+[features]
+default = ["derive"]
+derive = ["alohomora_derive"]
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

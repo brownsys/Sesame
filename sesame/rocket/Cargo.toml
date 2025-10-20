@@ -1,0 +1,48 @@
+[package]
+name = "sesame_rocket"
+version = "0.1.0"
+authors = ["Kinan Dak Albab <kinan_dak_albab@alumni.brown.edu>"]
+edition = "2018"
+
+[lib]
+name = "sesame_rocket"
+path = "src/lib.rs"
+
+[dependencies]
+alohomora_derive = { path = "../../alohomora_derive", optional = true }
+cookie = { version = "0.15", features = ["percent-encode"] }
+chrono = "^0.4"
+futures = "0.3.17"
+sesame = { path = "../core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main", features= ["json"] }
+rocket_cors = { git = "https://github.com/KinanBab/rocket_cors.git", branch = "main" }
+rocket_firebase_auth = { git = "https://github.com/22ridley/rocket-firebase-auth.git" }
+figment = "0.10.6"
+erased-serde = "0.3.25"
+dynfmt = { version = "0.1.5", features = ["curly"] }
+time = { version = "0.2.11", default-features = false, features = ["std"] }
+indexmap = "1.7.0"
+sea-orm-rocket = { git = "https://github.com/KinanBab/sea-orm.git", branch = "main", optional = true }
+
+[dev-dependencies]
+sesame_mysql = { path = "../mysql" }
+mysql = "21.0.2"
+
+[dependencies.rocket_dyn_templates]
+git = "https://github.com/KinanBab/Rocket.git"
+branch = "main"
+features = ["handlebars", "tera"]
+
+[dependencies.handlebars]
+version = "3.5.5"
+features = ["dir_source"]
+
+[features]
+default = ["derive"]
+derive = ["alohomora_derive"]
+orm = ["sea-orm-rocket"]
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

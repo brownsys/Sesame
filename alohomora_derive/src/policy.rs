@@ -97,9 +97,9 @@ pub fn schema_policy_impl(args: SchemaPolicyArgs, input: ItemStruct) -> TokenStr
     let func_name = Ident::new(&fname, proc_macro2::Span::call_site());
 
     quote! {
-      #[::alohomora::policy::register]
+      #[::sesame_mysql::register]
       unsafe fn #func_name() {
-          ::alohomora::policy::add_schema_policy::<#name>(::std::string::String::from(#table), #column);
+          ::sesame_mysql::add_schema_policy::<#name>(::std::string::String::from(#table), #column);
       }
     }
 }
