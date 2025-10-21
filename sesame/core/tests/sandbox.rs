@@ -1,11 +1,11 @@
-extern crate sesame;
 extern crate sandbox_test_lib;
+extern crate sesame;
 
 use sesame::bbox::BBox;
 use sesame::policy::{AnyPolicyDyn, NoPolicy};
 use sesame::sandbox::execute_sandbox;
 
-use sandbox_test_lib::{Numbers, NumbersFast, add_numbers, div_numbers, mult_numbers};
+use sandbox_test_lib::{add_numbers, div_numbers, mult_numbers, Numbers, NumbersFast};
 
 #[test]
 fn sandbox_test() {

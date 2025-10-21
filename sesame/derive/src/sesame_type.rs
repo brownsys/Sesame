@@ -444,10 +444,7 @@ pub fn derive_sesame_type_impl(input: DeriveInput) -> Result<TokenStream, Error>
         .iter()
         .map(|(_, string, _)| string.clone())
         .collect();
-    let sesame_fields_types: Vec<_> = sesame_fields
-        .iter()
-        .map(|(_, _, ty)| ty.clone())
-        .collect();
+    let sesame_fields_types: Vec<_> = sesame_fields.iter().map(|(_, _, ty)| ty.clone()).collect();
 
     let verbatim_fields_idents: Vec<_> = verbatium_fields
         .iter()

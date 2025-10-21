@@ -2,9 +2,9 @@ use sesame::context::UnprotectedContext;
 use sesame::policy::{Reason, SimplePolicy};
 use sesame::testing::TestPolicy;
 use sesame_derive::FromBBoxForm;
-use sesame_rocket::test_route;
 use sesame_rocket::policy::FrontendPolicy;
 use sesame_rocket::rocket::{BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxRocket};
+use sesame_rocket::test_route;
 use sesame_rocket::testing::BBoxClient;
 
 use rocket::http::{ContentType, Cookie, Status};

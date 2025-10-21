@@ -9,11 +9,11 @@ use crate::SesameType;
 
 // Expose sesame_sandbox API that controls the interface outside sandbox.
 pub use sesame_sandbox::{
-    SesameSandbox, FastTransfer, IdentityFastTransfer, SandboxOut, SandboxableType, SandboxInstance
+    FastTransfer, IdentityFastTransfer, SandboxInstance, SandboxOut, SandboxableType, SesameSandbox,
 };
 
 #[cfg(feature = "derive")]
-pub use sesame_derive::{SesameSandbox, FastTransfer};
+pub use sesame_derive::{FastTransfer, SesameSandbox};
 
 /// Copies `t` into a sandbox and executes the specified function on it,
 /// and copies the result value and returns it.

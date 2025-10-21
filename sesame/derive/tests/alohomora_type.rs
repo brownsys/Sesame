@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
 use sesame::bbox::BBox;
 use sesame::context::UnprotectedContext;
 use sesame::fold::fold;
 use sesame::policy::{AnyPolicy, AnyPolicyClone, NoPolicy, Policy, Reason, SimplePolicy};
 use sesame::testing::TestPolicy;
 use sesame::{SesameType, SesameTypeEnum, SesameTypeOut};
-use serde::Serialize;
 
 // The struct is its own out type.
 #[derive(SesameType, Clone, PartialEq, Debug, Serialize)]

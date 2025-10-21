@@ -51,7 +51,8 @@ struct ContextData {
 // Notice that we need to include *BBoxForm<Simple>* (or BBoxJson<Simple>) in
 // the trait generics, and NOT just Simple.
 #[rocket::async_trait]
-impl<'a, 'r> sesame_rocket::rocket::FromBBoxRequestAndData<'a, 'r, sesame_rocket::rocket::BBoxJson<Simple>>
+impl<'a, 'r>
+    sesame_rocket::rocket::FromBBoxRequestAndData<'a, 'r, sesame_rocket::rocket::BBoxJson<Simple>>
     for ContextData
 {
     type BBoxError = ();
@@ -87,14 +88,8 @@ fn my_route(
         },
         f3: sesame::bbox::BBox::new(55, NoPolicy {}),
         f4: HashMap::from([
-            (
-                String::from("k1"),
-                sesame::bbox::BBox::new(11, NoPolicy {}),
-            ),
-            (
-                String::from("k2"),
-                sesame::bbox::BBox::new(12, NoPolicy {}),
-            ),
+            (String::from("k1"), sesame::bbox::BBox::new(11, NoPolicy {})),
+            (String::from("k2"), sesame::bbox::BBox::new(12, NoPolicy {})),
         ]),
         f5: None,
     };

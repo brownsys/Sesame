@@ -1,11 +1,11 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::SandboxInstance;
 
-mod primitives;
-mod vec;
-mod tuples;
 mod r#box;
+mod primitives;
 mod string;
+mod tuples;
+mod vec;
 
 /// Trait for directly copying to and from sandboxed memory without the need for serialization.
 /// This is typically significantly faster.
@@ -36,4 +36,4 @@ pub trait FastTransfer {
 /// do not require swizzling or unswizzling, because they have identical memory layout
 /// in both architectures and contain no pointers.
 /// Be careful when implementing this for T where *alignment* might be different.
-pub trait IdentityFastTransfer : Clone {}
+pub trait IdentityFastTransfer: Clone {}

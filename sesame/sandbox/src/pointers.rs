@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use crate::SandboxInstance;
+use std::marker::PhantomData;
 
 // Rely on rlbox implementation for pointer swizzling/unswizzling.
 // Essentially, these implementation subtract the start address of the sandbox memory from the
@@ -32,11 +32,14 @@ impl<T> ApplicationPtr<T> {
 #[repr(transparent)]
 pub struct SandboxPtr<T> {
     ptr: u32,
-    data: PhantomData<T>
+    data: PhantomData<T>,
 }
 impl<T> SandboxPtr<T> {
     pub fn new(ptr: u32) -> Self {
-        Self { ptr, data: PhantomData }
+        Self {
+            ptr,
+            data: PhantomData,
+        }
     }
     pub fn addr(&self) -> u32 {
         self.ptr

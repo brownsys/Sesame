@@ -1,5 +1,5 @@
-use std::ops::Deref;
 use crate::{FastTransfer, SandboxInstance};
+use std::ops::Deref;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::pointers::{ApplicationPtr, SandboxPtr};

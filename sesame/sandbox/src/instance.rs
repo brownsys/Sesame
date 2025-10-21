@@ -28,7 +28,10 @@ impl SandboxInstance {
 }
 #[cfg(not(target_arch = "wasm32"))]
 unsafe impl std::alloc::Allocator for SandboxInstance {
-    fn allocate(&self, layout: std::alloc::Layout) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
+    fn allocate(
+        &self,
+        layout: std::alloc::Layout,
+    ) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
         // Allocate memory in sandbox.
         let raw_ptr = unsafe { alloc_mem_in_sandbox(layout.size(), self.sandbox_index) };
 
@@ -44,6 +47,8 @@ unsafe impl std::alloc::Allocator for SandboxInstance {
 
     unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, _layout: std::alloc::Layout) {
         // Free in sandbox memory.
-        unsafe { free_mem_in_sandbox(ptr.as_ptr() as *mut std::ffi::c_void, self.sandbox_index); }
+        unsafe {
+            free_mem_in_sandbox(ptr.as_ptr() as *mut std::ffi::c_void, self.sandbox_index);
+        }
     }
 }

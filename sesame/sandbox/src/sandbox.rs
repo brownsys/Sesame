@@ -3,8 +3,8 @@ use std::time::Instant;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::SandboxInstance;
-use crate::SandboxableType;
 use crate::SandboxOut;
+use crate::SandboxableType;
 
 /// Trait that sandboxed functions should implement.
 /// Do not implement directly, instead decorate the sandbox fn with #[sesame_derive::SesameSandbox()].

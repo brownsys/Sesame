@@ -8,7 +8,6 @@ use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{parse_macro_input, DeriveInput, Expr, ItemFn, ItemStruct};
 
-mod sesame_type;
 mod form;
 mod json;
 mod no_fold_in;
@@ -16,6 +15,7 @@ mod policy;
 mod render;
 mod route;
 mod sandbox;
+mod sesame_type;
 
 #[proc_macro_derive(BBoxRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {

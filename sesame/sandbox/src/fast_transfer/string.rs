@@ -14,7 +14,9 @@ impl FastTransfer for String {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn into_sandbox(outside: Self, sandbox: SandboxInstance) -> Self::TypeInSandbox {
-        SandboxedString { vec: FastTransfer::into_sandbox(outside.into_bytes(), sandbox) }
+        SandboxedString {
+            vec: FastTransfer::into_sandbox(outside.into_bytes(), sandbox),
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

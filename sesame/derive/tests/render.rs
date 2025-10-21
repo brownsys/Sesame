@@ -1,8 +1,8 @@
+use erased_serde::Serialize;
 use sesame::context::Context;
 use sesame::pcr::{PrivacyCriticalRegion, Signature};
 use sesame::policy::{NoPolicy, Policy, RefPolicy};
 use sesame_derive::BBoxRender;
-use erased_serde::Serialize;
 
 type RefBBox<'a> = sesame::bbox::BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 

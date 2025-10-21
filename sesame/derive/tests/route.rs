@@ -100,14 +100,8 @@ async fn my_route(
         },
         f3: sesame::bbox::BBox::new(55, NoPolicy {}),
         f4: HashMap::from([
-            (
-                String::from("k1"),
-                sesame::bbox::BBox::new(11, NoPolicy {}),
-            ),
-            (
-                String::from("k2"),
-                sesame::bbox::BBox::new(12, NoPolicy {}),
-            ),
+            (String::from("k1"), sesame::bbox::BBox::new(11, NoPolicy {})),
+            (String::from("k2"), sesame::bbox::BBox::new(12, NoPolicy {})),
         ]),
     };
 

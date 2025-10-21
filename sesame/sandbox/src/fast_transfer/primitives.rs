@@ -1,6 +1,6 @@
-use std::convert::TryInto;
+use crate::{FastTransfer, IdentityFastTransfer, SandboxInstance};
 use chrono::NaiveDateTime;
-use crate::{IdentityFastTransfer, FastTransfer, SandboxInstance};
+use std::convert::TryInto;
 
 // Implement `FastSandboxTransfer` for primitives that won't change in the sandbox.
 macro_rules! derive_sandboxable_identity {
@@ -23,7 +23,7 @@ macro_rules! derive_sandboxable_identity {
 
         #[doc = "Library implementation of IdentityFastTransfer. Do not copy this docstring!"]
         impl IdentityFastTransfer for $t {}
-    }
+    };
 }
 
 derive_sandboxable_identity!(());
@@ -46,10 +46,14 @@ impl FastTransfer for usize {
     type TypeInSandbox = u32;
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn into_sandbox(outside: Self, _: SandboxInstance) -> u32 { outside.try_into().unwrap() }
+    fn into_sandbox(outside: Self, _: SandboxInstance) -> u32 {
+        outside.try_into().unwrap()
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn out_of_sandbox(inside: &u32, _: SandboxInstance) -> Self { inside.clone().try_into().unwrap() }
+    fn out_of_sandbox(inside: &u32, _: SandboxInstance) -> Self {
+        inside.clone().try_into().unwrap()
+    }
 }
 
 #[doc = "Library implementation of FastTransfer. Do not copy this docstring!"]
@@ -58,8 +62,12 @@ impl FastTransfer for isize {
     type TypeInSandbox = i32;
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn into_sandbox(outside: Self, _: SandboxInstance) -> i32 { outside.try_into().unwrap() }
+    fn into_sandbox(outside: Self, _: SandboxInstance) -> i32 {
+        outside.try_into().unwrap()
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn out_of_sandbox(inside: &i32, _: SandboxInstance) -> Self { inside.clone().try_into().unwrap() }
+    fn out_of_sandbox(inside: &i32, _: SandboxInstance) -> Self {
+        inside.clone().try_into().unwrap()
+    }
 }

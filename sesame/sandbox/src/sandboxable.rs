@@ -1,6 +1,6 @@
-use std::ops::Deref;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::ops::Deref;
 
 use crate::{FastTransfer, SandboxInstance};
 
@@ -53,7 +53,6 @@ pub trait SandboxableType {
     //
 }
 
-
 /// Implement SandboxableType for any type that implements serde's Serialize and DeserializeOwned
 /// by using bincode serialization.
 impl<T: Serialize + DeserializeOwned> SandboxableType for T {
@@ -85,9 +84,7 @@ impl<T: Serialize + DeserializeOwned> SandboxableType for T {
         let ptr = SandboxPtr::new(ptr).swizzle(sandbox).ptr();
 
         // Reconstruct vec from ptr len and capacity.
-        let vec = unsafe {
-            Vec::from_raw_parts_in(ptr, len as usize, cap as usize, sandbox)
-        };
+        let vec = unsafe { Vec::from_raw_parts_in(ptr, len as usize, cap as usize, sandbox) };
         bincode::deserialize(&vec).unwrap()
     }
 

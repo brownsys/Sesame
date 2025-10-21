@@ -28,8 +28,14 @@ impl<R> Debug for SandboxTimingInfo<R> {
         f.write_fmt(format_args!(
             "total: {:?}, function: {:?}, setup: {:?}, teardown: {:?},\
              serialize: {:?}, deserialzie: {:?}, ffi: {:?}, fold: {:?}",
-            self.total, self.function, self.setup, self.teardown,
-            self.serialize, self.deserialize, self.ffi, self.fold,
+            self.total,
+            self.function,
+            self.setup,
+            self.teardown,
+            self.serialize,
+            self.deserialize,
+            self.ffi,
+            self.fold,
         ))
     }
 }
