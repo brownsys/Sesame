@@ -3410,6 +3410,7 @@ dependencies = [
 name = "sesame"
 version = "0.1.0"
 dependencies = [
+ "alohomora_build",
  "async-trait",
  "chrono",
  "dyn-clone",

@@ -23,7 +23,7 @@ const RT_FILES: [&str; 4] = [
     "src/wasm2c_rt_minwasi.c",
 ];
 
-#[derive(Serialize,Clone)]
+#[derive(Serialize, Clone)]
 pub struct RLBoxConfiguration {
     pub root: String,
     pub include: Vec<String>,

@@ -7,12 +7,12 @@ build = "build.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-sesame_derive = { path = "../../derive" }
-sesame_sandbox = { path = "../../sandbox" } #, features = ["sandbox_timing"] }
+sesame_derive = { path = "../../sesame/derive" }
+sesame_sandbox = { path = "../../sesame/sandbox" } #, features = ["sandbox_timing"] }
 
 [build-dependencies]
 #bindgen = "0.69.1"
-alohomora_build = { path = "../../../alohomora_build" }
+alohomora_build = { path = "../../alohomora_build" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
