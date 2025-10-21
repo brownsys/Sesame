@@ -14,6 +14,7 @@ extern crate alohomora_sandbox;
 // Export these
 pub mod bbox;
 pub mod context;
+pub mod error;
 pub mod extensions;
 pub mod fold;
 pub mod fold_in;

@@ -5,11 +5,13 @@ use std::borrow::Cow;
 use std::ops::Deref;
 use std::result::Result;
 
+use sesame::context::{Context, ContextData};
+use sesame::extensions::ExtensionContext;
 // Our BBox struct.
-use crate::bbox::BBoxRender;
+use crate::error::SesameRenderResult;
+use crate::render::BBoxRender;
 use crate::rocket::request::BBoxRequest;
 use crate::rocket::response::{BBoxResponder, BBoxResponse, BBoxResponseResult};
-use sesame::context::{Context, ContextData, UnprotectedContext};
 
 pub struct BBoxTemplate {
     template: rocket_dyn_templates::Template,
@@ -22,14 +24,14 @@ impl BBoxTemplate {
         name: S,
         params: &T,
         context: Context<D>,
-    ) -> Self {
+    ) -> SesameRenderResult<Self> {
         let name = name.into();
         // First turn context into a figment::value::Value.
-        let context = UnprotectedContext::from(context);
-        let transformed = params.render().transform(name.deref(), &context).unwrap();
+        let context = ExtensionContext::new(context);
+        let transformed = params.render().transform(name.deref(), &context)?;
         // Now render.
         let template = rocket_dyn_templates::Template::render(name, transformed);
-        BBoxTemplate { template }
+        Ok(BBoxTemplate { template })
     }
 }
 

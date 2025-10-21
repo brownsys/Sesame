@@ -1,13 +1,37 @@
-use mysql::MySqlError;
 // BBox
 use sesame::bbox::EitherBBox;
-use sesame::context::{Context, ContextData, UnprotectedContext};
-use sesame::policy::{AnyPolicy, Policy, Reason};
+use sesame::context::{Context, ContextData};
+use sesame::error::SesameError;
+use sesame::extensions::{
+    ExtensionContext, SesameExtension, SesameRefExtension, UncheckedSesameExtension,
+};
+use sesame::policy::{AnyPolicy, Reason};
 
 use crate::BBoxParam;
 
+// Use Sesame Extension to execute policy check on BBoxed parameters
+// and retrieve the data when policy check is successful for writing to the DB.
+struct PolicyCheck {
+    vec: Vec<mysql::Value>,
+}
+impl PolicyCheck {
+    pub fn new() -> PolicyCheck {
+        PolicyCheck { vec: Vec::new() }
+    }
+    pub fn push(&mut self, value: mysql::Value) {
+        self.vec.push(value);
+    }
+    pub fn into_params(self) -> mysql::params::Params {
+        mysql::params::Params::Positional(self.vec)
+    }
+}
+impl SesameExtension<mysql::Value, AnyPolicy, ()> for PolicyCheck {
+    fn apply(&mut self, data: mysql::Value, _policy: AnyPolicy) {
+        self.vec.push(data)
+    }
+}
+
 // Our params could be mixed boxed and clear.
-//#[derive(Clone)]
 pub enum BBoxParams {
     Empty,
     // Named(HashMap<String, Value>),
@@ -20,28 +44,21 @@ impl BBoxParams {
         self,
         context: Context<D>,
         reason: Reason,
-    ) -> Result<mysql::params::Params, mysql::Error> {
-        let context = UnprotectedContext::from(context);
+    ) -> Result<mysql::params::Params, SesameError> {
         match self {
             BBoxParams::Empty => Ok(mysql::params::Params::Empty),
             BBoxParams::Positional(vec) => {
-                let mut unboxed = Vec::new();
+                let context = ExtensionContext::new(context);
+                let mut ext = PolicyCheck::new();
                 for v in vec.into_iter() {
                     match v {
-                        EitherBBox::Left(v) => unboxed.push(v),
+                        EitherBBox::Left(v) => ext.push(v),
                         EitherBBox::Right(bbox) => {
-                            if !bbox.policy().check(&context, reason.clone()) {
-                                return Err(mysql::Error::from(MySqlError {
-                                    state: String::from(""),
-                                    message: String::from("Failed policy check"),
-                                    code: 0,
-                                }));
-                            }
-                            unboxed.push(bbox.consume().0)
+                            bbox.checked_extension(&mut ext, &context, reason.clone())?;
                         }
                     }
                 }
-                Ok(mysql::params::Params::Positional(unboxed))
+                Ok(ext.into_params())
             }
         }
     }
@@ -49,13 +66,25 @@ impl BBoxParams {
     pub(super) fn to_reason(&self) -> Vec<mysql::Value> {
         match self {
             BBoxParams::Empty => Vec::new(),
-            BBoxParams::Positional(v) => v
-                .into_iter()
-                .map(|either| match either {
-                    EitherBBox::Left(value) => value.clone(),
-                    EitherBBox::Right(bbox) => bbox.data().clone(),
-                })
-                .collect(),
+            BBoxParams::Positional(v) => {
+                struct Converter {}
+                impl UncheckedSesameExtension for Converter {}
+                impl<'a> SesameRefExtension<'a, mysql::Value, AnyPolicy, mysql::Value> for Converter {
+                    fn apply_ref(
+                        &mut self,
+                        data: &'a mysql::Value,
+                        _policy: &'a AnyPolicy,
+                    ) -> mysql::Value {
+                        data.clone()
+                    }
+                }
+                v.into_iter()
+                    .map(|either| match either {
+                        EitherBBox::Left(value) => value.clone(),
+                        EitherBBox::Right(bbox) => bbox.unchecked_extension_ref(&mut Converter {}),
+                    })
+                    .collect()
+            }
         }
     }
 }
@@ -191,7 +220,7 @@ into_params_impl!(
 #[cfg(test)]
 mod tests {
     use crate::BBoxParams;
-    use mysql::prelude::FromValue;
+    use mysql::prelude::{FromValue, ToValue};
     use mysql::Params;
     use sesame::bbox::{BBox, EitherBBox};
     use sesame::context::Context;
@@ -199,7 +228,13 @@ mod tests {
     use std::boxed::Box;
 
     fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicy>, t: T) -> bool {
-        mysql::from_value::<T>(b.data().clone()) == t
+        let v = b
+            .as_ref()
+            .specialize_policy_ref::<NoPolicy>()
+            .unwrap()
+            .discard_box()
+            .to_value();
+        mysql::from_value::<T>(v) == t
     }
     fn helper2<T: FromValue + Eq>(b: &mysql::Value, t: T) -> bool {
         mysql::from_value::<T>(b.clone()) == t
@@ -223,11 +258,9 @@ mod tests {
         }
 
         // Test unboxing.
-        let params = params
-            .transform(Context::test(()), Reason::Custom(&Box::new(())))
-            .unwrap();
-        assert!(matches!(&params, Params::Positional(v) if v.len() == 4));
-        if let Params::Positional(vec) = &params {
+        let params = params.transform(Context::test(()), Reason::Custom(&Box::new(())));
+        assert!(matches!(&params, Ok(Params::Positional(v)) if v.len() == 4));
+        if let Ok(Params::Positional(vec)) = &params {
             assert_eq!(mysql::from_value::<String>(vec[0].clone()), "kinan");
             assert_eq!(mysql::from_value::<i32>(vec[1].clone()), 10i32);
             assert_eq!(mysql::from_value::<i32>(vec[2].clone()), 100i32);

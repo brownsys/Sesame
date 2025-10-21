@@ -195,5 +195,5 @@ fn test_get_failed_policy() {
     assert!(response.cookies().get("bad").is_none());
 
     // Check response fails.
-    assert_eq!(response.status(), Status::new(555));
+    assert_eq!(response.status(), Status::new(491));
 }

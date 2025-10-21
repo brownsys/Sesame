@@ -3403,6 +3403,7 @@ version = "0.1.0"
 dependencies = [
  "alohomora_derive",
  "alohomora_sandbox",
+ "async-trait",
  "chrono",
  "dyn-clone",
  "either",
@@ -3440,6 +3441,7 @@ name = "sesame_rocket"
 version = "0.1.0"
 dependencies = [
  "alohomora_derive",
+ "async-trait",
  "chrono",
  "cookie",
  "dynfmt",
@@ -3458,6 +3460,7 @@ dependencies = [
  "serde_json",
  "sesame",
  "sesame_mysql",
+ "sesame_rocket",
  "time 0.2.27",
 ]
 

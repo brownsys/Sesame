@@ -49,18 +49,22 @@ impl<T, P: Policy> BBox<T, P> {
     }
 
     // Consumes the bboxes extracting data and policy (private usable only in crate).
-    // TODO(babman)-exts: remember to make this and data() private after.
-    pub fn consume(self) -> (T, P) {
+    pub(crate) fn consume(self) -> (T, P) {
         (self.fb.mov(), self.p)
     }
-    // TODO(babman)-exts: remember to make this and data() private after.
-    pub fn data(&self) -> &T {
+    pub(crate) fn data(&self) -> &T {
         self.fb.get()
     }
 
     // Into a reference.
     pub fn as_ref(&self) -> BBox<&T, RefPolicy<P>> {
         BBox::new(self.fb.get(), RefPolicy::new(&self.p))
+    }
+    pub fn as_ref_bbox<F: ?Sized>(&self) -> BBox<&F, RefPolicy<P>>
+    where
+        T: AsRef<F>,
+    {
+        BBox::new(self.fb.get().as_ref(), RefPolicy::new(&self.p))
     }
 
     // Into and from but without the traits (to avoid specialization issues).

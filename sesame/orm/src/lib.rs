@@ -1,7 +1,6 @@
 extern crate sea_orm;
 extern crate sesame;
 
-mod bbox;
 mod database;
 mod extension;
 mod policy;

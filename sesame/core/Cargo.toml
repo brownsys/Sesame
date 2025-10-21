@@ -15,6 +15,7 @@ name = "sesame"
 path = "src/lib.rs"
 
 [dependencies]
+async-trait = { version = "0.1.79" }
 pin-project-lite = "0.2.14"
 alohomora_derive = { path = "../../alohomora_derive", optional = true }
 alohomora_sandbox = { path = "../../alohomora_sandbox" }

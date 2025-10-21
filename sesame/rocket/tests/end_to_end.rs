@@ -151,12 +151,12 @@ fn test_end_to_end_application() {
 
     // Cannot view all grades as Kinan, cannot post grades.
     let response = client.get("/all").dispatch();
-    assert_eq!(response.status(), Status::new(500));
+    assert_eq!(response.status(), Status::new(491));
 
     let response = client
         .post("/submit")
         .header(ContentType::Form)
         .body("0=kinan&1=100")
         .dispatch();
-    assert_eq!(response.status(), Status::new(500));
+    assert_eq!(response.status(), Status::new(491));
 }

@@ -9,11 +9,13 @@ name = "sesame_rocket"
 path = "src/lib.rs"
 
 [dependencies]
+async-trait = { version = "0.1.79" }
 alohomora_derive = { path = "../../alohomora_derive", optional = true }
 cookie = { version = "0.15", features = ["percent-encode"] }
 chrono = "^0.4"
 futures = "0.3.17"
 sesame = { path = "../core" }
+sesame_mysql = { path = "../mysql", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main", features= ["json"] }
@@ -27,7 +29,7 @@ indexmap = "1.7.0"
 sea-orm-rocket = { git = "https://github.com/KinanBab/sea-orm.git", branch = "main", optional = true }
 
 [dev-dependencies]
-sesame_mysql = { path = "../mysql" }
+sesame_rocket = { path = ".", features = ["derive", "mysql"]}
 mysql = "21.0.2"
 
 [dependencies.rocket_dyn_templates]
@@ -43,6 +45,7 @@ features = ["dir_source"]
 default = ["derive"]
 derive = ["alohomora_derive"]
 orm = ["sea-orm-rocket"]
+mysql = ["sesame_mysql"]
 
 [patch.crates-io]
 funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

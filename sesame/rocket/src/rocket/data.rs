@@ -1,12 +1,12 @@
-use std::fmt::Debug;
-
 use rocket::data::Capped;
+use std::fmt::Debug;
 
 use crate::policy::FrontendPolicy;
 use crate::rocket::form::{BBoxForm, FromBBoxForm};
 use crate::rocket::request::BBoxRequest;
 use crate::rocket::{BBoxDataField, BBoxValueField};
 use sesame::bbox::BBox;
+use sesame::extensions::{AsyncSesameExtension, UncheckedSesameExtension};
 use sesame::policy::Policy;
 
 // For multipart encoded bodies.
@@ -101,10 +101,29 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxData<'a, 'r> for BBoxForm<T> {
     }
 }
 
-// TODO(babman)-exts: turn this to an extension
 pub async fn into_bytes<'a, P: Policy>(
     bbox: BBox<rocket::data::DataStream<'a>, P>,
 ) -> std::io::Result<BBox<Capped<Vec<u8>>, P>> {
-    let (t, p) = bbox.consume();
-    Ok(BBox::new(t.into_bytes().await?, p))
+    struct Converter {}
+    impl UncheckedSesameExtension for Converter {}
+    #[async_trait::async_trait]
+    impl<'a, P: Policy>
+        AsyncSesameExtension<
+            rocket::data::DataStream<'a>,
+            P,
+            std::io::Result<BBox<Capped<Vec<u8>>, P>>,
+        > for Converter
+    {
+        async fn async_apply(
+            &mut self,
+            data: rocket::data::DataStream<'a>,
+            policy: P,
+        ) -> std::io::Result<BBox<Capped<Vec<u8>>, P>>
+        where
+            P: 'async_trait,
+        {
+            Ok(BBox::new(data.into_bytes().await?, policy))
+        }
+    }
+    bbox.unchecked_async_extension(&mut Converter {}).await
 }

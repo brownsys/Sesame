@@ -19,20 +19,27 @@ impl BBoxRow {
         let raw = row.clone().unwrap();
         BBoxRow { row, raw }
     }
+
     pub fn get<T: BBoxFromValue, I: BBoxColumnIndex>(
         &self,
         index: I,
     ) -> Option<BBox<T, AnyPolicy>> {
         let columns = self.row.columns_ref();
-        let idx = index.idx(columns);
-        match self.row.get(index) {
-            Option::None => Option::None,
-            Option::Some(t) => {
-                let idx = idx.unwrap();
-                let table = columns[idx].table_str().into_owned();
-                Option::Some(BBox::new(t, get_schema_policies(table, idx, &self.raw)))
-            }
-        }
+        let idx = index.idx(columns)?;
+        let table = columns[idx].table_str().into_owned();
+        let val = self.row.get(index)?;
+        Some(BBox::new(val, get_schema_policies(table, idx, &self.raw)))
+    }
+
+    pub fn take<T: BBoxFromValue, I: BBoxColumnIndex>(
+        &mut self,
+        index: I,
+    ) -> Option<BBox<T, AnyPolicy>> {
+        let columns = self.row.columns_ref();
+        let idx = index.idx(columns)?;
+        let table = columns[idx].table_str().into_owned();
+        let val = self.row.take(index)?;
+        Some(BBox::new(val, get_schema_policies(table, idx, &self.raw)))
     }
 
     pub fn unwrap(self) -> Vec<BBoxValue> {

@@ -43,10 +43,10 @@ pub async fn post_grade<'a, 'r>(
     let db: &State<Arc<Mutex<DB>>> = request.guard().await.unwrap();
     let mut db = db.lock().unwrap();
     let result = db.insert(user, grade, context);
+    let result = result.map(|_| "success");
     drop(db);
 
-    result.unwrap();
-    BBoxResponseOutcome::from(request, "success")
+    BBoxResponseOutcome::from(request, result)
 }
 
 // Read a grade: for the signed in user.

@@ -1,12 +1,14 @@
-use std::result::Result;
-
-use sesame::bbox::BBox;
-use sesame::context::{Context, ContextData, UnprotectedContext};
-use sesame::policy::{Policy, Reason};
-
 use crate::rocket::data::BBoxData;
 use crate::rocket::request::BBoxRequest;
 use crate::rocket::{BBoxRedirect, BBoxTemplate};
+use rocket::http::ContentType;
+use rocket::Either;
+use sesame::bbox::BBox;
+use sesame::context::{Context, ContextData};
+use sesame::extensions::{ExtensionContext, SesameExtension};
+use sesame::policy::{Policy, Reason};
+use std::fs::File;
+use std::result::Result;
 
 // Our wrapper around response, disallows applications from looking at response
 // in plain text.
@@ -42,38 +44,85 @@ impl<'a, 'r, 'o: 'r> BBoxResponseOutcome<'a> {
 
 // A trait that signifies that implementors can be turned into a response.
 pub type BBoxResponseResult<'a> = Result<BBoxResponse<'a>, rocket::http::Status>;
-pub trait BBoxResponder<'a, 'r, 'o: 'a> {
+
+pub trait BBoxResponder<'a, 'r, 'o: 'r> {
     fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o>;
 }
 
 // Endpoints can return T: Responder, in case response is some non-protected data (e.g. a hardcoded
 // string).
-impl<'a, 'r, 'o: 'a, T: rocket::response::Responder<'a, 'o>> BBoxResponder<'a, 'r, 'o> for T {
+macro_rules! bbox_responder_impl {
+    ($T: ty) => {
+        impl<'a, 'r, 'o: 'r> BBoxResponder<'a, 'r, 'o> for $T {
+            fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+                Ok(BBoxResponse::new(rocket::response::Responder::respond_to(
+                    self,
+                    request.get_request(),
+                )?))
+            }
+        }
+    };
+}
+bbox_responder_impl!(());
+bbox_responder_impl!(String);
+bbox_responder_impl!(&'o str);
+bbox_responder_impl!(&'o [u8]);
+bbox_responder_impl!(Vec<u8>);
+bbox_responder_impl!(File);
+bbox_responder_impl!(std::io::Error);
+
+// Implement BBoxResponder for some containers.
+impl<'a, 'r, 'o: 'r, T: BBoxResponder<'a, 'r, 'o>> BBoxResponder<'a, 'r, 'o> for (ContentType, T) {
     fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
-        Ok(BBoxResponse::new(self.respond_to(request.get_request())?))
+        let (content_type, responder) = self;
+        let response = rocket::response::Response::build()
+            .merge(responder.respond_to(request)?.response)
+            .header(content_type)
+            .ok();
+        response.map(BBoxResponse::new)
     }
 }
-
-// Endpoints can return (BBox<T: Responder, Policy>, Context) which Alohomora eventually turns into
-// T after a policy check.
-pub struct ContextResponse<T, P: Policy, D: ContextData>(pub BBox<T, P>, pub Context<D>);
-impl<T, P: Policy, D: ContextData> From<(BBox<T, P>, Context<D>)> for ContextResponse<T, P, D> {
-    fn from((bbox, context): (BBox<T, P>, Context<D>)) -> Self {
-        Self(bbox, context)
-    }
-}
-
-impl<'a, 'r, 'o: 'a, T: rocket::response::Responder<'a, 'o>, P: Policy, D: ContextData>
-    BBoxResponder<'a, 'r, 'o> for ContextResponse<T, P, D>
+impl<'a, 'r, 'o: 'r, T: BBoxResponder<'a, 'r, 'o>> BBoxResponder<'a, 'r, 'o>
+    for (rocket::http::Status, T)
 {
     fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
-        let (bbox, context) = (self.0, self.1);
-        let (t, p) = bbox.consume();
-        let context = UnprotectedContext::from(context);
-        if p.check(&context, Reason::Response) {
-            Ok(BBoxResponse::new(t.respond_to(request.get_request())?))
-        } else {
-            Err(rocket::http::Status { code: 555 })
+        let (status, responder) = self;
+        let response = responder.respond_to(request)?.response;
+        let response = rocket::response::Response::build_from(response)
+            .status(status)
+            .ok();
+        response.map(BBoxResponse::new)
+    }
+}
+impl<'a, 'r, 'o: 'r, T1: BBoxResponder<'a, 'r, 'o>, T2: BBoxResponder<'a, 'r, 'o>>
+    BBoxResponder<'a, 'r, 'o> for Either<T1, T2>
+{
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+        match self {
+            Either::Left(left) => left.respond_to(request),
+            Either::Right(right) => right.respond_to(request),
+        }
+    }
+}
+impl<'a, 'r, 'o: 'r, T: BBoxResponder<'a, 'r, 'o>> BBoxResponder<'a, 'r, 'o> for Option<T> {
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+        match self {
+            Some(t) => t.respond_to(request),
+            None => {
+                let request = request.get_request();
+                let response = rocket::response::Responder::respond_to(None::<()>, request)?;
+                Ok(BBoxResponse::new(response))
+            }
+        }
+    }
+}
+impl<'a, 'r, 'o: 'r, T: BBoxResponder<'a, 'r, 'o>, E: BBoxResponder<'a, 'r, 'o>>
+    BBoxResponder<'a, 'r, 'o> for Result<T, E>
+{
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+        match self {
+            Ok(t) => t.respond_to(request),
+            Err(t) => t.respond_to(request),
         }
     }
 }
@@ -100,5 +149,44 @@ impl<'a, 'r> BBoxResponder<'a, 'r, 'static> for BBoxResponseEnum {
             BBoxResponseEnum::Redirect(redirect) => redirect.respond_to(request),
             BBoxResponseEnum::Template(template) => template.respond_to(request),
         }
+    }
+}
+
+// Endpoints can return (BBox<T: Responder, Policy>, Context) which Sesame eventually turns into
+// T after a policy check.
+pub struct ContextResponse<T, P: Policy, D: ContextData>(pub BBox<T, P>, pub Context<D>);
+impl<T, P: Policy, D: ContextData> From<(BBox<T, P>, Context<D>)> for ContextResponse<T, P, D> {
+    fn from((bbox, context): (BBox<T, P>, Context<D>)) -> Self {
+        Self(bbox, context)
+    }
+}
+impl<'a, 'r, 'o: 'r, T: BBoxResponder<'a, 'r, 'o>, P: Policy, D: ContextData>
+    BBoxResponder<'a, 'r, 'o> for ContextResponse<T, P, D>
+{
+    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+        let mut extension = ResponsePolicyChecker::new(request);
+        let (bbox, context) = (self.0, self.1);
+        let context = ExtensionContext::new(context);
+        match bbox.checked_extension(&mut extension, &context, Reason::Response) {
+            Ok(response) => response,
+            Err(err) => err.respond_to(request),
+        }
+    }
+}
+
+// Sesame extension that performs policy check then renders template if successful.
+struct ResponsePolicyChecker<'a, 'r> {
+    request: BBoxRequest<'a, 'r>,
+}
+impl<'a, 'r> ResponsePolicyChecker<'a, 'r> {
+    fn new(request: BBoxRequest<'a, 'r>) -> Self {
+        ResponsePolicyChecker { request }
+    }
+}
+impl<'a, 'r, 'o: 'r, T: BBoxResponder<'a, 'r, 'o>, P: Policy>
+    SesameExtension<T, P, BBoxResponseResult<'o>> for ResponsePolicyChecker<'a, 'r>
+{
+    fn apply(&mut self, data: T, _policy: P) -> BBoxResponseResult<'o> {
+        data.respond_to(self.request)
     }
 }

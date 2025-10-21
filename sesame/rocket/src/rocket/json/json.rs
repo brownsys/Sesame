@@ -4,7 +4,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use sesame::bbox::BBox;
-use sesame::policy::AnyPolicyable;
+use sesame::extensions::{SesameExtension, UncheckedSesameExtension};
+use sesame::policy::{AnyPolicy, AnyPolicyable};
 
 use crate::policy::FrontendPolicy;
 use crate::rocket::{BBoxRequest, InputBBoxValue, OutputBBoxValue};
@@ -99,8 +100,15 @@ impl_base_types!(NaiveTime);
 // BBox of anything that is ResponseBBoxJson is also ResponseBBoxJson.
 impl<T: ResponseBBoxJson, P: AnyPolicyable> ResponseBBoxJson for BBox<T, P> {
     fn to_json(self) -> OutputBBoxValue {
-        let (t, p) = self.into_any_policy_no_clone().consume();
-        OutputBBoxValue::BBox(BBox::new(Box::new(t.to_json()), p))
+        struct Converter {}
+        impl UncheckedSesameExtension for Converter {}
+        impl<T: ResponseBBoxJson> SesameExtension<T, AnyPolicy, OutputBBoxValue> for Converter {
+            fn apply(&mut self, data: T, policy: AnyPolicy) -> OutputBBoxValue {
+                OutputBBoxValue::BBox(BBox::new(Box::new(data.to_json()), policy))
+            }
+        }
+        let bbox = self.into_any_policy_no_clone();
+        bbox.unchecked_extension(&mut Converter {})
     }
 }
 

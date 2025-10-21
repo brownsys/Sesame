@@ -131,5 +131,5 @@ fn test_json_failed_policy() {
         .body("{\"id\": 100, \"email\": \"email@email.com\"}")
         .dispatch();
 
-    assert_eq!(response.status(), Status::new(555));
+    assert_eq!(response.status(), Status::new(491));
 }

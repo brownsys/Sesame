@@ -7,9 +7,8 @@ use sesame::{SesameType, SesameTypeEnum};
 // mysql imports.
 use mysql::prelude::Queryable;
 pub use mysql::Opts as BBoxOpts;
-pub use mysql::Result as BBoxResult;
 
-use crate::{BBoxParams, BBoxQueryResult};
+use crate::{BBoxParams, BBoxQueryResult, BBoxResult};
 
 // BBox DB connection
 pub struct BBoxConn {
@@ -50,7 +49,7 @@ impl BBoxConn {
 
     // Text query and drop result.
     pub fn query_drop<T: AsRef<str>>(&mut self, query: T) -> BBoxResult<()> {
-        self.conn.query_drop(query)
+        Ok(self.conn.query_drop(query)?)
     }
 
     // Parameterized query and drop result.
@@ -73,7 +72,7 @@ impl BBoxConn {
             context,
             Reason::DB(&stmt_str, param_values.iter().map(|_| ()).collect()),
         )?;
-        self.conn.exec_drop(statement, params)
+        Ok(self.conn.exec_drop(statement, params)?)
     }
 
     pub fn query_iter<T: AsRef<str>>(

@@ -46,8 +46,7 @@ pub struct UnprotectedContext {
     pub data: Box<dyn Any>,
 }
 impl UnprotectedContext {
-    // TODO(babman)-exts: REMEMBER TO MAKE THIS PRIVATE AFTER
-    pub fn from<D: ContextData>(context: Context<D>) -> Self {
+    pub(crate) fn from<D: ContextData>(context: Context<D>) -> Self {
         Self {
             route: context.route,
             data: match context.data {

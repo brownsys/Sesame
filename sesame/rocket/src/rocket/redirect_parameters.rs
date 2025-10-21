@@ -1,7 +1,11 @@
 use sesame::bbox::{BBox, EitherBBox};
-use sesame::context::{Context, ContextData, UnprotectedContext};
+use sesame::context::{Context, ContextData};
 use sesame::policy::{Policy, Reason, RefPolicy};
 
+use sesame::error::SesameResult;
+use sesame::extensions::{
+    ExtensionContext, SesameExtension, SesameRefExtension, UncheckedSesameExtension,
+};
 use std::string::ToString;
 
 // Lightweight: reference to both data and policy.
@@ -14,7 +18,16 @@ pub trait RedirectParam<'a> {
 
 impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a BBox<T, P> {
     fn get(self) -> RefEitherParam<'a> {
-        EitherBBox::Right(BBox::new(self.data(), RefPolicy::new(self.policy())))
+        struct Converter {}
+        impl UncheckedSesameExtension for Converter {}
+        impl<'a, T: ToString + 'a, P: Policy> SesameRefExtension<'a, T, P, RefEitherParam<'a>>
+            for Converter
+        {
+            fn apply_ref(&mut self, data: &'a T, policy: &'a P) -> RefEitherParam<'a> {
+                EitherBBox::Right(BBox::new(data, RefPolicy::new(policy)))
+            }
+        }
+        self.unchecked_extension_ref(&mut Converter {})
     }
 }
 
@@ -22,9 +35,7 @@ impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a EitherBBox<T, P>
     fn get(self) -> RefEitherParam<'a> {
         match self {
             EitherBBox::Left(t) => EitherBBox::Left(t),
-            EitherBBox::Right(bbox) => {
-                EitherBBox::Right(BBox::new(bbox.data(), RefPolicy::new(bbox.policy())))
-            }
+            EitherBBox::Right(bbox) => bbox.get(),
         }
     }
 }
@@ -53,15 +64,44 @@ pub struct RedirectParams {
 }
 
 pub trait IntoRedirectParams {
-    fn into<D: ContextData>(self, url: &str, context: Context<D>) -> RedirectParams;
+    fn into<D: ContextData>(self, url: &str, context: Context<D>) -> SesameResult<RedirectParams>;
 }
 
 // Can make Params from empty tuple.
 impl IntoRedirectParams for () {
-    fn into<D: ContextData>(self, _url: &str, _context: Context<D>) -> RedirectParams {
-        RedirectParams {
+    fn into<D: ContextData>(
+        self,
+        _url: &str,
+        _context: Context<D>,
+    ) -> SesameResult<RedirectParams> {
+        Ok(RedirectParams {
             parameters: Vec::new(),
+        })
+    }
+}
+
+// Check policy before adding parameter to redirect string.
+struct RedirectPolicyCheck {
+    params: Vec<String>,
+}
+impl RedirectPolicyCheck {
+    pub fn new() -> Self {
+        Self { params: Vec::new() }
+    }
+    pub fn push(&mut self, v: String) {
+        self.params.push(v);
+    }
+    pub fn into_redirect_params(self) -> RedirectParams {
+        RedirectParams {
+            parameters: self.params,
         }
+    }
+}
+impl<'a> SesameExtension<&'a dyn ToString, RefPolicy<'a, dyn Policy + 'a>, ()>
+    for RedirectPolicyCheck
+{
+    fn apply(&mut self, data: &'a dyn ToString, _policy: RefPolicy<'a, dyn Policy + 'a>) -> () {
+        self.params.push(data.to_string());
     }
 }
 
@@ -69,24 +109,19 @@ impl IntoRedirectParams for () {
 macro_rules! into_params_impl {
   ($([$A:ident,$a:ident,$l:lifetime]),*) => (
     impl<$($l,)* $($A: RedirectParam<$l>,)*> IntoRedirectParams for ($($A,)*) {
-      fn into<DD : ContextData>(self, url: &str, context: Context<DD>) -> RedirectParams {
+      fn into<DD : ContextData>(self, url: &str, context: Context<DD>) -> SesameResult<RedirectParams> {
         let ($($a,)*) = self;
-        let context = UnprotectedContext::from(context);
+        let context = ExtensionContext::new(context);
+        let mut ext = RedirectPolicyCheck::new();
 
-        $(let $a = match $a.get() {
-            EitherBBox::Left(v) => v.to_string(),
+        $(match $a.get() {
+            EitherBBox::Left(v) => ext.push(v.to_string()),
             EitherBBox::Right(b) => {
-                if b.policy().check(&context, Reason::Redirect(url)) {
-                    b.data().to_string()
-                } else {
-                    panic!("failed policy check");
-                }
+                b.checked_extension(&mut ext, &context, Reason::Redirect(url))?;
             },
         };)*
 
-        RedirectParams {
-            parameters: vec![$($a,)*]
-        }
+        Ok(ext.into_redirect_params())
       }
     }
   );

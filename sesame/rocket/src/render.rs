@@ -1,21 +1,37 @@
 extern crate erased_serde;
 extern crate figment;
 
-use std::collections::{BTreeMap, HashMap};
-
 use erased_serde::Serialize;
 use figment::value::Value as FValue;
+use std::collections::{BTreeMap, HashMap};
 
 // Our BBox struct.
 use sesame::bbox::{BBox, EitherBBox};
-use sesame::context::UnprotectedContext;
+use sesame::extensions::{
+    ExtensionContext, SesameExtension, SesameRefExtension, UncheckedSesameExtension,
+};
 use sesame::policy::{Policy, Reason, RefPolicy};
 
+use crate::error::SesameRenderResult;
 #[cfg(feature = "alohomora_derive")]
 pub use alohomora_derive::BBoxRender;
 
 // Types for cheap references of BBox with type erasure.
 type RefBBox<'a> = BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
+
+// Sesame extension that performs policy check then renders template if successful.
+struct RenderPolicyChecker {}
+impl<'a> SesameExtension<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>, figment::Result<FValue>>
+    for RenderPolicyChecker
+{
+    fn apply(
+        &mut self,
+        data: &'a dyn Serialize,
+        _policy: RefPolicy<'a, dyn Policy + 'a>,
+    ) -> figment::Result<FValue> {
+        FValue::serialize(data)
+    }
+}
 
 // A BBox with type T erased, a primitive value, or a collection of mixed-type
 // values.
@@ -28,25 +44,17 @@ pub enum Renderable<'a> {
 
 impl<'a> Renderable<'a> {
     pub(crate) fn transform(
-        &self,
+        self,
         template: &str,
-        context: &UnprotectedContext,
-    ) -> Result<FValue, figment::Error> {
+        context: &ExtensionContext,
+    ) -> SesameRenderResult<FValue> {
         match self {
             Renderable::BBox(bbox) => {
-                if bbox
-                    .policy()
-                    .check(context, Reason::TemplateRender(template))
-                {
-                    FValue::serialize(*bbox.data())
-                } else {
-                    Err(figment::Error::from(format!(
-                        "Policy check failed {}",
-                        bbox.policy().name()
-                    )))
-                }
+                let mut checker = RenderPolicyChecker {};
+                let reason = Reason::TemplateRender(template);
+                Ok(bbox.checked_extension(&mut checker, context, reason)??)
             }
-            Renderable::Serialize(obj) => FValue::serialize(obj),
+            Renderable::Serialize(obj) => Ok(FValue::serialize(obj)?),
             Renderable::Dict(map) => {
                 let mut tmap: BTreeMap<String, FValue> = BTreeMap::new();
                 for (k, v) in map {
@@ -94,7 +102,14 @@ render_serialize_impl!(bool);
 // Auto implement BBoxRender for BBox.
 impl<T: Serialize, P: Policy> BBoxRender for BBox<T, P> {
     fn render(&self) -> Renderable {
-        Renderable::BBox(BBox::new(self.data(), RefPolicy::new(self.policy())))
+        struct Converter {}
+        impl UncheckedSesameExtension for Converter {}
+        impl<'a, T: Serialize, P: Policy> SesameRefExtension<'a, T, P, Renderable<'a>> for Converter {
+            fn apply_ref(&mut self, data: &'a T, policy: &'a P) -> Renderable<'a> {
+                Renderable::BBox(BBox::new(data, RefPolicy::new(policy)))
+            }
+        }
+        self.unchecked_extension_ref(&mut Converter {})
     }
 }
 
@@ -130,6 +145,7 @@ impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sesame::context::Context;
     use sesame::policy::NoPolicy;
 
     #[test]
@@ -137,7 +153,8 @@ mod tests {
         let string = String::from("my test!");
         let renderable = string.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let context = ExtensionContext::new(Context::test(()));
+        let result = renderable.transform("", &context);
         assert!(matches!(result, Result::Ok(FValue::String(_, result)) if result == string));
     }
 
@@ -146,8 +163,11 @@ mod tests {
         let bbox = BBox::new(String::from("my bbox!"), NoPolicy {});
         let renderable = bbox.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
-        assert!(matches!(result, Result::Ok(FValue::String(_, result)) if &result == bbox.data()));
+        let context = ExtensionContext::new(Context::test(()));
+        let result = renderable.transform("", &context);
+        assert!(
+            matches!(result, Result::Ok(FValue::String(_, result)) if result == bbox.discard_box())
+        );
     }
 
     #[test]
@@ -155,7 +175,8 @@ mod tests {
         let either: EitherBBox<String, NoPolicy> = EitherBBox::Left(String::from("my_test!"));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let context = ExtensionContext::new(Context::test(()));
+        let result = renderable.transform("", &context);
         assert!(
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_test!"))
         );
@@ -163,7 +184,8 @@ mod tests {
         let either = EitherBBox::Right(BBox::new(String::from("my_bbox!"), NoPolicy {}));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::BBox(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let context = ExtensionContext::new(Context::test(()));
+        let result = renderable.transform("", &context);
         assert!(
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_bbox!"))
         );
@@ -176,7 +198,8 @@ mod tests {
         vec.push(BBox::new(String::from("bye"), NoPolicy {}));
         let renderable = vec.render();
         assert!(matches!(renderable, Renderable::Array(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let context = ExtensionContext::new(Context::test(()));
+        let result = renderable.transform("", &context);
         assert!(matches!(result, Result::Ok(FValue::Array(_, _))));
         if let Result::Ok(FValue::Array(_, arr)) = result {
             assert!(matches!(&arr[0], FValue::String(_, e) if e == "hello"));
@@ -191,7 +214,8 @@ mod tests {
         map.insert("key2", BBox::new(String::from("val2"), NoPolicy {}));
         let renderable = map.render();
         assert!(matches!(renderable, Renderable::Dict(_)));
-        let result = renderable.transform("", &UnprotectedContext::test(()));
+        let context = ExtensionContext::new(Context::test(()));
+        let result = renderable.transform("", &context);
         assert!(matches!(result, Result::Ok(FValue::Dict(_, _))));
         if let Result::Ok(FValue::Dict(_, dict)) = result {
             assert!(matches!(dict.get("key1"), Option::Some(FValue::String(_, e)) if e == "val1"));

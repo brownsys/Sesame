@@ -161,22 +161,36 @@ impl<P: Policy> FromBBoxParam<P> for BBox<String, P> {
 }
 
 // Implement FromBBoxParam for standard types.
-macro_rules! impl_param_via_fromstr {
-  ($($T:ident),+ $(,)?) => ($(
-      impl<P: Policy> FromBBoxParam<P> for BBox<$T, P> {
-        type BBoxError = String;
-
-        #[inline(always)]
-        fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
-          use std::str::FromStr;
-          let (t, p) = param.consume();
-          match <$T as FromStr>::from_str(&t) {
+struct Converter {}
+impl UncheckedSesameExtension for Converter {}
+impl<P: Policy, R: FromStr> SesameExtension<String, P, Result<BBox<R, P>, String>> for Converter {
+    fn apply(&mut self, data: String, policy: P) -> Result<BBox<R, P>, String> {
+        match R::from_str(&data) {
             Err(_) => Err(String::from("Cannot parse <boxed> param")),
-            Ok(parsed) => Ok(BBox::new(parsed, p)),
-          }
+            Ok(parsed) => Ok(BBox::new(parsed, policy)),
         }
-      }
-  )+)
+    }
+}
+impl<P: Policy> SesameExtension<String, P, Result<BBox<PathBuf, P>, &'static str>> for Converter {
+    fn apply(&mut self, data: String, policy: P) -> Result<BBox<PathBuf, P>, &'static str> {
+        match <PathBuf as rocket::request::FromParam>::from_param(&data) {
+            Err(_) => Err("Cannot parse <boxed> param"),
+            Ok(parsed) => Ok(BBox::new(parsed, policy)),
+        }
+    }
+}
+
+macro_rules! impl_param_via_fromstr {
+    ($($T:ident),+ $(,)?) => ($(
+        impl<P: Policy> FromBBoxParam<P> for BBox<$T, P> {
+            type BBoxError = String;
+
+            #[inline(always)]
+            fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
+                param.unchecked_extension(&mut Converter {})
+            }
+        }
+    )+)
 }
 
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
@@ -224,17 +238,16 @@ impl_param_via_fromstr!(
 // outside application reach.
 use crate::policy::FrontendPolicy;
 use crate::rocket::{BBoxHeaderMap, FromBBoxData};
+use sesame::extensions::{SesameExtension, UncheckedSesameExtension};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
     type BBoxError = String;
     #[inline(always)]
     fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
-        let (t, p) = param.consume();
-        match <PathBuf as rocket::request::FromParam>::from_param(&t) {
-            Err(_) => Err(String::from("Cannot parse <boxed> param")),
-            Ok(parsed) => Ok(BBox::new(parsed, p)),
-        }
+        let result: Result<Self, &'static str> = param.unchecked_extension(&mut Converter {});
+        result.map_err(str::to_string)
     }
 }
 impl<P: Policy, T: FromBBoxParam<P>> FromBBoxParam<P> for Option<T> {

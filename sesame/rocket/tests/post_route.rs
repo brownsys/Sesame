@@ -95,5 +95,5 @@ fn test_post_failed_policy() {
         .body("param=hello")
         .dispatch();
 
-    assert_eq!(response.status(), Status::new(555));
+    assert_eq!(response.status(), Status::new(491));
 }

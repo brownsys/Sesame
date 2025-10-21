@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use sesame::bbox::BBox;
 use sesame::policy::NoPolicy;
-use sesame_rocket::bbox::{BBoxRender, Renderable};
+use sesame_rocket::render::{BBoxRender, Renderable};
 
 use crate::application::policy::ACLPolicy;
 

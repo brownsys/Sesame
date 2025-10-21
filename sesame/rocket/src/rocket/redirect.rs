@@ -7,6 +7,7 @@ use crate::rocket::IntoRedirectParams;
 use dynfmt::{Format, SimpleCurlyFormat};
 use rocket::http::uri::Reference;
 use sesame::context::{Context, ContextData};
+use sesame::error::SesameResult;
 
 // A redirect response.
 pub struct BBoxRedirect {
@@ -17,12 +18,12 @@ impl BBoxRedirect {
         url: &str,
         params: P,
         context: Context<D>,
-    ) -> Self {
-        let params: RedirectParams = params.into(url, context);
+    ) -> SesameResult<Self> {
+        let params: RedirectParams = params.into(url, context)?;
         let formatted_str = SimpleCurlyFormat.format(url, params.parameters).unwrap();
-        BBoxRedirect {
+        Ok(BBoxRedirect {
             redirect: rocket::response::Redirect::to(Into::<String>::into(formatted_str)),
-        }
+        })
     }
     pub fn to2<U: TryInto<Reference<'static>>>(url: U) -> Self {
         BBoxRedirect {
@@ -58,7 +59,7 @@ mod tests {
 
         let redirect =
             BBoxRedirect::to("/test/{}/more/{}/{}/less/{}", (&b1, &b2, &b3, &b4), context);
-        let str = format!("{:?}", redirect.redirect);
+        let str = format!("{:?}", redirect.unwrap().redirect);
         assert!(str.contains("\"/test/hello/more/10/-20/less/my_str\""));
     }
 }
