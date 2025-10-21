@@ -2,8 +2,8 @@
 use sesame_rocket::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
 
 // We should use these structs along with their derive macros regularly when using
-// Alohomora + (SeaORM and Rocket), with only one difference.
-// When implementing Pool, the type Connection should be set to alohomora::orm::BBoxDatabaseConnection
+// Sesame + (SeaORM and Rocket), with only one difference.
+// When implementing Pool, the type Connection should be set to sesame_orm::BBoxDatabaseConnection
 // instead of sea_orm::DatabaseConnection.
 pub use sea_orm_rocket::{Connection, Database, Pool};
 

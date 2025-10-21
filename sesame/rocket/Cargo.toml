@@ -9,23 +9,26 @@ name = "sesame_rocket"
 path = "src/lib.rs"
 
 [dependencies]
+sesame = { path = "../core" }
+
 async-trait = { version = "0.1.79" }
-alohomora_derive = { path = "../../alohomora_derive", optional = true }
 cookie = { version = "0.15", features = ["percent-encode"] }
 chrono = "^0.4"
+dynfmt = { version = "0.1.5", features = ["curly"] }
+erased-serde = "0.3.25"
+figment = "0.10.6"
 futures = "0.3.17"
-sesame = { path = "../core" }
-sesame_mysql = { path = "../mysql", optional = true }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+indexmap = "1.7.0"
 rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main", features= ["json"] }
 rocket_cors = { git = "https://github.com/KinanBab/rocket_cors.git", branch = "main" }
 rocket_firebase_auth = { git = "https://github.com/22ridley/rocket-firebase-auth.git" }
-figment = "0.10.6"
-erased-serde = "0.3.25"
-dynfmt = { version = "0.1.5", features = ["curly"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 time = { version = "0.2.11", default-features = false, features = ["std"] }
-indexmap = "1.7.0"
+
+# Optional dependencies.
+sesame_derive = { path = "../derive", optional = true }
+sesame_mysql = { path = "../mysql", optional = true }
 sea-orm-rocket = { git = "https://github.com/KinanBab/sea-orm.git", branch = "main", optional = true }
 
 [dev-dependencies]
@@ -43,9 +46,6 @@ features = ["dir_source"]
 
 [features]
 default = ["derive"]
-derive = ["alohomora_derive"]
+derive = ["sesame_derive"]
 orm = ["sea-orm-rocket"]
 mysql = ["sesame_mysql"]
-
-[patch.crates-io]
-funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

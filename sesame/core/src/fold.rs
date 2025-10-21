@@ -18,7 +18,7 @@ pub(crate) trait Foldable<P: PolicyDyn + ?Sized>: SesameType<dyn Any, P> {
     fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy<P>), ()>;
 }
 
-// The general, unoptimized implementation of folding that works for all `AlohomoraType` types.
+// The general, unoptimized implementation of folding that works for all `SesameType` types.
 // It's marked with the `default` keyword so we can override it with optimized implementations for specific types.
 impl<P: PolicyDyn + ?Sized, T: SesameType<dyn Any, P>> Foldable<P> for T {
     default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicy<P>), ()> {
@@ -214,7 +214,7 @@ mod tests {
         type Out = BoxedStructLite;
     }
 
-    #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+    #[doc = "Library implementation of SesameType. Do not copy this docstring!"]
     impl SesameType for BoxedStruct {
         fn to_enum(self) -> SesameTypeEnum {
             let hashmap = HashMap::from([

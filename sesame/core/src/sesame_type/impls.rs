@@ -19,7 +19,7 @@ macro_rules! sesame_type_dyn_primitives_impl {
             type Out = $T;
         }
 
-        #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+        #[doc = "Library implementation of SesameType. Do not copy this docstring!"]
         impl<DT: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameType<DT, P> for $T
         where
             DT: SesameDynRelation<$T>,
@@ -66,7 +66,7 @@ sesame_type_dyn_primitives_impl!(String);
 impl<T: Any, P: AnyPolicyable> SesameTypeOut for BBox<T, P> {
     type Out = T;
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<
         T: Any,
         DT: SesameDyn + ?Sized + SesameDynRelation<T> + Any,
@@ -106,7 +106,7 @@ impl<
 impl<T: SesameTypeOut> SesameTypeOut for Option<T> {
     type Out = Option<T::Out>;
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P>
     for Option<T>
 {
@@ -141,7 +141,7 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
 impl<T: SesameTypeOut, E: SesameTypeOut> SesameTypeOut for Result<T, E> {
     type Out = Result<T::Out, E::Out>;
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>, E: SesameType<A, P>>
     SesameType<A, P> for Result<T, E>
 {
@@ -186,7 +186,7 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>, E: Sesam
 impl<S: SesameTypeOut> SesameTypeOut for Vec<S> {
     type Out = Vec<S::Out>;
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, S: SesameType<A, P>> SesameType<A, P>
     for Vec<S>
 {
@@ -224,7 +224,7 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, S: SesameType<A, P>> SesameTy
 impl<K: ToString + FromStr + Hash + Eq, S: SesameTypeOut> SesameTypeOut for HashMap<K, S> {
     type Out = HashMap<K, S::Out>;
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<
         A: SesameDyn + ?Sized,
         P: PolicyDyn + ?Sized,
@@ -280,7 +280,7 @@ impl<
 impl SesameTypeOut for () {
     type Out = ();
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized> SesameType<A, P> for ()
 where
     A: SesameDynRelation<()>,
@@ -310,7 +310,7 @@ macro_rules! sesame_type_dyn_tuples_impl {
         type Out = ($($A::Out,)*);
     }
 
-    #[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+    #[doc = "Library implementation of SesameType. Do not copy this docstring!"]
     impl<DYN: SesameDyn + ?Sized, PDYN: PolicyDyn + ?Sized, $($A: SesameType<DYN, PDYN>,)*> SesameType<DYN, PDYN> for ($($A,)*) {
         fn to_enum(self) -> SesameTypeEnum<DYN, PDYN> {
             #[allow(non_snake_case)]
@@ -414,7 +414,7 @@ sesame_type_dyn_tuples_impl!(
 impl<T: SesameTypeOut> SesameTypeOut for Mutex<T> {
     type Out = Mutex<T::Out>;
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P>
     for Mutex<T>
 {
@@ -447,7 +447,7 @@ impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameTy
 impl<T: SesameTypeOut> SesameTypeOut for Arc<T> {
     type Out = Arc<T::Out>;
 }
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<A: SesameDyn + ?Sized, P: PolicyDyn + ?Sized, T: SesameType<A, P>> SesameType<A, P>
     for Arc<T>
 {

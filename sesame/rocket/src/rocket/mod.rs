@@ -26,7 +26,7 @@ pub use crate::rocket::rocket::*;
 pub use crate::rocket::route::*;
 pub use crate::rocket::template::*;
 
-#[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::{
+#[cfg(feature = "derive")]
+pub use sesame_derive::{
     get, post, route, routes, FromBBoxForm, RequestBBoxJson, ResponseBBoxJson,
 };

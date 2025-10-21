@@ -7,9 +7,9 @@
 extern crate static_assertions;
 
 // Re-export our derive macros
-#[cfg(feature = "alohomora_derive")]
-extern crate alohomora_derive;
-extern crate alohomora_sandbox;
+#[cfg(feature = "derive")]
+extern crate sesame_derive;
+extern crate sesame_sandbox;
 
 // Export these
 pub mod bbox;
@@ -32,5 +32,5 @@ pub use sesame_type::{
     dyns as sesame_type_dyns, r#enum::SesameTypeEnum, r#type::SesameType, r#type::SesameTypeOut,
 };
 
-#[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::SesameType;
+#[cfg(feature = "derive")]
+pub use sesame_derive::SesameType;

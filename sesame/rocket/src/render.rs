@@ -13,8 +13,9 @@ use sesame::extensions::{
 use sesame::policy::{Policy, Reason, RefPolicy};
 
 use crate::error::SesameRenderResult;
-#[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::BBoxRender;
+
+#[cfg(feature = "derive")]
+pub use sesame_derive::BBoxRender;
 
 // Types for cheap references of BBox with type erasure.
 type RefBBox<'a> = BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;

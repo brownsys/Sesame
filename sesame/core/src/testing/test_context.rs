@@ -19,7 +19,7 @@ impl<T: Send + Any> SesameTypeOut for TestContextData<T> {
     type Out = T;
 }
 
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<T: Send + Any> SesameType for TestContextData<T> {
     fn to_enum(self) -> SesameTypeEnum {
         SesameTypeEnum::BBox(self.0.into_any_no_clone())

@@ -133,7 +133,7 @@ impl SesameTypeOut for BBoxConn {
     type Out = mysql::Conn;
 }
 
-#[doc = "Library implementation of AlohomoraType. Do not copy this docstring!"]
+#[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl SesameType for BBoxConn {
     fn to_enum(self) -> SesameTypeEnum {
         SesameTypeEnum::Value(Box::new(self))

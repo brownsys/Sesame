@@ -54,24 +54,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "alohomora_derive"
+name = "alohomora_build"
 version = "0.1.0"
 dependencies = [
- "attribute-derive",
- "proc-macro2",
- "quote",
- "rocket_http",
+ "cargo_toml",
  "serde",
- "syn 2.0.107",
-]
-
-[[package]]
-name = "alohomora_sandbox"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "chrono",
- "serde",
+ "serde_json",
+ "tinytemplate",
 ]
 
 [[package]]
@@ -438,6 +427,16 @@ name = "bytes"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
+
+[[package]]
+name = "cargo_toml"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a98356df42a2eb1bd8f1793ae4ee4de48e384dd974ce5eac8eee802edb7492be"
+dependencies = [
+ "serde",
+ "toml",
+]
 
 [[package]]
 name = "cc"
@@ -1379,11 +1378,11 @@ dependencies = [
 
 [[package]]
 name = "home"
-version = "0.5.11"
+version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
+checksum = "e3d1354bf6b7235cb4a0576c2619fd4ed18183f689b12b006a0ee7329eeff9a5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3159,6 +3158,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sandbox_test_lib"
+version = "0.1.0"
+dependencies = [
+ "alohomora_build",
+ "serde",
+ "sesame_derive",
+ "sesame_sandbox",
+]
+
+[[package]]
 name = "saturating"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3401,8 +3410,6 @@ dependencies = [
 name = "sesame"
 version = "0.1.0"
 dependencies = [
- "alohomora_derive",
- "alohomora_sandbox",
  "async-trait",
  "chrono",
  "dyn-clone",
@@ -3410,19 +3417,42 @@ dependencies = [
  "erased-serde",
  "itertools",
  "pin-project-lite",
+ "sandbox_test_lib",
  "serde",
  "serde_json",
+ "sesame_derive",
+ "sesame_sandbox",
  "static_assertions",
+]
+
+[[package]]
+name = "sesame_derive"
+version = "0.1.0"
+dependencies = [
+ "attribute-derive",
+ "erased-serde",
+ "mysql",
+ "proc-macro2",
+ "quote",
+ "rocket",
+ "rocket_http",
+ "serde",
+ "serde_json",
+ "sesame",
+ "sesame_mysql",
+ "sesame_rocket",
+ "static_assertions",
+ "syn 2.0.107",
 ]
 
 [[package]]
 name = "sesame_mysql"
 version = "0.1.0"
 dependencies = [
- "alohomora_derive",
  "lazy_static",
  "mysql",
  "sesame",
+ "sesame_derive",
  "small_ctor",
 ]
 
@@ -3440,7 +3470,6 @@ dependencies = [
 name = "sesame_rocket"
 version = "0.1.0"
 dependencies = [
- "alohomora_derive",
  "async-trait",
  "chrono",
  "cookie",
@@ -3459,9 +3488,19 @@ dependencies = [
  "serde",
  "serde_json",
  "sesame",
+ "sesame_derive",
  "sesame_mysql",
  "sesame_rocket",
  "time 0.2.27",
+]
+
+[[package]]
+name = "sesame_sandbox"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "chrono",
+ "serde",
 ]
 
 [[package]]
@@ -4227,6 +4266,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tinytemplate"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be4d6b5f19ff7664e8c98d03e2139cb510db9b0a60b55f8e8709b689d939b6bc"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "tinyvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4937,15 +4986,6 @@ name = "windows-sys"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
-dependencies = [
- "windows-targets 0.52.6",
-]
-
-[[package]]
-name = "windows-sys"
-version = "0.59.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
  "windows-targets 0.52.6",
 ]

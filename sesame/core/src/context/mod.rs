@@ -26,7 +26,7 @@ impl<D: ContextData> Context<D> {
         }
     }
 
-    // Can manufacture an empty context for ease of use when dealing with Alohomora APIs without boxes.
+    // Can manufacture an empty context for ease of use when dealing with Sesame APIs without boxes.
     pub fn empty() -> Self {
         Self {
             route: String::from(""),
@@ -40,7 +40,7 @@ impl<D: ContextData> Context<D> {
     }
 }
 
-// Alohomora turns Context into UnprotectedContext before invoking Policy Check.
+// Sesame turns Context into UnprotectedContext before invoking Policy Check.
 pub struct UnprotectedContext {
     pub route: String,
     pub data: Box<dyn Any>,

@@ -2,9 +2,15 @@
 resolver = "2"
 members = [
     "core",
+    "derive",
     "mysql",
-    "rocket",
     "orm",
+    "rocket",
+    "sandbox",
+]
+
+exclude = [
+    "tests/**",
 ]
 
 [patch.crates-io]

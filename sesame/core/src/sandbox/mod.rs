@@ -7,13 +7,13 @@ use crate::fold::fold;
 use crate::policy::{AnyPolicy, PolicyDyn};
 use crate::SesameType;
 
-// Expose alohomora_sandbox API that controls the interface outside sandbox.
-pub use alohomora_sandbox::{
-    AlohomoraSandbox, FastTransfer, IdentityFastTransfer, SandboxOut, SandboxableType,
+// Expose sesame_sandbox API that controls the interface outside sandbox.
+pub use sesame_sandbox::{
+    SesameSandbox, FastTransfer, IdentityFastTransfer, SandboxOut, SandboxableType, SandboxInstance
 };
 
-#[cfg(feature = "alohomora_derive")]
-pub use alohomora_derive::{AlohomoraSandbox, FastTransfer};
+#[cfg(feature = "derive")]
+pub use sesame_derive::{SesameSandbox, FastTransfer};
 
 /// Copies `t` into a sandbox and executes the specified function on it,
 /// and copies the result value and returns it.
@@ -23,7 +23,7 @@ where
     T: SesameType<dyn Any, PDyn>,
     T::Out: SandboxableType,
     R: SandboxableType,
-    S: AlohomoraSandbox<T::Out, R>,
+    S: SesameSandbox<T::Out, R>,
 {
     #[cfg(feature = "sandbox_timing")]
     let timer = Instant::now();

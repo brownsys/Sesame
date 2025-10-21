@@ -10,12 +10,10 @@ name = "sesame_orm"
 path = "src/lib.rs"
 
 [dependencies]
-async-trait = { version = "0.1.79" }
 sesame = { path = "../core" }
+
+async-trait = { version = "0.1.79" }
 sea-orm = { git = "https://github.com/KinanBab/sea-orm.git", branch = "main", features = [ "sqlx-mysql", "sqlx-sqlite", "runtime-tokio-native-tls", "macros" ] }
 
 [dev-dependencies]
 tokio-test = "0.4.0"
-
-[patch.crates-io]
-funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

@@ -4,7 +4,7 @@ use std::sync::RwLock;
 use sesame::policy::{AnyPolicy, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyOr};
 
 #[cfg(feature = "derive")]
-pub use alohomora_derive::schema_policy;
+pub use sesame_derive::schema_policy;
 
 // Schema policies can be constructed from DB rows.
 pub trait SchemaPolicy: Policy {
@@ -51,7 +51,7 @@ fn fold_policies<I: Iterator<Item = AnyPolicy>>(mut policies: I) -> AnyPolicy {
 }
 
 // Create policies for a cell given its entire row and the name of its table.
-pub(crate) fn get_schema_policies(
+pub fn get_schema_policies(
     table_name: String,
     column: usize,
     row: &Vec<mysql::Value>,

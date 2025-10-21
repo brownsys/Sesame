@@ -124,8 +124,8 @@ pub async fn route<'a, 'r>(
     assert_eq!(*b_a.unwrap().as_ref().discard_box(), 1);
     assert_eq!(*b_b.unwrap().as_ref().discard_box(), 2);
 
-    //TODO(babman): test template rendering, and redirect.
-    //TODo(babman): finish tests in alohomora_derive.
+    // TODO(babman): test template rendering, and redirect.
+    // TODO(babman): finish tests in sesame_derive.
     // Assign some cookies.
     let cookie1 = BBox::new(String::from("cook"), HardcodedPolicy(true));
     let cookie1 = BBoxCookie::new("good", cookie1);

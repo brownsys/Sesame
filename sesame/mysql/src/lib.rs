@@ -1,6 +1,6 @@
 // Re-export our derive macros
-#[cfg(feature = "alohomora_derive")]
-extern crate alohomora_derive;
+#[cfg(feature = "sesame_derive")]
+extern crate sesame_derive;
 
 #[macro_use]
 extern crate lazy_static;
