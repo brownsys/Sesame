@@ -1,12 +1,13 @@
 use std::path::Path;
-use std::env::var;
+use std::env::{var, VarError};
 use std::process::Command;
 
 use cargo_toml::Manifest;
 
 use serde::Serialize;
+use crate::error::Error;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct Env {
     // Name of crate currently being compiled.
     pub current_crate_name: String,
@@ -72,17 +73,17 @@ fn find_cargo() -> String {
     cargo
 }
 
-pub fn read_env() -> Env {
-    let current_crate_name = var("CARGO_PKG_NAME").unwrap();
+pub fn read_env() -> Result<Env, Error> {
+    let current_crate_name = var("CARGO_PKG_NAME")?;
     let cargo = find_cargo();
-    let package_directory = var("CARGO_MANIFEST_DIR").unwrap();
-    let out_directory = var("OUT_DIR").unwrap();
-    let target = var("TARGET").unwrap();
-    let working_directory = var("PWD").unwrap();
-    let profile = var("PROFILE").unwrap();
-    let cargo_toml = Manifest::from_path(&format!("{}/{}", package_directory, "Cargo.toml")).unwrap();
+    let package_directory = var("CARGO_MANIFEST_DIR")?;
+    let out_directory = var("OUT_DIR")?;
+    let target = var("TARGET")?;
+    let working_directory = var("PWD")?;
+    let profile = var("PROFILE")?;
+    let cargo_toml = Manifest::from_path(&format!("{}/{}", package_directory, "Cargo.toml"))?;
     let host = find_host();
-    Env {
+    Ok(Env {
         current_crate_name,
         cargo,
         cargo_toml,
@@ -92,5 +93,5 @@ pub fn read_env() -> Env {
         working_directory,
         profile,
         host,
-    }
+    })
 }

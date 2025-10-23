@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::process::Command;
 
 use crate::env::Env;
-
+/*
 fn remove_vars(cmd: &mut Command) {
     let set: HashSet<&'static str> = HashSet::from([
         "PATH",
@@ -49,3 +49,4 @@ pub fn scrutinize(env: &Env) {
         warn!("\x1b[96mnote: \x1b[97min {} mode without Scrutinizer\x1b[0m", profile);
     }
 }
+*/

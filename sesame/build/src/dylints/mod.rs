@@ -4,6 +4,7 @@ use crate::env::Env;
 
 mod metadata;
 
+/*
 pub fn run_lints(env: &Env) {
     let profile = &env.profile;
     if profile == "release" {
@@ -29,3 +30,4 @@ pub fn run_lints(env: &Env) {
         warn!("\x1b[96mnote: \x1b[97min {} mode without Alohomora lints\x1b[0m", profile);
     }
 }
+*/

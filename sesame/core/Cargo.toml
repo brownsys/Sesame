@@ -9,7 +9,6 @@ authors = ["Kinan Dak Albab <kinan_dak_albab@alumni.brown.edu>",
            "Sarah Ridley <sarah_ridley@brown.edu>",           
            "Malte Schwarzkopf <malte@cs.brown.edu>"]
 edition = "2018"
-build = "build.rs"
 
 [lib]
 name = "sesame"
@@ -33,10 +32,6 @@ sesame_derive = { path = "../derive", optional = true }
 
 [dev-dependencies]
 static_assertions = "1.1.0"
-sandbox_test_lib = { path = "../../tests/sandbox_test_lib" }
-
-[build-dependencies]
-alohomora_build = { path = "../../alohomora_build" }
 
 [features]
 default = ["derive"]

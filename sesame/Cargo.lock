@@ -54,16 +54,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "alohomora_build"
-version = "0.1.0"
-dependencies = [
- "cargo_toml",
- "serde",
- "serde_json",
- "tinytemplate",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -886,6 +876,15 @@ name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
+
+[[package]]
+name = "example-sandbox-bin"
+version = "0.1.0"
+dependencies = [
+ "sandbox_test_lib",
+ "sesame",
+ "sesame_build",
+]
 
 [[package]]
 name = "fastrand"
@@ -3161,8 +3160,8 @@ dependencies = [
 name = "sandbox_test_lib"
 version = "0.1.0"
 dependencies = [
- "alohomora_build",
  "serde",
+ "sesame_build",
  "sesame_derive",
  "sesame_sandbox",
 ]
@@ -3410,7 +3409,6 @@ dependencies = [
 name = "sesame"
 version = "0.1.0"
 dependencies = [
- "alohomora_build",
  "async-trait",
  "chrono",
  "dyn-clone",
@@ -3418,12 +3416,21 @@ dependencies = [
  "erased-serde",
  "itertools",
  "pin-project-lite",
- "sandbox_test_lib",
  "serde",
  "serde_json",
  "sesame_derive",
  "sesame_sandbox",
  "static_assertions",
+]
+
+[[package]]
+name = "sesame_build"
+version = "0.1.0"
+dependencies = [
+ "cargo_toml",
+ "serde",
+ "serde_json",
+ "tinytemplate",
 ]
 
 [[package]]

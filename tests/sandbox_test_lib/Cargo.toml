@@ -12,7 +12,7 @@ sesame_sandbox = { path = "../../sesame/sandbox" } #, features = ["sandbox_timin
 
 [build-dependencies]
 #bindgen = "0.69.1"
-alohomora_build = { path = "../../alohomora_build" }
+sesame_build = { path = "../../sesame/build" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

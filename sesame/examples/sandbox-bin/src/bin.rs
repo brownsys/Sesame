@@ -34,3 +34,7 @@ fn sandbox_test() {
     let bbox = bbox.specialize_policy::<NoPolicy>().unwrap();
     assert_eq!(bbox.discard_box(), 5 * 10);
 }
+
+fn main() {
+    println!("hello!");
+}

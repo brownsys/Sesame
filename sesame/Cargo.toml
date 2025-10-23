@@ -1,8 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
+    "build",
     "core",
     "derive",
+    "examples/sandbox-bin",
     "mysql",
     "orm",
     "rocket",

@@ -1,0 +1,13 @@
+
+Executing command for `{}`
+Env:
+    {{ for e in env }}
+    {{ e.key }} = {{ e.value }}
+    {{ - endfor }}
+Working dir:
+    {{ workdir }}
+cmd:
+    {{ command }}
+        {{for a in args }}
+        {{ a }}
+        {{ - endfor }}

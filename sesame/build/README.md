@@ -6,7 +6,7 @@ To build a release version of an Alohomora-protected application:
 2. Then in the Cargo.toml of each of these crates, add
 <!--- Make code --->
     [build-dependencies]
-    alohomora_build = { path = "../alohomora_build" } 
+    sesame_build = { path = "<repo>/sesame/build" } 
 
 3. Then in the virtual manifest of the workspace, add 
 <!--- Make code --->
