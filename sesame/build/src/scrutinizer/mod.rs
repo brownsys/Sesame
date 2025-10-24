@@ -1,7 +1,3 @@
-use std::collections::HashSet;
-use std::process::Command;
-
-use crate::env::Env;
 /*
 fn remove_vars(cmd: &mut Command) {
     let set: HashSet<&'static str> = HashSet::from([
@@ -11,7 +7,7 @@ fn remove_vars(cmd: &mut Command) {
         "HOST",
         // "LD_LIBRARY_PATH",
     ]);
-    
+
     for (key, _) in std::env::vars() {
         if !set.contains(key.as_str()) {
             cmd.env_remove(&key);
@@ -25,7 +21,7 @@ fn run_scrutinizer(env: &Env) {
 
     let mut cmd = Command::new(&env.cargo);
     remove_vars(&mut cmd);
-    
+
     let status = cmd
         .arg("+nightly-2023-08-25")
         .arg("scrutinizer")

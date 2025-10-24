@@ -1,24 +1,27 @@
-use std::process::{Command};
-
-use crate::env::Env;
+use crate::SesameBuilder;
 
 // Generates wrappers.
-pub fn build_library_wasm(env: &Env) -> String {
-    warn!("\x1b[96mnote: \x1b[97mBuilding WASM package....\x1b[0m");
+pub fn build_library_wasm(builder: &SesameBuilder) -> String {
+    builder.logger.warn("WASM", "Building WASM package");
 
     // Find all the features we are compiled with.
-    let features: String = std::env::vars().filter_map(
-      |(var, _)| {
-          if var.starts_with("CARGO_FEATURE_") {
-            let feature = &var["CARGO_FEATURE_".len()..];
-            Some(feature.to_lowercase())
-          } else {
-            None
-          }
-      }).collect::<Vec<String>>().join(",");
-    warn!("\x1b[96mnote: \x1b[97mUsing features '{}'....\x1b[0m", features);
+    let features: String = std::env::vars()
+        .filter_map(|(var, _)| {
+            if var.starts_with("CARGO_FEATURE_") {
+                let feature = &var["CARGO_FEATURE_".len()..];
+                Some(feature.to_lowercase())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(",");
+    builder
+        .logger
+        .info("WASM", &format!("Building using features '{}'", features));
 
-    let output = Command::new(&env.cargo)
+    let output = builder
+        .command("Build WASM", &builder.env.cargo)
         .arg("+nightly-2023-10-06")
         .arg("build")
         .arg("--release")
@@ -26,20 +29,41 @@ pub fn build_library_wasm(env: &Env) -> String {
         .args(["--features", &features])
         .args(["-Z", "build-std=std,panic_abort"])
         .args(["--target", "wasm32-rlbox.json"])
-        .args(["--target-dir", &format!("{}/{}", env.package_directory, "wasm_target")])
+        .args([
+            "--target-dir",
+            &format!("{}/{}", builder.env.package_directory, "wasm_target"),
+        ])
         .arg("--verbose")
+        .env_remove("CARGO")
+        .env_remove("LD_LIBRARY_PATH")
+        .env_remove("RUSTC")
+        .env_remove("RUSTDOC")
+        .env_remove("RUSTFLAGS")
         .env_remove("RUSTFLAGS")
         .env_remove("RUSTCFLAGS")
         .env_remove("RUST_LOG")
         .output()
-        .expect("\x1b[91merror: \x1b[97mFailed to build sandboxes library with wasm'.\x1b[0m");
+        .expect("Failed to build sandboxes library with wasm");
     if !output.status.success() {
         eprintln!("-----===============================================-------");
         eprintln!("{}", String::from_utf8(output.stdout).unwrap());
         eprintln!("{}", String::from_utf8(output.stderr).unwrap());
         eprintln!("-----===============================================-------");
-        panic!("\x1b[91merror: \x1b[97mFailed to build sandboxes library with wasm'.\x1b[0m");
+        builder
+            .logger
+            .error("WASM", "Failed to build sandboxes library with wasm");
+        panic!("");
     }
 
-    format!("{}/{}/{}", env.working_directory, "wasm_target/wasm32-rlbox/release", env.lib_name())
+    let path = format!(
+        "{}/{}/{}",
+        builder.env.working_directory,
+        "wasm_target/wasm32-rlbox/release",
+        builder.env.lib_name()
+    );
+
+    builder
+        .logger
+        .info("WASM", &format!("WASM module built at '{}'", path));
+    path
 }

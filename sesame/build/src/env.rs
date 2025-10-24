@@ -1,11 +1,11 @@
+use std::env::var;
 use std::path::Path;
-use std::env::{var, VarError};
 use std::process::Command;
 
 use cargo_toml::Manifest;
 
-use serde::Serialize;
 use crate::error::Error;
+use serde::Serialize;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct Env {
@@ -47,8 +47,7 @@ fn find_host() -> String {
         .arg("-vV")
         .output()
         .expect("Cannot get default rustc target");
-    let stdout = String::from_utf8(output.stdout)
-        .expect("Cannot get default rustc target stdout");
+    let stdout = String::from_utf8(output.stdout).expect("Cannot get default rustc target stdout");
 
     for part in stdout.split("\n") {
         if part.starts_with("host: ") {

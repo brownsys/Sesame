@@ -1,33 +1,59 @@
 use std::fs;
-use std::process::Command;
 
-use crate::env::Env;
 use crate::sandbox::render::render;
 use crate::sandbox::rlbox::RLBoxConfiguration;
+use crate::SesameBuilder;
 
 // Generates wrappers.
-pub fn generate_wrappers(env: &Env, rlbox: &RLBoxConfiguration) {
-    warn!("\x1b[96mnote: \x1b[97mGenerating wrappers in {}....\x1b[0m", env.out_directory);
+pub fn generate_wrappers(builder: &SesameBuilder, rlbox: &RLBoxConfiguration) {
+    builder.logger.warn(
+        "Wrappers",
+        &format!("Generating wrappers in {}", builder.env.out_directory),
+    );
 
     // Render the templates given the environment.
-    let wrappers = render(env, rlbox);
+    let wrappers = render(&builder.env, rlbox);
 
     // Write to files.
-    fs::write(&format!("{}/{}", env.package_directory, "wasm32-rlbox.json"), wrappers.wasm32_rlbox_json).unwrap();
-    fs::write(&format!("{}/{}", env.out_directory, "Makefile"), wrappers.makefile).unwrap();
-    fs::write(&format!("{}/{}", env.out_directory, "wrapper.cpp"), wrappers.wrapper_cpp).unwrap();
-    fs::write(&format!("{}/{}", env.out_directory, "wrapper.h"), wrappers.wrapper_h).unwrap();
-    fs::write(&format!("{}/{}", env.out_directory, "wasi_rt.aux.c"), wrappers.wasi_rt_aux_c).unwrap();
+    fs::write(
+        &format!("{}/{}", builder.env.package_directory, "wasm32-rlbox.json"),
+        wrappers.wasm32_rlbox_json,
+    )
+    .unwrap();
+    fs::write(
+        &format!("{}/{}", builder.env.out_directory, "Makefile"),
+        wrappers.makefile,
+    )
+    .unwrap();
+    fs::write(
+        &format!("{}/{}", builder.env.out_directory, "wrapper.cpp"),
+        wrappers.wrapper_cpp,
+    )
+    .unwrap();
+    fs::write(
+        &format!("{}/{}", builder.env.out_directory, "wrapper.h"),
+        wrappers.wrapper_h,
+    )
+    .unwrap();
+    fs::write(
+        &format!("{}/{}", builder.env.out_directory, "wasi_rt.aux.c"),
+        wrappers.wasi_rt_aux_c,
+    )
+    .unwrap();
 }
 
-pub fn build_wrappers(env: &Env) {
-    warn!("\x1b[96mnote: \x1b[97mBuilding wrappers....\x1b[0m");
+pub fn build_wrappers(builder: &SesameBuilder) {
+    builder.logger.info("Wrappers", "Building wrappers");
 
-    let status = Command::new("make")
-        .current_dir(&env.out_directory)
+    let status = builder
+        .command("Build Wrappers", "make")
+        .current_dir(&builder.env.out_directory)
         .status()
-        .expect("\x1b[91merror: \x1b[97mFailed to build wrappers.\x1b[0m");
+        .expect("Failed to build wrappers");
     if !status.success() {
-        panic!("\x1b[91merror: \x1b[97mFailed to build wrappers.\x1b[0m");
+        builder
+            .logger
+            .error("Build Wrappers", "Failed to build wrappers");
+        panic!("");
     }
 }

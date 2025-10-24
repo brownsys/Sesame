@@ -2,14 +2,14 @@ use serde::Serialize;
 
 use crate::env::Env;
 use crate::sandbox::metadata::get_sandboxes;
-use crate::sandbox::template::template;
 use crate::sandbox::rlbox::RLBoxConfiguration;
+use crate::sandbox::template::template;
 
 // Render context for rendering the wrappers template.
 #[derive(Serialize)]
 pub struct RenderContext {
-    pub name: String,            // Library name (must match whats in Cargo.toml).
-    pub sandboxes: Vec<String>,  // Name of every sandbox entry function.
+    pub name: String,           // Library name (must match whats in Cargo.toml).
+    pub sandboxes: Vec<String>, // Name of every sandbox entry function.
     pub env: Env,
     pub rlbox: RLBoxConfiguration,
 }

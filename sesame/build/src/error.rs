@@ -4,7 +4,7 @@ use std::env::VarError;
 pub enum Error {
     VarError(VarError),
     IoError(std::io::Error),
-    ManifestError(cargo_toml::Error)
+    ManifestError(cargo_toml::Error),
 }
 impl From<VarError> for Error {
     fn from(e: VarError) -> Self {

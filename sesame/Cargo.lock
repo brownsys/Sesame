@@ -878,12 +878,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
-name = "example-sandbox-bin"
+name = "example_sandbox_bin"
 version = "0.1.0"
 dependencies = [
- "sandbox_test_lib",
+ "example_sandbox_lib",
  "sesame",
  "sesame_build",
+]
+
+[[package]]
+name = "example_sandbox_lib"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sesame_build",
+ "sesame_derive",
+ "sesame_sandbox",
 ]
 
 [[package]]
@@ -3154,16 +3164,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "sandbox_test_lib"
-version = "0.1.0"
-dependencies = [
- "serde",
- "sesame_build",
- "sesame_derive",
- "sesame_sandbox",
 ]
 
 [[package]]
