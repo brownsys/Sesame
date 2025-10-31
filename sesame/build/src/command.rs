@@ -95,13 +95,11 @@ impl<'a> Command<'a> {
         self
     }
 
-    pub fn output(&mut self) -> CommandResult<Output, std::io::Error> {
+    // Executes the command redirecting its stdout and stderr to the log file.
+    pub fn execute(&mut self) -> CommandResult<'a, ExitStatus, std::io::Error> {
         self.log();
-        CommandResult::new(self.title.clone(), self.command.output(), &self.logger)
-    }
-    pub fn status(&mut self) -> CommandResult<ExitStatus, std::io::Error> {
-        self.log();
-        CommandResult::new(self.title.clone(), self.command.status(), &self.logger)
+        self.logger.capture_command(&mut self.command);
+        CommandResult::new(self.title.clone(), self.command.status(), self.logger)
     }
 }
 
@@ -122,15 +120,15 @@ impl<'a> Command<'a> {
         let mut env = Vec::new();
         if self.env_cleared {
             env.push(EnvContext {
-                key: String::from("<CLEANED>"),
-                value: String::from("<CLEANED>"),
+                key: String::from("+CLEANED+"),
+                value: String::from("+CLEANED+"),
             });
         }
         for (k, v) in self.command.get_envs() {
-            let k = k.to_str().unwrap_or("<NotASCII>").to_owned();
+            let k = k.to_str().unwrap_or("+NOT_ASCII+").to_owned();
             let v = v
-                .map(|v| v.to_str().unwrap_or("<NotASCII>"))
-                .unwrap_or("<CLEANED>")
+                .map(|v| v.to_str().unwrap_or("+NOT_ASCII+"))
+                .unwrap_or("+CLEANED+")
                 .to_owned();
             env.push(EnvContext { key: k, value: v });
         }
@@ -140,19 +138,19 @@ impl<'a> Command<'a> {
             workdir: self
                 .command
                 .get_current_dir()
-                .map(|d| d.to_str().unwrap_or("<empty>"))
-                .unwrap_or("<empty>")
+                .map(|d| d.to_str().unwrap_or("+EMPTY+"))
+                .unwrap_or("+EMPTY+")
                 .to_owned(),
             command: self
                 .command
                 .get_program()
                 .to_str()
-                .unwrap_or("<NotASCII>")
+                .unwrap_or("+NOT_ASCII+")
                 .to_owned(),
             args: self
                 .command
                 .get_args()
-                .map(|arg| arg.to_str().unwrap_or("<empty>").to_owned())
+                .map(|arg| arg.to_str().unwrap_or("+EMPTY+").to_owned())
                 .collect(),
         }
     }

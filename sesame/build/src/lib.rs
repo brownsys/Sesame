@@ -11,16 +11,43 @@ mod logging;
 mod sandbox;
 mod scrutinizer;
 
+// Options for builder.
+pub struct Options {
+    pub(self) log_file: Option<String>,
+    pub(self) verbose: bool,
+}
+impl Options {
+    pub fn new() -> Self {
+        Self {
+            log_file: None,
+            verbose: true,
+        }
+    }
+    pub fn log_file(&mut self, log_file: &str) -> &mut Self {
+        self.log_file = Some(log_file.to_string());
+        self
+    }
+    pub fn verbose(&mut self, verbose: bool) -> &mut Self {
+        self.verbose = verbose;
+        self
+    }
+}
+
 pub struct SesameBuilder {
     env: Env,
     logger: Logger,
 }
 impl SesameBuilder {
-    pub fn new(log_file: &str) -> Result<SesameBuilder, Error> {
+    pub fn new(opts: &Options) -> Result<SesameBuilder, Error> {
         let env = env::read_env()?;
-        let logger = Logger::new(log_file)?;
-        logger.info("Environment", &format!("{:#?}", env));
-        logger.log_bash_environment();
+        let logger = match &opts.log_file {
+            None => Logger::new(&env, opts.verbose)?,
+            Some(log_file) => Logger::with_file(log_file, opts.verbose)?,
+        };
+        if opts.verbose {
+            logger.info("Environment", &format!("\n{:#?}\n\n\n", env));
+            logger.log_bash_environment();
+        }
         Ok(SesameBuilder { env, logger })
     }
 
@@ -33,12 +60,8 @@ impl SesameBuilder {
 
     /// Build any sandboxes within this lib.
     pub fn build_sandbox(&mut self) {
-        self.logger.warn("Sandbox Build", &format!("Entry point with target {}", self.env.target));
         if self.env.target != "wasm32-rlbox" {
-            self.logger.warn("Sandbox Build", "target is not wasm32-rlbox");
             sandbox::build_sandbox(self);
-        } else {
-            self.logger.success("Sandbox Build", "target is wasm32-rlbox! Skipping!");
         }
     }
 

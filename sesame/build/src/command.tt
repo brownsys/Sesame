@@ -1,9 +1,6 @@
 
-Executing command for `{ title }`
-Env: {{ for e in env }}
-    { e.key } = { e.value }{{ - endfor }}
-Working dir: { workdir }
-cmd: { command }
-    {{for a in args }}
-    { a }
-    {{ - endfor }}
+  Executing command for `{ title }`
+    cmd: { command }{{for a in args }} { a }{{ - endfor }}
+    Working dir: { workdir }
+    Env: {{ for e in env }}
+          { e.key } = { e.value }{{ - endfor }}

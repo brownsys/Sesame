@@ -48,7 +48,7 @@ pub fn build_wrappers(builder: &SesameBuilder) {
     let status = builder
         .command("Build Wrappers", "make")
         .current_dir(&builder.env.out_directory)
-        .status()
+        .execute()
         .expect("Failed to build wrappers");
     if !status.success() {
         builder

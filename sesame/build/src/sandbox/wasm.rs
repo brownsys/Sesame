@@ -20,7 +20,7 @@ pub fn build_library_wasm(builder: &SesameBuilder) -> String {
         .logger
         .info("WASM", &format!("Building using features '{}'", features));
 
-    let output = builder
+    let status = builder
         .command("Build WASM", &builder.env.cargo)
         .arg("+nightly-2023-10-06")
         .arg("build")
@@ -42,13 +42,9 @@ pub fn build_library_wasm(builder: &SesameBuilder) -> String {
         .env_remove("RUSTFLAGS")
         .env_remove("RUSTCFLAGS")
         .env_remove("RUST_LOG")
-        .output()
+        .execute()
         .expect("Failed to build sandboxes library with wasm");
-    if !output.status.success() {
-        eprintln!("-----===============================================-------");
-        eprintln!("{}", String::from_utf8(output.stdout).unwrap());
-        eprintln!("{}", String::from_utf8(output.stderr).unwrap());
-        eprintln!("-----===============================================-------");
+    if !status.success() {
         builder
             .logger
             .error("WASM", "Failed to build sandboxes library with wasm");

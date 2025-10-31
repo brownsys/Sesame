@@ -27,7 +27,7 @@ pub fn template() -> TinyTemplate<'static> {
     let wrapper_cpp = include_str!("../../sandbox_stubs/wrapper.cpp");
     let wrapper_h = include_str!("../../sandbox_stubs/wrapper.h");
     let wasi_rt_aux_c = include_str!("../../sandbox_stubs/wasi_rt.aux.c");
-    let was32_rlbox_json = include_str!("../../sandbox_stubs/wasm32-rlbox.json");
+    let was32_rlbox_json = include_str!("../../sandbox_stubs/wasm32-rlbox.json.tmpl");
 
     // Use TinyTemplate to populate.
     tt.add_template("Makefile", makefile).unwrap();

@@ -1,6 +1,6 @@
-use sesame_build::SesameBuilder;
+use sesame_build::{Options, SesameBuilder};
 
 fn main() {
-    let builder = SesameBuilder::new("/tmp/log.log");
+    let builder = SesameBuilder::new(Options::new().verbose(true));
     builder.unwrap().link_sandbox("../sandbox_lib");
 }

@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::process::Command;
+use crate::env::Env;
 
 // ANSI colors and escape symbols.
 #[allow(dead_code)]
@@ -31,15 +33,30 @@ pub struct Logger {
     file: RefCell<File>,
 }
 impl Logger {
-    pub fn new(log_file: &str) -> Result<Self, std::io::Error> {
+    pub fn new(env: &Env, verbose: bool) -> Result<Self, std::io::Error> {
+        let path = env.log_file_path();
+        let file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&path)?;
+
+        let logger = Self {
+            file: RefCell::new(file),
+        };
+        logger.warn("Logger", &format!("Log file at {}", path));
+        Ok(logger)
+    }
+    pub fn with_file(log_file: &str, verbose: bool) -> Result<Self, std::io::Error> {
         let file = OpenOptions::new()
             .append(true)
             .create(true)
             .open(log_file)?;
 
-        Ok(Self {
+        let logger = Self {
             file: RefCell::new(file),
-        })
+        };
+        logger.warn("Logger", &format!("Log file at {}", log_file));
+        Ok(logger)
     }
 
     fn log(&self, cargo_level: &str, color: &str, component: &str, level: &str, msg: &str) {
@@ -72,10 +89,17 @@ impl Logger {
         for (k, v) in std::env::vars() {
             kvmap.insert(k, v);
         }
-        let mut string = String::new();
+        let mut string = String::from("\n");
         for (k, v) in kvmap {
-            string += &format!("{}={}\n", k, v);
+            string += &format!("  {} = {}\n", k, v);
         }
+        string += "\n\n\n";
         self.info("Bash Environment", &string);
+    }
+
+    // Capture stdour and stderr of command redirecting them to log file.
+    pub fn capture_command(&self, command: &mut Command) {
+        let file = self.file.borrow();
+        command.stdout(file.try_clone().unwrap()).stderr(file.try_clone().unwrap());
     }
 }

@@ -56,7 +56,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
                     .command("RLBox Pull", "git")
                     .current_dir(&rlbox_wasm2c_sandbox_path)
                     .arg("pull")
-                    .status()
+                    .execute()
                     .expect(
                         "Failed to pull 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'",
                     );
@@ -86,7 +86,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
                 .arg("clone")
                 .arg("https://github.com/AllenAby/rlbox_wasm2c_sandbox.git")
                 .arg(&rlbox_wasm2c_sandbox_path)
-                .status()
+                .execute()
                 .expect("Failed to clone 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'");
             if !status.success() {
                 builder.logger.error(
@@ -98,15 +98,13 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
 
             // Configure CMake (Once).
             builder.logger.warn("RLBox", "Configuring cmake");
-            let output = builder
+            let status = builder
                 .command("Configure cmake", "cmake")
                 .current_dir(&rlbox_wasm2c_sandbox_path)
                 .args(["-S", ".", "-B", "./build", "-DCMAKE_BUILD_TYPE=Release"])
-                .output()
+                .execute()
                 .expect("Failed to configure cmake for rlbox_was2mc_sandbox");
-            if !output.status.success() {
-                std::io::stdout().write_all(&output.stdout).unwrap();
-                std::io::stderr().write_all(&output.stderr).unwrap();
+            if !status.success() {
                 builder.logger.error(
                     "rlbox",
                     "Failed to configure cmake for rlbox_was2mc_sandbox.",
@@ -119,15 +117,13 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
     // Repo is cloned, and cmake is configured.
     // Build with cmake.
     builder.logger.warn("RLBox", "Building RLBox with cmake");
-    let output = builder
+    let status = builder
         .command("Build RLBox with cmake", "cmake")
         .current_dir(&rlbox_wasm2c_sandbox_path)
         .args(["--build", "./build", "--target", "all"])
-        .output()
+        .execute()
         .expect("Failed to build with cmake for rlbox_was2mc_sandbox");
-    if !output.status.success() {
-        std::io::stdout().write_all(&output.stdout).unwrap();
-        std::io::stderr().write_all(&output.stderr).unwrap();
+    if !status.success() {
         builder.logger.error(
             "rlbox",
             "Failed to build with cmake for rlbox_was2mc_sandbox",
