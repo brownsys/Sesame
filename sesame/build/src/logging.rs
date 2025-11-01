@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::process::Command;
+
 use crate::env::Env;
 
 // ANSI colors and escape symbols.
@@ -31,6 +31,7 @@ const BLUEBG: &'static str = "44";
 
 pub struct Logger {
     file: RefCell<File>,
+    verbose: bool,
 }
 impl Logger {
     pub fn new(env: &Env, verbose: bool) -> Result<Self, std::io::Error> {
@@ -42,6 +43,7 @@ impl Logger {
 
         let logger = Self {
             file: RefCell::new(file),
+            verbose,
         };
         logger.warn("Logger", &format!("Log file at {}", path));
         Ok(logger)
@@ -54,20 +56,26 @@ impl Logger {
 
         let logger = Self {
             file: RefCell::new(file),
+            verbose,
         };
         logger.warn("Logger", &format!("Log file at {}", log_file));
         Ok(logger)
     }
 
     fn log(&self, cargo_level: &str, color: &str, component: &str, level: &str, msg: &str) {
-        let msg = format!("Sesame Build: {}: {}: {}\n", component, level, msg);
+        // Print to file.
+        let msg = format!("Sesame Build: {}: {}: {}", component, level, msg);
         self.file.borrow_mut().write_all(msg.as_bytes()).unwrap();
         self.file.borrow_mut().flush().unwrap();
+
+        // Log to
         if cargo_level != "" {
-            println!(
-                "cargo:{}=\r{}{}{}{}{}{}{}",
-                cargo_level, ESCAPE, color, END, msg, ESCAPE, RESET, END
-            );
+            for line in msg.split('\n') {
+                println!(
+                    "cargo:{}=\r{}{}{}{}{}{}{}",
+                    cargo_level, ESCAPE, color, END, line, ESCAPE, RESET, END
+                );
+            }
         }
     }
 
@@ -78,7 +86,12 @@ impl Logger {
         self.log("error", REDFG, component, "Error", msg);
     }
     pub fn info(&self, component: &str, msg: &str) {
-        self.log("", BLUEFG, component, "Info", msg);
+        let level = if self.verbose {
+            "warning"
+        } else {
+            ""
+        };
+        self.log(level, BLUEFG, component, "Info", msg);
     }
     pub fn success(&self, component: &str, msg: &str) {
         self.log("warning", GREENFG, component, "Success", msg);
@@ -95,11 +108,5 @@ impl Logger {
         }
         string += "\n\n\n";
         self.info("Bash Environment", &string);
-    }
-
-    // Capture stdour and stderr of command redirecting them to log file.
-    pub fn capture_command(&self, command: &mut Command) {
-        let file = self.file.borrow();
-        command.stdout(file.try_clone().unwrap()).stderr(file.try_clone().unwrap());
     }
 }

@@ -1,5 +1,5 @@
 use std::fs::metadata;
-use std::io::Write;
+
 
 use serde::Serialize;
 
@@ -60,7 +60,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
                     .expect(
                         "Failed to pull 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'",
                     );
-                if !status.success() {
+                if !status.status.success() {
                     builder.logger.error(
                         "rlbox",
                         "Failed to pull 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'",
@@ -88,7 +88,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
                 .arg(&rlbox_wasm2c_sandbox_path)
                 .execute()
                 .expect("Failed to clone 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'");
-            if !status.success() {
+            if !status.status.success() {
                 builder.logger.error(
                     "rlbox",
                     "Failed to clone 'https://github.com/AllenAby/rlbox_wasm2c_sandbox.git'",
@@ -104,7 +104,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
                 .args(["-S", ".", "-B", "./build", "-DCMAKE_BUILD_TYPE=Release"])
                 .execute()
                 .expect("Failed to configure cmake for rlbox_was2mc_sandbox");
-            if !status.success() {
+            if !status.status.success() {
                 builder.logger.error(
                     "rlbox",
                     "Failed to configure cmake for rlbox_was2mc_sandbox.",
@@ -123,7 +123,7 @@ pub fn fetch_and_build_rlbox_wasm2c_sandbox(builder: &SesameBuilder) -> RLBoxCon
         .args(["--build", "./build", "--target", "all"])
         .execute()
         .expect("Failed to build with cmake for rlbox_was2mc_sandbox");
-    if !status.success() {
+    if !status.status.success() {
         builder.logger.error(
             "rlbox",
             "Failed to build with cmake for rlbox_was2mc_sandbox",

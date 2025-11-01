@@ -50,7 +50,7 @@ pub fn build_wrappers(builder: &SesameBuilder) {
         .current_dir(&builder.env.out_directory)
         .execute()
         .expect("Failed to build wrappers");
-    if !status.success() {
+    if !status.status.success() {
         builder
             .logger
             .error("Build Wrappers", "Failed to build wrappers");

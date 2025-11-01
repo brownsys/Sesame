@@ -1,25 +1,37 @@
 use crate::logging::Logger;
 use serde::Serialize;
 use std::ffi::OsStr;
-use std::fmt::Debug;
 use std::path::Path;
-use std::process::{ExitStatus, Output};
+use std::process::{ExitStatus, Stdio};
 use tinytemplate::TinyTemplate;
 
-pub struct CommandResult<'a, T, E: Debug> {
+pub struct CommandOutput {
+    pub status: ExitStatus,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+pub struct CommandResult<'a> {
     title: String,
-    result: Result<T, E>,
+    result: Result<CommandOutput, std::io::Error>,
     logger: &'a Logger,
 }
-impl<'a, T, E: Debug> CommandResult<'a, T, E> {
-    pub fn new(title: String, result: Result<T, E>, logger: &'a Logger) -> CommandResult<T, E> {
+impl<'a> CommandResult<'a> {
+    pub fn ok(title: String, output: CommandOutput, logger: &'a Logger) -> CommandResult<'a> {
         CommandResult {
             title,
-            result,
+            result: Ok(output),
             logger,
         }
     }
-    pub fn expect(self, error: &str) -> T {
+    pub fn err(title: String, err: std::io::Error, logger: &'a Logger) -> CommandResult<'a> {
+        CommandResult {
+            title,
+            result: Err(err),
+            logger,
+        }
+    }
+    pub fn expect(self, error: &str) -> CommandOutput {
         match self.result {
             Ok(t) => t,
             Err(err) => {
@@ -96,10 +108,28 @@ impl<'a> Command<'a> {
     }
 
     // Executes the command redirecting its stdout and stderr to the log file.
-    pub fn execute(&mut self) -> CommandResult<'a, ExitStatus, std::io::Error> {
+    pub fn execute(&mut self) -> CommandResult<'a> {
         self.log();
-        self.logger.capture_command(&mut self.command);
-        CommandResult::new(self.title.clone(), self.command.status(), self.logger)
+
+        let result = self.command
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output();
+
+        match result {
+            Ok(output) => {
+                let status = output.status;
+                let stdout = String::from_utf8(output.stdout).unwrap();
+                let stderr = String::from_utf8(output.stderr).unwrap();
+                self.logger.info(&self.title, &format!("stdout ---------------------\n{}\n----------------------------------------------------\n", stdout));
+                self.logger.info(&self.title, &format!("stderr ---------------------\n{}\n----------------------------------------------------\n", stderr));
+                CommandResult::ok(self.title.clone(), CommandOutput { status, stdout, stderr, }, self.logger)
+            },
+            Err(err) => {
+                self.logger.error(&self.title, &format!("Failed to execute: {}", err));
+                CommandResult::err(self.title.clone(), err, self.logger)
+            }
+        }
     }
 }
 

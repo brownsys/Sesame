@@ -44,7 +44,7 @@ pub fn build_library_wasm(builder: &SesameBuilder) -> String {
         .env_remove("RUST_LOG")
         .execute()
         .expect("Failed to build sandboxes library with wasm");
-    if !status.success() {
+    if !status.status.success() {
         builder
             .logger
             .error("WASM", "Failed to build sandboxes library with wasm");

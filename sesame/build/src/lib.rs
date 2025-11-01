@@ -44,10 +44,8 @@ impl SesameBuilder {
             None => Logger::new(&env, opts.verbose)?,
             Some(log_file) => Logger::with_file(log_file, opts.verbose)?,
         };
-        if opts.verbose {
-            logger.info("Environment", &format!("\n{:#?}\n\n\n", env));
-            logger.log_bash_environment();
-        }
+        logger.info("Environment", &format!("\n{:#?}\n\n\n", env));
+        logger.log_bash_environment();
         Ok(SesameBuilder { env, logger })
     }
 
