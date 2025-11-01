@@ -1,4 +1,7 @@
-use crate::{FastTransfer, IdentityFastTransfer, SandboxInstance};
+use crate::{FastTransfer, IdentityFastTransfer};
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::SandboxInstance;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::pointers::{ApplicationPtr, SandboxPtr};
@@ -7,17 +10,20 @@ use crate::pointers::{ApplicationPtr, SandboxPtr};
 // We use this to unswizzle/swizzle the insides of the vector.
 // Alignment is fine since all fields are 4bytes and thus 4bytes aligned on both
 // 32bit and 64bit archs.
+#[allow(dead_code)]
 pub struct SandboxedVec {
     pub(self) buf: SandboxedRawVec,
     pub(self) len: u32,
 }
 
+#[allow(dead_code)]
 struct SandboxedRawVec {
     pub(self) ptr: SandboxedNonNull,
     pub(self) cap: u32,
     // pub alloc: Global,   // 0-byte
 }
 
+#[allow(dead_code)]
 #[repr(transparent)]
 struct SandboxedNonNull {
     pub(self) pointer: u32,

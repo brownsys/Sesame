@@ -1,7 +1,6 @@
 use sesame_build::{Options, SesameBuilder};
 
 fn main() {
-    let builder = SesameBuilder::new(Options::new().verbose(false));
+    let builder = SesameBuilder::new(Options::new().verbose(true));
     builder.unwrap().build_sandbox();
 }
-

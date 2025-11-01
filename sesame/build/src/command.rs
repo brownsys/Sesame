@@ -111,7 +111,8 @@ impl<'a> Command<'a> {
     pub fn execute(&mut self) -> CommandResult<'a> {
         self.log();
 
-        let result = self.command
+        let result = self
+            .command
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output();
@@ -123,10 +124,19 @@ impl<'a> Command<'a> {
                 let stderr = String::from_utf8(output.stderr).unwrap();
                 self.logger.info(&self.title, &format!("stdout ---------------------\n{}\n----------------------------------------------------\n", stdout));
                 self.logger.info(&self.title, &format!("stderr ---------------------\n{}\n----------------------------------------------------\n", stderr));
-                CommandResult::ok(self.title.clone(), CommandOutput { status, stdout, stderr, }, self.logger)
-            },
+                CommandResult::ok(
+                    self.title.clone(),
+                    CommandOutput {
+                        status,
+                        stdout,
+                        stderr,
+                    },
+                    self.logger,
+                )
+            }
             Err(err) => {
-                self.logger.error(&self.title, &format!("Failed to execute: {}", err));
+                self.logger
+                    .error(&self.title, &format!("Failed to execute: {}", err));
                 CommandResult::err(self.title.clone(), err, self.logger)
             }
         }

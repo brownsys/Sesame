@@ -1,10 +1,17 @@
-use crate::{FastTransfer, SandboxInstance};
+use crate::FastTransfer;
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::SandboxInstance;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::ops::Deref;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::pointers::{ApplicationPtr, SandboxPtr};
 
 // Mimic memory layout of Box<T, Global> so we can cast between and access ptr.
+#[allow(dead_code)]
+#[repr(transparent)]
 pub struct SandboxedBox {
     pub ptr: u32,
     // pub alloc: Global,   // 0-byte

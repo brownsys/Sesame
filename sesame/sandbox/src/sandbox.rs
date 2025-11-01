@@ -3,7 +3,10 @@ use std::time::Instant;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::SandboxInstance;
+
+#[allow(unused_imports)]
 use crate::SandboxOut;
+
 use crate::SandboxableType;
 
 /// Trait that sandboxed functions should implement.

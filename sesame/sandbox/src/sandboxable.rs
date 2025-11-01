@@ -1,8 +1,13 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::ops::Deref;
 
-use crate::{FastTransfer, SandboxInstance};
+use crate::FastTransfer;
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::SandboxInstance;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::pointers::{ApplicationPtr, SandboxPtr};

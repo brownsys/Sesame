@@ -1,5 +1,11 @@
-use crate::{FastTransfer, IdentityFastTransfer, SandboxInstance};
+use crate::{FastTransfer, IdentityFastTransfer};
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::SandboxInstance;
+
 use chrono::NaiveDateTime;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::convert::TryInto;
 
 // Implement `FastSandboxTransfer` for primitives that won't change in the sandbox.

@@ -40,7 +40,10 @@ impl Env {
             .unwrap_or(false)
     }
     pub fn log_file_path(&self) -> String {
-        format!("/tmp/{}_{}_{}.log", self.current_crate_name, self.target, self.profile)
+        format!(
+            "/tmp/{}_{}_{}.log",
+            self.current_crate_name, self.target, self.profile
+        )
     }
 }
 

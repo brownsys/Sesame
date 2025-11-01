@@ -1,7 +1,11 @@
 use crate::fast_transfer::vec::SandboxedVec;
-use crate::{FastTransfer, SandboxInstance};
+use crate::FastTransfer;
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::SandboxInstance;
 
 // Mimic memory layout of String so we can cast between and access ptr.
+#[allow(dead_code)]
 #[repr(transparent)]
 pub struct SandboxedString {
     vec: SandboxedVec,

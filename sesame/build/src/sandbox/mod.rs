@@ -12,6 +12,7 @@ pub fn build_sandbox(builder: &SesameBuilder) {
     if sandboxes.len() > 0 {
         // We need to build the sandbox into a .so.
         let output_so = format!("lib{}_sandbox.so", builder.env.lib_name());
+        println!("cargo:rerun-if-changed={}", output_so);
 
         builder.logger.info(
             "Sandbox Build",

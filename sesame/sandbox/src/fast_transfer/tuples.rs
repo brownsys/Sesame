@@ -1,4 +1,7 @@
-use crate::{FastTransfer, IdentityFastTransfer, SandboxInstance};
+use crate::{FastTransfer, IdentityFastTransfer};
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::SandboxInstance;
 
 macro_rules! sandboxable_tuple_impl {
     ($([$A:tt,$i:tt]),*) => {

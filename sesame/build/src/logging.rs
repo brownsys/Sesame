@@ -36,10 +36,7 @@ pub struct Logger {
 impl Logger {
     pub fn new(env: &Env, verbose: bool) -> Result<Self, std::io::Error> {
         let path = env.log_file_path();
-        let file = OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(&path)?;
+        let file = OpenOptions::new().append(true).create(true).open(&path)?;
 
         let logger = Self {
             file: RefCell::new(file),
@@ -72,7 +69,7 @@ impl Logger {
         if cargo_level != "" {
             for line in msg.split('\n') {
                 println!(
-                    "cargo:{}=\r{}{}{}{}{}{}{}",
+                    "cargo:{}={}{}{}{}{}{}{}",
                     cargo_level, ESCAPE, color, END, line, ESCAPE, RESET, END
                 );
             }
@@ -86,11 +83,7 @@ impl Logger {
         self.log("error", REDFG, component, "Error", msg);
     }
     pub fn info(&self, component: &str, msg: &str) {
-        let level = if self.verbose {
-            "warning"
-        } else {
-            ""
-        };
+        let level = if self.verbose { "warning" } else { "" };
         self.log(level, BLUEFG, component, "Info", msg);
     }
     pub fn success(&self, component: &str, msg: &str) {

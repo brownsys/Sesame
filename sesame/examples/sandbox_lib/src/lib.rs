@@ -1,6 +1,6 @@
-use sesame_derive::{SesameSandbox, FastTransfer};
+use sesame_derive::{FastTransfer, SesameSandbox};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // Argument type for sandboxes.
 #[derive(Serialize, Deserialize)]
@@ -24,16 +24,16 @@ pub fn add_numbers(n: Numbers) -> u32 {
 
 #[SesameSandbox()]
 pub fn mult_numbers(n: NumbersFast) -> u32 {
-  n.a * n.b
+    n.a * n.b
 }
 
 #[SesameSandbox()]
 pub fn div_numbers(n: Numbers) -> u32 {
-  // Whether we see these or not depends on whether printing is enabled in
-  // `alohomora_build/sandbox_stubs/Makefile`
-  println!("my numbers are {} and {} - 1", n.a, n.b);
-  println!("my numbers are {} and {} - 2", n.a, n.b);
-  println!("my numbers are {} and {} - 3", n.a, n.b);
-  println!("my numbers are {} and {} - 4", n.a, n.b);
-  n.a / n.b
+    // Whether we see these or not depends on whether printing is enabled in
+    // `alohomora_build/sandbox_stubs/Makefile`
+    println!("my numbers are {} and {} - 1", n.a, n.b);
+    println!("my numbers are {} and {} - 2", n.a, n.b);
+    println!("my numbers are {} and {} - 3", n.a, n.b);
+    println!("my numbers are {} and {} - 4", n.a, n.b);
+    n.a / n.b
 }

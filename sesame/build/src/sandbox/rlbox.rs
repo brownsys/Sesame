@@ -1,6 +1,5 @@
 use std::fs::metadata;
 
-
 use serde::Serialize;
 
 use crate::SesameBuilder;

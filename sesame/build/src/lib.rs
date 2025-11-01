@@ -1,4 +1,4 @@
-use crate::command::Command;#[allow(dead_code)]
+use crate::command::Command;
 use crate::env::Env;
 use crate::error::Error;
 use crate::logging::Logger;

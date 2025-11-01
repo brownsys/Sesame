@@ -11,6 +11,7 @@ extern "C" {
 /// Also is an allocator for getting memory inside a sandbox from our sandbox pool.
 #[derive(Debug, Clone, Copy)]
 pub struct SandboxInstance {
+    #[allow(dead_code)]
     sandbox_index: usize, // the index of the sandbox to allocate in
 }
 #[cfg(not(target_arch = "wasm32"))]
