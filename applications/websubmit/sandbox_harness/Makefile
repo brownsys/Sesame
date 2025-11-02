@@ -9,4 +9,4 @@ plot:
 
 clean:
 	cargo clean
-	cd ../websubmit_boxed_sandboxes && cargo clean && rm -rf /libwebsubmit_boxed_sandboxes_sandbox.so && rm -rf wasm_target
+	cd ../websubmit_boxed_sandboxes && cargo clean && rm -rf libwebsubmit_boxed_sandboxes_sandbox.so && rm -rf wasm_target

@@ -11,7 +11,7 @@ CREATE VIEW agg_remote as SELECT users.is_remote, AVG(answers.grade), COUNT(DIST
 CREATE VIEW agg_gender as SELECT users.gender, AVG(answers.grade), COUNT(DISTINCT users.email) as ucount FROM users JOIN answers on users.email = answers.email GROUP BY users.gender;
 
 CREATE VIEW ml_training as SELECT answers.grade, answers.submitted_at, users.consent FROM users JOIN answers on users.email = answers.email;
-CREATE VIEW employers_release as SELECT users.email, AVG(answers.grade), users.consent FROM users JOIN answers on users.email = answers.email GROUP BY users.email;
+CREATE VIEW employers_release as SELECT users.email, AVG(answers.grade), users.consent FROM users JOIN answers on users.email = answers.email GROUP BY users.email, users.consent;
 
 -- Insert a single admin user.
 INSERT INTO users (email, apikey, is_admin, is_manager, pseudonym, gender, age, ethnicity, is_remote, education, consent) VALUES ('artem@brown.edu', 'ADMIN_API_KEY', 1, 1, 'admin_pseudonym', '', 21, '', 0, '', 0);

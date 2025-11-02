@@ -11,4 +11,4 @@ CREATE VIEW agg_remote as SELECT users.is_remote, AVG(answers.grade), COUNT(DIST
 CREATE VIEW agg_gender as SELECT users.gender, AVG(answers.grade), COUNT(DISTINCT users.email) as ucount FROM users JOIN answers on users.email = answers.email GROUP BY users.gender;
 
 CREATE VIEW ml_training as SELECT answers.grade, answers.submitted_at, users.consent FROM users JOIN answers on users.email = answers.email;
-CREATE VIEW employers_release as SELECT users.email, AVG(answers.grade), users.consent FROM users JOIN answers on users.email = answers.email GROUP BY users.email;
+CREATE VIEW employers_release as SELECT users.email, AVG(answers.grade), users.consent FROM users JOIN answers on users.email = answers.email GROUP BY users.email, users.consent;

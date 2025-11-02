@@ -86,7 +86,8 @@ fn train_bench(iters: u64) -> Vec<(u64, u64, u64, u64, u64, u64, u64)> {
         }).collect();
 
         let output = execute_sandbox::<train,_,_>(grades);
-        println!("{:?}", output.ret);
+        let ret: BBox<_, NoPolicy> = output.ret.clone().specialize_policy().unwrap();
+        println!("{:?}", ret);
         (
             to_micro(output.total),
             to_micro(output.serialize),
