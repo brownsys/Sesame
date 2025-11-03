@@ -7,7 +7,7 @@ extern crate rustc_span;
 extern crate rustc_hir; 
 
 // Helper for declaring lints without too much boilerplate.
-macro_rules! declare_alohomora_lint {
+macro_rules! declare_sesame_lint {
     ($(#[$attr:meta])* $vis:vis $NAME:ident, $Level:ident, $desc:expr, $func:ident($($param:ident: $ty:ty),*)) => {
         paste::paste! {
             rustc_session::declare_lint!($(#[$attr])* $vis $NAME, $Level, $desc);
@@ -35,20 +35,20 @@ macro_rules! declare_alohomora_lint {
 dylint_linting::dylint_library!();
 
 // List all lints, make each lint its own mod.
-mod alohomora_pcr; 
-mod alohomora_sandbox;
-mod alohomora_type;
-mod alohomora_sandbox_transfer;
-mod alohomora_sandbox_identity_transfer;
+mod sesame_pcr; 
+mod sesame_sandbox;
+mod sesame_type;
+mod sesame_sandbox_transfer;
+mod sesame_sandbox_identity_transfer;
 
 // Register all lints.
 #[allow(clippy::no_mangle_with_rust_abi)]
 #[no_mangle]
 pub fn register_lints(sess: &rustc_session::Session, lint_store: &mut rustc_lint::LintStore) {
     dylint_linting::init_config(sess);
-    alohomora_pcr::AlohomoraPcr::register(lint_store); 
-    alohomora_sandbox::AlohomoraSandbox::register(lint_store);
-    alohomora_type::AlohomoraType::register(lint_store);
-    alohomora_sandbox_transfer::AlohomoraSandboxTransfer::register(lint_store);
-    alohomora_sandbox_identity_transfer::AlohomoraSandboxIdentityTransfer::register(lint_store);
+    sesame_pcr::SesamePcr::register(lint_store); 
+    sesame_sandbox::SesameSandbox::register(lint_store);
+    sesame_type::SesameType::register(lint_store);
+    sesame_sandbox_transfer::SesameSandboxTransfer::register(lint_store);
+    sesame_sandbox_identity_transfer::SesameSandboxIdentityTransfer::register(lint_store);
 }

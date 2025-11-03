@@ -31,7 +31,7 @@ use quote::ToTokens;
 use scrutils::{Collector, FunctionInfo, 
     compute_deps_for_body, compute_dep_strings_for_crates}; 
 
-declare_alohomora_lint! {
+declare_sesame_lint! {
     /// ### What it does
     /// Warns if a CriticalRegion has an invalid signature. 
     /// 
@@ -58,7 +58,7 @@ declare_alohomora_lint! {
     /// //          Signature {username: "corinnt", 
     /// //              signature: "LS0tLS....."},     // review signature on closure
     /// ```
-    pub ALOHOMORA_PCR,
+    pub SESAME_PCR,
     Warn,
     "highlights and hashes privacy-critical regions", 
     check_expr(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Expr<'_>)
@@ -66,7 +66,7 @@ declare_alohomora_lint! {
 
 fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Expr<'_>) {
     let target_fn_path: Vec<Symbol> = vec![
-        sym!(alohomora), //TODO swap for `sesame`
+        sym!(sesame), //TODO swap for `sesame`
         sym!(pcr),
         sym!(PrivacyCriticalRegion),
         sym!(new),
@@ -118,7 +118,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
                     }
                     span_lint_and_help(
                         cx,
-                        ALOHOMORA_PCR,
+                        SESAME_PCR,
                         expr.span,
                         "\x1b[93minvalid signature on privacy-critical region, could be a source of privacy policy violation bugs\x1b[0m",
                         None,
@@ -322,7 +322,7 @@ fn push_id_error(msg: &mut String, id: &str, res: &Result<(), String>) {
 fn pcr_legal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "alohomora_pcr_legal"
+        "sesame_pcr_legal"
     );
 }
 
@@ -330,6 +330,6 @@ fn pcr_legal() {
 fn pcr_illegal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "alohomora_pcr_illegal"
+        "sesame_pcr_illegal"
     );
 }

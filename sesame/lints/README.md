@@ -1,7 +1,7 @@
-# Alohomora's linting library
+# Sesame's linting library
 
-This contains all the `dylints` Alohomora requires to ensure that application code is safe and respects
-various assumptions Alohomora makes.
+This contains all the `dylints` Sesame requires to ensure that application code is safe and respects
+various assumptions Sesame makes.
 
 ## Dependencies
 Developers must manually install and `cargo-dylint` `rust-link` in order to use lints.
@@ -18,7 +18,7 @@ Every lint (or group of logically related lints) should be in its own mod file u
 Inside that mod, each lint must be declared using:
 
 ```rust
-declare_alohomora_lint!(
+declare_sesame_lint!(
     /// ### What it does
     /// < SPECIFY WHAT THE LINT DOES >
 
@@ -38,7 +38,7 @@ declare_alohomora_lint!(
 
 For each declared lint, the mod must contain a `check_*` method from the [LateLintPass](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint/trait.LateLintPass.html) trait, excluding the `*mut self` argument. 
 You should choose the `check_<...>` function that meets your lint's requirements.
-For example, if your trait is best suited for [`check_expr(&mut Self, &LateContext<'a>, &'a Expr<'a>`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint/trait.LateLintPass.html#method.check_expr), then you must implement a `check_expr(&LateContext<'a>, &'a Expr<'a>)` in your mod, and then use `check_expr(a: &rustc_lint::LateContext<'a>, b: &'a rustc_hir::Expr<'a>)` as the last argument to `declare_alohomora_lint!`.
+For example, if your trait is best suited for [`check_expr(&mut Self, &LateContext<'a>, &'a Expr<'a>`](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_lint/trait.LateLintPass.html#method.check_expr), then you must implement a `check_expr(&LateContext<'a>, &'a Expr<'a>)` in your mod, and then use `check_expr(a: &rustc_lint::LateContext<'a>, b: &'a rustc_hir::Expr<'a>)` as the last argument to `declare_sesame_lint!`.
 
 ### Lint registration
 
@@ -72,30 +72,30 @@ Actual stderr saved to /tmp/<filename>
 
 # List of existing lints
 
-## AlohomoraType
+## SesameType
 
 ### What it does
-Denies non-library implementations of AlohomoraType. 
+Denies non-library implementations of SesameType. 
 
 ### Why is this bad?
-Developers must derive impls of AlohomoraType to ensure integrity of policy protection.
+Developers must derive impls of SesameType to ensure integrity of policy protection.
 
 ### Example
 ```rust
-impl AlohomoraType for BadStruct {
+impl SesameType for BadStruct {
     // ...
 }
  ```
  Use instead:
 ```rust
-#[derive(AlohomoraType)]
+#[derive(SesameType)]
 #[out_type(name = "GoodStructOut", to_derive = [Debug])]
 pub struct GoodStruct { 
     // ...
 }
 ```
 
-## AlohomoraPCR
+## SesamePCR
 ### What it does
 Warns if PrivacyCriticalRegions have invalid signatures. 
 
@@ -115,7 +115,7 @@ so changes in an external crate will not invalidate the signature. The signature
 ## Creating a PrivacyCriticalRegion signature
 Each PCR signature is unique to the closure it signs. We use ssh-keygen to sign and verify the signed file. 
 
-To create an author or reviewer Signature, run the `alohomora_pcr` lint with an empty string in the signature field.
+To create an author or reviewer Signature, run the `sesame_pcr` lint with an empty string in the signature field.
 The lint will fail and output a file containing the hash of the MIR of the closure. 
 
 The hash of a PrivacyCriticalRegion in a function named `data_processing` will appear in a file of the form `pcr/data_processing-{closure#0}_hash.rs`
@@ -133,7 +133,7 @@ The arguments are the path to a private key linked with your Github and a text f
 <!--- Make code --->
     ./sign.sh /Users/name/.ssh/id_ed25519 src/pcr/hash_file.rs
 
-The `alohomora::pcr::Signature` struct takes as arguments a github username, the PCR-specific signature, and a signature on the hash of the Cargo.lock. 
+The `sesame::pcr::Signature` struct takes as arguments a github username, the PCR-specific signature, and a signature on the hash of the Cargo.lock. 
 
 Copy-paste the appropriate encrypted signature from the generated file into each Signature struct. 
 
@@ -146,3 +146,10 @@ Signature {
 Changing the source code of the PCR will invalidate the previous signature. 
 
 Both the closure and Signatures must be instantiated inline in the PrivacyCriticalRegion declaration.
+
+## Other lints
+
+There are several other lints in the style of the SesameType lint above. These protect Sesame traits used for sandboxing,
+reflection on policy types, and other tasks.
+
+You can find each of these lints as a separate file under `src/`.

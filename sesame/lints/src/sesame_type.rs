@@ -6,31 +6,31 @@ use clippy_utils::diagnostics::span_lint_and_help;
 
 use std::vec::Vec;
 
-declare_alohomora_lint!(
+declare_sesame_lint!(
     /// ### What it does
-    /// Denies manual implementations of AlohomoraType
+    /// Denies manual implementations of SesameType
 
     /// ### Why is this bad?
-    /// Developers must derive impls of AlohomoraType to ensure integrity of data protection.
+    /// Developers must derive impls of SesameType to ensure integrity of data protection.
 
     /// ### Example
     /// ```rust
-    /// // impl AlohomoraType for BadStruct { ... }
+    /// // impl SesameType for BadStruct { ... }
     /// ```
     /// Use instead:
     /// ```rust
-    /// // #[derive(AlohomoraType)]
+    /// // #[derive(SesameType)]
     /// // #[out_type(name = "GoodStructOut", to_derive = [Debug])]
     /// // pub struct GoodStruct { ... }    /// ```
-    pub ALOHOMORA_TYPE,
+    pub SESAME_TYPE,
     Deny, // does not allow override
-    "AlohomoraType must always be derived, not user-implemented",
+    "SesameType must always be derived, not user-implemented",
     check_crate(cx: &LateContext<'_>)
 );
 
 // Check if def_id has the doc attribute we use to detect derived implementations.
 fn contains_secret(cx: &LateContext<'_>, def_id: &DefId) -> bool {
-    let secret = "Library implementation of AlohomoraType. Do not copy this docstring!";
+    let secret = "Library implementation of SesameType. Do not copy this docstring!";
     cx.tcx.get_attr(*def_id, rustc_span::symbol::Symbol::intern("doc"))
         .and_then(|attr| Some(attr.doc_str().unwrap().to_ident_string()))
         .and_then(|doc| Some(doc.contains(secret)))
@@ -42,17 +42,17 @@ fn error_message(cx: &LateContext<'_>, &def_id: &DefId) {
     let map: rustc_middle::hir::map::Map = cx.tcx.hir();
     match map.span_if_local(def_id.clone()) {
         None => {
-            panic!("Manual implementation of AlohomoraType trait at {}. doc: {:?}",
+            panic!("Manual implementation of SesameType trait at {}. doc: {:?}",
                    cx.tcx.def_path_str(def_id),
                    cx.tcx.get_attr(def_id, rustc_span::symbol::Symbol::intern("doc")));
         },
         Some(span) => {
             span_lint_and_help (
                 cx,
-                ALOHOMORA_TYPE,
+                SESAME_TYPE,
                 span,
-                "\x1b[93mmanual implementation of AlohomoraType trait\x1b[0m",
-                None, "use `#[derive(AlohomoraType)]` instead"
+                "\x1b[93mmanual implementation of SesameType trait\x1b[0m",
+                None, "use `#[derive(SesameType)]` instead"
             );
         }
     }
@@ -60,10 +60,10 @@ fn error_message(cx: &LateContext<'_>, &def_id: &DefId) {
 
 // Lint implementation
 fn check_crate(cx: &LateContext<'_>) {
-    let path: &[&str] = &vec!["alohomora", "AlohomoraType"];
+    let path: &[&str] = &vec!["sesame", "SesameType"];
     let aloh_ty_def_id = get_trait_def_id(cx, path);
     if aloh_ty_def_id.is_none() {
-        // Compiling some dependency that does not link with Alohomora.
+        // Compiling some dependency that does not link with Sesame.
         return;
     }
 
@@ -82,17 +82,17 @@ fn check_crate(cx: &LateContext<'_>) {
 
 
 #[test]
-fn alohomora_type_legal() {
+fn sesame_type_legal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "alohomora_type_legal"
+        "sesame_type_legal"
     );
 }
 
 #[test]
-fn alohomora_type_illegal() {
+fn sesame_type_illegal() {
     dylint_testing::ui_test_example(
         env!("CARGO_PKG_NAME"),
-        "alohomora_type_illegal"
+        "sesame_type_illegal"
     );
 }
