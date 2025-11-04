@@ -12,7 +12,7 @@ pub fn generate_wrappers(builder: &SesameBuilder, rlbox: &RLBoxConfiguration) {
     );
 
     // Render the templates given the environment.
-    let wrappers = render(&builder.env, rlbox);
+    let wrappers = render(&builder.env, rlbox, builder.allow_sandbox_printing());
 
     // Write to files.
     fs::write(

@@ -8,6 +8,8 @@ WASI_RUNTIME_FILES = {{for rt_file in rlbox.wasi_runtime_files}}"{rt_file}" {{en
 WASI_CLANG="{rlbox.wasi_clang}"
 WASM2C="{rlbox.wasm2c}"
 
+ALLOW_PRINTING := {allow_sandbox_printing}
+
 all: {env.package_directory}/lib{name}_sandbox.so
 
 # Step 2: use wasm2c to convert our WASM to a C implementation of WASM we can link with our application
@@ -16,9 +18,12 @@ all: {env.package_directory}/lib{name}_sandbox.so
 
 # Step 3: generating .o files.
 {name}.wasm.o: {name}.wasm.c {name}.wasm.h wasi_rt.aux.c
+ifeq ($(ALLOW_PRINTING), 1)
 	$(CC) -DALLOW_SANDBOX_PRINTING -O3 -fPIC -c $(WASI_RUNTIME_FILES) $(patsubst %, -I%, $(RLBOX_INCLUDE)) {name}.wasm.c wasi_rt.aux.c
-	# To dissallow printing; use below instead
-	# $(CC) -O3 -fPIC -c $(WASI_RUNTIME_FILES) $(patsubst %, -I%, $(RLBOX_INCLUDE)) {name}.wasm.c wasi_rt.aux.c
+else
+	# Disallow printing.
+	$(CC) -O3 -fPIC -c $(WASI_RUNTIME_FILES) $(patsubst %, -I%, $(RLBOX_INCLUDE)) {name}.wasm.c wasi_rt.aux.c
+endif
 
 # Step 4: linking our RLBox wrapper functions with our library of functions and RLBox into a shared library
 {env.package_directory}/lib{name}_sandbox.so: {name}.wasm.o wrapper.cpp wrapper.h

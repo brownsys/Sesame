@@ -12,16 +12,18 @@ pub struct RenderContext {
     pub sandboxes: Vec<String>, // Name of every sandbox entry function.
     pub env: Env,
     pub rlbox: RLBoxConfiguration,
+    pub allow_sandbox_printing: u32,
 }
 
 // Fill Render context given environment.
-impl From<(&Env, &RLBoxConfiguration)> for RenderContext {
-    fn from((env, rlbox): (&Env, &RLBoxConfiguration)) -> Self {
+impl From<(&Env, &RLBoxConfiguration, bool)> for RenderContext {
+    fn from((env, rlbox, allow_sandbox_printing): (&Env, &RLBoxConfiguration, bool)) -> Self {
         RenderContext {
             name: env.lib_name(),
             sandboxes: get_sandboxes(&env.cargo_toml),
             env: env.clone(),
             rlbox: rlbox.clone(),
+            allow_sandbox_printing: if allow_sandbox_printing { 1 } else { 0 },
         }
     }
 }
@@ -35,12 +37,12 @@ pub struct Wrappers {
     pub wasm32_rlbox_json: String,
 }
 
-pub fn render(env: &Env, rlbox: &RLBoxConfiguration) -> Wrappers {
+pub fn render(env: &Env, rlbox: &RLBoxConfiguration, allow_sandbox_printing: bool) -> Wrappers {
     // Construct TinyTemplate instance.
     let tt = template();
 
     // Fill in rendering context based on environment.
-    let context = RenderContext::from((env, rlbox));
+    let context = RenderContext::from((env, rlbox, allow_sandbox_printing));
 
     // Render the templates.
     Wrappers {

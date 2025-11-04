@@ -29,8 +29,7 @@ pub fn mult_numbers(n: NumbersFast) -> u32 {
 
 #[SesameSandbox()]
 pub fn div_numbers(n: Numbers) -> u32 {
-    // Whether we see these or not depends on whether printing is enabled in
-    // `alohomora_build/sandbox_stubs/Makefile`
+    // Whether we see these or not depends on whether printing is enabled in build.rs.
     println!("my numbers are {} and {} - 1", n.a, n.b);
     println!("my numbers are {} and {} - 2", n.a, n.b);
     println!("my numbers are {} and {} - 3", n.a, n.b);
