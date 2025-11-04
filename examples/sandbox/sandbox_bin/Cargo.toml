@@ -16,8 +16,8 @@ name = "bin"
 path = "src/bin.rs"
 
 [dependencies]
-sesame = { path = "../../core" }
+sesame = { path = "../../../sesame/core" }
 example_sandbox_lib = { path = "../sandbox_lib" }
 
 [build-dependencies]
-sesame_build = { path = "../../build" }
+sesame_build = { path = "../../../sesame/build" }

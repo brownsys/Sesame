@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "sesame/build",
+    "sesame/core",
+    "sesame/derive",
+    "sesame/mysql",
+    "sesame/orm",
+    "sesame/rocket",
+    "sesame/sandbox",
+    "examples/sandbox/sandbox_bin",
+    "examples/sandbox/sandbox_lib",
+]
+
+exclude = [
+    "applicatons/**",
+    "sesame/lints/",
+    "examples/pcr_examples/**",
+]
+
+[patch.crates-io]
+funty = { git = "https://github.com/bitvecto-rs/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }

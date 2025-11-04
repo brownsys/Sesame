@@ -1,5 +1,5 @@
 [package]
-name = "myapp_lib"
+name = "example_sandbox_lib"
 version = "0.1.0"
 authors = ["Kinan Dak Albab <kinan.bab.14@gmail.com>"]
 edition = "2018"
@@ -11,8 +11,7 @@ sesame_derive = { path = "../../../sesame/derive" }
 sesame_sandbox = { path = "../../../sesame/sandbox" } #, features = ["sandbox_timing"] }
 
 [build-dependencies]
-bindgen = "0.69.1"
-alohomora_build = { path = "../../../alohomora_build" }
+sesame_build = { path = "../../../sesame/build" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
