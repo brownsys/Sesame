@@ -69,7 +69,7 @@ impl SesameConn {
         let param_values = params.to_reason();
         let params = params.transform(
             context,
-            Reason::DB(&stmt_str, param_values.iter().map(|_| ()).collect()),
+            Reason::DB(&stmt_str, param_values.iter().collect()),
         )?;
         Ok(self.conn.exec_drop(statement, params)?)
     }
@@ -100,7 +100,7 @@ impl SesameConn {
         let param_values = params.to_reason();
         let params = params.transform(
             context,
-            Reason::DB(&stmt_str, param_values.iter().map(|_| ()).collect()),
+            Reason::DB(&stmt_str, param_values.iter().collect()),
         )?;
         let result = self.conn.exec_iter(statement, params)?;
         Ok(PConQueryResult { result })

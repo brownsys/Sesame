@@ -9,7 +9,7 @@ use sesame_mysql::{schema_policy, SchemaPolicy};
 #[schema_policy(table = "chats", column = 0)]
 #[schema_policy(table = "chats", column = 1)]
 #[schema_policy(table = "chats", column = 2)]
-// #[schema_policy(table = "chats", column = 3)] // is bboxing the time really neccessary
+// #[schema_policy(table = "chats", column = 3)] // is policy-ing the time really neccessary?
 #[schema_policy(table = "chats", column = 4)]
 // policy for accessing chats
 // only the sender, recipient, or members of the groupchat should have access

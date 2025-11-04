@@ -6,6 +6,7 @@ use crate::rocket::{
     PConRequest, PConResponder, PConResponse, PConResponseResult, ResponsePConJson,
 };
 use rocket::serde::json::Json;
+use serde::Serialize;
 use serde_json::{Map, Value};
 use sesame::error::SesameResult;
 use sesame::extensions::{ExtensionContext, SesameExtension};
@@ -79,5 +80,13 @@ impl<'a, 'r, 'o: 'r, T: ResponsePConJson, D: ContextData> PConResponder<'a, 'r, 
                 Ok(PConResponse::new(result))
             }
         }
+    }
+}
+
+// Can also return plain JSON with no PCons.
+impl<'a, 'r, 'o: 'r, T: Serialize> PConResponder<'a, 'r, 'o> for Json<T> {
+    fn respond_to(self, request: PConRequest<'a, 'r>) -> PConResponseResult<'o> {
+        let response = rocket::response::Responder::respond_to(self, request.get_request())?;
+        Ok(PConResponse::new(response))
     }
 }

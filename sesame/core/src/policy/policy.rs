@@ -7,12 +7,12 @@ use crate::policy::{Join, Reflective, UpgradableToAny};
 // Enum describing why/where the policy check is invoked.
 #[derive(Clone)]
 pub enum Reason<'i> {
-    DB(&'i str, Vec<() /* &'i mysql::Value */>), // The statement (with ?).
-    TemplateRender(&'i str),                     // Template name/path.
-    Cookie(&'i str),                             // Cookie name.
-    Redirect(&'i str),                           // Redirect path (before substitution).
-    Response,                                    // Returning a response.
-    Custom(&'i dyn Any),                         // Custom operation (via unbox(..)).
+    DB(&'i str, Vec<&'i mysql_common::value::Value>), // The statement (with ?).
+    TemplateRender(&'i str),                          // Template name/path.
+    Cookie(&'i str),                                  // Cookie name.
+    Redirect(&'i str),                                // Redirect path (before substitution).
+    Response,                                         // Returning a response.
+    Custom(&'i dyn Any),                              // Custom operation (via unbox(..)).
 }
 
 // Public facing Policy traits.
