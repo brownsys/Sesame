@@ -1,8 +1,9 @@
-use alohomora::db::{BBoxConn, BBoxOpts};
+use sesame_mysql::{PConOpts, SesameConn};
+
 use std::result::Result;
 
 pub struct MySqlBackend {
-    pub handle: BBoxConn,
+    pub handle: SesameConn,
     _schema: String,
     _db_user: String,
     _db_password: String,
@@ -13,8 +14,8 @@ impl MySqlBackend {
     pub fn new(user: &str, password: &str, dbname: &str, prime: bool) -> Result<Self, String> {
         let schema = std::fs::read_to_string("src/schema.sql").unwrap();
 
-        let mut db = BBoxConn::new(
-            BBoxOpts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
+        let mut db = SesameConn::new(
+            PConOpts::from_url(&format!("mysql://{}:{}@127.0.0.1/", user, password)).unwrap(),
         )
         .unwrap();
 

@@ -1,11 +1,11 @@
 use std::fs;
 use std::io::{Error, ErrorKind, Read};
 
-use alohomora::SesameType;
+use sesame::SesameType;
 use toml;
 
 #[derive(SesameType, Debug, Clone)]
-#[alohomora_out_type(to_derive = [Debug, Clone])]
+#[sesame_out_type(to_derive = [Debug, Clone])]
 pub struct Config {
     /// user for the mySQL database
     pub db_user: String,

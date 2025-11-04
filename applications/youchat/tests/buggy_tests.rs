@@ -1,21 +1,21 @@
-use alohomora::testing::BBoxClient;
 use rocket::http::Status;
+use sesame_rocket::testing::SesameClient;
 use youchat;
 mod common;
 use common::{random_string, response_contains, ResponsePortion};
 use rocket::http::ContentType;
 
-const INTENDED_BUGGY_ERROR: Status = Status::InternalServerError;
+const INTENDED_BUGGY_ERROR: u16 = 491;
 
 #[test]
 fn buggy_endpoint_crashes() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // check to make sure we get the intended error on the buggy endpoint
     let response = client.get("/buggy/ali").dispatch();
-    assert!(response.status() == INTENDED_BUGGY_ERROR);
+    assert_eq!(response.status(), Status::new(INTENDED_BUGGY_ERROR));
 
     // send a random confidential message
     let recipient = random_string(6);
@@ -33,7 +33,7 @@ fn buggy_endpoint_crashes() {
     // make sure this causes the buggy endpoint to crash for all users
     for user in ["alex", "daniella", "barry", "charlie"] {
         let response = client.get(format!("/buggy/{user}")).dispatch();
-        assert!(response.status() == INTENDED_BUGGY_ERROR);
+        assert_eq!(response.status(), Status::new(INTENDED_BUGGY_ERROR));
     }
 }
 
@@ -41,7 +41,7 @@ fn buggy_endpoint_crashes() {
 fn buggy_endpoint_doesnt_leak_existing() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // check to make sure we get the intended error on the buggy endpoint
     let response = client.get("/buggy/ali").dispatch();
@@ -68,7 +68,7 @@ fn buggy_endpoint_doesnt_leak_sent() {
 
     // use alohomora testing client
     // rust rocket web app, list from justus
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // make three random confidential chats
     let recipient = random_string(6);
@@ -103,7 +103,7 @@ fn buggy_endpoint_doesnt_leak_sent() {
 fn buggy_endpoint_works_if_all_chats_allowed() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // check to make sure we don't get an error on the buggy endpoint
     // if we should be able to access all the chats

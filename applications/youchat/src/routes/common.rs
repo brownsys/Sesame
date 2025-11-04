@@ -1,20 +1,16 @@
-extern crate chrono;
-
-use alohomora::bbox::{BBox, BBoxRender};
-use alohomora::db::{from_value, BBoxRow};
-use alohomora::policy::{AnyPolicy, NoPolicy};
-use alohomora::pure::{execute_pure, PrivacyPureRegion};
-use alohomora::rocket::{BBoxResponseEnum, FromBBoxForm};
+use crate::policy::policies::ChatAccessPolicy;
 use chrono::prelude::*;
+use sesame::pcon::PCon;
+use sesame::policy::{AnyPolicy, NoPolicy};
+use sesame::verified::{execute_verified, VerifiedRegion};
+use sesame_mysql::{from_value, PConRow};
+use sesame_rocket::render::PConRender;
+use sesame_rocket::rocket::FromPConForm;
 
-use crate::policies::ChatAccessPolicy;
-
-// Response enum that can be either templates or redirects
-pub type AnyBBoxResponse = BBoxResponseEnum;
-pub struct FromRowError(pub BBoxRow);
+pub struct FromRowError(pub PConRow);
 
 pub trait FromBBoxRow {
-    fn from_row(row: BBoxRow) -> Self
+    fn from_row(row: PConRow) -> Self
     where
         Self: Sized,
     {
@@ -26,20 +22,20 @@ pub trait FromBBoxRow {
         }
     }
 
-    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError>
+    fn from_row_opt(row: PConRow) -> Result<Self, FromRowError>
     where
         Self: Sized;
 }
 
-impl FromBBoxRow for BBoxRow {
-    fn from_row(row: BBoxRow) -> Self
+impl FromBBoxRow for PConRow {
+    fn from_row(row: PConRow) -> Self
     where
         Self: Sized,
     {
         row
     }
 
-    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError>
+    fn from_row_opt(row: PConRow) -> Result<Self, FromRowError>
     where
         Self: Sized,
     {
@@ -55,22 +51,22 @@ pub enum PermissionType {
     None,
 }
 
-#[derive(BBoxRender)]
+#[derive(PConRender)]
 pub struct Chat {
-    pub recipient: BBox<String, ChatAccessPolicy>,
-    pub sender: BBox<String, ChatAccessPolicy>,
-    pub content: BBox<String, ChatAccessPolicy>,
-    pub timestamp: BBox<String, AnyPolicy>,
-    pub index: BBox<usize, NoPolicy>, // the order in which the chat will be displayed on page
+    pub recipient: PCon<String, ChatAccessPolicy>,
+    pub sender: PCon<String, ChatAccessPolicy>,
+    pub content: PCon<String, ChatAccessPolicy>,
+    pub timestamp: PCon<String, AnyPolicy>,
+    pub index: PCon<usize, NoPolicy>, // the order in which the chat will be displayed on page
                                       // (so we can know which chats to delete on click)
 }
 
 impl Chat {
-    pub fn new(row: BBoxRow, index: usize) -> Self {
-        let b: BBox<mysql::Value, AnyPolicy> = row.get(3).unwrap();
-        let t: BBox<String, AnyPolicy> = execute_pure(
+    pub fn new(row: PConRow, index: usize) -> Self {
+        let b: PCon<mysql::Value, AnyPolicy> = row.get(3).unwrap();
+        let t: PCon<String, AnyPolicy> = execute_verified(
             b,
-            PrivacyPureRegion::new(|val: mysql::Value| val.as_sql(true).replace("'", "")),
+            VerifiedRegion::new(|val: mysql::Value| val.as_sql(true).replace("'", "")),
         )
         .unwrap();
         Chat {
@@ -78,30 +74,30 @@ impl Chat {
             sender: from_value(row.get(1).unwrap()).unwrap(),
             content: from_value(row.get(2).unwrap()).unwrap(),
             timestamp: t,
-            index: BBox::new(index, NoPolicy::new()),
+            index: PCon::new(index, NoPolicy::new()),
         }
     }
 }
 
 impl FromBBoxRow for Chat {
-    fn from_row(row: BBoxRow) -> Self {
+    fn from_row(row: PConRow) -> Self {
         Chat::new(row, 0)
     }
 
-    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> {
+    fn from_row_opt(row: PConRow) -> Result<Self, FromRowError> {
         Ok(Chat::new(row, 0))
     }
 }
 
-#[derive(BBoxRender, Clone)]
+#[derive(PConRender, Clone)]
 pub struct Group {
-    pub name: BBox<String, NoPolicy>,
-    pub admin: BBox<String, NoPolicy>,
-    pub access_code: BBox<String, NoPolicy>,
+    pub name: PCon<String, NoPolicy>,
+    pub admin: PCon<String, NoPolicy>,
+    pub access_code: PCon<String, NoPolicy>,
 }
 
 impl Group {
-    pub fn new(row: BBoxRow) -> Self {
+    pub fn new(row: PConRow) -> Self {
         Group {
             name: from_value(row.get(0).unwrap()).unwrap(),
             admin: from_value(row.get(1).unwrap()).unwrap(),
@@ -111,23 +107,23 @@ impl Group {
 }
 
 impl FromBBoxRow for Group {
-    fn from_row(row: BBoxRow) -> Self {
+    fn from_row(row: PConRow) -> Self {
         Group::new(row)
     }
 
-    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> {
+    fn from_row_opt(row: PConRow) -> Result<Self, FromRowError> {
         Ok(Group::new(row))
     }
 }
 
-#[derive(BBoxRender)]
+#[derive(PConRender)]
 pub struct UserCode {
-    pub user: BBox<String, NoPolicy>,
-    pub access_code: BBox<String, NoPolicy>,
+    pub user: PCon<String, NoPolicy>,
+    pub access_code: PCon<String, NoPolicy>,
 }
 
 impl UserCode {
-    pub fn new(row: BBoxRow) -> Self {
+    pub fn new(row: PConRow) -> Self {
         UserCode {
             user: from_value(row.get(0).unwrap()).unwrap(),
             access_code: from_value(row.get(1).unwrap()).unwrap(),
@@ -136,38 +132,38 @@ impl UserCode {
 }
 
 impl FromBBoxRow for UserCode {
-    fn from_row(row: BBoxRow) -> Self {
+    fn from_row(row: PConRow) -> Self {
         UserCode::new(row)
     }
 
-    fn from_row_opt(row: BBoxRow) -> Result<Self, FromRowError> {
+    fn from_row_opt(row: PConRow) -> Result<Self, FromRowError> {
         Ok(UserCode::new(row))
     }
 }
 
 // the context needed to render the chat webpage
 // NOT TO BE CONFUSED with the context needed to open a ChatAccessPolicy BBox
-#[derive(BBoxRender)]
+#[derive(PConRender)]
 pub struct ChatContext {
-    pub name: BBox<String, NoPolicy>,
+    pub name: PCon<String, NoPolicy>,
     pub sent_chats: Vec<Chat>,
     pub recieved_chats: Vec<Chat>,
     pub buggy: bool,
 }
 
 // the context needed to render the groupchat webpage
-#[derive(BBoxRender)]
+#[derive(PConRender)]
 pub struct GroupChatContext {
-    pub group_name: BBox<String, NoPolicy>,
-    pub user_name: BBox<String, NoPolicy>,
+    pub group_name: PCon<String, NoPolicy>,
+    pub user_name: PCon<String, NoPolicy>,
     pub chats: Vec<Chat>,
     pub admin: bool,
 }
 
-#[derive(FromBBoxForm)]
+#[derive(FromPConForm)]
 pub struct MessageRequest {
-    pub(crate) recipient: BBox<String, NoPolicy>,
-    pub(crate) content: BBox<String, NoPolicy>,
+    pub(crate) recipient: PCon<String, NoPolicy>,
+    pub(crate) content: PCon<String, NoPolicy>,
 }
 
 // generates a string timestamp of the current time

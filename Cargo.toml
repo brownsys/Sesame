@@ -10,10 +10,13 @@ members = [
     "sesame/sandbox",
     "examples/sandbox/sandbox_bin",
     "examples/sandbox/sandbox_lib",
+    "applications/youchat",
 ]
 
 exclude = [
-    "applicatons/**",
+    "applicatons/portfolio/**",
+    "applicatons/websubmit/**",
+    "applicatons/voltron/**",
     "sesame/lints/",
     "examples/pcr_examples/**",
 ]

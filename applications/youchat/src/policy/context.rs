@@ -1,27 +1,27 @@
 use std::sync::{Arc, Mutex};
 
-use alohomora::context::Context;
-use alohomora::db::{BBoxConn, BBoxOpts};
-use alohomora::rocket::{BBoxRequest, BBoxRequestOutcome, FromBBoxRequest};
-use alohomora::SesameType;
-use alohomora::{bbox::BBox, policy::NoPolicy};
 use rocket::State;
+use sesame::context::Context;
+use sesame::SesameType;
+use sesame::{pcon::PCon, policy::NoPolicy};
+use sesame_mysql::{PConOpts, SesameConn};
+use sesame_rocket::rocket::{FromPConRequest, PConRequest, PConRequestOutcome};
 
 use crate::config::Config;
 
 // the actual context data (just our backend)
 #[derive(SesameType)]
-#[alohomora_out_type(verbatim = [config])]
+#[sesame_out_type(verbatim = [config])]
 pub struct ContextData {
-    pub user: Option<BBox<String, NoPolicy>>,
-    pub db: Arc<Mutex<BBoxConn>>,
+    pub user: Option<PCon<String, NoPolicy>>,
+    pub db: Arc<Mutex<SesameConn>>,
     pub config: Config,
 }
 impl Clone for ContextData {
     fn clone(&self) -> Self {
-        let mut db = BBoxConn::new(
+        let mut db = SesameConn::new(
             // this is the user and password from the config.toml file
-            BBoxOpts::from_url(&format!(
+            PConOpts::from_url(&format!(
                 "mysql://{}:{}@127.0.0.1/",
                 self.config.db_user, self.config.db_password
             ))
@@ -43,18 +43,18 @@ pub type YouChatContext = Context<ContextData>;
 // Build the custom payload for the context given HTTP request.
 // adapted from websubmit
 #[rocket::async_trait]
-impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
-    type BBoxError = ();
+impl<'a, 'r> FromPConRequest<'a, 'r> for ContextData {
+    type PConError = ();
 
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
         let config: &State<Config> = request.guard().await.unwrap();
 
         // Connect to the DB.
-        let mut db = BBoxConn::new(
+        let mut db = SesameConn::new(
             // this is the user and password from the config.toml file
-            BBoxOpts::from_url(&format!(
+            PConOpts::from_url(&format!(
                 "mysql://{}:{}@127.0.0.1/",
                 config.db_user, config.db_password
             ))
@@ -76,7 +76,7 @@ impl<'a, 'r> FromBBoxRequest<'a, 'r> for ContextData {
             }
         };
 
-        BBoxRequestOutcome::Success(ContextData {
+        PConRequestOutcome::Success(ContextData {
             user: user,
             db: Arc::new(Mutex::new(db)),
             config: config.inner().clone(),

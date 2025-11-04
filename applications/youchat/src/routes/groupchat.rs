@@ -1,48 +1,42 @@
 use crate::backend::MySqlBackend;
-use crate::common::*;
-use crate::context::*;
-use alohomora::db::BBoxRow;
-use alohomora::policy::AnyPolicy;
-use alohomora::pure::{execute_pure, PrivacyPureRegion};
-use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxTemplate};
-use alohomora::{bbox::BBox, policy::NoPolicy};
+use crate::policy::context::*;
+use crate::routes::common::*;
 use rocket::State;
+use sesame::error::SesameResult;
+use sesame::pcon::PCon;
+use sesame::policy::{AnyPolicy, NoPolicy};
+use sesame::verified::{execute_verified, VerifiedRegion};
+use sesame_mysql::PConRow;
+use sesame_rocket::error::SesameRenderResult;
+use sesame_rocket::rocket::{get, post, PConForm, PConRedirect, PConResponseEnum, PConTemplate};
 use std::sync::{Arc, Mutex};
 
 #[get("/<gc_name>/<user_name>")]
 pub(crate) fn try_show_gc(
-    gc_name: BBox<String, NoPolicy>,
-    user_name: BBox<String, NoPolicy>,
+    gc_name: PCon<String, NoPolicy>,
+    user_name: PCon<String, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
-) -> AnyBBoxResponse {
+) -> PConResponseEnum {
     //validate user first
     match validate_user_permissions(gc_name.clone(), user_name.clone(), backend, context.clone()) {
-        PermissionType::Admin => AnyBBoxResponse::Template(show_gc(
-            gc_name,
-            user_name,
-            backend,
-            context,
-            PermissionType::Admin,
-        )),
-        PermissionType::Member => AnyBBoxResponse::Template(show_gc(
-            gc_name,
-            user_name,
-            backend,
-            context,
-            PermissionType::Member,
-        )),
-        PermissionType::None => AnyBBoxResponse::Redirect(BBoxRedirect::to("/login", (), context)),
+        PermissionType::Admin => {
+            show_gc(gc_name, user_name, backend, context, PermissionType::Admin).into()
+        }
+        PermissionType::Member => {
+            show_gc(gc_name, user_name, backend, context, PermissionType::Member).into()
+        }
+        PermissionType::None => PConRedirect::to("/login", (), context).into(),
     }
 }
 
 fn show_gc(
-    gc_name: BBox<String, NoPolicy>,
-    user_name: BBox<String, NoPolicy>,
+    gc_name: PCon<String, NoPolicy>,
+    user_name: PCon<String, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
     perm: PermissionType,
-) -> BBoxTemplate {
+) -> SesameRenderResult<PConTemplate> {
     let recieved = {
         // query database for recieved group chats
         let mut bg = backend.lock().unwrap();
@@ -56,7 +50,7 @@ fn show_gc(
             .unwrap()
             .enumerate()
             .map(
-                |(index, row_result): (usize, mysql::Result<BBoxRow>)| -> Chat {
+                |(index, row_result): (usize, mysql::Result<PConRow>)| -> Chat {
                     Chat::new(row_result.unwrap(), index)
                 },
             )
@@ -71,12 +65,12 @@ fn show_gc(
         admin: (perm == PermissionType::Admin),
     };
 
-    BBoxTemplate::render("group_chat", &ctx, context)
+    PConTemplate::render("group_chat", &ctx, context)
 }
 
 fn validate_user_permissions(
-    gc_name: BBox<String, NoPolicy>,
-    user_name: BBox<String, NoPolicy>,
+    gc_name: PCon<String, NoPolicy>,
+    user_name: PCon<String, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
 ) -> PermissionType {
@@ -90,7 +84,7 @@ fn validate_user_permissions(
             context.clone(),
         )
         .unwrap()
-        .map(|row_result: mysql::Result<BBoxRow>| -> Group {
+        .map(|row_result: mysql::Result<PConRow>| -> Group {
             let row = row_result.unwrap();
             Group::from_row(row)
         })
@@ -111,7 +105,7 @@ fn validate_user_permissions(
             context.clone(),
         )
         .unwrap()
-        .map(|row_result: mysql::Result<BBoxRow>| -> UserCode {
+        .map(|row_result: mysql::Result<PConRow>| -> UserCode {
             let row = row_result.unwrap();
             UserCode::from_row(row)
         })
@@ -135,12 +129,12 @@ fn validate_user_permissions(
 
 #[post("/<gc_name>/<user_name>/<index>/delete")]
 pub(crate) fn try_delete(
-    gc_name: BBox<String, NoPolicy>,
-    user_name: BBox<String, NoPolicy>,
-    index: BBox<usize, NoPolicy>,
+    gc_name: PCon<String, NoPolicy>,
+    user_name: PCon<String, NoPolicy>,
+    index: PCon<usize, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
-) -> BBoxRedirect {
+) -> SesameResult<PConRedirect> {
     // validate user permissions
     match validate_user_permissions(gc_name.clone(), user_name.clone(), backend, context.clone()) {
         PermissionType::Admin => delete(gc_name, user_name, index, backend, context.clone()),
@@ -157,7 +151,7 @@ pub(crate) fn try_delete(
                         context.clone(),
                     )
                     .unwrap()
-                    .map(|row_result: mysql::Result<BBoxRow>| -> Chat {
+                    .map(|row_result: mysql::Result<PConRow>| -> Chat {
                         let row = row_result.unwrap();
                         Chat::from_row(row)
                     })
@@ -167,9 +161,9 @@ pub(crate) fn try_delete(
             };
 
             // Ensure they can delete.
-            let can_delete: Result<BBox<_, AnyPolicy>, ()> = execute_pure(
+            let can_delete: Result<PCon<_, AnyPolicy>, ()> = execute_verified(
                 (user_name.clone(), to_delete.sender.clone()),
-                PrivacyPureRegion::new(|(user_name, sender): (String, String)| {
+                VerifiedRegion::new(|(user_name, sender): (String, String)| {
                     if user_name == sender {
                         Ok(())
                     } else {
@@ -181,20 +175,20 @@ pub(crate) fn try_delete(
             if can_delete.unwrap().fold_in().is_ok() {
                 delete(gc_name, user_name, index, backend, context.clone())
             } else {
-                BBoxRedirect::to("/chat/{}/{}", (&gc_name, &user_name), context.clone())
+                PConRedirect::to("/chat/{}/{}", (&gc_name, &user_name), context.clone())
             }
         }
-        PermissionType::None => BBoxRedirect::to("/login", (), context),
+        PermissionType::None => PConRedirect::to("/login", (), context),
     }
 }
 
 pub(crate) fn delete(
-    gc_name: BBox<String, NoPolicy>,
-    user_name: BBox<String, NoPolicy>,
-    index: BBox<usize, NoPolicy>,
+    gc_name: PCon<String, NoPolicy>,
+    user_name: PCon<String, NoPolicy>,
+    index: PCon<usize, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
-) -> BBoxRedirect {
+) -> SesameResult<PConRedirect> {
     // figure out which chat we want to delete
     let to_delete = {
         let mut res: Vec<Chat> = backend
@@ -207,7 +201,7 @@ pub(crate) fn delete(
                 context.clone(),
             )
             .unwrap()
-            .map(|row_result: mysql::Result<BBoxRow>| -> Chat {
+            .map(|row_result: mysql::Result<PConRow>| -> Chat {
                 let row = row_result.unwrap();
                 Chat::from_row(row)
             })
@@ -222,17 +216,17 @@ pub(crate) fn delete(
         (gc_name.clone(), to_delete.sender, to_delete.recipient, to_delete.content),
         context.clone()).unwrap();
 
-    BBoxRedirect::to("/chat/{}/{}", (&gc_name, &user_name), context)
+    PConRedirect::to("/chat/{}/{}", (&gc_name, &user_name), context)
 }
 
 #[post("/<gc_name>/<user_name>/send", data = "<data>")]
 pub(crate) fn send(
-    gc_name: BBox<String, NoPolicy>,
-    user_name: BBox<String, NoPolicy>,
-    data: BBoxForm<MessageRequest>,
+    gc_name: PCon<String, NoPolicy>,
+    user_name: PCon<String, NoPolicy>,
+    data: PConForm<MessageRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
-) -> BBoxRedirect {
+) -> SesameResult<PConRedirect> {
     // get timestamp of send
     let time = timestamp();
 
@@ -257,7 +251,7 @@ pub(crate) fn send(
         .unwrap();
 
     // redirect back to groupchat page
-    BBoxRedirect::to(
+    PConRedirect::to(
         "/chat/{}/{}",
         (&gc_name.clone(), &user_name.clone()),
         context,

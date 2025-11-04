@@ -1,6 +1,5 @@
-//use rocket::local::asynchronous::Client;
-use alohomora::testing::BBoxClient;
 use rocket::http::ContentType;
+use sesame_rocket::testing::SesameClient;
 use youchat;
 mod common;
 use common::{is_redirect, random_string, response_contains, response_redirects, ResponsePortion};
@@ -9,7 +8,7 @@ use common::{is_redirect, random_string, response_contains, response_redirects, 
 fn users_can_connect() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // check to make sure we're redirected from root to login
     assert!(response_redirects(&client, "/".to_string(), "/login"));
@@ -27,7 +26,7 @@ fn users_can_connect() {
 fn users_can_send_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let users = ["alex", "barry", "cher"];
     let messages_from_each_user = 6;
@@ -65,7 +64,7 @@ fn users_can_send_chats() {
 fn users_can_recieve_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // use messages already existing in the schema for backend initialization
     let daniella_message = "hi! this is a secret message meant only for daniella. >:(".to_string();
@@ -104,7 +103,7 @@ fn users_can_recieve_chats() {
 fn users_can_recieve_sent_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let users = [
         "alex", "barry", "cher", "charlie", "daniella", "charlie", "barry", "cher", "alex",
@@ -149,7 +148,7 @@ fn users_can_recieve_sent_chats() {
 fn other_users_cant_see_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // use message already existing in the schema for backend initialization
     let message = "hi! this is a secret message meant only for daniella. >:(".to_string();

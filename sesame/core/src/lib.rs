@@ -13,16 +13,16 @@ extern crate sesame_sandbox;
 
 // Export these
 pub mod context;
+pub mod critical;
 pub mod error;
 pub mod extensions;
 pub mod fold;
 pub mod fold_in;
 pub mod pcon;
-pub mod critical;
 pub mod policy;
-pub mod verified;
 pub mod sandbox;
 pub mod testing;
+pub mod verified;
 
 // Export this directly under sesame::
 mod sesame_type;

@@ -1,9 +1,11 @@
+use crate::error::{SesameRenderError, SesameRenderResult};
 use crate::rocket::data::PConData;
 use crate::rocket::request::PConRequest;
 use crate::rocket::{PConRedirect, PConTemplate};
 use rocket::http::ContentType;
 use rocket::Either;
 use sesame::context::{Context, ContextData};
+use sesame::error::SesameResult;
 use sesame::extensions::{ExtensionContext, SesameExtension};
 use sesame::pcon::PCon;
 use sesame::policy::{Policy, Reason};
@@ -130,19 +132,35 @@ impl<'a, 'r, 'o: 'r, T: PConResponder<'a, 'r, 'o>, E: PConResponder<'a, 'r, 'o>>
 // Endpoint functions can return this type in case they want to dynamically decide whether
 // to render some page or redirect.
 pub enum PConResponseEnum {
-    Redirect(PConRedirect),
-    Template(PConTemplate),
+    Redirect(SesameResult<PConRedirect>),
+    Template(SesameRenderResult<PConTemplate>),
 }
 impl From<PConRedirect> for PConResponseEnum {
     fn from(value: PConRedirect) -> Self {
+        PConResponseEnum::Redirect(Ok(value))
+    }
+}
+impl From<SesameResult<PConRedirect>> for PConResponseEnum {
+    fn from(value: SesameResult<PConRedirect>) -> Self {
         PConResponseEnum::Redirect(value)
     }
 }
 impl From<PConTemplate> for PConResponseEnum {
     fn from(value: PConTemplate) -> Self {
+        PConResponseEnum::Template(Ok(value))
+    }
+}
+impl From<SesameRenderResult<PConTemplate>> for PConResponseEnum {
+    fn from(value: SesameRenderResult<PConTemplate>) -> Self {
         PConResponseEnum::Template(value)
     }
 }
+impl From<SesameRenderError> for PConResponseEnum {
+    fn from(err: SesameRenderError) -> Self {
+        PConResponseEnum::Template(Err(err))
+    }
+}
+
 impl<'a, 'r> PConResponder<'a, 'r, 'static> for PConResponseEnum {
     fn respond_to(self, request: PConRequest<'a, 'r>) -> PConResponseResult<'static> {
         match self {

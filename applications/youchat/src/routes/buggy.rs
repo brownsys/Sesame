@@ -1,22 +1,20 @@
 use crate::backend::MySqlBackend;
-use crate::common::{Chat, ChatContext, FromBBoxRow};
-use crate::context::*;
-use alohomora::db::BBoxRow;
-use alohomora::{
-    bbox::BBox,
-    db::BBoxParams,
-    policy::NoPolicy,
-    rocket::{get, BBoxTemplate},
-};
+use crate::policy::context::*;
+use crate::routes::common::{Chat, ChatContext, FromBBoxRow};
 use rocket::State;
+use sesame::pcon::PCon;
+use sesame::policy::NoPolicy;
+use sesame_mysql::{PConParams, PConRow};
+use sesame_rocket::error::SesameRenderResult;
+use sesame_rocket::rocket::{get, PConTemplate};
 use std::sync::{Arc, Mutex};
 
 #[get("/<name>")]
 pub(crate) fn buggy_endpoint(
-    name: BBox<String, NoPolicy>,
+    name: PCon<String, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
-) -> BBoxTemplate {
+) -> SesameRenderResult<PConTemplate> {
     // query all sent chats
     let sent: Vec<Chat> = backend
         .lock()
@@ -28,7 +26,7 @@ pub(crate) fn buggy_endpoint(
             context.clone(),
         )
         .unwrap()
-        .map(|row_result: mysql::Result<BBoxRow>| -> Chat {
+        .map(|row_result: mysql::Result<PConRow>| -> Chat {
             let row = row_result.unwrap();
             Chat::from_row(row)
         })
@@ -41,11 +39,11 @@ pub(crate) fn buggy_endpoint(
         .handle
         .prep_exec_iter(
             "SELECT * FROM chats ORDER BY time",
-            BBoxParams::Empty,
+            PConParams::Empty,
             context.clone(),
         )
         .unwrap()
-        .map(|row_result: mysql::Result<BBoxRow>| -> Chat {
+        .map(|row_result: mysql::Result<PConRow>| -> Chat {
             let row = row_result.unwrap();
             Chat::from_row(row)
         })
@@ -59,5 +57,5 @@ pub(crate) fn buggy_endpoint(
         buggy: true,
     };
 
-    BBoxTemplate::render("chat", &ctx, context)
+    PConTemplate::render("chat", &ctx, context)
 }

@@ -1,49 +1,53 @@
+extern crate sesame;
+extern crate sesame_mysql;
+extern crate sesame_rocket;
+
 extern crate mysql;
 extern crate rocket;
 extern crate rocket_dyn_templates;
 extern crate serde;
 
-use alohomora::bbox::BBox;
-use alohomora::policy::{AnyPolicy, NoPolicy};
-use alohomora::pure::{execute_pure, PrivacyPureRegion};
-use alohomora::rocket::{get, routes, BBoxRedirect, BBoxRocket};
+use sesame::pcon::PCon;
+use sesame::policy::{AnyPolicy, NoPolicy};
+use sesame::verified::{execute_verified, VerifiedRegion};
+use sesame_rocket::rocket::{get, routes, PConRedirect, SesameRocket};
+
 use rocket_dyn_templates::Template;
 use std::sync::{Arc, Mutex};
 
 mod backend;
-mod buggy;
-mod chat;
-mod common;
 mod config;
-mod context;
-mod groupchat;
-mod login;
-mod policies;
+mod policy;
+mod routes;
 
 use backend::MySqlBackend;
-use context::YouChatContext;
+use policy::context::YouChatContext;
+use sesame::error::SesameResult;
 
 // index will redirect to login, which will redirect to chat
 #[get("/")]
-fn index(context: YouChatContext) -> BBoxRedirect {
-    BBoxRedirect::to("/login", (), context)
+fn index(context: YouChatContext) -> SesameResult<PConRedirect> {
+    PConRedirect::to("/login", (), context)
 }
 
 // redirect login button request to the right page
 #[get("/chat?<name>")]
-pub(crate) fn to_chat(name: BBox<String, NoPolicy>, context: YouChatContext) -> BBoxRedirect {
+pub(crate) fn to_chat(
+    name: PCon<String, NoPolicy>,
+    context: YouChatContext,
+) -> SesameResult<PConRedirect> {
     // sanitize name
-    let name_proc: BBox<String, AnyPolicy> = execute_pure(
+    let name_proc: PCon<String, AnyPolicy> = execute_verified(
         name,
-        PrivacyPureRegion::new(|data: String| data.chars().filter(|c| c.is_alphabetic()).collect()),
+        VerifiedRegion::new(|data: String| data.chars().filter(|c| c.is_alphabetic()).collect()),
     )
     .unwrap();
 
-    BBoxRedirect::to("/chat/{}", (&name_proc,), context)
+    PConRedirect::to("/chat/{}", (&name_proc,), context)
 }
 
 // builds server instance for use in testing
-pub fn build_server() -> BBoxRocket<rocket::Build> {
+pub fn build_server() -> SesameRocket<rocket::Build> {
     // get config
     let config_path = "sample-config.toml";
     let config = config::parse(config_path).unwrap();
@@ -73,21 +77,24 @@ pub fn build_server() -> BBoxRocket<rocket::Build> {
     });
 
     // build and launch
-    BBoxRocket::build()
+    SesameRocket::build()
         .attach(template)
         .manage(backend)
         .manage(config)
         .mount("/", routes![index, to_chat])
-        .mount("/login", routes![login::login])
+        .mount("/login", routes![routes::login::login])
         .mount(
             "/chat",
             routes![
-                chat::show_chat,
-                chat::send,
-                groupchat::try_show_gc,
-                groupchat::send,
-                groupchat::try_delete
+                routes::chat::show_chat,
+                routes::chat::send,
+                routes::groupchat::try_show_gc,
+                routes::groupchat::send,
+                routes::groupchat::try_delete
             ],
         )
-        .mount("/buggy", routes![buggy::buggy_endpoint, chat::send])
+        .mount(
+            "/buggy",
+            routes![routes::buggy::buggy_endpoint, routes::chat::send],
+        )
 }

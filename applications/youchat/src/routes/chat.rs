@@ -1,21 +1,24 @@
 use crate::backend::MySqlBackend;
-use crate::common::*;
-use crate::context::*;
-use alohomora::db::{BBoxQueryResult, BBoxRow};
-use alohomora::rocket::{get, post, BBoxForm, BBoxRedirect, BBoxResponseEnum, BBoxTemplate};
-use alohomora::{bbox::BBox, policy::NoPolicy};
+use crate::policy::context::*;
+use crate::routes::common::*;
+
 use rocket::State;
+use sesame::error::SesameResult;
+use sesame::pcon::PCon;
+use sesame::policy::NoPolicy;
+use sesame_mysql::{PConQueryResult, PConRow};
+use sesame_rocket::rocket::{get, post, PConForm, PConRedirect, PConResponseEnum, PConTemplate};
 use std::sync::{Arc, Mutex};
 
 #[get("/<name>")]
 pub(crate) fn show_chat(
-    name: BBox<String, NoPolicy>,
+    name: PCon<String, NoPolicy>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
-) -> BBoxResponseEnum {
+) -> PConResponseEnum {
     // check that the user is known
     let mut bg = backend.lock().unwrap();
-    let user_res: BBoxQueryResult<_> = (*bg)
+    let user_res: PConQueryResult<_> = (*bg)
         .handle
         .prep_exec_iter(
             "SELECT * FROM users WHERE user_name = ?",
@@ -25,7 +28,7 @@ pub(crate) fn show_chat(
         .unwrap();
 
     if !(user_res.count() > 0) {
-        return BBoxResponseEnum::Redirect(BBoxRedirect::to("/login", (), context));
+        return PConRedirect::to("/login", (), context).into();
     }
     drop(bg);
     // query for all sent chats
@@ -39,7 +42,7 @@ pub(crate) fn show_chat(
             context.clone(),
         )
         .unwrap()
-        .map(|row_result: mysql::Result<BBoxRow>| -> Chat {
+        .map(|row_result: mysql::Result<PConRow>| -> Chat {
             let row = row_result.unwrap();
             Chat::from_row(row)
         })
@@ -56,7 +59,7 @@ pub(crate) fn show_chat(
             context.clone(),
         )
         .unwrap()
-        .map(|row_result: mysql::Result<BBoxRow>| -> Chat {
+        .map(|row_result: mysql::Result<PConRow>| -> Chat {
             let row = row_result.unwrap();
             Chat::from_row(row)
         })
@@ -70,16 +73,16 @@ pub(crate) fn show_chat(
         buggy: false,
     };
 
-    BBoxResponseEnum::Template(BBoxTemplate::render("chat", &ctx, context))
+    PConTemplate::render("chat", &ctx, context).into()
 }
 
 #[post("/<name>/send", data = "<data>")]
 pub(crate) fn send(
-    name: BBox<String, NoPolicy>,
-    data: BBoxForm<MessageRequest>,
+    name: PCon<String, NoPolicy>,
+    data: PConForm<MessageRequest>,
     backend: &State<Arc<Mutex<MySqlBackend>>>,
     context: YouChatContext,
-) -> BBoxRedirect {
+) -> SesameResult<PConRedirect> {
     // get timestamp of send
     let time = timestamp();
 
@@ -99,5 +102,5 @@ pub(crate) fn send(
         context.clone(),
     );
 
-    BBoxRedirect::to("/chat/{}", (&name.clone(),), context)
+    PConRedirect::to("/chat/{}", (&name.clone(),), context)
 }

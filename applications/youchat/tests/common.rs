@@ -1,6 +1,6 @@
-use alohomora::testing::BBoxClient;
 use rand::{distributions::Alphanumeric, Rng};
 use rocket::http::Status;
+use sesame_rocket::testing::SesameClient;
 
 #[allow(dead_code)]
 #[derive(PartialEq)]
@@ -14,7 +14,7 @@ pub enum ResponsePortion {
 // uses "client" to determine if a get request to "uri" will result in a response containing "chat"
 // within the specified "portion" of the response
 pub(crate) fn response_contains(
-    client: &BBoxClient,
+    client: &SesameClient,
     uri: String,
     chat: &str,
     portion: ResponsePortion,
@@ -59,7 +59,7 @@ pub(crate) fn is_redirect(status: Status) -> bool {
 
 #[allow(dead_code)]
 // uses "client" to check if a get request to "uri" results in a redirect to "desired_dest"
-pub(crate) fn response_redirects(client: &BBoxClient, uri: String, desired_dest: &str) -> bool {
+pub(crate) fn response_redirects(client: &SesameClient, uri: String, desired_dest: &str) -> bool {
     // make sure we get redirected (w/ a 3XX HTTP response code)
     let response = client.get(uri).dispatch();
     assert!(is_redirect(response.status()));

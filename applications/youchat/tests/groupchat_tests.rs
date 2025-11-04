@@ -1,5 +1,5 @@
-use alohomora::testing::BBoxClient;
 use rocket::http::ContentType;
+use sesame_rocket::testing::SesameClient;
 use youchat;
 mod common;
 use common::{is_redirect, random_string, response_contains, response_redirects, ResponsePortion};
@@ -10,7 +10,7 @@ use common::{is_redirect, random_string, response_contains, response_redirects, 
 fn users_can_send_groupchats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // send group chat
     let users = ["alex", "barry", "cher", "daniella"];
@@ -45,7 +45,7 @@ fn users_can_send_groupchats() {
 fn users_can_recieve_groupchats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     // use message already existing in the schema for backend initialization
     let message = "hi everyone! welcome to the groupchat 'testgroupchat'!".to_string();
@@ -66,7 +66,7 @@ fn users_can_recieve_groupchats() {
 fn users_can_recieve_sent_groupchats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let members = ["alex", "barry", "cher", "daniella"];
     for s in 0..members.len() - 1 {
@@ -102,7 +102,7 @@ fn users_can_recieve_sent_groupchats() {
 fn nonmembers_cant_see_groupchats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let non_members = [
         "testgroupchat/julia",
@@ -125,7 +125,7 @@ fn nonmembers_cant_see_groupchats() {
 fn invalid_group_name_redirects() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let invalid_gc = [
         random_string(10),
@@ -146,7 +146,7 @@ fn invalid_group_name_redirects() {
 fn users_can_delete_their_own_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let my_chat = "thanks! im happy to be here";
 
@@ -190,7 +190,7 @@ fn users_can_delete_their_own_chats() {
 fn admin_can_delete_any_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let chats_to_delete = [
         "hi everyone! welcome to the groupchat 'testgroupchat'!",
@@ -234,7 +234,7 @@ fn admin_can_delete_any_chats() {
 fn nonmembers_cant_delete_any_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let chat_to_delete = "thanks! im happy to be here";
     let deleters = ["robert", "samantha", "frankie", "lia"];
@@ -276,7 +276,7 @@ fn nonmembers_cant_delete_any_chats() {
 fn users_cant_delete_other_peoples_chats() {
     // initialize client connection
     let serv = youchat::build_server();
-    let client: BBoxClient = BBoxClient::tracked(serv).unwrap();
+    let client: SesameClient = SesameClient::tracked(serv).unwrap();
 
     let my_chat = "thanks! im happy to be here";
     let deleters = ["barry", "cher"];

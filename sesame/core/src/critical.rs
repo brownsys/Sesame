@@ -26,7 +26,13 @@ impl<F> CriticalRegion<F> {
     }
 }
 
-pub fn execute_critical<S: SesameType, D: ContextData, C: SesameType, O, F: FnOnce(S::Out, C::Out) -> O>(
+pub fn execute_critical<
+    S: SesameType,
+    D: ContextData,
+    C: SesameType,
+    O,
+    F: FnOnce(S::Out, C::Out) -> O,
+>(
     data: S,
     context: Context<D>,
     functor: CriticalRegion<F>,
@@ -42,8 +48,10 @@ where
                 Ok(result) => Ok(result),
                 Err(_) => Err(SesameError::PolicyCheckFailed(name)),
             }
-        },
-        _ => Err(SesameError::SesameTypeFoldFailed(String::from("fold failed"))),
+        }
+        _ => Err(SesameError::SesameTypeFoldFailed(String::from(
+            "fold failed",
+        ))),
     }
 }
 
@@ -77,7 +85,11 @@ pub fn execute_critical_unchecked<
 ) -> Result<O, SesameError> {
     let data = match fold(data) {
         Ok(data) => data,
-        _ => { return Err(SesameError::SesameTypeFoldFailed(String::from("fold failed"))); },
+        _ => {
+            return Err(SesameError::SesameTypeFoldFailed(String::from(
+                "fold failed",
+            )));
+        }
     };
     let (t, p) = data.consume();
     let functor = functor.get_functor();

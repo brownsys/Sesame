@@ -1,8 +1,8 @@
 use sesame::context::{Context, UnprotectedContext};
 use sesame::pcon::PCon;
 use sesame::policy::{Join, Policy, Reason};
-use sesame::verified::VerifiedRegion;
 use sesame::testing::TestPolicy;
+use sesame::verified::VerifiedRegion;
 
 use sesame_rocket::policy::FrontendPolicy;
 use sesame_rocket::rocket::{

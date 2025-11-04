@@ -1,10 +1,9 @@
+use crate::policy::context::ContextData;
 use mysql::prelude::Queryable;
-
-use alohomora::context::UnprotectedContext;
-use alohomora::policy::{schema_policy, Reason, SchemaPolicy, SimplePolicy};
-use alohomora::SesameTypeOut;
-
-use crate::context::*;
+use sesame::context::UnprotectedContext;
+use sesame::policy::{Reason, SimplePolicy};
+use sesame::SesameTypeOut;
+use sesame_mysql::{schema_policy, SchemaPolicy};
 
 // access control policy for the chats database
 #[schema_policy(table = "chats", column = 0)]

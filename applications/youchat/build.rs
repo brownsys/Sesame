@@ -1,5 +1,5 @@
-use alohomora_build::alohomora_build;
+use sesame_build::{Options, SesameBuilder};
 
 fn main() {
-    alohomora_build(false, &[]);
+    let _ = SesameBuilder::new(Options::new().verbose(false));
 }
