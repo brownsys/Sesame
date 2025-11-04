@@ -5,13 +5,13 @@ use serde::Serialize;
 use sesame::context::Context;
 use sesame::policy::NoPolicy;
 use sesame::testing::TestContextData;
-use sesame_derive::{route, routes, RequestBBoxJson, ResponseBBoxJson, SesameType};
+use sesame_derive::{route, routes, RequestPConJson, ResponsePConJson, SesameType};
 
 // POST request data.
-#[derive(RequestBBoxJson, ResponseBBoxJson, PartialEq, Debug)]
+#[derive(RequestPConJson, ResponsePConJson, PartialEq, Debug)]
 pub struct Nested {
-    pub inner: sesame::bbox::BBox<String, NoPolicy>,
-    pub vec: Vec<sesame::bbox::BBox<i64, NoPolicy>>,
+    pub inner: sesame::pcon::PCon<String, NoPolicy>,
+    pub vec: Vec<sesame::pcon::PCon<i64, NoPolicy>>,
 }
 
 #[derive(Serialize)]
@@ -20,19 +20,19 @@ pub struct Nested2 {
     pub f2: f64,
 }
 
-#[derive(RequestBBoxJson, PartialEq, Debug)]
+#[derive(RequestPConJson, PartialEq, Debug)]
 pub struct Simple {
-    pub f1: sesame::bbox::BBox<String, NoPolicy>,
+    pub f1: sesame::pcon::PCon<String, NoPolicy>,
     pub f2: Nested,
-    pub f3: sesame::bbox::BBox<u64, NoPolicy>,
-    pub f4: HashMap<String, sesame::bbox::BBox<u64, NoPolicy>>,
-    pub f5: Option<sesame::bbox::BBox<u64, NoPolicy>>,
+    pub f3: sesame::pcon::PCon<u64, NoPolicy>,
+    pub f4: HashMap<String, sesame::pcon::PCon<u64, NoPolicy>>,
+    pub f5: Option<sesame::pcon::PCon<u64, NoPolicy>>,
 }
 
-#[derive(ResponseBBoxJson)]
-#[response_bbox_json(as_is = [f3])]
+#[derive(ResponsePConJson)]
+#[response_pcon_json(as_is = [f3])]
 pub struct Output {
-    pub f1: sesame::bbox::BBox<String, NoPolicy>,
+    pub f1: sesame::pcon::PCon<String, NoPolicy>,
     pub f2: Nested,
     pub f3: Nested2,
     pub f4: Option<Nested>,
@@ -42,25 +42,25 @@ pub struct Output {
 // Context derived from both request and also json post data.
 #[derive(SesameType)]
 struct ContextData {
-    // we acquire this from the post data via BBoxJson<Simple>.
-    pub f1: sesame::bbox::BBox<String, NoPolicy>,
-    // we acquire this a cookie via BBoxRequest.
-    pub cookie: sesame::bbox::BBox<String, NoPolicy>,
+    // we acquire this from the post data via PConJson<Simple>.
+    pub f1: sesame::pcon::PCon<String, NoPolicy>,
+    // we acquire this a cookie via PConRequest.
+    pub cookie: sesame::pcon::PCon<String, NoPolicy>,
 }
 
-// Notice that we need to include *BBoxForm<Simple>* (or BBoxJson<Simple>) in
+// Notice that we need to include *PConForm<Simple>* (or PConJson<Simple>) in
 // the trait generics, and NOT just Simple.
 #[rocket::async_trait]
 impl<'a, 'r>
-    sesame_rocket::rocket::FromBBoxRequestAndData<'a, 'r, sesame_rocket::rocket::BBoxJson<Simple>>
+    sesame_rocket::rocket::FromPConRequestAndData<'a, 'r, sesame_rocket::rocket::PConJson<Simple>>
     for ContextData
 {
-    type BBoxError = ();
-    async fn from_bbox_request_and_data(
-        request: sesame_rocket::rocket::BBoxRequest<'a, 'r>,
-        form: &'_ sesame_rocket::rocket::BBoxJson<Simple>,
-    ) -> sesame_rocket::rocket::BBoxRequestOutcome<Self, Self::BBoxError> {
-        sesame_rocket::rocket::BBoxRequestOutcome::Success(ContextData {
+    type PConError = ();
+    async fn from_pcon_request_and_data(
+        request: sesame_rocket::rocket::PConRequest<'a, 'r>,
+        form: &'_ sesame_rocket::rocket::PConJson<Simple>,
+    ) -> sesame_rocket::rocket::PConRequestOutcome<Self, Self::PConError> {
+        sesame_rocket::rocket::PConRequestOutcome::Success(ContextData {
             f1: form.f1.clone(),
             cookie: request
                 .cookies()
@@ -75,21 +75,21 @@ impl<'a, 'r>
 #[route(POST, "/", data = "<data>", with_data = "<context>")]
 fn my_route(
     context: Context<ContextData>,
-    data: sesame_rocket::rocket::BBoxJson<Simple>,
+    data: sesame_rocket::rocket::PConJson<Simple>,
 ) -> sesame_rocket::rocket::JsonResponse<Output, TestContextData<()>> {
     let simple = Simple {
-        f1: sesame::bbox::BBox::new(String::from("hello"), NoPolicy {}),
+        f1: sesame::pcon::PCon::new(String::from("hello"), NoPolicy {}),
         f2: Nested {
-            inner: sesame::bbox::BBox::new(String::from("bye"), NoPolicy {}),
+            inner: sesame::pcon::PCon::new(String::from("bye"), NoPolicy {}),
             vec: vec![
-                sesame::bbox::BBox::new(-100, NoPolicy {}),
-                sesame::bbox::BBox::new(200, NoPolicy {}),
+                sesame::pcon::PCon::new(-100, NoPolicy {}),
+                sesame::pcon::PCon::new(200, NoPolicy {}),
             ],
         },
-        f3: sesame::bbox::BBox::new(55, NoPolicy {}),
+        f3: sesame::pcon::PCon::new(55, NoPolicy {}),
         f4: HashMap::from([
-            (String::from("k1"), sesame::bbox::BBox::new(11, NoPolicy {})),
-            (String::from("k2"), sesame::bbox::BBox::new(12, NoPolicy {})),
+            (String::from("k1"), sesame::pcon::PCon::new(11, NoPolicy {})),
+            (String::from("k2"), sesame::pcon::PCon::new(12, NoPolicy {})),
         ]),
         f5: None,
     };
@@ -98,7 +98,7 @@ fn my_route(
     assert_eq!(data.into_inner(), simple);
 
     let output = Output {
-        f1: sesame::bbox::BBox::new(String::from("hi"), NoPolicy {}),
+        f1: sesame::pcon::PCon::new(String::from("hi"), NoPolicy {}),
         f2: simple.f2,
         f3: Nested2 {
             f1: String::from("nestedf1"),
@@ -121,12 +121,12 @@ fn my_route(
 }
 
 #[test]
-fn simple_from_bbox_form_test() {
-    let rocket =
-        sesame_rocket::rocket::BBoxRocket::<::rocket::Build>::build().mount("/", routes![my_route]);
+fn simple_from_pcon_form_test() {
+    let rocket = sesame_rocket::rocket::SesameRocket::<::rocket::Build>::build()
+        .mount("/", routes![my_route]);
 
     // Create a client.
-    let client = sesame_rocket::testing::BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = sesame_rocket::testing::SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .post("/")
         .cookie(rocket::http::Cookie::new("mycookie", "cookie value!"))

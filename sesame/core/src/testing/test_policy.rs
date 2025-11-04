@@ -1,5 +1,5 @@
-use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
+use crate::pcon::PCon;
 use crate::policy::{OptionPolicy, Policy, Reason, RefPolicy};
 
 use serde::{Deserialize, Serialize};
@@ -43,68 +43,68 @@ impl<P: Policy> From<P> for TestPolicy<P> {
 }
 
 // Test policy can be discarded, logged, etc
-impl<T, P: Policy> BBox<T, TestPolicy<P>> {
+impl<T, P: Policy> PCon<T, TestPolicy<P>> {
     pub fn discard_box(self) -> T {
         self.consume().0
     }
 }
 
-impl<T: Debug, P: Policy + Debug> Debug for BBox<T, TestPolicy<P>> {
+impl<T: Debug, P: Policy + Debug> Debug for PCon<T, TestPolicy<P>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BBox")
+        f.debug_struct("PCon")
             .field("data", self.data())
             .field("policy", self.policy())
             .finish()
     }
 }
-impl<T: PartialEq, P: Policy + PartialEq> PartialEq for BBox<T, TestPolicy<P>> {
+impl<T: PartialEq, P: Policy + PartialEq> PartialEq for PCon<T, TestPolicy<P>> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
 
-impl<T: Eq, P: Policy + Eq> Eq for BBox<T, TestPolicy<P>> {}
+impl<T: Eq, P: Policy + Eq> Eq for PCon<T, TestPolicy<P>> {}
 
 // Same but for RefPolicy<TestPolicy>
-impl<'a, T, P: Policy> BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T, P: Policy> PCon<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     pub fn discard_box(self) -> &'a T {
         self.consume().0
     }
 }
-impl<'a, T: Debug, P: Policy + Debug> Debug for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {
+impl<'a, T: Debug, P: Policy + Debug> Debug for PCon<&'a T, RefPolicy<'a, TestPolicy<P>>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BBox")
+        f.debug_struct("PCon")
             .field("data", self.data())
             .field("policy", self.policy())
             .finish()
     }
 }
 impl<'a, T: PartialEq, P: Policy + PartialEq> PartialEq
-    for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>>
+    for PCon<&'a T, RefPolicy<'a, TestPolicy<P>>>
 {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
-impl<'a, T: Eq, P: Policy + Eq> Eq for BBox<&'a T, RefPolicy<'a, TestPolicy<P>>> {}
+impl<'a, T: Eq, P: Policy + Eq> Eq for PCon<&'a T, RefPolicy<'a, TestPolicy<P>>> {}
 
 // Same but for OptionPolicy<TestPolicy>
-impl<T, P: Policy> BBox<T, OptionPolicy<TestPolicy<P>>> {
+impl<T, P: Policy> PCon<T, OptionPolicy<TestPolicy<P>>> {
     pub fn discard_box(self) -> T {
         self.consume().0
     }
 }
-impl<T: Debug, P: Policy + Debug> Debug for BBox<T, OptionPolicy<TestPolicy<P>>> {
+impl<T: Debug, P: Policy + Debug> Debug for PCon<T, OptionPolicy<TestPolicy<P>>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BBox")
+        f.debug_struct("PCon")
             .field("data", self.data())
             .field("policy", self.policy())
             .finish()
     }
 }
-impl<T: PartialEq, P: Policy + PartialEq> PartialEq for BBox<T, OptionPolicy<TestPolicy<P>>> {
+impl<T: PartialEq, P: Policy + PartialEq> PartialEq for PCon<T, OptionPolicy<TestPolicy<P>>> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data() && self.policy() == other.policy()
     }
 }
-impl<T: Eq, P: Policy + Eq> Eq for BBox<T, OptionPolicy<TestPolicy<P>>> {}
+impl<T: Eq, P: Policy + Eq> Eq for PCon<T, OptionPolicy<TestPolicy<P>>> {}

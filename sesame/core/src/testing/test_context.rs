@@ -1,16 +1,16 @@
-use crate::bbox::BBox;
 use crate::context::{Context, UnprotectedContext};
+use crate::pcon::PCon;
 use crate::policy::{AnyPolicyDyn, NoPolicy};
 use crate::sesame_type::r#type::SesameTypeOut;
 use crate::{SesameType, SesameTypeEnum};
 use std::any::Any;
 
 #[derive(Clone)]
-pub struct TestContextData<T: Send + Any>(BBox<T, NoPolicy>);
+pub struct TestContextData<T: Send + Any>(PCon<T, NoPolicy>);
 
 impl<T: Send + Any> TestContextData<T> {
     pub fn new(t: T) -> Self {
-        Self(BBox::new(t, NoPolicy {}))
+        Self(PCon::new(t, NoPolicy {}))
     }
 }
 
@@ -22,7 +22,7 @@ impl<T: Send + Any> SesameTypeOut for TestContextData<T> {
 #[doc = "Library implementation of SesameType. Do not copy this docstring!"]
 impl<T: Send + Any> SesameType for TestContextData<T> {
     fn to_enum(self) -> SesameTypeEnum {
-        SesameTypeEnum::BBox(self.0.into_any_no_clone())
+        SesameTypeEnum::PCon(self.0.into_any_no_clone())
     }
     fn from_enum(e: SesameTypeEnum) -> Result<Self, ()> {
         if let SesameTypeEnum::Value(t) = e {

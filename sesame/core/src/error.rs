@@ -3,6 +3,7 @@ use std::fmt::{Debug, Display, Error as FmtError, Formatter};
 #[derive(Clone, Debug)]
 pub enum SesameError {
     PolicyCheckFailed(String),
+    SesameTypeFoldFailed(String),
 }
 
 impl Display for SesameError {

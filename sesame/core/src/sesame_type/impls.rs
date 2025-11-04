@@ -5,7 +5,7 @@ use std::hash::Hash;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use crate::bbox::BBox;
+use crate::pcon::PCon;
 use crate::policy::{AnyPolicy, AnyPolicyable, PolicyDyn, PolicyDynRelation};
 use crate::sesame_type::r#enum::SesameTypeEnum;
 use crate::sesame_type::r#type::{SesameType, SesameTypeOut};
@@ -61,9 +61,9 @@ sesame_type_dyn_primitives_impl!(bool);
 sesame_type_dyn_primitives_impl!(f64);
 sesame_type_dyn_primitives_impl!(String);
 
-// Implement SesameType for BBox<T, P>
+// Implement SesameType for PCon<T, P>
 #[doc = "Library implementation of SesameTypeOut. Do not copy this docstring!"]
-impl<T: Any, P: AnyPolicyable> SesameTypeOut for BBox<T, P> {
+impl<T: Any, P: AnyPolicyable> SesameTypeOut for PCon<T, P> {
     type Out = T;
 }
 #[doc = "Library implementation of SesameType. Do not copy this docstring!"]
@@ -72,17 +72,17 @@ impl<
         DT: SesameDyn + ?Sized + SesameDynRelation<T> + Any,
         P: AnyPolicyable,
         PT: PolicyDyn + ?Sized + PolicyDynRelation<P>,
-    > SesameType<DT, PT> for BBox<T, P>
+    > SesameType<DT, PT> for PCon<T, P>
 {
     fn to_enum(self) -> SesameTypeEnum<DT, PT> {
         let (t, p) = self.consume();
-        SesameTypeEnum::BBox(BBox::new(DT::boxed_dyn(t), AnyPolicy::new(p)))
+        SesameTypeEnum::PCon(PCon::new(DT::boxed_dyn(t), AnyPolicy::new(p)))
     }
     fn from_enum(e: SesameTypeEnum<DT, PT>) -> Result<Self, ()> {
         match e {
-            SesameTypeEnum::BBox(v) => {
+            SesameTypeEnum::PCon(v) => {
                 let (t, p) = v.consume();
-                Ok(BBox::new(
+                Ok(PCon::new(
                     *t.upcast_box().downcast().map_err(|_| ())?,
                     p.specialize_top().map_err(|_| ())?,
                 ))

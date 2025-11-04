@@ -37,11 +37,11 @@ type PathParam = (Parameter, usize);
 
 // Types of parameters.
 enum ParamClass {
-    Data,              // Use FromBBoxData.
-    Query,             // Use FromBBoxForm.
-    Path,              // Use FromBBoxParam.
-    DataGuard,         // Use FromBBoxRequest.
-    DataGuardWithData, // Use FromBBoxRequestAndData
+    Data,              // Use FromPConData.
+    Query,             // Use FromPConForm.
+    Path,              // Use FromPConParam.
+    DataGuard,         // Use FromPConRequest.
+    DataGuardWithData, // Use FromPConRequestAndData
 }
 
 // Easy to use format of the macro inputs.
@@ -51,13 +51,13 @@ struct RouteAttribute {
     pub func_name: Option<Ident>,
     // post request data parameter name.
     pub data: Option<Parameter>,
-    // anything that needs FromBBoxRequestAndData (usually the context).
+    // anything that needs FromPConRequestAndData (usually the context).
     pub with_data: Option<Parameter>,
     // all get parameters in the query (?<x>)
     pub query_params: Vec<Parameter>,
     // all uri path parameters (/<x>/...)
     pub path_params: Vec<PathParam>,
-    // other FromBBoxRequest guards.
+    // other FromPConRequest guards.
     pub guards: Vec<Parameter>,
     // uri.
     pub uri: String,
@@ -179,11 +179,11 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
             ::std::option::Option::Some(_d) => match _d {
               ::std::result::Result::Ok(d) => d,
               ::std::result::Result::Err(_) => {
-                return ::sesame_rocket::rocket::BBoxResponseOutcome::Forward(_data);
+                return ::sesame_rocket::rocket::PConResponseOutcome::Forward(_data);
               },
             },
             ::std::option::Option::None => {
-              return ::sesame_rocket::rocket::BBoxResponseOutcome::Forward(_data);
+              return ::sesame_rocket::rocket::PConResponseOutcome::Forward(_data);
             },
           };
         }
@@ -195,13 +195,13 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
       let ty = args.types.get(param).unwrap();
 
       quote! {
-        let #ident = match <#ty as ::sesame_rocket::rocket::FromBBoxRequest>::from_bbox_request(_request).await {
-          ::sesame_rocket::rocket::BBoxRequestOutcome::Success(_d) => _d,
-          ::sesame_rocket::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
-            return ::sesame_rocket::rocket::BBoxResponseOutcome::Failure(_s);
+        let #ident = match <#ty as ::sesame_rocket::rocket::FromPConRequest>::from_pcon_request(_request).await {
+          ::sesame_rocket::rocket::PConRequestOutcome::Success(_d) => _d,
+          ::sesame_rocket::rocket::PConRequestOutcome::Failure((_s, _e)) => {
+            return ::sesame_rocket::rocket::PConResponseOutcome::Failure(_s);
           },
-          ::sesame_rocket::rocket::BBoxRequestOutcome::Forward(_) => {
-            return ::sesame_rocket::rocket::BBoxResponseOutcome::Forward(_data);
+          ::sesame_rocket::rocket::PConRequestOutcome::Forward(_) => {
+            return ::sesame_rocket::rocket::PConResponseOutcome::Forward(_data);
           },
         };
       }
@@ -215,30 +215,30 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
             let ident = data.to_ident();
             let data_ty = args.types.get(data).unwrap();
             let post_data = quote! {
-              let #ident = match <#data_ty as ::sesame_rocket::rocket::FromBBoxData>::from_data(_request, _data).await {
-                ::sesame_rocket::rocket::BBoxDataOutcome::Success(_d) => _d,
-                ::sesame_rocket::rocket::BBoxDataOutcome::Failure((_s, _e)) => {
-                  return ::sesame_rocket::rocket::BBoxResponseOutcome::Failure(_s);
+              let #ident = match <#data_ty as ::sesame_rocket::rocket::FromPConData>::from_data(_request, _data).await {
+                ::sesame_rocket::rocket::PConDataOutcome::Success(_d) => _d,
+                ::sesame_rocket::rocket::PConDataOutcome::Failure((_s, _e)) => {
+                  return ::sesame_rocket::rocket::PConResponseOutcome::Failure(_s);
                 },
-                ::sesame_rocket::rocket::BBoxDataOutcome::Forward(_f) => {
-                  return ::sesame_rocket::rocket::BBoxResponseOutcome::Forward(_f);
+                ::sesame_rocket::rocket::PConDataOutcome::Forward(_f) => {
+                  return ::sesame_rocket::rocket::PConResponseOutcome::Forward(_f);
                 },
               };
             };
 
-            // Pass the form data parameter to the context if it needs from_bbox_request_and_data.
+            // Pass the form data parameter to the context if it needs from_pcon_request_and_data.
             with_data = match args.with_data.as_ref() {
                 None => quote! {},
                 Some(with_data) => {
                     let with_data_ident = with_data.to_ident();
                     let ty = args.types.get(with_data).unwrap();
                     quote! {
-                      let #with_data_ident = match <#ty as ::sesame_rocket::rocket::FromBBoxRequestAndData<#data_ty>>::from_bbox_request_and_data(_request, &#ident).await {
-                        ::sesame_rocket::rocket::BBoxRequestOutcome::Success(_d) => _d,
-                        ::sesame_rocket::rocket::BBoxRequestOutcome::Failure((_s, _e)) => {
-                          return ::sesame_rocket::rocket::BBoxResponseOutcome::Failure(_s);
+                      let #with_data_ident = match <#ty as ::sesame_rocket::rocket::FromPConRequestAndData<#data_ty>>::from_pcon_request_and_data(_request, &#ident).await {
+                        ::sesame_rocket::rocket::PConRequestOutcome::Success(_d) => _d,
+                        ::sesame_rocket::rocket::PConRequestOutcome::Failure((_s, _e)) => {
+                          return ::sesame_rocket::rocket::PConResponseOutcome::Failure(_s);
                         },
-                        ::sesame_rocket::rocket::BBoxRequestOutcome::Forward(_f) => {
+                        ::sesame_rocket::rocket::PConRequestOutcome::Forward(_f) => {
                           panic!("With_data member forwarded but data is consumed");
                         },
                       };
@@ -267,7 +267,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
         .map(|param| {
             let ty = args.types.get(param).unwrap();
             quote! {
-              <#ty as ::sesame_rocket::rocket::FromBBoxForm>
+              <#ty as ::sesame_rocket::rocket::FromPConForm>
             }
         })
         .collect::<Vec<_>>();
@@ -277,18 +277,18 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
       // initialize.
       let _opts = ::rocket::form::prelude::Options::Lenient;
-      #(let mut #query_idents = #query_casted_types::bbox_init(_opts);)*
+      #(let mut #query_idents = #query_casted_types::pcon_init(_opts);)*
 
       // push.
       for _field in _request.query_fields() {
         match _field.name.key_lossy().as_str() {
-          #(#query_strings => #query_casted_types::bbox_push_value(&mut #query_idents, _field.shift(), _request),)*
+          #(#query_strings => #query_casted_types::pcon_push_value(&mut #query_idents, _field.shift(), _request),)*
           _ => {},
         }
       }
 
       // finalize.
-      #(let #query_idents = match #query_casted_types::bbox_finalize(#query_idents) {
+      #(let #query_idents = match #query_casted_types::pcon_finalize(#query_idents) {
         ::std::result::Result::Ok(_v) => ::std::option::Option::Some(_v),
         ::std::result::Result::Err(_err) => {
           _errors.extend(_err.with_name(::rocket::form::prelude::NameView::new(#query_strings)));
@@ -298,7 +298,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
 
       // handle any errors.
       if !_errors.is_empty() {
-        return ::sesame_rocket::rocket::BBoxResponseOutcome::Forward(_data);
+        return ::sesame_rocket::rocket::PConResponseOutcome::Forward(_data);
       }
       #(let #query_idents = #query_idents.unwrap();)*
     };
@@ -316,7 +316,7 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
       #[allow(non_camel_case_types)]
       pub struct #fn_name {}
       impl #fn_name {
-        pub async fn lambda<'a, 'r>(_request: ::sesame_rocket::rocket::BBoxRequest<'a, 'r>, _data: ::sesame_rocket::rocket::BBoxData<'a>) -> ::sesame_rocket::rocket::BBoxResponseOutcome<'a> {
+        pub async fn lambda<'a, 'r>(_request: ::sesame_rocket::rocket::PConRequest<'a, 'r>, _data: ::sesame_rocket::rocket::PConData<'a>) -> ::sesame_rocket::rocket::PConResponseOutcome<'a> {
           // Path parameters.
           #(#path_params)*
 
@@ -339,14 +339,14 @@ pub fn route_impl<T: RouteType>(args: RouteArgs<T>, input: ItemFn) -> TokenStrea
           #res_await
 
           // done!
-          ::sesame_rocket::rocket::BBoxResponseOutcome::from(_request, _res)
+          ::sesame_rocket::rocket::PConResponseOutcome::from(_request, _res)
         }
 
-        pub fn info() -> ::sesame_rocket::rocket::BBoxRouteInfo {
-          ::sesame_rocket::rocket::BBoxRouteInfo {
+        pub fn info() -> ::sesame_rocket::rocket::SesameRouteInfo {
+          ::sesame_rocket::rocket::SesameRouteInfo {
             method: ::rocket::http::Method::#method,
             uri: #uri,
-            bbox_handler: |request, data| {
+            handler: |request, data| {
               ::std::boxed::Box::pin(Self::lambda(request, data))
             },
           }

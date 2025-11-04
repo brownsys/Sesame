@@ -1,20 +1,20 @@
 use crate::application::context::AppContext;
 use crate::application::models::Grade;
 
-use sesame::bbox::BBox;
+use sesame::pcon::PCon;
 use sesame::policy::AnyPolicyable;
 
-use sesame_mysql::{from_value, BBoxConn, BBoxOpts, BBoxResult};
+use sesame_mysql::{from_value, PConOpts, PConResult, SesameConn};
 
 pub struct DB {
-    conn: BBoxConn,
+    conn: SesameConn,
 }
 
 impl DB {
     pub fn connect() -> DB {
-        let opts = BBoxOpts::from_url("mysql://root:password@127.0.0.1/").unwrap();
+        let opts = PConOpts::from_url("mysql://root:password@127.0.0.1/").unwrap();
         DB {
-            conn: BBoxConn::new(opts).unwrap(),
+            conn: SesameConn::new(opts).unwrap(),
         }
     }
 
@@ -28,7 +28,7 @@ impl DB {
 
     pub fn read_by_user<P: AnyPolicyable>(
         &mut self,
-        user: BBox<String, P>,
+        user: PCon<String, P>,
         context: AppContext,
     ) -> Vec<Grade> {
         let result = self
@@ -68,10 +68,10 @@ impl DB {
 
     pub fn insert<P1: AnyPolicyable, P2: AnyPolicyable>(
         &mut self,
-        user: BBox<String, P1>,
-        grade: BBox<u64, P2>,
+        user: PCon<String, P1>,
+        grade: PCon<u64, P2>,
         context: AppContext,
-    ) -> BBoxResult<()> {
+    ) -> PConResult<()> {
         self.conn.prep_exec_drop(
             "INSERT INTO grades(name, grade) VALUES (?, ?)",
             (user, grade),

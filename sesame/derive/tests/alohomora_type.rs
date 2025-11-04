@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use serde::Serialize;
-use sesame::bbox::BBox;
 use sesame::context::UnprotectedContext;
 use sesame::fold::fold;
+use sesame::pcon::PCon;
 use sesame::policy::{AnyPolicy, AnyPolicyClone, NoPolicy, Policy, Reason, SimplePolicy};
 use sesame::testing::TestPolicy;
 use sesame::{SesameType, SesameTypeEnum, SesameTypeOut};
@@ -22,22 +22,22 @@ fn test_derived_no_boxes() {
         f1: 10,
         f2: String::from("hello"),
     };
-    let folded: BBox<_, AnyPolicy> = fold(input.clone()).unwrap();
-    let folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: PCon<_, AnyPolicy> = fold(input.clone()).unwrap();
+    let folded: PCon<_, NoPolicy> = folded.specialize_policy().unwrap();
     let folded = folded.discard_box();
     assert_eq!(folded.f1, 10);
     assert_eq!(folded.f2, String::from("hello"));
 
-    let folded: BBox<_, AnyPolicyClone> = fold(input.clone()).unwrap();
-    let _folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: PCon<_, AnyPolicyClone> = fold(input.clone()).unwrap();
+    let _folded: PCon<_, NoPolicy> = folded.specialize_policy().unwrap();
 }
 
 // The struct contains a mix.
 #[derive(SesameType, Clone, PartialEq, Debug)]
 #[sesame_out_type(to_derive = [PartialEq, Debug])]
 pub struct MixedBoxes {
-    pub f1: BBox<u64, NoPolicy>,
-    pub f2: BBox<String, NoPolicy>,
+    pub f1: PCon<u64, NoPolicy>,
+    pub f2: PCon<String, NoPolicy>,
     pub f3: u64,
     pub f4: String,
 }
@@ -45,8 +45,8 @@ pub struct MixedBoxes {
 #[test]
 fn test_mixed_boxes() {
     let input = MixedBoxes {
-        f1: BBox::new(10, NoPolicy {}),
-        f2: BBox::new(String::from("hello"), NoPolicy {}),
+        f1: PCon::new(10, NoPolicy {}),
+        f2: PCon::new(String::from("hello"), NoPolicy {}),
         f3: 20,
         f4: String::from("bye"),
     };
@@ -59,8 +59,8 @@ fn test_mixed_boxes() {
         f4: String::from("bye"),
     };
 
-    let folded: BBox<<MixedBoxes as SesameTypeOut>::Out, AnyPolicyClone> = fold(input).unwrap();
-    let folded: BBox<<MixedBoxes as SesameTypeOut>::Out, NoPolicy> =
+    let folded: PCon<<MixedBoxes as SesameTypeOut>::Out, AnyPolicyClone> = fold(input).unwrap();
+    let folded: PCon<<MixedBoxes as SesameTypeOut>::Out, NoPolicy> =
         folded.specialize_policy().unwrap();
     assert_eq!(folded.discard_box(), expected);
 }
@@ -93,20 +93,20 @@ fn test_nested_boxes() {
         },
         f2: vec![
             MixedBoxes {
-                f1: BBox::new(1, NoPolicy {}),
-                f2: BBox::new(String::from("v0.f2"), NoPolicy {}),
+                f1: PCon::new(1, NoPolicy {}),
+                f2: PCon::new(String::from("v0.f2"), NoPolicy {}),
                 f3: 2,
                 f4: String::from("v0.f4"),
             },
             MixedBoxes {
-                f1: BBox::new(3, NoPolicy {}),
-                f2: BBox::new(String::from("v1.f2"), NoPolicy {}),
+                f1: PCon::new(3, NoPolicy {}),
+                f2: PCon::new(String::from("v1.f2"), NoPolicy {}),
                 f3: 4,
                 f4: String::from("v1.f4"),
             },
             MixedBoxes {
-                f1: BBox::new(5, NoPolicy {}),
-                f2: BBox::new(String::from("v2.f2"), NoPolicy {}),
+                f1: PCon::new(5, NoPolicy {}),
+                f2: PCon::new(String::from("v2.f2"), NoPolicy {}),
                 f3: 6,
                 f4: String::from("v2.f4"),
             },
@@ -115,8 +115,8 @@ fn test_nested_boxes() {
             (
                 String::from("k0"),
                 MixedBoxes {
-                    f1: BBox::new(7, NoPolicy {}),
-                    f2: BBox::new(String::from("k0.f2"), NoPolicy {}),
+                    f1: PCon::new(7, NoPolicy {}),
+                    f2: PCon::new(String::from("k0.f2"), NoPolicy {}),
                     f3: 8,
                     f4: String::from("k0.f4"),
                 },
@@ -124,8 +124,8 @@ fn test_nested_boxes() {
             (
                 String::from("k1"),
                 MixedBoxes {
-                    f1: BBox::new(9, NoPolicy {}),
-                    f2: BBox::new(String::from("k1.f2"), NoPolicy {}),
+                    f1: PCon::new(9, NoPolicy {}),
+                    f2: PCon::new(String::from("k1.f2"), NoPolicy {}),
                     f3: 10,
                     f4: String::from("k1.f4"),
                 },
@@ -133,8 +133,8 @@ fn test_nested_boxes() {
         ]),
     };
 
-    let folded: BBox<NestedOut, AnyPolicyClone> = fold(input).unwrap();
-    let folded: BBox<NestedOut, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: PCon<NestedOut, AnyPolicyClone> = fold(input).unwrap();
+    let folded: PCon<NestedOut, NoPolicy> = folded.specialize_policy().unwrap();
     let folded: NestedOut = folded.discard_box();
 
     assert_eq!(
@@ -198,20 +198,20 @@ fn test_nested_boxes_enum() {
         },
         f2: vec![
             MixedBoxes {
-                f1: BBox::new(1, NoPolicy {}),
-                f2: BBox::new(String::from("v0.f2"), NoPolicy {}),
+                f1: PCon::new(1, NoPolicy {}),
+                f2: PCon::new(String::from("v0.f2"), NoPolicy {}),
                 f3: 2,
                 f4: String::from("v0.f4"),
             },
             MixedBoxes {
-                f1: BBox::new(3, NoPolicy {}),
-                f2: BBox::new(String::from("v1.f2"), NoPolicy {}),
+                f1: PCon::new(3, NoPolicy {}),
+                f2: PCon::new(String::from("v1.f2"), NoPolicy {}),
                 f3: 4,
                 f4: String::from("v1.f4"),
             },
             MixedBoxes {
-                f1: BBox::new(5, NoPolicy {}),
-                f2: BBox::new(String::from("v2.f2"), NoPolicy {}),
+                f1: PCon::new(5, NoPolicy {}),
+                f2: PCon::new(String::from("v2.f2"), NoPolicy {}),
                 f3: 6,
                 f4: String::from("v2.f4"),
             },
@@ -220,8 +220,8 @@ fn test_nested_boxes_enum() {
             (
                 String::from("k0"),
                 MixedBoxes {
-                    f1: BBox::new(7, NoPolicy {}),
-                    f2: BBox::new(String::from("k0.f2"), NoPolicy {}),
+                    f1: PCon::new(7, NoPolicy {}),
+                    f2: PCon::new(String::from("k0.f2"), NoPolicy {}),
                     f3: 8,
                     f4: String::from("k0.f4"),
                 },
@@ -229,8 +229,8 @@ fn test_nested_boxes_enum() {
             (
                 String::from("k1"),
                 MixedBoxes {
-                    f1: BBox::new(9, NoPolicy {}),
-                    f2: BBox::new(String::from("k1.f2"), NoPolicy {}),
+                    f1: PCon::new(9, NoPolicy {}),
+                    f2: PCon::new(String::from("k1.f2"), NoPolicy {}),
                     f3: 10,
                     f4: String::from("k1.f4"),
                 },
@@ -253,7 +253,7 @@ pub struct VerbatimType(pub u32, pub String);
 #[sesame_out_type(verbatim = [f3])]
 pub struct VerbatimBox {
     pub f1: u64,
-    pub f2: BBox<String, NoPolicy>,
+    pub f2: PCon<String, NoPolicy>,
     pub f3: VerbatimType,
 }
 
@@ -261,12 +261,12 @@ pub struct VerbatimBox {
 fn test_derived_verbatim() {
     let input = VerbatimBox {
         f1: 10,
-        f2: BBox::new(String::from("hello"), NoPolicy {}),
+        f2: PCon::new(String::from("hello"), NoPolicy {}),
         f3: VerbatimType(20, String::from("bye")),
     };
 
-    let folded: BBox<_, AnyPolicyClone> = fold(input).unwrap();
-    let folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: PCon<_, AnyPolicyClone> = fold(input).unwrap();
+    let folded: PCon<_, NoPolicy> = folded.specialize_policy().unwrap();
     let folded = folded.discard_box();
 
     assert_eq!(folded.f1, 10);
@@ -290,8 +290,8 @@ fn test_derived_only_verbatim() {
         f2: VerbatimType(20, String::from("bye")),
     };
 
-    let folded: BBox<_, AnyPolicyClone> = fold(input).unwrap();
-    let folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: PCon<_, AnyPolicyClone> = fold(input).unwrap();
+    let folded: PCon<_, NoPolicy> = folded.specialize_policy().unwrap();
     let folded = folded.discard_box();
 
     assert_eq!(folded.f1, 10);
@@ -302,7 +302,7 @@ fn test_derived_only_verbatim() {
 #[derive(SesameType, Clone)]
 pub struct GenericBox<T, P: Policy> {
     pub f1: u64,
-    pub f2: BBox<T, P>,
+    pub f2: PCon<T, P>,
 }
 
 // A policy type that is not cloneable.
@@ -321,12 +321,12 @@ impl SimplePolicy for NotClone {
 fn test_derived_generic() {
     let input = GenericBox {
         f1: 10,
-        f2: BBox::new(String::from("hello"), NoPolicy {}),
+        f2: PCon::new(String::from("hello"), NoPolicy {}),
     };
 
     // Can fold into an AnyPolicyClone when generic bounds meet Clone.
-    let folded: BBox<_, AnyPolicyClone> = fold(input).unwrap();
-    let folded: BBox<_, NoPolicy> = folded.specialize_policy().unwrap();
+    let folded: PCon<_, AnyPolicyClone> = fold(input).unwrap();
+    let folded: PCon<_, NoPolicy> = folded.specialize_policy().unwrap();
     let folded = folded.discard_box();
 
     assert_eq!(folded.f1, 10);
@@ -334,12 +334,12 @@ fn test_derived_generic() {
 
     let input = GenericBox {
         f1: 10,
-        f2: BBox::new(String::from("hello"), TestPolicy::new(NotClone {})),
+        f2: PCon::new(String::from("hello"), TestPolicy::new(NotClone {})),
     };
 
     // Cannot fold into AnyPolicyClonable because P is not Clone. Fold into a regular AnyPolicy instead.
-    let folded: BBox<_, AnyPolicy> = fold(input).unwrap();
-    let folded: BBox<_, TestPolicy<NotClone>> = folded.specialize_policy().unwrap();
+    let folded: PCon<_, AnyPolicy> = fold(input).unwrap();
+    let folded: PCon<_, TestPolicy<NotClone>> = folded.specialize_policy().unwrap();
     let folded = folded.discard_box();
 
     assert_eq!(folded.f1, 10);

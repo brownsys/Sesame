@@ -5,20 +5,20 @@ use erased_serde::Serialize;
 use figment::value::Value as FValue;
 use std::collections::{BTreeMap, HashMap};
 
-// Our BBox struct.
-use sesame::bbox::{BBox, EitherBBox};
+// Our PCon struct.
 use sesame::extensions::{
     ExtensionContext, SesameExtension, SesameRefExtension, UncheckedSesameExtension,
 };
+use sesame::pcon::{EitherPCon, PCon};
 use sesame::policy::{Policy, Reason, RefPolicy};
 
 use crate::error::SesameRenderResult;
 
 #[cfg(feature = "derive")]
-pub use sesame_derive::BBoxRender;
+pub use sesame_derive::PConRender;
 
-// Types for cheap references of BBox with type erasure.
-type RefBBox<'a> = BBox<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
+// Types for cheap references of PCon with type erasure.
+type RefPCon<'a> = PCon<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
 // Sesame extension that performs policy check then renders template if successful.
 struct RenderPolicyChecker {}
@@ -34,10 +34,10 @@ impl<'a> SesameExtension<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>, figm
     }
 }
 
-// A BBox with type T erased, a primitive value, or a collection of mixed-type
+// A PCon with type T erased, a primitive value, or a collection of mixed-type
 // values.
 pub enum Renderable<'a> {
-    BBox(RefBBox<'a>),
+    PCon(RefPCon<'a>),
     Serialize(&'a dyn Serialize),
     Dict(BTreeMap<String, Renderable<'a>>),
     Array(Vec<Renderable<'a>>),
@@ -50,10 +50,10 @@ impl<'a> Renderable<'a> {
         context: &ExtensionContext,
     ) -> SesameRenderResult<FValue> {
         match self {
-            Renderable::BBox(bbox) => {
+            Renderable::PCon(pcon) => {
                 let mut checker = RenderPolicyChecker {};
                 let reason = Reason::TemplateRender(template);
-                Ok(bbox.checked_extension(&mut checker, context, reason)??)
+                Ok(pcon.checked_extension(&mut checker, context, reason)??)
             }
             Renderable::Serialize(obj) => Ok(FValue::serialize(obj)?),
             Renderable::Dict(map) => {
@@ -77,16 +77,16 @@ impl<'a> Renderable<'a> {
 }
 
 // Anything that implements this trait can be rendered by our render wrapper.
-// The `bbox_derive` lib provides macros to derive this for structs that consist
-// of other BBoxRender fields.
-pub trait BBoxRender {
+// The `sesame_derive` lib provides macros to derive this for structs that consist
+// of other PConRender fields.
+pub trait PConRender {
     fn render(&self) -> Renderable;
 }
 
-// Auto implement BBoxRender for unboxed primitive types.
+// Auto implement PConRender for unboxed primitive types.
 macro_rules! render_serialize_impl {
     ($T: ty) => {
-        impl BBoxRender for $T {
+        impl PConRender for $T {
             fn render<'a>(&'a self) -> Renderable<'a> {
                 Renderable::Serialize(self)
             }
@@ -100,39 +100,39 @@ render_serialize_impl!(u8);
 render_serialize_impl!(i8);
 render_serialize_impl!(bool);
 
-// Auto implement BBoxRender for BBox.
-impl<T: Serialize, P: Policy> BBoxRender for BBox<T, P> {
+// Auto implement PConRender for PCon.
+impl<T: Serialize, P: Policy> PConRender for PCon<T, P> {
     fn render(&self) -> Renderable {
         struct Converter {}
         impl UncheckedSesameExtension for Converter {}
         impl<'a, T: Serialize, P: Policy> SesameRefExtension<'a, T, P, Renderable<'a>> for Converter {
             fn apply_ref(&mut self, data: &'a T, policy: &'a P) -> Renderable<'a> {
-                Renderable::BBox(BBox::new(data, RefPolicy::new(policy)))
+                Renderable::PCon(PCon::new(data, RefPolicy::new(policy)))
             }
         }
         self.unchecked_extension_ref(&mut Converter {})
     }
 }
 
-// Auto implement BBoxRender for EitherBBox.
-impl<T: Serialize, P: Policy> BBoxRender for EitherBBox<T, P> {
+// Auto implement PConRender for EitherPCon.
+impl<T: Serialize, P: Policy> PConRender for EitherPCon<T, P> {
     fn render(&self) -> Renderable {
         match self {
-            EitherBBox::Left(value) => Renderable::Serialize(value),
-            EitherBBox::Right(bbox) => bbox.render(),
+            EitherPCon::Left(value) => Renderable::Serialize(value),
+            EitherPCon::Right(pcon) => pcon.render(),
         }
     }
 }
 
-// Auto implement BBoxRender for Vec.
-impl<T: BBoxRender> BBoxRender for Vec<T> {
+// Auto implement PConRender for Vec.
+impl<T: PConRender> PConRender for Vec<T> {
     fn render(&self) -> Renderable {
         Renderable::Array(self.iter().map(|v| v.render()).collect())
     }
 }
 
-// Auto implement BBoxRender for HashMap.
-impl<T: BBoxRender> BBoxRender for HashMap<&str, T> {
+// Auto implement PConRender for HashMap.
+impl<T: PConRender> PConRender for HashMap<&str, T> {
     fn render(&self) -> Renderable {
         let mut map = BTreeMap::new();
         for (key, val) in self.iter() {
@@ -160,20 +160,20 @@ mod tests {
     }
 
     #[test]
-    fn test_renderable_bbox() {
-        let bbox = BBox::new(String::from("my bbox!"), NoPolicy {});
-        let renderable = bbox.render();
-        assert!(matches!(renderable, Renderable::BBox(_)));
+    fn test_renderable_pcon() {
+        let pcon = PCon::new(String::from("my pcon!"), NoPolicy {});
+        let renderable = pcon.render();
+        assert!(matches!(renderable, Renderable::PCon(_)));
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
         assert!(
-            matches!(result, Result::Ok(FValue::String(_, result)) if result == bbox.discard_box())
+            matches!(result, Result::Ok(FValue::String(_, result)) if result == pcon.discard_box())
         );
     }
 
     #[test]
     fn test_renderable_either() {
-        let either: EitherBBox<String, NoPolicy> = EitherBBox::Left(String::from("my_test!"));
+        let either: EitherPCon<String, NoPolicy> = EitherPCon::Left(String::from("my_test!"));
         let renderable = either.render();
         assert!(matches!(renderable, Renderable::Serialize(_)));
         let context = ExtensionContext::new(Context::test(()));
@@ -182,21 +182,21 @@ mod tests {
             matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_test!"))
         );
 
-        let either = EitherBBox::Right(BBox::new(String::from("my_bbox!"), NoPolicy {}));
+        let either = EitherPCon::Right(PCon::new(String::from("my_pcon!"), NoPolicy {}));
         let renderable = either.render();
-        assert!(matches!(renderable, Renderable::BBox(_)));
+        assert!(matches!(renderable, Renderable::PCon(_)));
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
         assert!(
-            matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_bbox!"))
+            matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_pcon!"))
         );
     }
 
     #[test]
     fn test_renderable_vec() {
         let mut vec = Vec::new();
-        vec.push(BBox::new(String::from("hello"), NoPolicy {}));
-        vec.push(BBox::new(String::from("bye"), NoPolicy {}));
+        vec.push(PCon::new(String::from("hello"), NoPolicy {}));
+        vec.push(PCon::new(String::from("bye"), NoPolicy {}));
         let renderable = vec.render();
         assert!(matches!(renderable, Renderable::Array(_)));
         let context = ExtensionContext::new(Context::test(()));
@@ -211,8 +211,8 @@ mod tests {
     #[test]
     fn test_renderable_map() {
         let mut map = HashMap::new();
-        map.insert("key1", BBox::new(String::from("val1"), NoPolicy {}));
-        map.insert("key2", BBox::new(String::from("val2"), NoPolicy {}));
+        map.insert("key1", PCon::new(String::from("val1"), NoPolicy {}));
+        map.insert("key2", PCon::new(String::from("val2"), NoPolicy {}));
         let renderable = map.render();
         assert!(matches!(renderable, Renderable::Dict(_)));
         let context = ExtensionContext::new(Context::test(()));

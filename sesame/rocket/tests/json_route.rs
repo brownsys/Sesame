@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 
-use sesame::bbox::BBox;
 use sesame::context::{Context, UnprotectedContext};
+use sesame::pcon::PCon;
 use sesame::policy::{Join, NoPolicy, Policy, Reason};
 use sesame::testing::TestPolicy;
 
 use sesame_rocket::policy::FrontendPolicy;
 use sesame_rocket::rocket::{
-    BBoxData, BBoxJson, BBoxRequest, BBoxResponseOutcome, BBoxRocket, FromBBoxData, InputBBoxValue,
-    JsonResponse, OutputBBoxValue, RequestBBoxJson, ResponseBBoxJson,
+    FromPConData, InputPConValue, JsonResponse, OutputPConValue, PConData, PConJson, PConRequest,
+    PConResponseOutcome, RequestPConJson, ResponsePConJson, SesameRocket,
 };
 use sesame_rocket::test_route;
-use sesame_rocket::testing::BBoxClient;
+use sesame_rocket::testing::SesameClient;
 
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -50,13 +50,13 @@ impl FrontendPolicy for UserPolicy {
 
 // Parses request bodies.
 struct MyJsonData {
-    pub id: BBox<u64, TestPolicy<UserPolicy>>,
-    pub email: BBox<String, TestPolicy<NoPolicy>>,
+    pub id: PCon<u64, TestPolicy<UserPolicy>>,
+    pub email: PCon<String, TestPolicy<NoPolicy>>,
 }
-impl RequestBBoxJson for MyJsonData {
+impl RequestPConJson for MyJsonData {
     fn from_json(
-        mut value: InputBBoxValue,
-        request: BBoxRequest<'_, '_>,
+        mut value: InputPConValue,
+        request: PConRequest<'_, '_>,
     ) -> Result<Self, &'static str> {
         Ok(MyJsonData {
             id: value.get("id")?.into_json(request)?,
@@ -64,9 +64,9 @@ impl RequestBBoxJson for MyJsonData {
         })
     }
 }
-impl ResponseBBoxJson for MyJsonData {
-    fn to_json(self) -> OutputBBoxValue {
-        OutputBBoxValue::Object(HashMap::from([
+impl ResponsePConJson for MyJsonData {
+    fn to_json(self) -> OutputPConValue {
+        OutputPConValue::Object(HashMap::from([
             (String::from("id"), self.id.to_json()),
             (String::from("email"), self.email.to_json()),
         ]))
@@ -74,32 +74,32 @@ impl ResponseBBoxJson for MyJsonData {
 }
 
 pub async fn route<'a, 'r>(
-    request: BBoxRequest<'a, 'r>,
-    data: BBoxData<'a>,
-) -> BBoxResponseOutcome<'a> {
-    let json = BBoxJson::<MyJsonData>::from_data(request, data).await;
+    request: PConRequest<'a, 'r>,
+    data: PConData<'a>,
+) -> PConResponseOutcome<'a> {
+    let json = PConJson::<MyJsonData>::from_data(request, data).await;
     let json = json.unwrap().into_inner();
     assert_eq!(*json.id.as_ref().discard_box(), 100);
     assert_eq!(json.email.as_ref().discard_box(), "email@email.com");
 
     let response = MyJsonData {
-        id: BBox::new(250, json.id.policy().clone()),
-        email: BBox::new(
+        id: PCon::new(250, json.id.policy().clone()),
+        email: PCon::new(
             String::from("email@response.com"),
             json.email.policy().clone(),
         ),
     };
 
-    BBoxResponseOutcome::from(request, JsonResponse::from((response, Context::test(()))))
+    PConResponseOutcome::from(request, JsonResponse::from((response, Context::test(()))))
 }
 
 #[test]
 fn test_json() {
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
+    let rocket = SesameRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .post("/")
         .header(ContentType::JSON)
@@ -120,10 +120,10 @@ fn test_json() {
 #[test]
 fn test_json_failed_policy() {
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
+    let rocket = SesameRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .post("/")
         .header(ContentType::JSON)

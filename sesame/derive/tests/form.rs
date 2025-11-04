@@ -1,11 +1,11 @@
 use sesame::context::UnprotectedContext;
 use sesame::policy::{Reason, SimplePolicy};
 use sesame::testing::TestPolicy;
-use sesame_derive::FromBBoxForm;
+use sesame_derive::FromPConForm;
 use sesame_rocket::policy::FrontendPolicy;
-use sesame_rocket::rocket::{BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxRocket};
+use sesame_rocket::rocket::{PConData, PConForm, PConRequest, PConResponseOutcome, SesameRocket};
 use sesame_rocket::test_route;
-use sesame_rocket::testing::BBoxClient;
+use sesame_rocket::testing::SesameClient;
 
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -45,26 +45,26 @@ impl FrontendPolicy for ExamplePolicy {
     }
 }
 
-#[derive(FromBBoxForm)]
+#[derive(FromPConForm)]
 pub struct Nested {
-    pub inner: sesame::bbox::BBox<String, TestPolicy<ExamplePolicy>>,
-    pub vec: Vec<sesame::bbox::BBox<usize, TestPolicy<ExamplePolicy>>>,
+    pub inner: sesame::pcon::PCon<String, TestPolicy<ExamplePolicy>>,
+    pub vec: Vec<sesame::pcon::PCon<usize, TestPolicy<ExamplePolicy>>>,
 }
 
-#[derive(FromBBoxForm)]
+#[derive(FromPConForm)]
 pub struct Simple {
-    pub f1: sesame::bbox::BBox<String, TestPolicy<ExamplePolicy>>,
+    pub f1: sesame::pcon::PCon<String, TestPolicy<ExamplePolicy>>,
     pub f2: Nested,
-    pub f3: sesame::bbox::BBox<u8, TestPolicy<ExamplePolicy>>,
+    pub f3: sesame::pcon::PCon<u8, TestPolicy<ExamplePolicy>>,
 }
 
 // Test route.
 pub async fn route<'a, 'r>(
-    request: BBoxRequest<'a, 'r>,
-    data: BBoxData<'a>,
-) -> BBoxResponseOutcome<'a> {
-    use sesame_rocket::rocket::FromBBoxData;
-    type MyForm = BBoxForm<Simple>;
+    request: PConRequest<'a, 'r>,
+    data: PConData<'a>,
+) -> PConResponseOutcome<'a> {
+    use sesame_rocket::rocket::FromPConData;
+    type MyForm = PConForm<Simple>;
     let form = MyForm::from_data(request, data).await.unwrap().into_inner();
 
     assert_eq!(form.f1.policy().policy().cookie, "cvalue");
@@ -84,16 +84,16 @@ pub async fn route<'a, 'r>(
         assert_eq!(*form.f2.vec[i].as_ref().discard_box(), i + 100);
     }
 
-    BBoxResponseOutcome::from(request, "success")
+    PConResponseOutcome::from(request, "success")
 }
 
 #[test]
 fn form_test() {
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build().mount("/", vec![test_route!(Post, "/<user>", route)]);
+    let rocket = SesameRocket::build().mount("/", vec![test_route!(Post, "/<user>", route)]);
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .post("/user")
         .header(ContentType::Form)

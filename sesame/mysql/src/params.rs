@@ -1,15 +1,14 @@
-// BBox
-use sesame::bbox::EitherBBox;
 use sesame::context::{Context, ContextData};
 use sesame::error::SesameError;
 use sesame::extensions::{
     ExtensionContext, SesameExtension, SesameRefExtension, UncheckedSesameExtension,
 };
+use sesame::pcon::EitherPCon;
 use sesame::policy::{AnyPolicy, Reason};
 
-use crate::BBoxParam;
+use crate::PConParam;
 
-// Use Sesame Extension to execute policy check on BBoxed parameters
+// Use Sesame Extension to execute policy check on PCon parameters
 // and retrieve the data when policy check is successful for writing to the DB.
 struct PolicyCheck {
     vec: Vec<mysql::Value>,
@@ -32,29 +31,29 @@ impl SesameExtension<mysql::Value, AnyPolicy, ()> for PolicyCheck {
 }
 
 // Our params could be mixed boxed and clear.
-pub enum BBoxParams {
+pub enum PConParams {
     Empty,
     // Named(HashMap<String, Value>),
-    Positional(Vec<EitherBBox<mysql::Value, AnyPolicy>>),
+    Positional(Vec<EitherPCon<mysql::Value, AnyPolicy>>),
 }
 
 // private helper function.
-impl BBoxParams {
+impl PConParams {
     pub(super) fn transform<D: ContextData>(
         self,
         context: Context<D>,
         reason: Reason,
     ) -> Result<mysql::params::Params, SesameError> {
         match self {
-            BBoxParams::Empty => Ok(mysql::params::Params::Empty),
-            BBoxParams::Positional(vec) => {
+            PConParams::Empty => Ok(mysql::params::Params::Empty),
+            PConParams::Positional(vec) => {
                 let context = ExtensionContext::new(context);
                 let mut ext = PolicyCheck::new();
                 for v in vec.into_iter() {
                     match v {
-                        EitherBBox::Left(v) => ext.push(v),
-                        EitherBBox::Right(bbox) => {
-                            bbox.checked_extension(&mut ext, &context, reason.clone())?;
+                        EitherPCon::Left(v) => ext.push(v),
+                        EitherPCon::Right(pcon) => {
+                            pcon.checked_extension(&mut ext, &context, reason.clone())?;
                         }
                     }
                 }
@@ -65,8 +64,8 @@ impl BBoxParams {
 
     pub(super) fn to_reason(&self) -> Vec<mysql::Value> {
         match self {
-            BBoxParams::Empty => Vec::new(),
-            BBoxParams::Positional(v) => {
+            PConParams::Empty => Vec::new(),
+            PConParams::Positional(v) => {
                 struct Converter {}
                 impl UncheckedSesameExtension for Converter {}
                 impl<'a> SesameRefExtension<'a, mysql::Value, AnyPolicy, mysql::Value> for Converter {
@@ -80,8 +79,8 @@ impl BBoxParams {
                 }
                 v.into_iter()
                     .map(|either| match either {
-                        EitherBBox::Left(value) => value.clone(),
-                        EitherBBox::Right(bbox) => bbox.unchecked_extension_ref(&mut Converter {}),
+                        EitherPCon::Left(value) => value.clone(),
+                        EitherPCon::Right(pcon) => pcon.unchecked_extension_ref(&mut Converter {}),
                     })
                     .collect()
             }
@@ -90,17 +89,17 @@ impl BBoxParams {
 }
 
 // Can make Params from empty and Vec.
-impl From<()> for BBoxParams {
-    fn from(_: ()) -> BBoxParams {
-        BBoxParams::Empty
+impl From<()> for PConParams {
+    fn from(_: ()) -> PConParams {
+        PConParams::Empty
     }
 }
-impl<T: BBoxParam> From<Vec<T>> for BBoxParams {
-    fn from(x: Vec<T>) -> BBoxParams {
+impl<T: PConParam> From<Vec<T>> for PConParams {
+    fn from(x: Vec<T>) -> PConParams {
         if x.is_empty() {
-            BBoxParams::Empty
+            PConParams::Empty
         } else {
-            BBoxParams::Positional(x.into_iter().map(|v| v.get()).collect())
+            PConParams::Positional(x.into_iter().map(|v| v.get()).collect())
         }
     }
 }
@@ -108,10 +107,10 @@ impl<T: BBoxParam> From<Vec<T>> for BBoxParams {
 // Can make params from inlined function arguments.
 macro_rules! into_params_impl {
   ($([$A:ident,$a:ident]),*) => (
-    impl<$($A: BBoxParam,)*> From<($($A,)*)> for BBoxParams {
-      fn from(x: ($($A,)*)) -> BBoxParams {
+    impl<$($A: PConParam,)*> From<($($A,)*)> for PConParams {
+      fn from(x: ($($A,)*)) -> PConParams {
         let ($($a,)*) = x;
-        BBoxParams::Positional(vec![
+        PConParams::Positional(vec![
           $($a.get(),)*
         ])
       }
@@ -219,15 +218,15 @@ into_params_impl!(
 
 #[cfg(test)]
 mod tests {
-    use crate::BBoxParams;
+    use crate::PConParams;
     use mysql::prelude::{FromValue, ToValue};
     use mysql::Params;
-    use sesame::bbox::{BBox, EitherBBox};
     use sesame::context::Context;
+    use sesame::pcon::{EitherPCon, PCon};
     use sesame::policy::{AnyPolicy, NoPolicy, Reason};
     use std::boxed::Box;
 
-    fn helper1<T: FromValue + Eq>(b: &BBox<mysql::Value, AnyPolicy>, t: T) -> bool {
+    fn helper1<T: FromValue + Eq>(b: &PCon<mysql::Value, AnyPolicy>, t: T) -> bool {
         let v = b
             .as_ref()
             .specialize_policy_ref::<NoPolicy>()
@@ -242,19 +241,19 @@ mod tests {
 
     #[test]
     fn make_params_from_mixed_tuple() {
-        let b1 = BBox::new(String::from("kinan"), NoPolicy {});
-        let b2 = BBox::new(10, NoPolicy {});
+        let b1 = PCon::new(String::from("kinan"), NoPolicy {});
+        let b2 = PCon::new(10, NoPolicy {});
         let b3 = 100;
         let b4 = String::from("test");
-        let params = BBoxParams::from((b1, b2, b3, b4));
+        let params = PConParams::from((b1, b2, b3, b4));
 
         // Test construction.
-        assert!(matches!(&params, BBoxParams::Positional(v) if v.len() == 4));
-        if let BBoxParams::Positional(vec) = &params {
-            assert!(matches!(&vec[0], EitherBBox::Right(b) if helper1(&b, String::from("kinan"))));
-            assert!(matches!(&vec[1], EitherBBox::Right(b) if helper1(&b, 10i32)));
-            assert!(matches!(&vec[2], EitherBBox::Left(b) if helper2(&b, 100i32)));
-            assert!(matches!(&vec[3], EitherBBox::Left(b) if helper2(&b, String::from("test"))));
+        assert!(matches!(&params, PConParams::Positional(v) if v.len() == 4));
+        if let PConParams::Positional(vec) = &params {
+            assert!(matches!(&vec[0], EitherPCon::Right(b) if helper1(&b, String::from("kinan"))));
+            assert!(matches!(&vec[1], EitherPCon::Right(b) if helper1(&b, 10i32)));
+            assert!(matches!(&vec[2], EitherPCon::Left(b) if helper2(&b, 100i32)));
+            assert!(matches!(&vec[3], EitherPCon::Left(b) if helper2(&b, String::from("test"))));
         }
 
         // Test unboxing.

@@ -1,4 +1,4 @@
-use crate::bbox::BBox;
+use crate::pcon::PCon;
 use crate::policy::{
     join_dyn, AnyPolicy, AnyPolicyable, OptionPolicy, PolicyDyn, PolicyDynRelation,
 };
@@ -8,12 +8,12 @@ use std::any::Any;
 
 pub fn fold<P: PolicyDyn + ?Sized, S: SesameType<dyn Any, P>>(
     s: S,
-) -> Result<BBox<S::Out, AnyPolicy<P>>, ()> {
+) -> Result<PCon<S::Out, AnyPolicy<P>>, ()> {
     let (v, p) = Foldable::unsafe_fold(s)?;
-    Ok(BBox::new(v, p))
+    Ok(PCon::new(v, p))
 }
 
-// Private trait that implements folding out nested BBoxes.
+// Private trait that implements folding out nested PCons.
 pub(crate) trait Foldable<P: PolicyDyn + ?Sized>: SesameType<dyn Any, P> {
     fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy<P>), ()>;
 }
@@ -23,14 +23,14 @@ pub(crate) trait Foldable<P: PolicyDyn + ?Sized>: SesameType<dyn Any, P> {
 impl<P: PolicyDyn + ?Sized, T: SesameType<dyn Any, P>> Foldable<P> for T {
     default fn unsafe_fold(self) -> Result<(T::Out, AnyPolicy<P>), ()> {
         let e = self.to_enum();
-        let (t, p) = e.remove_bboxes2();
+        let (t, p) = e.remove_pcon();
         Ok((Self::out_from_enum(t)?, p?.unwrap_or_default()))
     }
 }
 
-// A more optimized version of unwrap for a simple vec of BBoxes.
+// A more optimized version of unwrap for a simple vec of PCons.
 impl<T: Any, P: AnyPolicyable, PDyn: PolicyDyn + ?Sized + PolicyDynRelation<P>> Foldable<PDyn>
-    for Vec<BBox<T, P>>
+    for Vec<PCon<T, P>>
 {
     fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy<PDyn>), ()> {
         let accum = (Vec::with_capacity(self.len()), None);
@@ -47,10 +47,10 @@ impl<T: Any, P: AnyPolicyable, PDyn: PolicyDyn + ?Sized + PolicyDynRelation<P>> 
     }
 }
 
-// Expands to code that optimizes folding for simple vecs with tuples of bboxes. -- Eg. `Vec<(BBox<T, P>,)>`
+// Expands to code that optimizes folding for simple vecs with tuples of pcons. -- Eg. `Vec<(PCon<T, P>,)>`
 macro_rules! optimized_tup_fold {
     ($([$A:tt,$P:tt]),*) => (
-        impl<$($A: Any,)* $($P: AnyPolicyable,)* PDyn: PolicyDyn + ?Sized> Foldable<PDyn> for Vec<($(BBox<$A, $P>,)*)>
+        impl<$($A: Any,)* $($P: AnyPolicyable,)* PDyn: PolicyDyn + ?Sized> Foldable<PDyn> for Vec<($(PCon<$A, $P>,)*)>
         where $(PDyn: PolicyDynRelation<$P>, )* {
             fn unsafe_fold(self) -> Result<(Self::Out, AnyPolicy<PDyn>), ()> {
                 let mut v: Vec<($($A,)*)> = Vec::with_capacity(self.len());
@@ -109,9 +109,9 @@ optimized_tup_fold!(
     [T8, P8]
 );
 
-// Fold bbox from inside vector to the outside. Same as generic fold(...) but preserves policy type.
-impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>> {
-    fn from(v: Vec<BBox<T, P>>) -> BBox<Vec<T>, OptionPolicy<P>> {
+// Fold pcon from inside vector to the outside. Same as generic fold(...) but preserves policy type.
+impl<T, P: AnyPolicyable> From<Vec<PCon<T, P>>> for PCon<Vec<T>, OptionPolicy<P>> {
+    fn from(v: Vec<PCon<T, P>>) -> PCon<Vec<T>, OptionPolicy<P>> {
         let accum = (Vec::new(), OptionPolicy::NoPolicy);
         let result = v.into_iter().fold(accum, |accum, e| {
             let (mut v, p) = accum;
@@ -130,14 +130,14 @@ impl<T, P: AnyPolicyable> From<Vec<BBox<T, P>>> for BBox<Vec<T>, OptionPolicy<P>
         });
 
         let (v, p) = result;
-        BBox::new(v, p)
+        PCon::new(v, p)
     }
 }
 
 // Tests
 #[cfg(test)]
 mod tests {
-    use crate::bbox::BBox;
+    use crate::pcon::PCon;
     use crate::policy::{
         AnyPolicy, AnyPolicyDyn, Join, JoinAPI, NoPolicy, OptionPolicy, Policy, PolicyAnd, Reason,
         SimplePolicy,
@@ -197,8 +197,8 @@ mod tests {
 
     #[derive(Clone, PartialEq, Debug)]
     pub struct BoxedStruct {
-        pub x: BBox<u64, TestPolicy<ACLPolicy>>,
-        pub y: BBox<String, TestPolicy<ACLPolicy>>,
+        pub x: PCon<u64, TestPolicy<ACLPolicy>>,
+        pub y: PCon<String, TestPolicy<ACLPolicy>>,
         pub z: String,
     }
 
@@ -227,8 +227,8 @@ mod tests {
         fn from_enum(e: SesameTypeEnum<dyn Any, dyn AnyPolicyDyn>) -> Result<Self, ()> {
             match e {
                 SesameTypeEnum::Struct(mut hashmap) => Ok(Self {
-                    x: BBox::<u64, TestPolicy<ACLPolicy>>::from_enum(hashmap.remove("x").unwrap())?,
-                    y: BBox::<String, TestPolicy<ACLPolicy>>::from_enum(
+                    x: PCon::<u64, TestPolicy<ACLPolicy>>::from_enum(hashmap.remove("x").unwrap())?,
+                    y: PCon::<String, TestPolicy<ACLPolicy>>::from_enum(
                         hashmap.remove("y").unwrap(),
                     )?,
                     z: String::from_enum(hashmap.remove("z").unwrap())?,
@@ -239,10 +239,10 @@ mod tests {
         fn out_from_enum(e: SesameTypeEnum) -> Result<Self::Out, ()> {
             match e {
                 SesameTypeEnum::Struct(mut hashmap) => Ok(Self::Out {
-                    x: BBox::<u64, TestPolicy<ACLPolicy>>::out_from_enum(
+                    x: PCon::<u64, TestPolicy<ACLPolicy>>::out_from_enum(
                         hashmap.remove("x").unwrap(),
                     )?,
-                    y: BBox::<String, TestPolicy<ACLPolicy>>::out_from_enum(
+                    y: PCon::<String, TestPolicy<ACLPolicy>>::out_from_enum(
                         hashmap.remove("y").unwrap(),
                     )?,
                     z: String::out_from_enum(hashmap.remove("z").unwrap())?,
@@ -267,18 +267,18 @@ mod tests {
         let policy2 = TestPolicy::new(ACLPolicy::new(&[10, 30]));
 
         let boxed_struct = BoxedStruct {
-            x: BBox::new(1, policy1),
-            y: BBox::new(String::from("hello"), policy2),
+            x: PCon::new(1, policy1),
+            y: PCon::new(String::from("hello"), policy2),
             z: String::from("bye"),
         };
 
-        let bbox = super::fold(boxed_struct).unwrap();
-        let bbox = bbox
+        let pcon = super::fold(boxed_struct).unwrap();
+        let pcon = pcon
             .specialize_top_policy::<TestPolicy<ACLPolicy>>()
             .unwrap();
-        assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([10]));
+        assert_eq!(pcon.policy().policy().owners, HashSet::from_iter([10]));
         assert_eq!(
-            bbox.discard_box(),
+            pcon.discard_box(),
             BoxedStructLite {
                 x: 1,
                 y: String::from("hello"),
@@ -294,8 +294,8 @@ mod tests {
         let policy2 = TestPolicy::new(ACLPolicy::new(&[40, 30]));
 
         let boxed_struct = BoxedStruct {
-            x: BBox::new(1, policy1),
-            y: BBox::new(String::from("hello"), policy2),
+            x: PCon::new(1, policy1),
+            y: PCon::new(String::from("hello"), policy2),
             z: String::from("bye"),
         };
 
@@ -309,20 +309,20 @@ mod tests {
         let policy3 = TestPolicy::new(ACLPolicy::new(&[20, 30, 40]));
 
         let vec = vec![
-            BBox::new(10, policy1),
-            BBox::new(20, policy2),
-            BBox::new(30, policy3),
+            PCon::new(10, policy1),
+            PCon::new(20, policy2),
+            PCon::new(30, policy3),
         ];
 
-        let bbox: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
-        let bbox = bbox
+        let pcon: PCon<_, AnyPolicy> = super::fold(vec).unwrap();
+        let pcon = pcon
             .specialize_top_policy::<TestPolicy<ACLPolicy>>()
             .unwrap();
-        assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
-        assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
+        assert_eq!(pcon.policy().policy().owners, HashSet::from_iter([40]));
+        assert_eq!(pcon.clone().discard_box(), vec![10, 20, 30]);
 
         // inverse fold for vector.
-        let vec: Vec<BBox<i32, TestPolicy<ACLPolicy>>> = bbox.fold_in();
+        let vec: Vec<PCon<i32, TestPolicy<ACLPolicy>>> = pcon.fold_in();
         assert_eq!(vec[0].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[1].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[2].policy().policy().owners, HashSet::from_iter([40]));
@@ -340,23 +340,23 @@ mod tests {
         let policy3 = TestPolicy::new(UnjoinablePolicy { v: 20 });
 
         let vec = vec![
-            BBox::new(10, policy1),
-            BBox::new(20, policy2),
-            BBox::new(30, policy3),
+            PCon::new(10, policy1),
+            PCon::new(20, policy2),
+            PCon::new(30, policy3),
         ];
 
         // fold
-        let bbox: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
-        let bbox = bbox.specialize_policy::<TestPolicy<Stacked>>();
-        let bbox = bbox.map_err(|_| ()).unwrap();
-        let stacked_policy = bbox.policy().clone();
+        let pcon: PCon<_, AnyPolicy> = super::fold(vec).unwrap();
+        let pcon = pcon.specialize_policy::<TestPolicy<Stacked>>();
+        let pcon = pcon.map_err(|_| ()).unwrap();
+        let stacked_policy = pcon.policy().clone();
         assert_eq!(stacked_policy.policy().policy1().policy1().v, 1);
         assert_eq!(stacked_policy.policy().policy1().policy2().v, 50);
         assert_eq!(stacked_policy.policy().policy2().v, 20);
-        assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
+        assert_eq!(pcon.clone().discard_box(), vec![10, 20, 30]);
 
         // inverse fold for vector.
-        let vec: Vec<BBox<i32, TestPolicy<Stacked>>> = bbox.fold_in();
+        let vec: Vec<PCon<i32, TestPolicy<Stacked>>> = pcon.fold_in();
         assert_eq!(vec[0].policy(), &stacked_policy);
         assert_eq!(vec[1].policy(), &stacked_policy);
         assert_eq!(vec[2].policy(), &stacked_policy);
@@ -373,34 +373,34 @@ mod tests {
 
         let vec = vec![
             (
-                BBox::new(10, policy1.clone()),
-                BBox::new("h", policy2.clone()),
-                BBox::new(0, NoPolicy {}),
+                PCon::new(10, policy1.clone()),
+                PCon::new("h", policy2.clone()),
+                PCon::new(0, NoPolicy {}),
             ),
             (
-                BBox::new(30, policy2.clone()),
-                BBox::new("b", policy2.clone()),
-                BBox::new(-10, NoPolicy {}),
+                PCon::new(30, policy2.clone()),
+                PCon::new("b", policy2.clone()),
+                PCon::new(-10, NoPolicy {}),
             ),
             (
-                BBox::new(50, policy1.clone()),
-                BBox::new("z", policy3.clone()),
-                BBox::new(-20, NoPolicy {}),
+                PCon::new(50, policy1.clone()),
+                PCon::new("z", policy3.clone()),
+                PCon::new(-20, NoPolicy {}),
             ),
         ];
 
-        let bbox: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
-        let bbox = bbox
+        let pcon: PCon<_, AnyPolicy> = super::fold(vec).unwrap();
+        let pcon = pcon
             .specialize_top_policy::<TestPolicy<ACLPolicy>>()
             .unwrap();
-        assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
+        assert_eq!(pcon.policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(
-            bbox.clone().discard_box(),
+            pcon.clone().discard_box(),
             vec![(10, "h", 0), (30, "b", -10), (50, "z", -20)]
         );
 
         // inverse fold for vector.
-        let vec: Vec<BBox<(u32, &str, i32), TestPolicy<ACLPolicy>>> = bbox.fold_in();
+        let vec: Vec<PCon<(u32, &str, i32), TestPolicy<ACLPolicy>>> = pcon.fold_in();
         assert_eq!(vec[0].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[1].policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(vec[2].policy().policy().owners, HashSet::from_iter([40]));
@@ -416,15 +416,15 @@ mod tests {
         let policy3 = TestPolicy::new(ACLPolicy::new(&[20, 30, 40]));
 
         let vec = vec![
-            BBox::new(10, policy1),
-            BBox::new(20, policy2),
-            BBox::new(30, policy3),
+            PCon::new(10, policy1),
+            PCon::new(20, policy2),
+            PCon::new(30, policy3),
         ];
 
-        let bbox: BBox<Vec<i32>, OptionPolicy<TestPolicy<ACLPolicy>>> = BBox::from(vec);
-        let bbox = bbox.specialize_option_policy().right().unwrap();
-        assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
-        assert_eq!(bbox.clone().discard_box(), vec![10, 20, 30]);
+        let pcon: PCon<Vec<i32>, OptionPolicy<TestPolicy<ACLPolicy>>> = PCon::from(vec);
+        let pcon = pcon.specialize_option_policy().right().unwrap();
+        assert_eq!(pcon.policy().policy().owners, HashSet::from_iter([40]));
+        assert_eq!(pcon.clone().discard_box(), vec![10, 20, 30]);
     }
 
     #[test]
@@ -435,12 +435,12 @@ mod tests {
         let policy3 = TestPolicy::new(ACLPolicy::new(&[20, 30, 50]));
 
         let vec = vec![
-            BBox::new(10, policy1),
-            BBox::new(20, policy2),
-            BBox::new(30, policy3),
+            PCon::new(10, policy1),
+            PCon::new(20, policy2),
+            PCon::new(30, policy3),
         ];
 
-        let _: BBox<_, AnyPolicy> = super::fold(vec).unwrap();
+        let _: PCon<_, AnyPolicy> = super::fold(vec).unwrap();
     }
 
     #[test]
@@ -451,29 +451,29 @@ mod tests {
 
         let vec = vec![
             BoxedStruct {
-                x: BBox::new(10, policy1.clone()),
-                y: BBox::new(String::from("x0"), policy2.clone()),
+                x: PCon::new(10, policy1.clone()),
+                y: PCon::new(String::from("x0"), policy2.clone()),
                 z: String::from("z0"),
             },
             BoxedStruct {
-                x: BBox::new(20, policy3.clone()),
-                y: BBox::new(String::from("x1"), policy1.clone()),
+                x: PCon::new(20, policy3.clone()),
+                y: PCon::new(String::from("x1"), policy1.clone()),
                 z: String::from("z1"),
             },
             BoxedStruct {
-                x: BBox::new(100, policy2.clone()),
-                y: BBox::new(String::from("x2"), policy3.clone()),
+                x: PCon::new(100, policy2.clone()),
+                y: PCon::new(String::from("x2"), policy3.clone()),
                 z: String::from("z2"),
             },
         ];
 
-        let bbox = super::fold(vec).unwrap();
-        let bbox = bbox
+        let pcon = super::fold(vec).unwrap();
+        let pcon = pcon
             .specialize_top_policy::<TestPolicy<ACLPolicy>>()
             .unwrap();
-        assert_eq!(bbox.policy().policy().owners, HashSet::from_iter([40]));
+        assert_eq!(pcon.policy().policy().owners, HashSet::from_iter([40]));
         assert_eq!(
-            bbox.discard_box(),
+            pcon.discard_box(),
             vec![
                 BoxedStructLite {
                     x: 10,

@@ -1,18 +1,18 @@
 use std::collections::BTreeMap;
 
-use sesame::bbox::BBox;
+use sesame::pcon::PCon;
 use sesame::policy::NoPolicy;
-use sesame_rocket::render::{BBoxRender, Renderable};
+use sesame_rocket::render::{PConRender, Renderable};
 
 use crate::application::policy::ACLPolicy;
 
 pub struct Grade {
-    pub id: BBox<u64, NoPolicy>,
-    pub name: BBox<String, NoPolicy>,
-    pub grade: BBox<u64, ACLPolicy>,
+    pub id: PCon<u64, NoPolicy>,
+    pub name: PCon<String, NoPolicy>,
+    pub grade: PCon<u64, ACLPolicy>,
 }
 
-impl BBoxRender for Grade {
+impl PConRender for Grade {
     fn render(&self) -> Renderable {
         Renderable::Dict(BTreeMap::from([
             (String::from("id"), self.id.render()),

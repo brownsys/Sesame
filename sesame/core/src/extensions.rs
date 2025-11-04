@@ -1,9 +1,9 @@
-use crate::bbox::BBox;
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::error::{SesameError, SesameResult};
+use crate::pcon::PCon;
 use crate::policy::{Policy, Reason};
 
-// An extension is essentially a specific closure we allow to consume the internals of a BBox and
+// An extension is essentially a specific closure we allow to consume the internals of a PCon and
 // return an arbitrary data type (not necessarily protected).
 //
 // The reasoning behind only offering these two APIs is that the other option suddenly becomes to
@@ -50,7 +50,7 @@ impl ExtensionContext {
 }
 
 // How extension is used.
-impl<T, P: Policy> BBox<T, P> {
+impl<T, P: Policy> PCon<T, P> {
     // Invoke extension without policy check.
     pub fn unchecked_extension<R, E: SesameExtension<T, P, R> + UncheckedSesameExtension>(
         self,

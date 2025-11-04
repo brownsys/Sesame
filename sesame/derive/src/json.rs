@@ -11,12 +11,12 @@ pub type Error = (Span, &'static str);
 
 // Attributes that developers can provide to customize our derive macro.
 #[derive(FromAttr)]
-#[attribute(ident = response_bbox_json)]
-struct ResponseBBoxJsonArgs {
+#[attribute(ident = response_pcon_json)]
+struct ResponsePConJsonArgs {
     as_is: Option<Vec<Ident>>,
 }
 
-impl ResponseBBoxJsonArgs {
+impl ResponsePConJsonArgs {
     pub fn contains(&self, ident: &Ident) -> bool {
         match &self.as_is {
             None => false,
@@ -30,11 +30,11 @@ fn parse_derive_input_struct(input: DeriveInput) -> Result<ItemStruct, Error> {
     match input.data {
         Data::Enum(_) => Err((
             input.ident.span(),
-            "derive(FromBBoxJson) only works on structs",
+            "derive(FromPConJson) only works on structs",
         )),
         Data::Union(_) => Err((
             input.ident.span(),
-            "derive(FromBBoxJson) only works on structs",
+            "derive(FromPConJson) only works on structs",
         )),
         Data::Struct(data_struct) => Ok(ItemStruct {
             attrs: input.attrs,
@@ -66,10 +66,10 @@ pub fn request_impl(input: DeriveInput) -> Result<TokenStream, Error> {
 
     // Generate implementation.
     Ok(quote! {
-        impl #impl_generics ::sesame_rocket::rocket::RequestBBoxJson for #input_ident #ty_generics #where_clause {
+        impl #impl_generics ::sesame_rocket::rocket::RequestPConJson for #input_ident #ty_generics #where_clause {
             fn from_json(
-                mut __value: ::sesame_rocket::rocket::InputBBoxValue,
-                __request: ::sesame_rocket::rocket::BBoxRequest<'_, '_>,
+                mut __value: ::sesame_rocket::rocket::InputPConValue,
+                __request: ::sesame_rocket::rocket::PConRequest<'_, '_>,
             ) -> Result<Self, &'static str> {
                 Ok(Self {
                     #(#fields: __value.get(#fields_strings)?.into_json(__request)?),*
@@ -81,7 +81,7 @@ pub fn request_impl(input: DeriveInput) -> Result<TokenStream, Error> {
 
 pub fn response_impl(input: DeriveInput) -> Result<TokenStream, Error> {
     // Parse the provided input attributes.
-    let attrs = ResponseBBoxJsonArgs::from_attributes(&input.attrs).unwrap();
+    let attrs = ResponsePConJsonArgs::from_attributes(&input.attrs).unwrap();
 
     // Parse the input struct.
     let input = parse_derive_input_struct(input)?;
@@ -111,13 +111,13 @@ pub fn response_impl(input: DeriveInput) -> Result<TokenStream, Error> {
 
     // Generate implementation.
     Ok(quote! {
-        impl #impl_generics ::sesame_rocket::rocket::ResponseBBoxJson for #input_ident #ty_generics #where_clause {
-            fn to_json(self) -> ::sesame_rocket::rocket::OutputBBoxValue {
-                ::sesame_rocket::rocket::OutputBBoxValue::Object(HashMap::from([
+        impl #impl_generics ::sesame_rocket::rocket::ResponsePConJson for #input_ident #ty_generics #where_clause {
+            fn to_json(self) -> ::sesame_rocket::rocket::OutputPConValue {
+                ::sesame_rocket::rocket::OutputPConValue::Object(HashMap::from([
                     #((String::from(#fields_strings), self.#fields.to_json()),)*
                     #((
                         String::from(#as_is_strings),
-                        ::sesame_rocket::rocket::OutputBBoxValue::Value(serde_json::to_value(self.#as_is).unwrap()),
+                        ::sesame_rocket::rocket::OutputPConValue::Value(serde_json::to_value(self.#as_is).unwrap()),
                     )),*
                 ]))
             }

@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 
-use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
+use crate::pcon::PCon;
 use crate::policy::{Join, NoPolicy, Policy, Reason};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -40,17 +40,20 @@ impl<'a: 'static, P: Policy + Sized> From<RefPolicy<'a, P>> for RefPolicy<'a, dy
 }
 
 // RefPolicy<'_, NoPolicy> can be discarded, logged, etc
-impl<'a, T> BBox<T, RefPolicy<'a, NoPolicy>> {
+impl<'a, T> PCon<T, RefPolicy<'a, NoPolicy>> {
     pub fn discard_box(self) -> T {
         self.consume().0
     }
 }
-impl<'a, T: Debug> Debug for BBox<T, RefPolicy<'a, NoPolicy>> {
+impl<'a, T: Debug> Debug for PCon<T, RefPolicy<'a, NoPolicy>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BBox").field("data", self.data()).finish()
+        f.debug_struct("PCon")
+            .field("data", self.data())
+            .field("policy", &"RefPolicy(NoPolicy")
+            .finish()
     }
 }
-impl<'a, T: PartialEq> PartialEq for BBox<T, RefPolicy<'a, NoPolicy>> {
+impl<'a, T: PartialEq> PartialEq for PCon<T, RefPolicy<'a, NoPolicy>> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data()
     }

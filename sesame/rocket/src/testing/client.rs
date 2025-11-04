@@ -1,27 +1,31 @@
-use crate::rocket::BBoxRocket;
+use crate::rocket::SesameRocket;
 use std::ops::Deref;
 
-pub struct BBoxClient {
+pub struct SesameClient {
     client: rocket::local::blocking::Client,
 }
 
-impl BBoxClient {
+impl SesameClient {
     // Tracks cookies.
-    pub fn tracked<P: rocket::Phase>(rocket: BBoxRocket<P>) -> Result<BBoxClient, rocket::Error> {
+    pub fn tracked<P: rocket::Phase>(
+        rocket: SesameRocket<P>,
+    ) -> Result<SesameClient, rocket::Error> {
         let client = rocket::local::blocking::Client::tracked(rocket.get())?;
-        Ok(BBoxClient { client })
+        Ok(SesameClient { client })
     }
     // Does not track cookies (like incognito mode).
-    pub fn untracked<P: rocket::Phase>(rocket: BBoxRocket<P>) -> Result<BBoxClient, rocket::Error> {
+    pub fn untracked<P: rocket::Phase>(
+        rocket: SesameRocket<P>,
+    ) -> Result<SesameClient, rocket::Error> {
         let client = rocket::local::blocking::Client::untracked(rocket.get())?;
-        Ok(BBoxClient { client })
+        Ok(SesameClient { client })
     }
 }
 
 // Deref to use testing functions.
 // Example:
 // *client.get("/url")
-impl Deref for BBoxClient {
+impl Deref for SesameClient {
     type Target = rocket::local::blocking::Client;
 
     fn deref(&self) -> &Self::Target {

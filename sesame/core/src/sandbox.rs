@@ -2,8 +2,8 @@ use std::any::Any;
 #[cfg(feature = "sandbox_timing")]
 use std::time::Instant;
 
-use crate::bbox::BBox;
 use crate::fold::fold;
+use crate::pcon::PCon;
 use crate::policy::{AnyPolicy, PolicyDyn};
 use crate::SesameType;
 
@@ -17,7 +17,7 @@ pub use sesame_derive::{FastTransfer, SesameSandbox};
 
 /// Copies `t` into a sandbox and executes the specified function on it,
 /// and copies the result value and returns it.
-pub fn execute_sandbox<S, T, R, PDyn>(t: T) -> SandboxOut<BBox<R, AnyPolicy<PDyn>>>
+pub fn execute_sandbox<S, T, R, PDyn>(t: T) -> SandboxOut<PCon<R, AnyPolicy<PDyn>>>
 where
     PDyn: PolicyDyn + ?Sized,
     T: SesameType<dyn Any, PDyn>,
@@ -50,12 +50,12 @@ where
             deserialize: result.deserialize,
             ffi: result.ffi,
             fold: timing_fold,
-            ret: BBox::new(result.ret, p),
+            ret: PCon::new(result.ret, p),
         };
         result.total = timer.elapsed();
         return result;
     }
 
     #[cfg(not(feature = "sandbox_timing"))]
-    return BBox::new(result, p);
+    return PCon::new(result, p);
 }

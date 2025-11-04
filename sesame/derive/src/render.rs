@@ -36,7 +36,7 @@ pub fn derive_boxed_serialize_impl(input: DeriveInput) -> TokenStream {
     // Impl trait.
     quote! {
       #[automatically_derived]
-      impl #impl_generics ::sesame_rocket::render::BBoxRender for #input_name #ty_generics #where_clause {
+      impl #impl_generics ::sesame_rocket::render::PConRender for #input_name #ty_generics #where_clause {
         fn render<'a>(&'a self) -> ::sesame_rocket::render::Renderable<'a> {
           let mut map: ::std::collections::BTreeMap<::std::string::String, ::sesame_rocket::render::Renderable<'a>> = ::std::collections::BTreeMap::new();
           #(#puts)*

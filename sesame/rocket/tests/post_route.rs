@@ -1,15 +1,16 @@
-use sesame::bbox::BBox;
 use sesame::context::{Context, UnprotectedContext};
+use sesame::pcon::PCon;
 use sesame::policy::{Join, Policy, Reason};
-use sesame::pure::PrivacyPureRegion;
+use sesame::verified::VerifiedRegion;
 use sesame::testing::TestPolicy;
 
 use sesame_rocket::policy::FrontendPolicy;
 use sesame_rocket::rocket::{
-    BBoxData, BBoxForm, BBoxRequest, BBoxResponseOutcome, BBoxRocket, ContextResponse, FromBBoxData,
+    ContextResponse, FromPConData, PConData, PConForm, PConRequest, PConResponseOutcome,
+    SesameRocket,
 };
 use sesame_rocket::test_route;
-use sesame_rocket::testing::BBoxClient;
+use sesame_rocket::testing::SesameClient;
 
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -47,26 +48,26 @@ impl FrontendPolicy for UserPolicy {
 }
 
 pub async fn route<'a, 'r>(
-    request: BBoxRequest<'a, 'r>,
-    data: BBoxData<'a>,
-) -> BBoxResponseOutcome<'a> {
-    type MyForm = BBoxForm<BBox<String, TestPolicy<UserPolicy>>>;
+    request: PConRequest<'a, 'r>,
+    data: PConData<'a>,
+) -> PConResponseOutcome<'a> {
+    type MyForm = PConForm<PCon<String, TestPolicy<UserPolicy>>>;
     let form = MyForm::from_data(request, data).await;
     let param = form.unwrap().into_inner();
     assert_eq!(param.as_ref().discard_box(), "hello");
 
-    let param = param.into_ppr(PrivacyPureRegion::new(|v| format!("Result is {}", &v)));
+    let param = param.into_verified(VerifiedRegion::new(|v| format!("Result is {}", &v)));
 
-    BBoxResponseOutcome::from(request, ContextResponse::from((param, Context::test(()))))
+    PConResponseOutcome::from(request, ContextResponse::from((param, Context::test(()))))
 }
 
 #[test]
 fn test_post() {
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
+    let rocket = SesameRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .post("/")
         .header(ContentType::Form)
@@ -84,10 +85,10 @@ fn test_post() {
 #[test]
 fn test_post_failed_policy() {
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
+    let rocket = SesameRocket::build().mount("/", vec![test_route!(Post, "/", route)]);
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .post("/")
         .header(ContentType::Form)

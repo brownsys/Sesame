@@ -2,9 +2,9 @@ use std::env;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use sesame_rocket::rocket::BBoxRocket;
+use sesame_rocket::rocket::SesameRocket;
 use sesame_rocket::test_route;
-use sesame_rocket::testing::BBoxClient;
+use sesame_rocket::testing::SesameClient;
 
 use rocket::http::{ContentType, Status};
 use rocket_cors::{AllowedOrigins, CorsOptions};
@@ -87,7 +87,7 @@ fn test_end_to_end_application() {
 
     // Create a rocket instance and mount route.
     env::set_var("ROCKET_template_dir", "tests/application");
-    let rocket = BBoxRocket::build()
+    let rocket = SesameRocket::build()
         .attach(template)
         .manage(Arc::new(Mutex::new(db)))
         .attach(cors.clone())
@@ -103,7 +103,7 @@ fn test_end_to_end_application() {
         );
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
 
     // First, log in as admin to write some grades.
     let response = client.get("/login/admin").dispatch();

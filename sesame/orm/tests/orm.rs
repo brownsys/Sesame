@@ -1,11 +1,11 @@
 use sea_orm::entity::prelude::*;
 use sea_orm::{DatabaseBackend, DbErr, QueryOrder, Set};
 
-use sesame::bbox::BBox;
 use sesame::context::UnprotectedContext;
+use sesame::pcon::PCon;
 use sesame::policy::{NoPolicy, Reason, SimplePolicy};
 
-use sesame_orm::{BBoxDatabase, BBoxDatabaseConnection, BBoxSchema, ORMBBox, ORMPolicy};
+use sesame_orm::{ORMPCon, ORMPolicy, PConDatabase, PConDatabaseConnection, PConSchema};
 
 #[derive(Clone)]
 pub struct MyPolicy {
@@ -38,15 +38,15 @@ impl ORMPolicy for MyPolicy {
 mod grade {
     use sea_orm::entity::prelude::*;
     use sesame::policy::NoPolicy;
-    use sesame_orm::ORMBBox;
+    use sesame_orm::ORMPCon;
     use std::convert::TryInto;
 
     #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
     #[sea_orm(table_name = "cake")]
     pub struct Model {
         #[sea_orm(primary_key)]
-        pub id: ORMBBox<i32, NoPolicy>,
-        pub name: ORMBBox<String, NoPolicy>,
+        pub id: ORMPCon<i32, NoPolicy>,
+        pub name: ORMPCon<String, NoPolicy>,
     }
 
     #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -55,9 +55,9 @@ mod grade {
     impl ActiveModelBehavior for ActiveModel {}
 }
 
-async fn setup_schema(db: &BBoxDatabaseConnection) {
+async fn setup_schema(db: &PConDatabaseConnection) {
     // Setup Schema helper
-    let schema = BBoxSchema::new(DatabaseBackend::Sqlite);
+    let schema = PConSchema::new(DatabaseBackend::Sqlite);
 
     // Derive from Entity
     let stmt = schema.create_table_from_entity(grade::Entity);
@@ -68,25 +68,25 @@ async fn setup_schema(db: &BBoxDatabaseConnection) {
     assert!(result.is_ok());
 }
 
-fn bbox<T>(t: T) -> ORMBBox<T, NoPolicy> {
-    BBox::new(t, NoPolicy {}).into()
+fn pcon<T>(t: T) -> ORMPCon<T, NoPolicy> {
+    PCon::new(t, NoPolicy {}).into()
 }
 
 async fn test() -> Result<(), DbErr> {
     // Connecting SQLite
-    let db = BBoxDatabase::connect("sqlite::memory:").await?;
+    let db = PConDatabase::connect("sqlite::memory:").await?;
 
     // Setup database schema
     setup_schema(&db).await;
 
     // Performing tests
     let grade1 = grade::ActiveModel {
-        id: Set(bbox(1)),
-        name: Set(bbox("Kinan".to_owned())),
+        id: Set(pcon(1)),
+        name: Set(pcon("Kinan".to_owned())),
     };
     let grade2 = grade::ActiveModel {
-        id: Set(bbox(2)),
-        name: Set(bbox("Artem".to_owned())),
+        id: Set(pcon(2)),
+        name: Set(pcon("Artem".to_owned())),
     };
 
     // Insert them.
@@ -103,22 +103,22 @@ async fn test() -> Result<(), DbErr> {
         result,
         vec![
             grade::Model {
-                id: bbox(2),
-                name: bbox("Artem".to_owned())
+                id: pcon(2),
+                name: pcon("Artem".to_owned())
             },
             grade::Model {
-                id: bbox(1),
-                name: bbox("Kinan".to_owned())
+                id: pcon(1),
+                name: pcon("Kinan".to_owned())
             },
         ]
     );
 
-    let result = grade::Entity::find_by_id(bbox(2)).one(&db).await.unwrap();
+    let result = grade::Entity::find_by_id(pcon(2)).one(&db).await.unwrap();
     assert_eq!(
         result.unwrap(),
         grade::Model {
-            id: bbox(2),
-            name: bbox("Artem".to_owned())
+            id: pcon(2),
+            name: pcon("Artem".to_owned())
         }
     );
 
@@ -130,8 +130,8 @@ async fn test() -> Result<(), DbErr> {
     assert_eq!(
         result,
         vec![grade::Model {
-            id: bbox(1),
-            name: bbox("Kinan".to_owned())
+            id: pcon(1),
+            name: pcon("Kinan".to_owned())
         }]
     );
 

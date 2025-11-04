@@ -1,21 +1,21 @@
-use crate::rocket::{BBoxRequest, BBoxResponder, BBoxResponseResult};
+use crate::rocket::{PConRequest, PConResponder, PConResponseResult};
 use sesame::error::SesameError;
 use std::fmt::{Debug, Display, Formatter};
 
 // All errors should implement this.
-impl<'a, 'r, 'o: 'r> BBoxResponder<'a, 'r, 'o> for SesameError {
-    fn respond_to(self, _request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+impl<'a, 'r, 'o: 'r> PConResponder<'a, 'r, 'o> for SesameError {
+    fn respond_to(self, _request: PConRequest<'a, 'r>) -> PConResponseResult<'o> {
         Err(rocket::http::Status { code: 491 })
     }
 }
 
 #[cfg(feature = "mysql")]
 mod mysql {
-    use crate::rocket::{BBoxRequest, BBoxResponder, BBoxResponseResult};
+    use crate::rocket::{PConRequest, PConResponder, PConResponseResult};
     use sesame_mysql::SesameMySqlError;
 
-    impl<'a, 'r, 'o: 'r> BBoxResponder<'a, 'r, 'o> for SesameMySqlError {
-        fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+    impl<'a, 'r, 'o: 'r> PConResponder<'a, 'r, 'o> for SesameMySqlError {
+        fn respond_to(self, request: PConRequest<'a, 'r>) -> PConResponseResult<'o> {
             match self {
                 SesameMySqlError::SesameError(error) => error.respond_to(request),
                 SesameMySqlError::MySqlError(_error) => Err(rocket::http::Status { code: 500 }),
@@ -36,8 +36,8 @@ impl Display for SesameRenderError {
     }
 }
 impl std::error::Error for SesameRenderError {}
-impl<'a, 'r, 'o: 'r> BBoxResponder<'a, 'r, 'o> for SesameRenderError {
-    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'o> {
+impl<'a, 'r, 'o: 'r> PConResponder<'a, 'r, 'o> for SesameRenderError {
+    fn respond_to(self, request: PConRequest<'a, 'r>) -> PConResponseResult<'o> {
         match self {
             SesameRenderError::SesameError(err) => err.respond_to(request),
             SesameRenderError::FigmentError(_err) => Err(rocket::http::Status::InternalServerError),

@@ -7,20 +7,20 @@ use std::result::Result;
 
 use sesame::context::{Context, ContextData};
 use sesame::extensions::ExtensionContext;
-// Our BBox struct.
-use crate::error::SesameRenderResult;
-use crate::render::BBoxRender;
-use crate::rocket::request::BBoxRequest;
-use crate::rocket::response::{BBoxResponder, BBoxResponse, BBoxResponseResult};
 
-pub struct BBoxTemplate {
+use crate::error::SesameRenderResult;
+use crate::render::PConRender;
+use crate::rocket::request::PConRequest;
+use crate::rocket::response::{PConResponder, PConResponse, PConResponseResult};
+
+pub struct PConTemplate {
     template: rocket_dyn_templates::Template,
 }
 
-impl BBoxTemplate {
-    // Our render wrapper takes in some BBoxRender type, transforms it to a figment
+impl PConTemplate {
+    // Our render wrapper takes in some PConRender type, transforms it to a figment
     // Value compatible with Rocket, and then calls Rocket's render.
-    pub fn render<S: Into<Cow<'static, str>>, T: BBoxRender, D: ContextData>(
+    pub fn render<S: Into<Cow<'static, str>>, T: PConRender, D: ContextData>(
         name: S,
         params: &T,
         context: Context<D>,
@@ -31,14 +31,14 @@ impl BBoxTemplate {
         let transformed = params.render().transform(name.deref(), &context)?;
         // Now render.
         let template = rocket_dyn_templates::Template::render(name, transformed);
-        Ok(BBoxTemplate { template })
+        Ok(PConTemplate { template })
     }
 }
 
-impl<'a, 'r> BBoxResponder<'a, 'r, 'static> for BBoxTemplate {
-    fn respond_to(self, request: BBoxRequest<'a, 'r>) -> BBoxResponseResult<'static> {
+impl<'a, 'r> PConResponder<'a, 'r, 'static> for PConTemplate {
+    fn respond_to(self, request: PConRequest<'a, 'r>) -> PConResponseResult<'static> {
         match rocket::response::Responder::respond_to(self.template, request.get_request()) {
-            Result::Ok(response) => Result::Ok(BBoxResponse::new(response)),
+            Result::Ok(response) => Result::Ok(PConResponse::new(response)),
             Result::Err(e) => Result::Err(e),
         }
     }

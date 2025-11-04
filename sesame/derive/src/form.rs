@@ -48,7 +48,7 @@ pub fn cast_field_types(fields: &Punctuated<Field, Comma>) -> Vec<TokenStream> {
         .map(|field| {
             let field_type = &field.ty;
             quote! {
-              <#field_type as ::sesame_rocket::rocket::FromBBoxForm<'__a, '__r>>
+              <#field_type as ::sesame_rocket::rocket::FromPConForm<'__a, '__r>>
             }
         })
         .collect()
@@ -64,7 +64,7 @@ pub fn generate_context(
     let context_fields = fields.iter().zip(types.iter()).map(|(field, ty)| {
         let mut result = field.clone();
         result.ty = Type::Verbatim(quote! {
-          ::std::option::Option<#ty::BBoxContext>,
+          ::std::option::Option<#ty::PConContext>,
         });
         result
     });
@@ -74,9 +74,9 @@ pub fn generate_context(
         let ident = field.ident.as_ref().unwrap();
         let function_name = Ident::new(&format!("get_{}_ctx", ident), ident.span());
         quote! {
-          fn #function_name (&mut self) -> &mut #ty::BBoxContext {
+          fn #function_name (&mut self) -> &mut #ty::PConContext {
             if let ::std::option::Option::None = self.#ident {
-              self.#ident = ::std::option::Option::Some(#ty::bbox_init(self.__opts));
+              self.#ident = ::std::option::Option::Some(#ty::pcon_init(self.__opts));
             }
             self.#ident.as_mut().unwrap()
           }
@@ -88,13 +88,13 @@ pub fn generate_context(
 
     // Generate the struct.
     quote! {
-      pub struct FromBBoxFormGeneratedContext #generics {
+      pub struct FromPConFormGeneratedContext #generics {
         __opts: ::rocket::form::prelude::Options,
         __errors: ::rocket::form::prelude::Errors<'__a>,
         __parent: ::std::option::Option<&'__a ::rocket::form::prelude::Name>,
         #(#context_fields)*
       }
-      impl #impl_generics FromBBoxFormGeneratedContext #ty_generics #where_clause {
+      impl #impl_generics FromPConFormGeneratedContext #ty_generics #where_clause {
         #(#getters)*
       }
     }
@@ -114,7 +114,7 @@ pub fn generate_push_value_cases(
             let name = field.to_string();
             quote! {
               #name => {
-                #ty::bbox_push_value(ctxt.#getter(), field.shift(), request);
+                #ty::pcon_push_value(ctxt.#getter(), field.shift(), request);
               },
             }
         })
@@ -128,7 +128,7 @@ pub fn generate_push_data_cases(fields: &Vec<Ident>, types: &Vec<TokenStream>) -
             let getter = Ident::new(&format!("get_{}_ctx", field), Span::call_site());
             let name = field.to_string();
             quote! {
-              #name => #ty::bbox_push_data(ctxt.#getter(), field.shift(), request),
+              #name => #ty::pcon_push_data(ctxt.#getter(), field.shift(), request),
             }
         })
         .collect()
@@ -141,10 +141,10 @@ pub fn generate_finalize_cases(fields: &Vec<Ident>, types: &Vec<TokenStream>) ->
     quote! {
       let #field = ctxt.#field.map_or_else(
         || {
-          #ty::bbox_default(opts).ok_or_else(|| ::rocket::form::prelude::ErrorKind::Missing.into())
+          #ty::pcon_default(opts).ok_or_else(|| ::rocket::form::prelude::ErrorKind::Missing.into())
         },
         |_ctx| {
-          #ty::bbox_finalize(_ctx)
+          #ty::pcon_finalize(_ctx)
         }
       ).map_err(|e| {
         let name = ::rocket::form::prelude::NameBuf::from((parent, #name));
@@ -155,7 +155,7 @@ pub fn generate_finalize_cases(fields: &Vec<Ident>, types: &Vec<TokenStream>) ->
   }).collect()
 }
 
-pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
+pub fn derive_from_pcon_form_impl(input: DeriveInput) -> TokenStream {
     // struct name we are deriving for.
     let input_name = input.ident;
 
@@ -187,7 +187,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
     let push_value_cases = generate_push_value_cases(&fields_idents, &casted_fields_types);
     let push_data_cases = generate_push_data_cases(&fields_idents, &casted_fields_types);
 
-    // Generate a call to bbox_finalize(...) for every field.
+    // Generate a call to pcon_finalize(...) for every field.
     let finalize_cases = generate_finalize_cases(&fields_idents, &casted_fields_types);
 
     // Impl trait.
@@ -196,12 +196,12 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
         #context
 
         #[automatically_derived]
-        impl #impl_generics ::sesame_rocket::rocket::FromBBoxForm<'__a, '__r> for #input_name #ty_generics #where_clause {
-          type BBoxContext = FromBBoxFormGeneratedContext #ctx_ty_generics;
+        impl #impl_generics ::sesame_rocket::rocket::FromPConForm<'__a, '__r> for #input_name #ty_generics #where_clause {
+          type PConContext = FromPConFormGeneratedContext #ctx_ty_generics;
 
           // Required methods
-          fn bbox_init(opts: ::rocket::form::Options) -> Self::BBoxContext {
-            Self::BBoxContext {
+          fn pcon_init(opts: ::rocket::form::Options) -> Self::PConContext {
+            Self::PConContext {
               __opts: opts,
               __errors: ::rocket::form::prelude::Errors::new(),
               __parent: ::std::option::Option::None,
@@ -211,7 +211,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Push data for url_encoded bodies.
-          fn bbox_push_value(ctxt: &mut Self::BBoxContext, field: ::sesame_rocket::rocket::BBoxValueField<'__a>, request: ::sesame_rocket::rocket::BBoxRequest<'__a, '__r>) {
+          fn pcon_push_value(ctxt: &mut Self::PConContext, field: ::sesame_rocket::rocket::PConValueField<'__a>, request: ::sesame_rocket::rocket::PConRequest<'__a, '__r>) {
             ctxt.__parent = field.name.parent();
             match field.name.key_lossy().as_str() {
               #(#push_value_cases)*
@@ -225,10 +225,10 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Push data for multipart bodies.
-          fn bbox_push_data<'life0, 'async_trait>(
-            ctxt: &'life0 mut Self::BBoxContext,
-            field: ::sesame_rocket::rocket::BBoxDataField<'__a, '__r>,
-            request: ::sesame_rocket::rocket::BBoxRequest<'__a, '__r>,
+          fn pcon_push_data<'life0, 'async_trait>(
+            ctxt: &'life0 mut Self::PConContext,
+            field: ::sesame_rocket::rocket::PConDataField<'__a, '__r>,
+            request: ::sesame_rocket::rocket::PConRequest<'__a, '__r>,
           ) -> ::core::pin::Pin<Box<dyn ::core::future::Future<Output = ()> + ::core::marker::Send + 'async_trait>>
           where
             '__a: 'async_trait,
@@ -250,7 +250,7 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Finalize.
-          fn bbox_finalize(ctxt: Self::BBoxContext) -> ::sesame_rocket::rocket::BBoxFormResult<'__a, Self> {
+          fn pcon_finalize(ctxt: Self::PConContext) -> ::sesame_rocket::rocket::PConFormResult<'__a, Self> {
             let mut errors = ctxt.__errors;
             let parent = ctxt.__parent;
             let opts = ctxt.__opts;
@@ -270,11 +270,11 @@ pub fn derive_from_bbox_form_impl(input: DeriveInput) -> TokenStream {
           }
 
           // Provided methods
-          fn bbox_push_error(ctxt: &mut Self::BBoxContext, error: ::rocket::form::Error<'__a>) {
+          fn pcon_push_error(ctxt: &mut Self::PConContext, error: ::rocket::form::Error<'__a>) {
             ctxt.__errors.push(error);
           }
-          fn bbox_default(opts: ::rocket::form::Options) -> Option<Self> {
-            Self::bbox_finalize(Self::bbox_init(opts)).ok()
+          fn pcon_default(opts: ::rocket::form::Options) -> Option<Self> {
+            Self::pcon_finalize(Self::pcon_init(opts)).ok()
           }
         }
       };

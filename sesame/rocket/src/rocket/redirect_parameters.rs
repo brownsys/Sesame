@@ -1,5 +1,5 @@
-use sesame::bbox::{BBox, EitherBBox};
 use sesame::context::{Context, ContextData};
+use sesame::pcon::{EitherPCon, PCon};
 use sesame::policy::{Policy, Reason, RefPolicy};
 
 use sesame::error::SesameResult;
@@ -9,14 +9,14 @@ use sesame::extensions::{
 use std::string::ToString;
 
 // Lightweight: reference to both data and policy.
-type RefEitherParam<'a> = EitherBBox<&'a dyn ToString, RefPolicy<'a, dyn Policy + 'a>>;
+type RefEitherParam<'a> = EitherPCon<&'a dyn ToString, RefPolicy<'a, dyn Policy + 'a>>;
 
 // Our params may be boxed or clear.
 pub trait RedirectParam<'a> {
     fn get(self) -> RefEitherParam<'a>;
 }
 
-impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a BBox<T, P> {
+impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a PCon<T, P> {
     fn get(self) -> RefEitherParam<'a> {
         struct Converter {}
         impl UncheckedSesameExtension for Converter {}
@@ -24,18 +24,18 @@ impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a BBox<T, P> {
             for Converter
         {
             fn apply_ref(&mut self, data: &'a T, policy: &'a P) -> RefEitherParam<'a> {
-                EitherBBox::Right(BBox::new(data, RefPolicy::new(policy)))
+                EitherPCon::Right(PCon::new(data, RefPolicy::new(policy)))
             }
         }
         self.unchecked_extension_ref(&mut Converter {})
     }
 }
 
-impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a EitherBBox<T, P> {
+impl<'a, T: ToString + 'a, P: Policy> RedirectParam<'a> for &'a EitherPCon<T, P> {
     fn get(self) -> RefEitherParam<'a> {
         match self {
-            EitherBBox::Left(t) => EitherBBox::Left(t),
-            EitherBBox::Right(bbox) => bbox.get(),
+            EitherPCon::Left(t) => EitherPCon::Left(t),
+            EitherPCon::Right(pcon) => pcon.get(),
         }
     }
 }
@@ -46,7 +46,7 @@ macro_rules! redirect_param_impl {
     $(
     impl<'a> RedirectParam<'a> for &'a $T {
         fn get(self) -> RefEitherParam<'a> {
-            EitherBBox::Left(self)
+            EitherPCon::Left(self)
         }
     }
     )+
@@ -115,8 +115,8 @@ macro_rules! into_params_impl {
         let mut ext = RedirectPolicyCheck::new();
 
         $(match $a.get() {
-            EitherBBox::Left(v) => ext.push(v.to_string()),
-            EitherBBox::Right(b) => {
+            EitherPCon::Left(v) => ext.push(v.to_string()),
+            EitherPCon::Right(b) => {
                 b.checked_extension(&mut ext, &context, Reason::Redirect(url))?;
             },
         };)*

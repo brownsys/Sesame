@@ -1,5 +1,5 @@
-use crate::bbox::BBox;
 use crate::context::UnprotectedContext;
+use crate::pcon::PCon;
 use crate::policy::{Policy, Reason};
 use serde::Serialize;
 use std::fmt::{Debug, Formatter};
@@ -30,17 +30,20 @@ impl Default for NoPolicy {
 }
 
 // NoPolicy can be discarded, logged, etc
-impl<T> BBox<T, NoPolicy> {
+impl<T> PCon<T, NoPolicy> {
     pub fn discard_box(self) -> T {
         self.consume().0
     }
 }
-impl<T: Debug> Debug for BBox<T, NoPolicy> {
+impl<T: Debug> Debug for PCon<T, NoPolicy> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BBox").field("data", self.data()).finish()
+        f.debug_struct("PCon")
+            .field("data", self.data())
+            .field("policy", &"NoPolicy")
+            .finish()
     }
 }
-impl<T: PartialEq> PartialEq for BBox<T, NoPolicy> {
+impl<T: PartialEq> PartialEq for PCon<T, NoPolicy> {
     fn eq(&self, other: &Self) -> bool {
         self.data() == other.data()
     }

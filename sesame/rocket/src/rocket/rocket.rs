@@ -1,22 +1,22 @@
 use std::convert::TryInto;
 use std::fmt::Display;
 
-use crate::rocket::route::BBoxRoute;
+use crate::rocket::route::SesameRoute;
 
-pub struct BBoxRocket<P: rocket::Phase> {
+pub struct SesameRocket<P: rocket::Phase> {
     frontend: rocket::Rocket<P>,
 }
 
-impl<P: rocket::Phase> BBoxRocket<P> {
+impl<P: rocket::Phase> SesameRocket<P> {
     pub(crate) fn get(self) -> rocket::Rocket<P> {
         self.frontend
     }
 }
 
-impl BBoxRocket<rocket::Build> {
+impl SesameRocket<rocket::Build> {
     // Start by calling build.
     pub fn build() -> Self {
-        BBoxRocket {
+        SesameRocket {
             frontend: rocket::build(),
         }
     }
@@ -26,12 +26,12 @@ impl BBoxRocket<rocket::Build> {
     }
 
     pub fn attach<F: rocket::fairing::Fairing>(self, fairing: F) -> Self {
-        BBoxRocket {
+        SesameRocket {
             frontend: self.frontend.attach(fairing),
         }
     }
     pub fn manage<T: Send + Sync + 'static>(self, state: T) -> Self {
-        BBoxRocket {
+        SesameRocket {
             frontend: self.frontend.manage(state),
         }
     }
@@ -39,11 +39,11 @@ impl BBoxRocket<rocket::Build> {
     where
         B: TryInto<rocket::http::uri::Origin<'a>> + Clone + Display,
         B::Error: Display,
-        R: Into<Vec<BBoxRoute>>,
+        R: Into<Vec<SesameRoute>>,
     {
         let routes: Vec<rocket::route::Route> =
             routes.into().into_iter().map(|route| route.route).collect();
-        BBoxRocket {
+        SesameRocket {
             frontend: self.frontend.mount(base, routes),
         }
     }
@@ -53,15 +53,15 @@ impl BBoxRocket<rocket::Build> {
         B::Error: std::fmt::Display,
         C: Into<Vec<rocket::Catcher>>,
     {
-        BBoxRocket {
+        SesameRocket {
             frontend: self.frontend.register(base, catchers),
         }
     }
 }
 
-// Can turn a single BBoxRoute into a vector using into().
-impl Into<Vec<BBoxRoute>> for BBoxRoute {
-    fn into(self) -> Vec<BBoxRoute> {
+// Can turn a single SesameRoute into a vector using into().
+impl Into<Vec<SesameRoute>> for SesameRoute {
+    fn into(self) -> Vec<SesameRoute> {
         vec![self]
     }
 }

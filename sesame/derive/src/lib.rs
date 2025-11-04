@@ -17,7 +17,7 @@ mod route;
 mod sandbox;
 mod sesame_type;
 
-#[proc_macro_derive(BBoxRender)]
+#[proc_macro_derive(PConRender)]
 pub fn derive_boxed_serialize(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     render::derive_boxed_serialize_impl(input).into()
@@ -33,10 +33,10 @@ pub fn schema_policy(args: TokenStream, input: TokenStream) -> TokenStream {
     result
 }
 
-#[proc_macro_derive(FromBBoxForm)]
-pub fn derive_from_bbox_form(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(FromPConForm)]
+pub fn derive_from_pcon_form(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    form::derive_from_bbox_form_impl(input).into()
+    form::derive_from_pcon_form_impl(input).into()
 }
 
 #[proc_macro_attribute]
@@ -109,8 +109,8 @@ pub fn derive_sandboxable(input: TokenStream) -> TokenStream {
     }
 }
 
-#[proc_macro_derive(RequestBBoxJson)]
-pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(RequestPConJson)]
+pub fn derive_request_pcon_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match json::request_impl(input) {
         Ok(tokens) => tokens.into(),
@@ -118,8 +118,8 @@ pub fn derive_request_bbox_json(input: TokenStream) -> TokenStream {
     }
 }
 
-#[proc_macro_derive(ResponseBBoxJson, attributes(response_bbox_json))]
-pub fn dervie_response_bbox_json(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(ResponsePConJson, attributes(response_pcon_json))]
+pub fn dervie_response_pcon_json(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     match json::response_impl(input) {
         Ok(tokens) => tokens.into(),

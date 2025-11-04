@@ -28,5 +28,5 @@ pub use crate::rocket::template::*;
 
 #[cfg(feature = "derive")]
 pub use sesame_derive::{
-    get, post, route, routes, FromBBoxForm, RequestBBoxJson, ResponseBBoxJson,
+    get, post, route, routes, FromPConForm, RequestPConJson, ResponsePConJson,
 };

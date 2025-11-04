@@ -124,7 +124,7 @@ pub(crate) fn predict_grade(
 
     // let grade = execute_pure(
     //     (time, &model),
-    //     PrivacyPureRegion::new(|(time, model): (String, FittedLinearRegression<f64>)| {
+    //     VerifiedRegion::new(|(time, model): (String, FittedLinearRegression<f64>)| {
     //         let time = NaiveDateTime::parse_from_str(time.as_str(), "%Y-%m-%d %H:%M:%S");
     //         model.params()[0] * (time.unwrap().and_utc().timestamp() as f64) + model.intercept()
     //     }),

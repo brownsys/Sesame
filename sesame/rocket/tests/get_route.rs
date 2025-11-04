@@ -1,16 +1,16 @@
-use sesame::bbox::BBox;
 use sesame::context::{Context, UnprotectedContext};
+use sesame::pcon::PCon;
 use sesame::policy::{Join, Policy, Reason};
-use sesame::pure::PrivacyPureRegion;
+use sesame::verified::VerifiedRegion;
 use sesame::testing::TestPolicy;
 
 use sesame_rocket::policy::FrontendPolicy;
 use sesame_rocket::rocket::{
-    BBoxCookie, BBoxData, BBoxRequest, BBoxResponseOutcome, BBoxRocket, ContextResponse,
-    FromBBoxFormField,
+    ContextResponse, FromPConFormField, PConCookie, PConData, PConRequest, PConResponseOutcome,
+    SesameRocket,
 };
 use sesame_rocket::test_route;
-use sesame_rocket::testing::BBoxClient;
+use sesame_rocket::testing::SesameClient;
 
 use rocket::http::{ContentType, Cookie, Status};
 use rocket::Request;
@@ -78,38 +78,38 @@ impl FrontendPolicy for HardcodedPolicy {
 }
 
 pub async fn route<'a, 'r>(
-    request: BBoxRequest<'a, 'r>,
-    _data: BBoxData<'a>,
-) -> BBoxResponseOutcome<'a> {
+    request: PConRequest<'a, 'r>,
+    _data: PConData<'a>,
+) -> PConResponseOutcome<'a> {
     // Look at managed guarded, e.g. config data.
     let guard: &rocket::State<String> = request.guard().await.unwrap();
 
     // Read cookie.
     let cookie = request.cookies().get("mycookie").unwrap();
-    let cookie: BBox<String, TestPolicy<UserPolicy>> = BBox::from(cookie);
+    let cookie: PCon<String, TestPolicy<UserPolicy>> = PCon::from(cookie);
 
     // Read parameters that are part of the path.
-    let num: BBox<u32, TestPolicy<UserPolicy>> = request.param(1).unwrap().unwrap();
-    let string: BBox<String, TestPolicy<UserPolicy>> = request.param(2).unwrap().unwrap();
+    let num: PCon<u32, TestPolicy<UserPolicy>> = request.param(1).unwrap().unwrap();
+    let string: PCon<String, TestPolicy<UserPolicy>> = request.param(2).unwrap().unwrap();
 
     // Read get parameters after ?
-    let mut a: Option<BBox<String, TestPolicy<UserPolicy>>> = None;
-    let mut b_a: Option<BBox<u32, TestPolicy<UserPolicy>>> = None;
-    let mut b_b: Option<BBox<u32, TestPolicy<UserPolicy>>> = None;
+    let mut a: Option<PCon<String, TestPolicy<UserPolicy>>> = None;
+    let mut b_a: Option<PCon<u32, TestPolicy<UserPolicy>>> = None;
+    let mut b_b: Option<PCon<u32, TestPolicy<UserPolicy>>> = None;
     for f in request.query_fields() {
         let mut name = f.name.clone();
         let key = name.key().unwrap();
         if key == "a" {
-            a = Some(BBox::from_bbox_value(f, request).unwrap());
+            a = Some(PCon::from_pcon_value(f, request).unwrap());
             continue;
         } else if key == "b" {
             name.shift();
             let key = name.key().unwrap();
             if key == "a" {
-                b_a = Some(BBox::from_bbox_value(f, request).unwrap());
+                b_a = Some(PCon::from_pcon_value(f, request).unwrap());
                 continue;
             } else if key == "b" {
-                b_b = Some(BBox::from_bbox_value(f, request).unwrap());
+                b_b = Some(PCon::from_pcon_value(f, request).unwrap());
                 continue;
             }
         }
@@ -127,18 +127,18 @@ pub async fn route<'a, 'r>(
     // TODO(babman): test template rendering, and redirect.
     // TODO(babman): finish tests in sesame_derive.
     // Assign some cookies.
-    let cookie1 = BBox::new(String::from("cook"), HardcodedPolicy(true));
-    let cookie1 = BBoxCookie::new("good", cookie1);
+    let cookie1 = PCon::new(String::from("cook"), HardcodedPolicy(true));
+    let cookie1 = PConCookie::new("good", cookie1);
     request.cookies().add(cookie1, Context::test(())).unwrap();
 
-    let cookie2 = BBox::new(String::from("cook2"), HardcodedPolicy(false));
-    let cookie2 = BBoxCookie::new("bad", cookie2);
+    let cookie2 = PCon::new(String::from("cook2"), HardcodedPolicy(false));
+    let cookie2 = PConCookie::new("bad", cookie2);
     assert!(request.cookies().add(cookie2, Context::test(())).is_err());
 
     // Return post request.
-    let param = string.into_ppr(PrivacyPureRegion::new(|v| format!("Result is {}", &v)));
+    let param = string.into_verified(VerifiedRegion::new(|v| format!("Result is {}", &v)));
 
-    BBoxResponseOutcome::from(request, ContextResponse::from((param, Context::test(()))))
+    PConResponseOutcome::from(request, ContextResponse::from((param, Context::test(()))))
 }
 
 #[test]
@@ -146,13 +146,13 @@ fn test_get() {
     let guard = String::from("MyGuard");
 
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build().manage(guard).mount(
+    let rocket = SesameRocket::build().manage(guard).mount(
         "/",
         vec![test_route!(Get, "/route/<num>/<string>?<a>&<b>", route)],
     );
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .get("/route/10/hello?a=A&b.a=1&b.b=2")
         .header(ContentType::Form)
@@ -177,13 +177,13 @@ fn test_get_failed_policy() {
     let guard = String::from("MyGuard");
 
     // Create a rocket instance and mount route.
-    let rocket = BBoxRocket::build().manage(guard).mount(
+    let rocket = SesameRocket::build().manage(guard).mount(
         "/",
         vec![test_route!(Get, "/route/<num>/<string>?<a>&<b>", route)],
     );
 
     // Create a client.
-    let client = BBoxClient::tracked(rocket).expect("valid `Rocket`");
+    let client = SesameClient::tracked(rocket).expect("valid `Rocket`");
     let response = client
         .get("/route/10/hello?a=A&b.a=1&b.b=2")
         .cookie(Cookie::new("user", "Unauthorized user"))

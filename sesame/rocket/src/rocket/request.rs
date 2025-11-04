@@ -9,22 +9,22 @@ use std::net::{IpAddr, SocketAddr};
 use std::option::Option;
 use std::result::Result;
 
-use crate::rocket::cookie::BBoxCookieJar;
-use crate::rocket::form::{BBoxFormResult, BBoxValueField, FromBBoxForm};
-use sesame::bbox::BBox;
+use crate::rocket::cookie::PConCookieJar;
+use crate::rocket::form::{FromPConForm, PConFormResult, PConValueField};
+use sesame::pcon::PCon;
 use sesame::policy::Policy;
 
-pub type BBoxRequestOutcome<T, E> = rocket::outcome::Outcome<T, (rocket::http::Status, E), ()>;
+pub type PConRequestOutcome<T, E> = rocket::outcome::Outcome<T, (rocket::http::Status, E), ()>;
 
 // Request
 #[derive(Clone, Copy)]
-pub struct BBoxRequest<'a, 'r> {
+pub struct PConRequest<'a, 'r> {
     request: &'a rocket::Request<'r>,
 }
 
-impl<'a, 'r> BBoxRequest<'a, 'r> {
+impl<'a, 'r> PConRequest<'a, 'r> {
     pub fn new(request: &'a rocket::Request<'r>) -> Self {
-        BBoxRequest { request }
+        PConRequest { request }
     }
 
     pub fn content_type(&self) -> Option<&ContentType> {
@@ -35,84 +35,84 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
         self.request
     }
 
-    pub fn client_ip<P: FrontendPolicy>(&self) -> Option<BBox<IpAddr, P>> {
+    pub fn client_ip<P: FrontendPolicy>(&self) -> Option<PCon<IpAddr, P>> {
         match self.request.client_ip() {
             None => None,
-            Some(ip) => Some(BBox::new(ip, P::from_request(self.request))),
+            Some(ip) => Some(PCon::new(ip, P::from_request(self.request))),
         }
     }
-    pub fn remote<P: FrontendPolicy>(&self) -> Option<BBox<SocketAddr, P>> {
+    pub fn remote<P: FrontendPolicy>(&self) -> Option<PCon<SocketAddr, P>> {
         match self.request.remote() {
             None => None,
-            Some(sock) => Some(BBox::new(sock, P::from_request(self.request))),
+            Some(sock) => Some(PCon::new(sock, P::from_request(self.request))),
         }
     }
 
-    pub fn cookies(&self) -> BBoxCookieJar<'a, 'r> {
-        BBoxCookieJar::new(self.request.cookies(), self.request)
+    pub fn cookies(&self) -> PConCookieJar<'a, 'r> {
+        PConCookieJar::new(self.request.cookies(), self.request)
     }
 
-    pub fn headers(&self) -> BBoxHeaderMap<'a, 'r> {
-        BBoxHeaderMap::new(self.request, self.request.headers())
+    pub fn headers(&self) -> PConHeaderMap<'a, 'r> {
+        PConHeaderMap::new(self.request, self.request.headers())
     }
 
     pub async fn firebase_token<P: FrontendPolicy>(
         &self,
         firebase_auth: &FirebaseAuth,
-    ) -> Option<BBox<FirebaseToken, P>> {
+    ) -> Option<PCon<FirebaseToken, P>> {
         let header = self.request.headers().get_one("Authorization")?;
         match BearerToken::try_from(header) {
             Err(_) => None,
             Ok(token) => match firebase_auth.verify(token.as_str()).await {
                 Err(_) => None,
-                Ok(token) => Some(BBox::new(token, P::from_request(self.request))),
+                Ok(token) => Some(PCon::new(token, P::from_request(self.request))),
             },
         }
     }
 
-    // Use this to retrieve (boxed) guards, e.g. ApiKey struct with BBoxes inside.
-    pub fn guard<T>(&self) -> BoxFuture<'a, BBoxRequestOutcome<T, T::BBoxError>>
+    // Use this to retrieve (boxed) guards, e.g. ApiKey struct with PCons inside.
+    pub fn guard<T>(&self) -> BoxFuture<'a, PConRequestOutcome<T, T::PConError>>
     where
-        T: FromBBoxRequest<'a, 'r> + 'a,
+        T: FromPConRequest<'a, 'r> + 'a,
     {
-        T::from_bbox_request(*self)
+        T::from_pcon_request(*self)
     }
 
     // Use this to retrieve (boxed) parameters in the url (e.g. /endpoint/<id>).
-    pub fn param<T, P: FrontendPolicy>(&self, n: usize) -> Option<Result<T, T::BBoxError>>
+    pub fn param<T, P: FrontendPolicy>(&self, n: usize) -> Option<Result<T, T::PConError>>
     where
-        T: FromBBoxParam<P>,
+        T: FromPConParam<P>,
     {
         let res = self.request.param::<String>(n)?;
         let res = res.unwrap();
-        Some(T::from_bbox_param(BBox::new(
+        Some(T::from_pcon_param(PCon::new(
             res,
             P::from_request(self.request),
         )))
     }
 
     // Retrieve (boxed) get parameter(s) that has given name (e.g. /endpoint/<id>?a=<THIS>)
-    pub fn query_value<T>(&self, name: &str) -> Option<BBoxFormResult<'a, T>>
+    pub fn query_value<T>(&self, name: &str) -> Option<PConFormResult<'a, T>>
     where
-        T: FromBBoxForm<'a, 'r>,
+        T: FromPConForm<'a, 'r>,
     {
         if self.query_fields().find(|f| f.name == name).is_none() {
             return None;
         }
 
-        let mut ctxt = T::bbox_init(rocket::form::Options::Lenient);
+        let mut ctxt = T::pcon_init(rocket::form::Options::Lenient);
 
         self.query_fields()
             .filter(|f| f.name == name)
-            .for_each(|f| T::bbox_push_value(&mut ctxt, f.shift(), *self));
+            .for_each(|f| T::pcon_push_value(&mut ctxt, f.shift(), *self));
 
-        Some(T::bbox_finalize(ctxt))
+        Some(T::pcon_finalize(ctxt))
     }
 
     // Iterate over all query values.
     #[inline]
-    pub fn query_fields(&self) -> impl Iterator<Item = BBoxValueField<'a>> {
-        self.request.query_fields().map(|field| BBoxValueField {
+    pub fn query_fields(&self) -> impl Iterator<Item = PConValueField<'a>> {
+        self.request.query_fields().map(|field| PConValueField {
             name: field.name,
             value: field.value,
         })
@@ -127,66 +127,66 @@ impl<'a, 'r> BBoxRequest<'a, 'r> {
 // Our own FromRequest trait, receives an instance of our Request struct.
 // This is used for guards.
 #[rocket::async_trait]
-pub trait FromBBoxRequest<'a, 'r>: Sized {
-    type BBoxError: Debug + Send;
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError>;
+pub trait FromPConRequest<'a, 'r>: Sized {
+    type PConError: Debug + Send;
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError>;
 }
 
-// Similar to FromBBoxRequest, but also receives the BBoxData (for form parsing).
+// Similar to FromPConRequest, but also receives the PConData (for form parsing).
 // Used exclusively for Context.
 #[rocket::async_trait]
-pub trait FromBBoxRequestAndData<'a, 'r, T: Sync + FromBBoxData<'a, 'r>>: Sized {
-    type BBoxError: Debug + Send;
-    async fn from_bbox_request_and_data(
-        request: BBoxRequest<'a, 'r>,
+pub trait FromPConRequestAndData<'a, 'r, T: Sync + FromPConData<'a, 'r>>: Sized {
+    type PConError: Debug + Send;
+    async fn from_pcon_request_and_data(
+        request: PConRequest<'a, 'r>,
         data: &'_ T,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError>;
+    ) -> PConRequestOutcome<Self, Self::PConError>;
 }
 
 // Our own FromParam trait, applications likely never need to use this themselves.
-pub trait FromBBoxParam<P: Policy>: Sized {
-    type BBoxError: Debug + Send;
-    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError>;
+pub trait FromPConParam<P: Policy>: Sized {
+    type PConError: Debug + Send;
+    fn from_pcon_param(param: PCon<String, P>) -> Result<Self, Self::PConError>;
 }
 
-impl<P: Policy> FromBBoxParam<P> for BBox<String, P> {
-    type BBoxError = ();
+impl<P: Policy> FromPConParam<P> for PCon<String, P> {
+    type PConError = ();
 
     #[inline(always)]
-    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
+    fn from_pcon_param(param: PCon<String, P>) -> Result<Self, Self::PConError> {
         Ok(param)
     }
 }
 
-// Implement FromBBoxParam for standard types.
+// Implement FromPConParam for standard types.
 struct Converter {}
 impl UncheckedSesameExtension for Converter {}
-impl<P: Policy, R: FromStr> SesameExtension<String, P, Result<BBox<R, P>, String>> for Converter {
-    fn apply(&mut self, data: String, policy: P) -> Result<BBox<R, P>, String> {
+impl<P: Policy, R: FromStr> SesameExtension<String, P, Result<PCon<R, P>, String>> for Converter {
+    fn apply(&mut self, data: String, policy: P) -> Result<PCon<R, P>, String> {
         match R::from_str(&data) {
             Err(_) => Err(String::from("Cannot parse <boxed> param")),
-            Ok(parsed) => Ok(BBox::new(parsed, policy)),
+            Ok(parsed) => Ok(PCon::new(parsed, policy)),
         }
     }
 }
-impl<P: Policy> SesameExtension<String, P, Result<BBox<PathBuf, P>, &'static str>> for Converter {
-    fn apply(&mut self, data: String, policy: P) -> Result<BBox<PathBuf, P>, &'static str> {
+impl<P: Policy> SesameExtension<String, P, Result<PCon<PathBuf, P>, &'static str>> for Converter {
+    fn apply(&mut self, data: String, policy: P) -> Result<PCon<PathBuf, P>, &'static str> {
         match <PathBuf as rocket::request::FromParam>::from_param(&data) {
             Err(_) => Err("Cannot parse <boxed> param"),
-            Ok(parsed) => Ok(BBox::new(parsed, policy)),
+            Ok(parsed) => Ok(PCon::new(parsed, policy)),
         }
     }
 }
 
 macro_rules! impl_param_via_fromstr {
     ($($T:ident),+ $(,)?) => ($(
-        impl<P: Policy> FromBBoxParam<P> for BBox<$T, P> {
-            type BBoxError = String;
+        impl<P: Policy> FromPConParam<P> for PCon<$T, P> {
+            type PConError = String;
 
             #[inline(always)]
-            fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
+            fn from_pcon_param(param: PCon<String, P>) -> Result<Self, Self::PConError> {
                 param.unchecked_extension(&mut Converter {})
             }
         }
@@ -234,67 +234,67 @@ impl_param_via_fromstr!(
     SocketAddr,
 );
 
-// Implement FromBBoxParam for a few other types that rocket controls safely
+// Implement FromPConParam for a few other types that rocket controls safely
 // outside application reach.
 use crate::policy::FrontendPolicy;
-use crate::rocket::{BBoxHeaderMap, FromBBoxData};
+use crate::rocket::{FromPConData, PConHeaderMap};
 use sesame::extensions::{SesameExtension, UncheckedSesameExtension};
 use std::path::PathBuf;
 use std::str::FromStr;
 
-impl<P: Policy> FromBBoxParam<P> for BBox<PathBuf, P> {
-    type BBoxError = String;
+impl<P: Policy> FromPConParam<P> for PCon<PathBuf, P> {
+    type PConError = String;
     #[inline(always)]
-    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
+    fn from_pcon_param(param: PCon<String, P>) -> Result<Self, Self::PConError> {
         let result: Result<Self, &'static str> = param.unchecked_extension(&mut Converter {});
         result.map_err(str::to_string)
     }
 }
-impl<P: Policy, T: FromBBoxParam<P>> FromBBoxParam<P> for Option<T> {
-    type BBoxError = ();
+impl<P: Policy, T: FromPConParam<P>> FromPConParam<P> for Option<T> {
+    type PConError = ();
     #[inline(always)]
-    fn from_bbox_param(param: BBox<String, P>) -> Result<Self, Self::BBoxError> {
-        match T::from_bbox_param(param) {
+    fn from_pcon_param(param: PCon<String, P>) -> Result<Self, Self::PConError> {
+        match T::from_pcon_param(param) {
             Ok(parsed) => Ok(Some(parsed)),
             Err(_) => Ok(None),
         }
     }
 }
 
-// Implement FromBBoxRequest for some standard types.
+// Implement FromPConRequest for some standard types.
 #[rocket::async_trait]
-impl<'a, 'r> FromBBoxRequest<'a, 'r> for () {
-    type BBoxError = std::convert::Infallible;
-    async fn from_bbox_request(
-        _request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        BBoxRequestOutcome::Success(())
+impl<'a, 'r> FromPConRequest<'a, 'r> for () {
+    type PConError = std::convert::Infallible;
+    async fn from_pcon_request(
+        _request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
+        PConRequestOutcome::Success(())
     }
 }
 
 /*
 #[rocket::async_trait]
-impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<IpAddr, P> {
-    type BBoxError = std::convert::Infallible;
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+impl<'a, 'r, P: FrontendPolicy> FromPConRequest<'a, 'r> for PCon<IpAddr, P> {
+    type PConError = std::convert::Infallible;
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
         match request.client_ip() {
-            Some(addr) => BBoxRequestOutcome::Success(addr),
-            None => BBoxRequestOutcome::Forward(()),
+            Some(addr) => PConRequestOutcome::Success(addr),
+            None => PConRequestOutcome::Forward(()),
         }
     }
 }
 
 #[rocket::async_trait]
-impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<SocketAddr, P> {
-    type BBoxError = std::convert::Infallible;
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+impl<'a, 'r, P: FrontendPolicy> FromPConRequest<'a, 'r> for PCon<SocketAddr, P> {
+    type PConError = std::convert::Infallible;
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
         match request.remote() {
-            Some(addr) => BBoxRequestOutcome::Success(addr),
-            None => BBoxRequestOutcome::Forward(()),
+            Some(addr) => PConRequestOutcome::Success(addr),
+            None => PConRequestOutcome::Forward(()),
         }
     }
 }
@@ -303,51 +303,51 @@ impl<'a, 'r, P: FrontendPolicy> FromBBoxRequest<'a, 'r> for BBox<SocketAddr, P> 
 // TODO(babman): look at technical debt issue on github.
 #[rocket::async_trait]
 impl<'a, 'r, T: rocket::request::FromRequest<'a>, P: Policy + FrontendPolicy>
-    FromBBoxRequest<'a, 'r> for BBox<T, P>
+    FromPConRequest<'a, 'r> for PCon<T, P>
 {
-    type BBoxError = ();
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+    type PConError = ();
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
         match <T as rocket::request::FromRequest>::from_request(request.get_request()).await {
             rocket::request::Outcome::Success(t) => {
-                BBoxRequestOutcome::Success(BBox::new(t, P::from_request(request.get_request())))
+                PConRequestOutcome::Success(PCon::new(t, P::from_request(request.get_request())))
             }
-            rocket::request::Outcome::Forward(()) => BBoxRequestOutcome::Forward(()),
+            rocket::request::Outcome::Forward(()) => PConRequestOutcome::Forward(()),
             rocket::request::Outcome::Failure((status, error)) => {
                 println!("Error {} {:?}", status, error);
-                BBoxRequestOutcome::Failure((status, ()))
+                PConRequestOutcome::Failure((status, ()))
             }
         }
     }
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromBBoxRequest<'a, 'r> for BBoxCookieJar<'a, 'r> {
-    type BBoxError = std::convert::Infallible;
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        BBoxRequestOutcome::Success(request.cookies())
+impl<'a, 'r> FromPConRequest<'a, 'r> for PConCookieJar<'a, 'r> {
+    type PConError = std::convert::Infallible;
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
+        PConRequestOutcome::Success(request.cookies())
     }
 }
 
 #[rocket::async_trait]
-impl<'a, 'r> FromBBoxRequest<'a, 'r> for rocket::http::Method {
-    type BBoxError = std::convert::Infallible;
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
-        BBoxRequestOutcome::Success(request.get_request().method())
+impl<'a, 'r> FromPConRequest<'a, 'r> for rocket::http::Method {
+    type PConError = std::convert::Infallible;
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
+        PConRequestOutcome::Success(request.get_request().method())
     }
 }
 
 #[rocket::async_trait]
-impl<'a, 'r, T: Send + Sync + 'static> FromBBoxRequest<'a, 'r> for &'a rocket::State<T> {
-    type BBoxError = ();
-    async fn from_bbox_request(
-        request: BBoxRequest<'a, 'r>,
-    ) -> BBoxRequestOutcome<Self, Self::BBoxError> {
+impl<'a, 'r, T: Send + Sync + 'static> FromPConRequest<'a, 'r> for &'a rocket::State<T> {
+    type PConError = ();
+    async fn from_pcon_request(
+        request: PConRequest<'a, 'r>,
+    ) -> PConRequestOutcome<Self, Self::PConError> {
         <&rocket::State<T> as rocket::request::FromRequest>::from_request(request.get_request())
             .await
     }

@@ -4,20 +4,20 @@ use std::borrow::Cow;
 use std::option::Option;
 use time::{Duration, OffsetDateTime};
 
-use sesame::bbox::BBox;
 use sesame::context::{Context, ContextData};
 use sesame::error::SesameResult;
 use sesame::extensions::{ExtensionContext, SesameExtension};
+use sesame::pcon::PCon;
 use sesame::policy::{Policy, Reason, RefPolicy};
 
 use crate::policy::FrontendPolicy;
 
-// Cookies are build from BBoxes, should they also be built from non bboxes?
-pub struct BBoxCookieBuilder<'c, P: FrontendPolicy> {
+// Cookies are build from PCons, should they also be built from non pcons?
+pub struct PConCookieBuilder<'c, P: FrontendPolicy> {
     pub(self) builder: cookie::CookieBuilder<'c>,
-    pub(self) value: BBox<Cow<'c, str>, P>,
+    pub(self) value: PCon<Cow<'c, str>, P>,
 }
-impl<'c, P: FrontendPolicy> BBoxCookieBuilder<'c, P> {
+impl<'c, P: FrontendPolicy> PConCookieBuilder<'c, P> {
     pub fn expires(self, when: OffsetDateTime) -> Self {
         Self {
             builder: self.builder.expires(when),
@@ -66,62 +66,62 @@ impl<'c, P: FrontendPolicy> BBoxCookieBuilder<'c, P> {
             value: self.value,
         }
     }
-    pub fn finish(self) -> BBoxCookie<'c, P> {
-        BBoxCookie {
-            cookie: BBoxCookieEnum::Write(self.builder.finish(), self.value),
+    pub fn finish(self) -> PConCookie<'c, P> {
+        PConCookie {
+            cookie: PConCookieEnum::Write(self.builder.finish(), self.value),
         }
     }
 }
 
-// Cookies are bboxed by default.
-enum BBoxCookieEnum<'a, P: FrontendPolicy> {
+// Cookies are pcon-ed by default.
+enum PConCookieEnum<'a, P: FrontendPolicy> {
     Read(&'a rocket::http::Cookie<'static>, P),
-    Write(rocket::http::Cookie<'a>, BBox<Cow<'a, str>, P>),
+    Write(rocket::http::Cookie<'a>, PCon<Cow<'a, str>, P>),
 }
-pub struct BBoxCookie<'a, P: FrontendPolicy> {
-    pub(self) cookie: BBoxCookieEnum<'a, P>,
+pub struct PConCookie<'a, P: FrontendPolicy> {
+    pub(self) cookie: PConCookieEnum<'a, P>,
 }
 
-impl<'c, P: FrontendPolicy> BBoxCookie<'c, P> {
+impl<'c, P: FrontendPolicy> PConCookie<'c, P> {
     pub fn new<N: Into<Cow<'c, str>>, V: Into<Cow<'c, str>>>(
         name: N,
-        value: BBox<V, P>,
-    ) -> BBoxCookie<'c, P> {
+        value: PCon<V, P>,
+    ) -> PConCookie<'c, P> {
         Self::build(name, value).finish()
     }
 
     pub fn build<N: Into<Cow<'c, str>>, V: Into<Cow<'c, str>>>(
         name: N,
-        value: BBox<V, P>,
-    ) -> BBoxCookieBuilder<'c, P> {
-        BBoxCookieBuilder {
+        value: PCon<V, P>,
+    ) -> PConCookieBuilder<'c, P> {
+        PConCookieBuilder {
             builder: rocket::http::Cookie::build(name, ""),
-            value: value.into_bbox(),
+            value: value.into_pcon(),
         }
     }
 
     pub fn name(&self) -> &str {
         match &self.cookie {
-            BBoxCookieEnum::Read(cookie, _) => cookie.name(),
-            BBoxCookieEnum::Write(cookie, _) => cookie.name(),
+            PConCookieEnum::Read(cookie, _) => cookie.name(),
+            PConCookieEnum::Write(cookie, _) => cookie.name(),
         }
     }
 
-    pub fn value(&self) -> BBox<&str, RefPolicy<P>> {
+    pub fn value(&self) -> PCon<&str, RefPolicy<P>> {
         match &self.cookie {
-            BBoxCookieEnum::Read(cookie, policy) => {
-                BBox::new(cookie.value(), RefPolicy::new(policy))
+            PConCookieEnum::Read(cookie, policy) => {
+                PCon::new(cookie.value(), RefPolicy::new(policy))
             }
-            BBoxCookieEnum::Write(_, bbox) => bbox.as_ref_bbox(),
+            PConCookieEnum::Write(_, pcon) => pcon.as_ref_pcon(),
         }
     }
 }
 
-impl<'c, P: FrontendPolicy> From<BBoxCookie<'c, P>> for BBox<String, P> {
-    fn from(cookie: BBoxCookie<'c, P>) -> BBox<String, P> {
+impl<'c, P: FrontendPolicy> From<PConCookie<'c, P>> for PCon<String, P> {
+    fn from(cookie: PConCookie<'c, P>) -> PCon<String, P> {
         match cookie.cookie {
-            BBoxCookieEnum::Read(cookie, policy) => BBox::new(String::from(cookie.value()), policy),
-            BBoxCookieEnum::Write(_name, bbox) => bbox.into_bbox(),
+            PConCookieEnum::Read(cookie, policy) => PCon::new(String::from(cookie.value()), policy),
+            PConCookieEnum::Write(_name, pcon) => pcon.into_pcon(),
         }
     }
 }
@@ -147,52 +147,52 @@ impl<'a, 'r, P: Policy> SesameExtension<Cow<'static, str>, P, ()> for CookieExte
     }
 }
 
-// Cookie jar gives and takes cookies that are bboxed.
+// Cookie jar gives and takes cookies that are pcon-ed.
 #[derive(Clone)]
-pub struct BBoxCookieJar<'a, 'r> {
+pub struct PConCookieJar<'a, 'r> {
     jar: &'a rocket::http::CookieJar<'r>,
     request: &'a rocket::Request<'r>,
 }
-impl<'a, 'r> BBoxCookieJar<'a, 'r> {
+impl<'a, 'r> PConCookieJar<'a, 'r> {
     pub(crate) fn new(
         jar: &'a rocket::http::CookieJar<'r>,
         request: &'a rocket::Request<'r>,
     ) -> Self {
-        BBoxCookieJar { jar, request }
+        PConCookieJar { jar, request }
     }
 
     pub fn add<P: FrontendPolicy, D: ContextData>(
         &self,
-        cookie: BBoxCookie<'static, P>,
+        cookie: PConCookie<'static, P>,
         ctx: Context<D>,
     ) -> SesameResult<()> {
         match cookie.cookie {
-            BBoxCookieEnum::Read(_, _) => {
+            PConCookieEnum::Read(_, _) => {
                 unreachable!("Create the cookie yourself then add it.");
             }
-            BBoxCookieEnum::Write(cookie, bbox) => {
+            PConCookieEnum::Write(cookie, pcon) => {
                 let ctx = ExtensionContext::new(ctx);
                 let reason = Reason::Cookie(cookie.name());
                 let mut ext = CookieExtension::new(self.jar, &cookie);
-                bbox.checked_extension(&mut ext, &ctx, reason)
+                pcon.checked_extension(&mut ext, &ctx, reason)
             }
         }
     }
-    pub fn get<P: FrontendPolicy>(&self, name: &str) -> Option<BBoxCookie<'a, P>> {
+    pub fn get<P: FrontendPolicy>(&self, name: &str) -> Option<PConCookie<'a, P>> {
         match self.jar.get(name) {
             None => None,
             Some(cookie) => {
                 let p = P::from_cookie(name, cookie, self.request);
-                Some(BBoxCookie {
-                    cookie: BBoxCookieEnum::Read(cookie, p),
+                Some(PConCookie {
+                    cookie: PConCookieEnum::Read(cookie, p),
                 })
             }
         }
     }
-    pub fn remove<P: FrontendPolicy>(&self, cookie: BBoxCookie<'static, P>) {
+    pub fn remove<P: FrontendPolicy>(&self, cookie: PConCookie<'static, P>) {
         match cookie.cookie {
-            BBoxCookieEnum::Read(cookie, _) => self.jar.remove(cookie.clone()),
-            BBoxCookieEnum::Write(_, _) => {
+            PConCookieEnum::Read(cookie, _) => self.jar.remove(cookie.clone()),
+            PConCookieEnum::Write(_, _) => {
                 unreachable!("Get the cookie using get then remove it")
             }
         }

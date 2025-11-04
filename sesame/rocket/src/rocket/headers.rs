@@ -1,21 +1,21 @@
 use crate::policy::FrontendPolicy;
-use sesame::bbox::BBox;
+use sesame::pcon::PCon;
 
-pub struct BBoxHeaderMap<'a, 'r> {
+pub struct PConHeaderMap<'a, 'r> {
     request: &'a rocket::Request<'r>,
     map: &'a rocket::http::HeaderMap<'r>,
 }
 
-impl<'a, 'r> BBoxHeaderMap<'a, 'r> {
+impl<'a, 'r> PConHeaderMap<'a, 'r> {
     pub fn new(
         request: &'a rocket::Request<'r>,
         map: &'a rocket::http::HeaderMap<'r>,
-    ) -> BBoxHeaderMap<'a, 'r> {
-        BBoxHeaderMap { request, map }
+    ) -> PConHeaderMap<'a, 'r> {
+        PConHeaderMap { request, map }
     }
-    pub fn get_one<P: FrontendPolicy>(&self, name: &str) -> Option<BBox<String, P>> {
+    pub fn get_one<P: FrontendPolicy>(&self, name: &str) -> Option<PCon<String, P>> {
         self.map
             .get_one(name)
-            .map(|token: &str| BBox::new(String::from(token), P::from_request(self.request)))
+            .map(|token: &str| PCon::new(String::from(token), P::from_request(self.request)))
     }
 }

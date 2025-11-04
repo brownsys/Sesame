@@ -54,7 +54,7 @@ declare_sesame_lint! {
     /// 
     /// ### Example
     /// ```rust
-    /// //  let pcr = PrivacyCriticalRegion::new(|x: u8| { <privacy-critical closure> },
+    /// //  let pcr = CriticalRegion::new(|x: u8| { <privacy-critical closure> },
     /// //          Signature {username: "corinnt", 
     /// //              signature: "LS0tLS....."},     // review signature on closure
     /// ```
@@ -74,7 +74,7 @@ fn check_expr<'tcx>(cx: &rustc_lint::LateContext<'tcx>, expr: &'_ rustc_hir::Exp
 
     if let ExprKind::Call(maybe_path, args) = &expr.kind {
         if is_fn_call(cx, maybe_path, target_fn_path) {
-            assert!(args.len() == 2); // 2 args to constructor of PrivacyCriticalRegion
+            assert!(args.len() == 2); // 2 args to constructor of CriticalRegion
             if let ExprKind::Closure(closure) = args[0].kind {
                 let closure_body = cx.tcx.hir().body(closure.body);
                 let pcr_src = cx

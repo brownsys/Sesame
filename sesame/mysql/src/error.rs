@@ -28,4 +28,4 @@ impl From<mysql::Error> for SesameMySqlError {
 }
 
 // Result type.
-pub type BBoxResult<T> = Result<T, SesameMySqlError>;
+pub type PConResult<T> = Result<T, SesameMySqlError>;

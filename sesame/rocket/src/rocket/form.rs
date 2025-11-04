@@ -15,43 +15,43 @@ use rocket::http::uncased::AsUncased;
 use rocket::Either;
 
 use crate::policy::FrontendPolicy;
-use crate::rocket::data::BBoxData;
-use crate::rocket::request::BBoxRequest;
-use sesame::bbox::BBox;
+use crate::rocket::data::PConData;
+use crate::rocket::request::PConRequest;
+use sesame::pcon::PCon;
 
-pub type BBoxFormResult<'v, T> = Result<T, rocket::form::Errors<'v>>;
+pub type PConFormResult<'v, T> = Result<T, rocket::form::Errors<'v>>;
 
-// BBoxForm is just a wrapper around types that satisfy FromBBoxForm.
-pub struct BBoxForm<T>(pub(super) T);
-impl<T> BBoxForm<T> {
+// PConForm is just a wrapper around types that satisfy FromPConForm.
+pub struct PConForm<T>(pub(super) T);
+impl<T> PConForm<T> {
     pub fn into_inner(self) -> T {
         self.0
     }
 }
-impl<T> From<T> for BBoxForm<T> {
+impl<T> From<T> for PConForm<T> {
     #[inline]
     fn from(val: T) -> Self {
         Self(val)
     }
 }
-impl<T> Deref for BBoxForm<T> {
+impl<T> Deref for PConForm<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-impl<T> DerefMut for BBoxForm<T> {
+impl<T> DerefMut for PConForm<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
 // For url encoded bodies.
-pub struct BBoxValueField<'a> {
+pub struct PConValueField<'a> {
     pub name: rocket::form::name::NameView<'a>,
     pub(crate) value: &'a str, // Should be boxed when exposed.
 }
-impl<'a> BBoxValueField<'a> {
+impl<'a> PConValueField<'a> {
     pub fn shift(mut self) -> Self {
         self.name.shift();
         self
@@ -69,13 +69,13 @@ impl<'a> BBoxValueField<'a> {
             .with_entity(rocket::form::error::Entity::ValueField)
     }
     pub fn from_value(value: &'a str) -> Self {
-        BBoxValueField {
+        PConValueField {
             name: rocket::form::name::NameView::new(""),
             value,
         }
     }
     pub(super) fn from_rocket(field: rocket::form::ValueField<'a>) -> Self {
-        BBoxValueField {
+        PConValueField {
             name: field.name,
             value: field.value,
         }
@@ -88,14 +88,14 @@ impl<'a> BBoxValueField<'a> {
     }
 }
 
-pub struct BBoxDataField<'a, 'r> {
+pub struct PConDataField<'a, 'r> {
     pub name: rocket::form::name::NameView<'a>,
     pub file_name: Option<&'a rocket::fs::FileName>,
     pub content_type: rocket::http::ContentType,
-    pub request: BBoxRequest<'a, 'r>,
-    pub data: BBoxData<'a>,
+    pub request: PConRequest<'a, 'r>,
+    pub data: PConData<'a>,
 }
-impl<'a, 'r> BBoxDataField<'a, 'r> {
+impl<'a, 'r> PConDataField<'a, 'r> {
     pub fn shift(mut self) -> Self {
         self.name.shift();
         self
@@ -107,12 +107,12 @@ impl<'a, 'r> BBoxDataField<'a, 'r> {
     }
 
     pub(super) fn from_rocket(field: rocket::form::DataField<'a, 'r>) -> Self {
-        BBoxDataField {
+        PConDataField {
             name: field.name,
             file_name: field.file_name,
             content_type: field.content_type,
-            request: BBoxRequest::new(field.request),
-            data: BBoxData::new(field.data),
+            request: PConRequest::new(field.request),
+            data: PConData::new(field.data),
         }
     }
     pub(super) fn to_rocket(self) -> rocket::form::DataField<'a, 'r> {
@@ -126,19 +126,19 @@ impl<'a, 'r> BBoxDataField<'a, 'r> {
     }
 }
 
-// Our version of FromFormField, this implies FromBBoxForm.
+// Our version of FromFormField, this implies FromPConForm.
 #[rocket::async_trait]
-pub trait FromBBoxFormField<'a, 'r>: Send + Sized {
-    fn from_bbox_value(
-        field: BBoxValueField<'a>,
-        _req: BBoxRequest<'a, 'r>,
-    ) -> BBoxFormResult<'a, Self> {
+pub trait FromPConFormField<'a, 'r>: Send + Sized {
+    fn from_pcon_value(
+        field: PConValueField<'a>,
+        _req: PConRequest<'a, 'r>,
+    ) -> PConFormResult<'a, Self> {
         Err(field.unexpected())?
     }
-    async fn from_bbox_data(
-        field: BBoxDataField<'a, 'r>,
-        _req: BBoxRequest<'a, 'r>,
-    ) -> BBoxFormResult<'a, Self> {
+    async fn from_pcon_data(
+        field: PConDataField<'a, 'r>,
+        _req: PConRequest<'a, 'r>,
+    ) -> PConFormResult<'a, Self> {
         Err(field.unexpected())?
     }
     fn default() -> Option<Self> {
@@ -146,48 +146,48 @@ pub trait FromBBoxFormField<'a, 'r>: Send + Sized {
     }
 }
 
-// Our own FromBBoxForm trait, mirror's rockets' FromForm trait.
+// Our own FromPConForm trait, mirror's rockets' FromForm trait.
 // Do not use directly, derive instead.
 #[rocket::async_trait]
-pub trait FromBBoxForm<'a, 'r>: Send + Sized {
-    type BBoxContext: Send;
+pub trait FromPConForm<'a, 'r>: Send + Sized {
+    type PConContext: Send;
 
     // Required methods
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext;
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext;
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     );
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     );
-    fn bbox_finalize(ctxt: Self::BBoxContext) -> BBoxFormResult<'a, Self>;
+    fn pcon_finalize(ctxt: Self::PConContext) -> PConFormResult<'a, Self>;
 
     // Provided methods
-    fn bbox_push_error(_ctxt: &mut Self::BBoxContext, _error: rocket::form::Error<'a>) {}
-    fn bbox_default(opts: rocket::form::Options) -> Option<Self> {
-        Self::bbox_finalize(Self::bbox_init(opts)).ok()
+    fn pcon_push_error(_ctxt: &mut Self::PConContext, _error: rocket::form::Error<'a>) {}
+    fn pcon_default(opts: rocket::form::Options) -> Option<Self> {
+        Self::pcon_finalize(Self::pcon_init(opts)).ok()
     }
 }
 
-// Auto implement FromBBoxForm for everything that implements FromBBoxFormField.
-pub struct FromBBoxFieldContext<'a, 'r, T: FromBBoxFormField<'a, 'r>> {
+// Auto implement FromPConForm for everything that implements FromPConFormField.
+pub struct FromPConFieldContext<'a, 'r, T: FromPConFormField<'a, 'r>> {
     field_name: Option<rocket::form::name::NameView<'a>>,
     opts: rocket::form::Options,
-    value: Option<BBoxFormResult<'a, T>>,
+    value: Option<PConFormResult<'a, T>>,
     pushes: usize,
     _phantom: PhantomData<&'r ()>,
 }
-impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxFieldContext<'a, 'r, T> {
+impl<'a, 'r, T: FromPConFormField<'a, 'r>> FromPConFieldContext<'a, 'r, T> {
     fn should_push(&mut self) -> bool {
         self.pushes += 1;
         self.value.is_none()
     }
 
-    fn push(&mut self, name: rocket::form::name::NameView<'a>, result: BBoxFormResult<'a, T>) {
+    fn push(&mut self, name: rocket::form::name::NameView<'a>, result: PConFormResult<'a, T>) {
         fn is_unexpected(e: &rocket::form::Errors<'_>) -> bool {
             matches!(
                 e.last().map(|e| &e.kind),
@@ -204,11 +204,11 @@ impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxFieldContext<'a, 'r, T> {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxForm<'a, 'r> for T {
-    type BBoxContext = FromBBoxFieldContext<'a, 'r, T>;
+impl<'a, 'r, T: FromPConFormField<'a, 'r>> FromPConForm<'a, 'r> for T {
+    type PConContext = FromPConFieldContext<'a, 'r, T>;
 
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
-        FromBBoxFieldContext {
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
+        FromPConFieldContext {
             opts,
             field_name: None,
             value: None,
@@ -217,32 +217,32 @@ impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxForm<'a, 'r> for T {
         }
     }
 
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
         if ctxt.should_push() {
-            ctxt.push(field.name, Self::from_bbox_value(field, request))
+            ctxt.push(field.name, Self::from_pcon_value(field, request))
         }
     }
 
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
         if ctxt.should_push() {
-            ctxt.push(field.name, Self::from_bbox_data(field, request).await);
+            ctxt.push(field.name, Self::from_pcon_data(field, request).await);
         }
     }
 
-    fn bbox_finalize(ctxt: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
+    fn pcon_finalize(ctxt: Self::PConContext) -> PConFormResult<'a, Self> {
         let mut errors = match ctxt.value {
             Some(Ok(val)) if !ctxt.opts.strict || ctxt.pushes <= 1 => return Ok(val),
             Some(Ok(_)) => rocket::form::Errors::from(rocket::form::error::ErrorKind::Duplicate),
             Some(Err(errors)) => errors,
-            None if !ctxt.opts.strict => match <T as FromBBoxFormField>::default() {
+            None if !ctxt.opts.strict => match <T as FromPConFormField>::default() {
                 Some(default) => return Ok(default),
                 None => rocket::form::Errors::from(rocket::form::error::ErrorKind::Missing),
             },
@@ -256,22 +256,22 @@ impl<'a, 'r, T: FromBBoxFormField<'a, 'r>> FromBBoxForm<'a, 'r> for T {
     }
 }
 
-// Implement FromBBoxFormField for select types whose implementation of
+// Implement FromPConFormField for select types whose implementation of
 // FromFormField is defined by rocket and is safe.
 macro_rules! impl_form_via_rocket {
     ($($T:ident),+ $(,)?) => ($(
         #[rocket::async_trait]
-        impl<'a, 'r, P: FrontendPolicy> FromBBoxFormField<'a, 'r> for BBox<$T, P> {
+        impl<'a, 'r, P: FrontendPolicy> FromPConFormField<'a, 'r> for PCon<$T, P> {
             #[inline(always)]
-            fn from_bbox_value(field: BBoxValueField<'a>, req: BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
+            fn from_pcon_value(field: PConValueField<'a>, req: PConRequest<'a, 'r>) -> PConFormResult<'a, Self> {
                 use rocket::form::FromFormField;
                 let pfield = rocket::form::ValueField{ name: field.name, value: field.value};
                 let pvalue = $T::from_value(pfield)?;
-                BBoxFormResult::Ok(BBox::new(pvalue, P::from_request(req.get_request())))
+                PConFormResult::Ok(PCon::new(pvalue, P::from_request(req.get_request())))
             }
 
             #[inline(always)]
-            async fn from_bbox_data(field: BBoxDataField<'a, 'r>, req: BBoxRequest<'a, 'r>) -> BBoxFormResult<'a, Self> {
+            async fn from_pcon_data(field: PConDataField<'a, 'r>, req: PConRequest<'a, 'r>) -> PConFormResult<'a, Self> {
                 use rocket::form::FromFormField;
                 let pfield = rocket::form::DataField {
                     name: field.name,
@@ -281,7 +281,7 @@ macro_rules! impl_form_via_rocket {
                     data: field.data.get_data(),
                 };
                 let pvalue = $T::from_data(pfield).await?;
-                BBoxFormResult::Ok(BBox::new(pvalue, P::from_request(req.get_request())))
+                PConFormResult::Ok(PCon::new(pvalue, P::from_request(req.get_request())))
             }
         }
     )+)
@@ -333,16 +333,16 @@ impl_form_via_rocket!(
     bool
 );
 
-// Implement FromBBoxForm for Vec<T: FromBBoxForm>.
-pub struct VecContext<'a, 'r, T: FromBBoxForm<'a, 'r>> {
+// Implement FromPConForm for Vec<T: FromPConForm>.
+pub struct VecContext<'a, 'r, T: FromPConForm<'a, 'r>> {
     opts: rocket::form::Options,
     last_key: Option<&'a rocket::form::name::Key>,
-    current: Option<T::BBoxContext>,
+    current: Option<T::PConContext>,
     errors: rocket::form::Errors<'a>,
     items: Vec<T>,
     _phantom: PhantomData<&'r ()>,
 }
-impl<'a, 'r, T: FromBBoxForm<'a, 'r>> VecContext<'a, 'r, T> {
+impl<'a, 'r, T: FromPConForm<'a, 'r>> VecContext<'a, 'r, T> {
     fn new(opts: rocket::form::Options) -> Self {
         VecContext {
             opts,
@@ -355,13 +355,13 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> VecContext<'a, 'r, T> {
     }
     fn shift(&mut self) {
         if let Some(current) = self.current.take() {
-            match T::bbox_finalize(current) {
+            match T::pcon_finalize(current) {
                 Ok(v) => self.items.push(v),
                 Err(e) => self.errors.extend(e),
             }
         }
     }
-    fn context(&mut self, name: &rocket::form::name::NameView<'a>) -> &mut T::BBoxContext {
+    fn context(&mut self, name: &rocket::form::name::NameView<'a>) -> &mut T::PConContext {
         let this_key = name.key();
         let keys_match = match (self.last_key, this_key) {
             (Some(k1), Some(k2)) => k1 == k2,
@@ -370,7 +370,7 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> VecContext<'a, 'r, T> {
 
         if !keys_match {
             self.shift();
-            self.current = Some(T::bbox_init(self.opts));
+            self.current = Some(T::pcon_init(self.opts));
         }
 
         self.last_key = name.key();
@@ -381,30 +381,30 @@ impl<'a, 'r, T: FromBBoxForm<'a, 'r>> VecContext<'a, 'r, T> {
 }
 
 #[rocket::async_trait]
-impl<'a, 'r: 'a, T: FromBBoxForm<'a, 'r> + 'r> FromBBoxForm<'a, 'r> for Vec<T> {
-    type BBoxContext = VecContext<'a, 'r, T>;
+impl<'a, 'r: 'a, T: FromPConForm<'a, 'r> + 'r> FromPConForm<'a, 'r> for Vec<T> {
+    type PConContext = VecContext<'a, 'r, T>;
 
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
         VecContext::new(opts)
     }
 
-    fn bbox_push_value(
-        this: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        this: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_value(this.context(&field.name), field.shift(), request);
+        T::pcon_push_value(this.context(&field.name), field.shift(), request);
     }
 
-    async fn bbox_push_data(
-        this: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        this: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_data(this.context(&field.name), field.shift(), request).await
+        T::pcon_push_data(this.context(&field.name), field.shift(), request).await
     }
 
-    fn bbox_finalize(mut this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
+    fn pcon_finalize(mut this: Self::PConContext) -> PConFormResult<'a, Self> {
         this.shift();
         if !this.errors.is_empty() {
             Err(this.errors)
@@ -418,16 +418,16 @@ impl<'a, 'r: 'a, T: FromBBoxForm<'a, 'r> + 'r> FromBBoxForm<'a, 'r> for Vec<T> {
     }
 }
 
-// Implement FromBBoxForm for HashMap and BTreeMap (provided keys and values
-// also implement FromBBoxForm).
+// Implement FromPConForm for HashMap and BTreeMap (provided keys and values
+// also implement FromPConForm).
 pub struct MapContext<'a, 'r, K, V>
 where
     K: rocket::form::FromForm<'a>,
-    V: FromBBoxForm<'a, 'r>,
+    V: FromPConForm<'a, 'r>,
 {
     opts: rocket::form::Options,
     table: IndexMap<&'a str, usize>,
-    entries: Vec<(K::Context, V::BBoxContext)>,
+    entries: Vec<(K::Context, V::PConContext)>,
     metadata: Vec<rocket::form::name::NameView<'a>>,
     errors: rocket::form::Errors<'a>,
     _phantom: PhantomData<&'r ()>,
@@ -435,7 +435,7 @@ where
 impl<'a, 'r, K, V> MapContext<'a, 'r, K, V>
 where
     K: rocket::form::FromForm<'a>,
-    V: FromBBoxForm<'a, 'r>,
+    V: FromPConForm<'a, 'r>,
 {
     fn new(opts: rocket::form::Options) -> Self {
         MapContext {
@@ -451,14 +451,14 @@ where
         &mut self,
         key: &'a str,
         name: rocket::form::name::NameView<'a>,
-    ) -> &mut (K::Context, V::BBoxContext) {
+    ) -> &mut (K::Context, V::PConContext) {
         match self.table.get(key) {
             Some(i) => &mut self.entries[*i],
             None => {
                 let i = self.entries.len();
                 self.table.insert(key, i);
                 self.entries
-                    .push((K::init(self.opts), V::bbox_init(self.opts)));
+                    .push((K::init(self.opts), V::pcon_init(self.opts)));
                 self.metadata.push(name);
                 &mut self.entries[i]
             }
@@ -467,7 +467,7 @@ where
     fn push(
         &mut self,
         name: rocket::form::name::NameView<'a>,
-    ) -> Option<Either<&mut K::Context, &mut V::BBoxContext>> {
+    ) -> Option<Either<&mut K::Context, &mut V::PConContext>> {
         let index_pair = name
             .key()
             .map(|k| k.indices())
@@ -508,21 +508,21 @@ where
 
         None
     }
-    fn push_value(&mut self, field: BBoxValueField<'a>, request: BBoxRequest<'a, 'r>) {
+    fn push_value(&mut self, field: PConValueField<'a>, request: PConRequest<'a, 'r>) {
         match self.push(field.name) {
             Some(Either::Left(ctxt)) => K::push_value(ctxt, field.shift().to_rocket()),
-            Some(Either::Right(ctxt)) => V::bbox_push_value(ctxt, field.shift(), request),
+            Some(Either::Right(ctxt)) => V::pcon_push_value(ctxt, field.shift(), request),
             _ => {}
         }
     }
-    async fn push_data(&mut self, field: BBoxDataField<'a, 'r>, request: BBoxRequest<'a, 'r>) {
+    async fn push_data(&mut self, field: PConDataField<'a, 'r>, request: PConRequest<'a, 'r>) {
         match self.push(field.name) {
             Some(Either::Left(ctxt)) => K::push_data(ctxt, field.shift().to_rocket()).await,
-            Some(Either::Right(ctxt)) => V::bbox_push_data(ctxt, field.shift(), request).await,
+            Some(Either::Right(ctxt)) => V::pcon_push_data(ctxt, field.shift(), request).await,
             _ => {}
         }
     }
-    fn finalize<T: std::iter::FromIterator<(K, V)>>(mut self) -> BBoxFormResult<'a, T> {
+    fn finalize<T: std::iter::FromIterator<(K, V)>>(mut self) -> PConFormResult<'a, T> {
         let errors = &mut self.errors;
         let map: T = self
             .entries
@@ -533,7 +533,7 @@ where
                 let key = K::finalize(k_ctxt)
                     .map_err(|e| errors.extend(e.with_name((name.parent(), *idx))))
                     .ok();
-                let val = V::bbox_finalize(v_ctxt)
+                let val = V::pcon_finalize(v_ctxt)
                     .map_err(|e| errors.extend(e.with_name((name.parent(), *idx))))
                     .ok();
                 Some((key?, val?))
@@ -551,128 +551,128 @@ where
     }
 }
 #[rocket::async_trait]
-impl<'a, 'r: 'a, K, V> FromBBoxForm<'a, 'r> for HashMap<K, V>
+impl<'a, 'r: 'a, K, V> FromPConForm<'a, 'r> for HashMap<K, V>
 where
     K: rocket::form::FromForm<'a> + Eq + Hash,
-    V: FromBBoxForm<'a, 'r>,
+    V: FromPConForm<'a, 'r>,
 {
-    type BBoxContext = MapContext<'a, 'r, K, V>;
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+    type PConContext = MapContext<'a, 'r, K, V>;
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
         MapContext::new(opts)
     }
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
         ctxt.push_value(field, request);
     }
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
         ctxt.push_data(field, request).await;
     }
-    fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
+    fn pcon_finalize(this: Self::PConContext) -> PConFormResult<'a, Self> {
         this.finalize()
     }
 }
 #[rocket::async_trait]
-impl<'a, 'r: 'a, K, V> FromBBoxForm<'a, 'r> for BTreeMap<K, V>
+impl<'a, 'r: 'a, K, V> FromPConForm<'a, 'r> for BTreeMap<K, V>
 where
     K: rocket::form::FromForm<'a> + Ord,
-    V: FromBBoxForm<'a, 'r>,
+    V: FromPConForm<'a, 'r>,
 {
-    type BBoxContext = MapContext<'a, 'r, K, V>;
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+    type PConContext = MapContext<'a, 'r, K, V>;
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
         MapContext::new(opts)
     }
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
         ctxt.push_value(field, request);
     }
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
         ctxt.push_data(field, request).await;
     }
-    fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
+    fn pcon_finalize(this: Self::PConContext) -> PConFormResult<'a, Self> {
         this.finalize()
     }
 }
 
-// Implement FromBBoxForm for Option<T> (provided T also implement FromBBoxForm).
+// Implement FromPConForm for Option<T> (provided T also implement FromPConForm).
 #[rocket::async_trait]
-impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxForm<'a, 'r> for Option<T> {
-    type BBoxContext = <T as FromBBoxForm<'a, 'r>>::BBoxContext;
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
-        T::bbox_init(rocket::form::Options {
+impl<'a, 'r, T: FromPConForm<'a, 'r>> FromPConForm<'a, 'r> for Option<T> {
+    type PConContext = <T as FromPConForm<'a, 'r>>::PConContext;
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
+        T::pcon_init(rocket::form::Options {
             strict: true,
             ..opts
         })
     }
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_value(ctxt, field, request)
+        T::pcon_push_value(ctxt, field, request)
     }
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_data(ctxt, field, request).await
+        T::pcon_push_data(ctxt, field, request).await
     }
-    fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
-        Ok(T::bbox_finalize(this).ok())
+    fn pcon_finalize(this: Self::PConContext) -> PConFormResult<'a, Self> {
+        Ok(T::pcon_finalize(this).ok())
     }
 }
 
 #[rocket::async_trait]
-impl<'a, 'r, T: FromBBoxForm<'a, 'r>> FromBBoxForm<'a, 'r> for BBoxFormResult<'a, T> {
-    type BBoxContext = <T as FromBBoxForm<'a, 'r>>::BBoxContext;
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
-        T::bbox_init(opts)
+impl<'a, 'r, T: FromPConForm<'a, 'r>> FromPConForm<'a, 'r> for PConFormResult<'a, T> {
+    type PConContext = <T as FromPConForm<'a, 'r>>::PConContext;
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
+        T::pcon_init(opts)
     }
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_value(ctxt, field, request)
+        T::pcon_push_value(ctxt, field, request)
     }
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_data(ctxt, field, request).await
+        T::pcon_push_data(ctxt, field, request).await
     }
-    fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
-        Ok(T::bbox_finalize(this))
+    fn pcon_finalize(this: Self::PConContext) -> PConFormResult<'a, Self> {
+        Ok(T::pcon_finalize(this))
     }
 }
 
-// Implement FromBBoxForm for pairs if inner types also implement FromBBoxForm.
-pub struct PairContext<'a, 'r, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> {
-    left: A::BBoxContext,
-    right: B::BBoxContext,
+// Implement FromPConForm for pairs if inner types also implement FromPConForm.
+pub struct PairContext<'a, 'r, A: FromPConForm<'a, 'r>, B: FromPConForm<'a, 'r>> {
+    left: A::PConContext,
+    right: B::PConContext,
     errors: rocket::form::Errors<'a>,
 }
-impl<'a, 'r, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> PairContext<'a, 'r, A, B> {
+impl<'a, 'r, A: FromPConForm<'a, 'r>, B: FromPConForm<'a, 'r>> PairContext<'a, 'r, A, B> {
     fn context(
         &mut self,
         name: rocket::form::name::NameView<'a>,
     ) -> std::result::Result<
-        Either<&mut A::BBoxContext, &mut B::BBoxContext>,
+        Either<&mut A::PConContext, &mut B::PConContext>,
         rocket::form::Error<'a>,
     > {
         match name.key().map(|k| k.as_str()) {
@@ -687,39 +687,39 @@ impl<'a, 'r, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> PairContext<'a, '
     }
 }
 #[rocket::async_trait]
-impl<'a, 'r: 'a, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> FromBBoxForm<'a, 'r> for (A, B) {
-    type BBoxContext = PairContext<'a, 'r, A, B>;
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
+impl<'a, 'r: 'a, A: FromPConForm<'a, 'r>, B: FromPConForm<'a, 'r>> FromPConForm<'a, 'r> for (A, B) {
+    type PConContext = PairContext<'a, 'r, A, B>;
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
         PairContext {
-            left: A::bbox_init(opts),
-            right: B::bbox_init(opts),
+            left: A::pcon_init(opts),
+            right: B::pcon_init(opts),
             errors: rocket::form::Errors::new(),
         }
     }
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
         match ctxt.context(field.name) {
-            Ok(Either::Left(ctxt)) => A::bbox_push_value(ctxt, field.shift(), request),
-            Ok(Either::Right(ctxt)) => B::bbox_push_value(ctxt, field.shift(), request),
+            Ok(Either::Left(ctxt)) => A::pcon_push_value(ctxt, field.shift(), request),
+            Ok(Either::Right(ctxt)) => B::pcon_push_value(ctxt, field.shift(), request),
             Err(e) => ctxt.errors.push(e),
         }
     }
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
         match ctxt.context(field.name) {
-            Ok(Either::Left(ctxt)) => A::bbox_push_data(ctxt, field.shift(), request).await,
-            Ok(Either::Right(ctxt)) => B::bbox_push_data(ctxt, field.shift(), request).await,
+            Ok(Either::Left(ctxt)) => A::pcon_push_data(ctxt, field.shift(), request).await,
+            Ok(Either::Right(ctxt)) => B::pcon_push_data(ctxt, field.shift(), request).await,
             Err(e) => ctxt.errors.push(e),
         }
     }
-    fn bbox_finalize(mut ctxt: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
-        match (A::bbox_finalize(ctxt.left), B::bbox_finalize(ctxt.right)) {
+    fn pcon_finalize(mut ctxt: Self::PConContext) -> PConFormResult<'a, Self> {
+        match (A::pcon_finalize(ctxt.left), B::pcon_finalize(ctxt.right)) {
             (Ok(key), Ok(val)) if ctxt.errors.is_empty() => Ok((key, val)),
             (Ok(_), Ok(_)) => Err(ctxt.errors)?,
             (left, right) => {
@@ -736,26 +736,26 @@ impl<'a, 'r: 'a, A: FromBBoxForm<'a, 'r>, B: FromBBoxForm<'a, 'r>> FromBBoxForm<
 }
 
 #[rocket::async_trait]
-impl<'a, 'r: 'a, T: FromBBoxForm<'a, 'r> + Sync> FromBBoxForm<'a, 'r> for Arc<T> {
-    type BBoxContext = <T as FromBBoxForm<'a, 'r>>::BBoxContext;
-    fn bbox_init(opts: rocket::form::Options) -> Self::BBoxContext {
-        T::bbox_init(opts)
+impl<'a, 'r: 'a, T: FromPConForm<'a, 'r> + Sync> FromPConForm<'a, 'r> for Arc<T> {
+    type PConContext = <T as FromPConForm<'a, 'r>>::PConContext;
+    fn pcon_init(opts: rocket::form::Options) -> Self::PConContext {
+        T::pcon_init(opts)
     }
-    fn bbox_push_value(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxValueField<'a>,
-        request: BBoxRequest<'a, 'r>,
+    fn pcon_push_value(
+        ctxt: &mut Self::PConContext,
+        field: PConValueField<'a>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_value(ctxt, field, request)
+        T::pcon_push_value(ctxt, field, request)
     }
-    async fn bbox_push_data(
-        ctxt: &mut Self::BBoxContext,
-        field: BBoxDataField<'a, 'r>,
-        request: BBoxRequest<'a, 'r>,
+    async fn pcon_push_data(
+        ctxt: &mut Self::PConContext,
+        field: PConDataField<'a, 'r>,
+        request: PConRequest<'a, 'r>,
     ) {
-        T::bbox_push_data(ctxt, field, request).await
+        T::pcon_push_data(ctxt, field, request).await
     }
-    fn bbox_finalize(this: Self::BBoxContext) -> BBoxFormResult<'a, Self> {
-        T::bbox_finalize(this).map(Arc::new)
+    fn pcon_finalize(this: Self::PConContext) -> PConFormResult<'a, Self> {
+        T::pcon_finalize(this).map(Arc::new)
     }
 }
