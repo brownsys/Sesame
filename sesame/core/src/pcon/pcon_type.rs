@@ -1,17 +1,18 @@
 use std::any::Any;
+use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::Poll;
 
 use either::Either;
-use mysql::chrono;
 use serde::Deserialize;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::critical::{CriticalRegion, UncheckedCriticalRegion};
 use crate::policy::{
     AnyPolicy, AnyPolicyClone, AnyPolicyCloneDyn, AnyPolicyable, NoPolicy, OptionPolicy, Policy,
-    PolicyDyn, PolicyDynRelation, Reason, RefPolicy, Specializable, SpecializationEnum, Specialize,
+    PolicyDyn, PolicyDynRelation, Reason, RefPolicy, SimplePolicy, Specializable,
+    SpecializationEnum, Specialize,
 };
 use crate::verified::VerifiedRegion;
 
@@ -24,7 +25,7 @@ use pin_project_lite::pin_project;
 // Privacy Container type.
 pin_project! {
     #[derive(Deserialize)]
-    pub struct BBox<T, P: Policy> {
+    pub struct PCon<T, P: Policy> {
         #[pin]
         fb: ObPtr<T>,
         p: P,
@@ -302,6 +303,12 @@ impl<P: Policy> PCon<Box<dyn Any>, P> {
 
 #[cfg(not(feature = "orm"))]
 impl<T> std::fmt::Debug for PCon<T, SpecializationEnum> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.policy().fmt(f)
+    }
+}
+
+impl<T, P: SimplePolicy + Debug> std::fmt::Debug for PCon<T, P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.policy().fmt(f)
     }

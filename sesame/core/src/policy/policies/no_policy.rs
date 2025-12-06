@@ -51,12 +51,12 @@ impl<T: PartialEq> PartialEq for PCon<T, NoPolicy> {
 }
 
 
-impl<T: Serialize> Serialize for BBox<T, NoPolicy> {
+impl<T: Serialize> Serialize for PCon<T, NoPolicy> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut bbox_ser = serializer.serialize_struct("BBox", 2)?;
+        let mut bbox_ser = serializer.serialize_struct("PCon", 2)?;
         bbox_ser.serialize_field("fb", self.data())?;
         bbox_ser.serialize_field("p", self.policy())?;
         bbox_ser.end()
