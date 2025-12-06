@@ -11,7 +11,7 @@ members = [
     "examples/sandbox/sandbox_bin",
     "examples/sandbox/sandbox_lib",
     "applications/youchat",
-    "applications/voltron/server"
+    # "applications/voltron/server"
 ]
 
 exclude = [
