@@ -23,6 +23,18 @@ pcon_param_impl!(u8, u16, u32, u64, u128, usize,);
 pcon_param_impl!(i8, i16, i32, i64, i128, isize,);
 pcon_param_impl!(bool, f32, f64,);
 
+
+impl<T: PConParam> PConParam for Option<T> {
+    fn get(self) -> EitherPCon<mysql::Value, AnyPolicy> {
+        match self {
+            None => EitherPCon::Left(mysql::Value::NULL),
+            Some(t) => t.get()
+        }
+    }
+}
+
+
+
 impl<T: Into<mysql::Value>, P: AnyPolicyable> PConParam for PCon<T, P> {
     fn get(self) -> EitherPCon<mysql::Value, AnyPolicy> {
         EitherPCon::Right(self.into_any_policy_no_clone().into_pcon())
