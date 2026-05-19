@@ -142,6 +142,12 @@ impl<T: PConRender> PConRender for HashMap<&str, T> {
     }
 }
 
+impl PConRender for () {
+    fn render(&self) -> Renderable {
+        Renderable::Dict(BTreeMap::new())
+    }
+}
+
 // Unit tests.
 #[cfg(test)]
 mod tests {
