@@ -7,6 +7,20 @@ use sesame_derive::PConRender;
 type RefPCon<'a> = sesame::pcon::PCon<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
 #[derive(PConRender)]
+enum SimpleEnum {
+    Unit,
+    Newtype(sesame::pcon::PCon<String, NoPolicy>),
+    Tuple(sesame::pcon::PCon<u8, NoPolicy>, sesame::pcon::PCon<u8, NoPolicy>),
+    Struct {
+        x: sesame::pcon::PCon<String, NoPolicy>,
+        y: String,
+    },
+}
+
+#[derive(PConRender)]
+struct TupleStruct(sesame::pcon::PCon<String, NoPolicy>, sesame::pcon::PCon<u8, NoPolicy>);
+
+#[derive(PConRender)]
 struct Nested {
     pub v: Vec<sesame::pcon::PCon<u8, NoPolicy>>,
 }
@@ -117,5 +131,84 @@ fn simple_render_struct() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn enum_unit_variant() {
+    use sesame_rocket::render::{PConRender, Renderable};
+    let v = SimpleEnum::Unit;
+    let r = v.render();
+    assert!(matches!(r, Renderable::Serialize(s) if serialize_to_string(s) == Ok(String::from("\"Unit\""))));
+}
+
+#[test]
+fn enum_newtype_variant() {
+    use sesame_rocket::render::{PConRender, Renderable};
+    let v = SimpleEnum::Newtype(sesame::pcon::PCon::new(String::from("hello"), NoPolicy {}));
+    let r = v.render();
+    assert!(matches!(r, Renderable::Dict(_)));
+    if let Renderable::Dict(outer) = r {
+        assert_eq!(outer.len(), 1);
+        let inner = outer.get("Newtype").unwrap();
+        assert!(matches!(inner, Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("\"hello\""))));
+    }
+}
+
+#[test]
+fn enum_tuple_variant() {
+    use sesame_rocket::render::{PConRender, Renderable};
+    let v = SimpleEnum::Tuple(
+        sesame::pcon::PCon::new(1u8, NoPolicy {}),
+        sesame::pcon::PCon::new(2u8, NoPolicy {}),
+    );
+    let r = v.render();
+    assert!(matches!(r, Renderable::Dict(_)));
+    if let Renderable::Dict(outer) = r {
+        assert_eq!(outer.len(), 1);
+        if let Renderable::Array(arr) = outer.get("Tuple").unwrap() {
+            assert_eq!(arr.len(), 2);
+            assert!(matches!(&arr[0], Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("1"))));
+            assert!(matches!(&arr[1], Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("2"))));
+        } else {
+            panic!("expected Array");
+        }
+    }
+}
+
+#[test]
+fn enum_struct_variant() {
+    use sesame_rocket::render::{PConRender, Renderable};
+    let v = SimpleEnum::Struct {
+        x: sesame::pcon::PCon::new(String::from("world"), NoPolicy {}),
+        y: String::from("plain"),
+    };
+    let r = v.render();
+    assert!(matches!(r, Renderable::Dict(_)));
+    if let Renderable::Dict(outer) = r {
+        assert_eq!(outer.len(), 1);
+        if let Renderable::Dict(inner) = outer.get("Struct").unwrap() {
+            assert_eq!(inner.len(), 2);
+            assert!(matches!(inner.get("x"), Some(Renderable::PCon(p)) if pcon_to_string(p) == Ok(String::from("\"world\""))));
+            assert!(matches!(inner.get("y"), Some(Renderable::Serialize(s)) if serialize_to_string(s) == Ok(String::from("\"plain\""))));
+        } else {
+            panic!("expected Dict");
+        }
+    }
+}
+
+#[test]
+fn tuple_struct_render() {
+    use sesame_rocket::render::{PConRender, Renderable};
+    let v = TupleStruct(
+        sesame::pcon::PCon::new(String::from("hi"), NoPolicy {}),
+        sesame::pcon::PCon::new(42u8, NoPolicy {}),
+    );
+    let r = v.render();
+    assert!(matches!(r, Renderable::Array(_)));
+    if let Renderable::Array(arr) = r {
+        assert_eq!(arr.len(), 2);
+        assert!(matches!(&arr[0], Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("\"hi\""))));
+        assert!(matches!(&arr[1], Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("42"))));
     }
 }

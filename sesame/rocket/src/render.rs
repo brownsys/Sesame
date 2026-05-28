@@ -96,6 +96,8 @@ macro_rules! render_serialize_impl {
 render_serialize_impl!(String);
 render_serialize_impl!(u64);
 render_serialize_impl!(i64);
+render_serialize_impl!(u32);
+render_serialize_impl!(i32);
 render_serialize_impl!(u8);
 render_serialize_impl!(i8);
 render_serialize_impl!(bool);

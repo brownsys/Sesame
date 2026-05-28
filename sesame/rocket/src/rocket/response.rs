@@ -72,6 +72,8 @@ pcon_responder_impl!(&'o [u8]);
 pcon_responder_impl!(Vec<u8>);
 pcon_responder_impl!(File);
 pcon_responder_impl!(std::io::Error);
+pcon_responder_impl!(rocket::http::Status);
+
 
 // Implement PConResponder for some containers.
 impl<'a, 'r, 'o: 'r, T: PConResponder<'a, 'r, 'o>> PConResponder<'a, 'r, 'o> for (ContentType, T) {

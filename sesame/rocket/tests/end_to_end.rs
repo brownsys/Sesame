@@ -1,5 +1,4 @@
 use std::env;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use sesame_rocket::rocket::SesameRocket;
@@ -7,7 +6,6 @@ use sesame_rocket::test_route;
 use sesame_rocket::testing::SesameClient;
 
 use rocket::http::{ContentType, Status};
-use rocket_cors::{AllowedOrigins, CorsOptions};
 use rocket_dyn_templates::Template;
 
 use crate::application::db::DB;
@@ -72,26 +70,11 @@ fn test_end_to_end_application() {
         }
     });
 
-    // Test setting up cores.
-    let cors = CorsOptions::default()
-        .allowed_origins(AllowedOrigins::all())
-        .allowed_methods(
-            ["Get", "Post", "Put", "Delete", "Options"]
-                .iter()
-                .map(|s| FromStr::from_str(s).unwrap())
-                .collect(),
-        )
-        .allow_credentials(true)
-        .to_cors()
-        .expect("Failed to setup cors configuration.");
-
     // Create a rocket instance and mount route.
     env::set_var("ROCKET_template_dir", "tests/application");
     let rocket = SesameRocket::build()
         .attach(template)
         .manage(Arc::new(Mutex::new(db)))
-        .attach(cors.clone())
-        .mount("/", sesame_rocket::rocket::catch_all_options_routes())
         .mount(
             "/",
             vec![
