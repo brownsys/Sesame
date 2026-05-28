@@ -4,6 +4,7 @@ extern crate figment;
 use erased_serde::Serialize;
 use figment::value::Value as FValue;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 
 // Our PCon struct.
 use sesame::extensions::{
@@ -85,22 +86,30 @@ pub trait PConRender {
 
 // Auto implement PConRender for unboxed primitive types.
 macro_rules! render_serialize_impl {
-    ($T: ty) => {
-        impl PConRender for $T {
-            fn render<'a>(&'a self) -> Renderable<'a> {
-                Renderable::Serialize(self)
+    ($($T:ty),+) => {
+        $(
+            impl PConRender for $T {
+                fn render<'a>(&'a self) -> Renderable<'a> {
+                    Renderable::Serialize(self)
+                }
             }
-        }
+        )+
     };
 }
-render_serialize_impl!(String);
-render_serialize_impl!(u64);
-render_serialize_impl!(i64);
-render_serialize_impl!(u32);
-render_serialize_impl!(i32);
-render_serialize_impl!(u8);
-render_serialize_impl!(i8);
-render_serialize_impl!(bool);
+render_serialize_impl!(
+    String, &str,
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize,
+    f32, f64,
+    bool, char,
+    serde_json::Value,
+    chrono::NaiveDate,
+    chrono::NaiveDateTime,
+    chrono::NaiveTime,
+    chrono::DateTime<chrono::Utc>,
+    chrono::DateTime<chrono::Local>,
+    chrono::DateTime<chrono::FixedOffset>
+);
 
 // Auto implement PConRender for PCon.
 impl<T: Serialize, P: Policy> PConRender for PCon<T, P> {
@@ -144,9 +153,43 @@ impl<T: PConRender> PConRender for HashMap<&str, T> {
     }
 }
 
+impl<T: PConRender> PConRender for HashMap<String, T> {
+    fn render(&self) -> Renderable {
+        let mut map = BTreeMap::new();
+        for (key, val) in self.iter() {
+            map.insert(key.clone(), val.render());
+        }
+        Renderable::Dict(map)
+    }
+}
+
+impl<T: PConRender> PConRender for Option<T> {
+    fn render(&self) -> Renderable {
+        match self {
+            Some(v) => v.render(),
+            None => {
+                static NULL: Option<()> = None;
+                Renderable::Serialize(&NULL)
+            }
+        }
+    }
+}
+
+impl<T: PConRender> PConRender for Box<T> {
+    fn render(&self) -> Renderable {
+        (**self).render()
+    }
+}
+
+impl<T: PConRender> PConRender for Arc<T> {
+    fn render(&self) -> Renderable {
+        (**self).render()
+    }
+}
+
 impl PConRender for () {
     fn render(&self) -> Renderable {
-        Renderable::Dict(BTreeMap::new())
+        Renderable::Serialize(self)
     }
 }
 

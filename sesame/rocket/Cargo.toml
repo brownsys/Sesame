@@ -13,7 +13,7 @@ sesame = { path = "../core" }
 
 async-trait = { version = "0.1.79" }
 cookie = { version = "0.15", features = ["percent-encode"] }
-chrono = "^0.4"
+chrono = { version = "^0.4", features = ["serde"] }
 dynfmt = { version = "0.1.5", features = ["curly"] }
 erased-serde = "0.3.25"
 figment = "0.10.6"
