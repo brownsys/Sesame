@@ -49,6 +49,51 @@ impl Simple {
     }
 }
 
+// A type that implements Serialize but NOT PConRender, to exercise the
+// SerializeFieldFallback path in the derive macro.
+#[derive(serde::Serialize)]
+struct SerializeOnly {
+    val: u32,
+}
+
+#[derive(PConRender)]
+struct WithSerializeField {
+    protected: sesame::pcon::PCon<String, NoPolicy>,
+    plain: SerializeOnly,
+}
+
+#[test]
+fn serialize_fallback_in_derive() {
+    use sesame_rocket::render::{PConRender, Renderable};
+
+    let s = WithSerializeField {
+        protected: sesame::pcon::PCon::new(String::from("secret"), NoPolicy {}),
+        plain: SerializeOnly { val: 42 },
+    };
+
+    let renderable = s.render();
+    assert!(matches!(renderable, Renderable::Dict(_)));
+
+    if let Renderable::Dict(map) = renderable {
+        assert_eq!(map.len(), 2);
+
+        let protected = map.get("protected").unwrap();
+        let plain = map.get("plain").unwrap();
+
+        // PCon field must go through the policy-aware path.
+        assert!(matches!(protected, Renderable::PCon(_)));
+        // Serialize-only field must fall back to the Serialize path.
+        assert!(matches!(plain, Renderable::Serialize(_)));
+
+        if let Renderable::PCon(p) = protected {
+            assert_eq!(pcon_to_string(p), Ok(String::from("\"secret\"")));
+        }
+        if let Renderable::Serialize(s) = plain {
+            assert_eq!(serialize_to_string(s), Ok(String::from("{\"val\":42}")));
+        }
+    }
+}
+
 // Helper: turn Vec<u8> to String.
 fn to_string(v: &Vec<u8>) -> String {
     std::str::from_utf8(v.as_slice()).unwrap().to_string()

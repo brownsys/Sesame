@@ -84,6 +84,27 @@ pub trait PConRender {
     fn render(&self) -> Renderable;
 }
 
+// Helper used by the PConRender derive macro to dispatch field rendering.
+// The inherent impl (T: PConRender) wins over the trait impl (T: Serialize)
+// because Rust always prefers inherent methods over trait methods on the same
+// receiver type. This gives PConRender priority without needing specialization.
+pub struct RenderFieldHelper<'a, T>(pub &'a T);
+
+impl<'a, T: PConRender> RenderFieldHelper<'a, T> {
+    pub fn render_field(&self) -> Renderable<'a> {
+        self.0.render()
+    }
+}
+
+pub trait SerializeFieldFallback<'a> {
+    fn render_field(&self) -> Renderable<'a>;
+}
+impl<'a, T: Serialize> SerializeFieldFallback<'a> for RenderFieldHelper<'a, T> {
+    fn render_field(&self) -> Renderable<'a> {
+        Renderable::Serialize(self.0)
+    }
+}
+
 // Auto implement PConRender for unboxed primitive types.
 macro_rules! render_serialize_impl {
     ($($T:ty),+) => {
