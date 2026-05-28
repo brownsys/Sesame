@@ -196,6 +196,18 @@ impl<T: PConRender> PConRender for Option<T> {
     }
 }
 
+impl<T: PConRender> PConRender for &T {
+    fn render(&self) -> Renderable {
+        (**self).render()
+    }
+}
+
+impl<T: PConRender> PConRender for &mut T {
+    fn render(&self) -> Renderable {
+        (**self).render()
+    }
+}
+
 impl<T: PConRender> PConRender for Box<T> {
     fn render(&self) -> Renderable {
         (**self).render()
