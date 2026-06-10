@@ -5,7 +5,6 @@ use std::pin::Pin;
 use std::task::Poll;
 
 use either::Either;
-use serde::Deserialize;
 
 use crate::context::{Context, ContextData, UnprotectedContext};
 use crate::critical::{CriticalRegion, UncheckedCriticalRegion};
@@ -24,7 +23,6 @@ use pin_project_lite::pin_project;
 
 // Privacy Container type.
 pin_project! {
-    #[derive(Deserialize)]
     pub struct PCon<T, P: Policy> {
         #[pin]
         fb: ObPtr<T>,
