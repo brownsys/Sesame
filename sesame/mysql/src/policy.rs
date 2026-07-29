@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 use sesame::policy::{AnyPolicy, AnyPolicyable, NoPolicy, Policy, PolicyAnd, PolicyOr};
 
@@ -30,9 +30,11 @@ impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
     }
 }
 
-// Global static singleton.
+// Global static singleton. Factories are individually reference
+// counted so a query can snapshot the ones its columns need once and
+// share them across all of its rows without holding the lock.
 type SchemaPolicyFactory = dyn (Fn(&Vec<mysql::Value>) -> AnyPolicy) + Send + Sync;
-type SchemaPolicyMap = HashMap<(String, usize), Vec<Box<SchemaPolicyFactory>>>;
+type SchemaPolicyMap = HashMap<(String, usize), Vec<Arc<SchemaPolicyFactory>>>;
 lazy_static! {
     static ref SCHEMA_POLICIES: RwLock<SchemaPolicyMap> = RwLock::new(SchemaPolicyMap::new());
 }
@@ -46,6 +48,46 @@ fn fold_policies<I: Iterator<Item = AnyPolicy>>(mut policies: I) -> AnyPolicy {
                 policy = AnyPolicy::new(PolicyAnd::new(policy, next));
             }
             policy
+        }
+    }
+}
+
+// The registered factories for every column of a result set, resolved
+// once per query and shared by all of its rows. Indexed by column
+// position; columns with no registered policy hold an empty Vec.
+pub(crate) struct ColumnPolicies {
+    factories: Vec<Vec<Arc<SchemaPolicyFactory>>>,
+}
+
+impl ColumnPolicies {
+    // Resolve the factories for a result set's columns. One lock
+    // acquisition and one map lookup per column, instead of one per
+    // cell. Registration runs in `ctor` functions before main (the
+    // #[schema_policy] macro is the only sanctioned caller of
+    // add_schema_policy), so the registry cannot change between this
+    // snapshot and the rows it serves.
+    pub(crate) fn resolve(columns: &[mysql::Column]) -> Arc<Self> {
+        let map = SCHEMA_POLICIES.read().unwrap();
+        let factories = columns
+            .iter()
+            .enumerate()
+            .map(|(idx, col)| {
+                map.get(&(col.table_str().into_owned(), idx))
+                    .cloned()
+                    .unwrap_or_default()
+            })
+            .collect();
+        Arc::new(ColumnPolicies { factories })
+    }
+
+    // Build the policy for one cell, exactly as get_schema_policies
+    // does: the fold of every registered factory applied to the row,
+    // or NoPolicy when none are registered.
+    pub(crate) fn for_cell(&self, column: usize, row: &Vec<mysql::Value>) -> AnyPolicy {
+        match self.factories.get(column) {
+            None => AnyPolicy::new(NoPolicy {}),
+            Some(factories) if factories.is_empty() => AnyPolicy::new(NoPolicy {}),
+            Some(factories) => fold_policies(factories.iter().map(|factory| factory(row))),
         }
     }
 }
@@ -71,7 +113,7 @@ pub fn add_schema_policy<T: SchemaPolicy + AnyPolicyable>(table_name: String, co
     let mut map = SCHEMA_POLICIES.write().unwrap();
     map.entry((table_name.clone(), column))
         .or_default()
-        .push(Box::new(move |row: &Vec<mysql::Value>| {
+        .push(Arc::new(move |row: &Vec<mysql::Value>| {
             AnyPolicy::new(T::from_row(&table_name, row))
         }));
 }

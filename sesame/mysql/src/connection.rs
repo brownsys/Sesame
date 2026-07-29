@@ -79,7 +79,7 @@ impl SesameConn {
         query: T,
     ) -> PConResult<PConQueryResult<'_, '_, '_, mysql::Text>> {
         let result = self.conn.query_iter(query)?;
-        Ok(PConQueryResult { result })
+        Ok(PConQueryResult::new(result))
     }
 
     // Parameterized query and return iterator to result.
@@ -103,7 +103,7 @@ impl SesameConn {
             Reason::DB(&stmt_str, param_values.iter().collect()),
         )?;
         let result = self.conn.exec_iter(statement, params)?;
-        Ok(PConQueryResult { result })
+        Ok(PConQueryResult::new(result))
     }
 
     // Chained prep and exec function
