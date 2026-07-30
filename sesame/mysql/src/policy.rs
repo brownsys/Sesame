@@ -8,24 +8,24 @@ pub use sesame_derive::schema_policy;
 
 // Schema policies can be constructed from DB rows.
 pub trait SchemaPolicy: Policy {
-    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self
+    fn from_row(table_name: &str, row: &mysql::Row) -> Self
     where
         Self: Sized;
 }
 
 // Impl SchemaPolicy for some policy containers.
 impl SchemaPolicy for NoPolicy {
-    fn from_row(_table_name: &str, _row: &Vec<mysql::Value>) -> Self {
+    fn from_row(_table_name: &str, _row: &mysql::Row) -> Self {
         NoPolicy {}
     }
 }
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyAnd<P1, P2> {
-    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
+    fn from_row(table_name: &str, row: &mysql::Row) -> Self {
         PolicyAnd::new(P1::from_row(table_name, row), P2::from_row(table_name, row))
     }
 }
 impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
-    fn from_row(table_name: &str, row: &Vec<mysql::Value>) -> Self {
+    fn from_row(table_name: &str, row: &mysql::Row) -> Self {
         PolicyOr::new(P1::from_row(table_name, row), P2::from_row(table_name, row))
     }
 }
@@ -33,7 +33,7 @@ impl<P1: SchemaPolicy, P2: SchemaPolicy> SchemaPolicy for PolicyOr<P1, P2> {
 // Global static singleton. Factories are individually reference
 // counted so a query can snapshot the ones its columns need once and
 // share them across all of its rows without holding the lock.
-type SchemaPolicyFactory = dyn (Fn(&Vec<mysql::Value>) -> AnyPolicy) + Send + Sync;
+type SchemaPolicyFactory = dyn (Fn(&mysql::Row) -> AnyPolicy) + Send + Sync;
 type SchemaPolicyMap = HashMap<(String, usize), Vec<Arc<SchemaPolicyFactory>>>;
 lazy_static! {
     static ref SCHEMA_POLICIES: RwLock<SchemaPolicyMap> = RwLock::new(SchemaPolicyMap::new());
@@ -83,7 +83,7 @@ impl ColumnPolicies {
     // Build the policy for one cell, exactly as get_schema_policies
     // does: the fold of every registered factory applied to the row,
     // or NoPolicy when none are registered.
-    pub(crate) fn for_cell(&self, column: usize, row: &Vec<mysql::Value>) -> AnyPolicy {
+    pub(crate) fn for_cell(&self, column: usize, row: &mysql::Row) -> AnyPolicy {
         match self.factories.get(column) {
             None => AnyPolicy::new(NoPolicy {}),
             Some(factories) if factories.is_empty() => AnyPolicy::new(NoPolicy {}),
@@ -93,15 +93,15 @@ impl ColumnPolicies {
 }
 
 // Create policies for a cell given its entire row and the name of its table.
-pub fn get_schema_policies(
-    table_name: String,
-    column: usize,
-    row: &Vec<mysql::Value>,
-) -> AnyPolicy {
+// Query execution resolves policies through ColumnPolicies instead; this is
+// the manual path into the registry, kept (hidden) so registration itself can
+// be tested without a live DB.
+#[doc(hidden)]
+pub fn get_schema_policies(table_name: String, column: usize, row: &mysql::Row) -> AnyPolicy {
     let map = SCHEMA_POLICIES.read().unwrap();
-    match (*map).get(&(table_name, column)) {
-        Option::None => AnyPolicy::new(NoPolicy {}),
-        Option::Some(factories) => fold_policies(factories.iter().map(|factory| factory(row))),
+    match map.get(&(table_name, column)) {
+        None => AnyPolicy::new(NoPolicy {}),
+        Some(factories) => fold_policies(factories.iter().map(|factory| factory(row))),
     }
 }
 
@@ -113,7 +113,7 @@ pub fn add_schema_policy<T: SchemaPolicy + AnyPolicyable>(table_name: String, co
     let mut map = SCHEMA_POLICIES.write().unwrap();
     map.entry((table_name.clone(), column))
         .or_default()
-        .push(Arc::new(move |row: &Vec<mysql::Value>| {
+        .push(Arc::new(move |row: &mysql::Row| {
             AnyPolicy::new(T::from_row(&table_name, row))
         }));
 }

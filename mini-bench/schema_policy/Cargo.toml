@@ -1,0 +1,14 @@
+[package]
+name = "schema_policy"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "schema_policy"
+path = "src/main.rs"
+
+[dependencies]
+sesame = { path = "../../sesame/core" }
+sesame_mysql = { path = "../../sesame/mysql" }
+mysql = "21.0.2"

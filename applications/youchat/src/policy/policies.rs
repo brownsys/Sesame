@@ -102,14 +102,14 @@ impl SimplePolicy for ChatAccessPolicy {
 }
 
 impl SchemaPolicy for ChatAccessPolicy {
-    fn from_row(_table_name: &str, row: &Vec<mysql::Value>) -> Self
+    fn from_row(_table_name: &str, row: &mysql::Row) -> Self
     where
         Self: Sized,
     {
         ChatAccessPolicy {
-            sender: mysql::from_value(row[0].clone()),
-            recipient: mysql::from_value(row[1].clone()),
-            groupchat: mysql::from_value(row[4].clone()),
+            sender: row.get(0).unwrap(),
+            recipient: row.get(1).unwrap(),
+            groupchat: row.get(4).unwrap(),
         }
     }
 }

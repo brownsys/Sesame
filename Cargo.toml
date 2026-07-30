@@ -12,6 +12,7 @@ members = [
     "examples/sandbox/sandbox_lib",
     "applications/youchat",
     # "applications/voltron/server"
+    "mini-bench/schema_policy",
 ]
 
 exclude = [

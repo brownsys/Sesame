@@ -15,13 +15,11 @@ pub use mysql::prelude::ColumnIndex as PConColumnIndex;
 #[derive(Clone)]
 pub struct PConRow {
     row: mysql::Row,
-    raw: Vec<mysql::Value>,
     policies: Arc<ColumnPolicies>,
 }
 impl PConRow {
     pub(super) fn new(row: mysql::Row, policies: Arc<ColumnPolicies>) -> Self {
-        let raw = row.clone().unwrap();
-        PConRow { row, raw, policies }
+        PConRow { row, policies }
     }
 
     pub fn get<T: PConFromValue, I: PConColumnIndex>(
@@ -31,24 +29,18 @@ impl PConRow {
         let columns = self.row.columns_ref();
         let idx = index.idx(columns)?;
         let val = self.row.get(index)?;
-        Some(PCon::new(val, self.policies.for_cell(idx, &self.raw)))
-    }
-
-    pub fn take<T: PConFromValue, I: PConColumnIndex>(
-        &mut self,
-        index: I,
-    ) -> Option<PCon<T, AnyPolicy>> {
-        let columns = self.row.columns_ref();
-        let idx = index.idx(columns)?;
-        let val = self.row.take(index)?;
-        Some(PCon::new(val, self.policies.for_cell(idx, &self.raw)))
+        Some(PCon::new(val, self.policies.for_cell(idx, &self.row)))
     }
 
     pub fn unwrap(self) -> Vec<PConValue> {
-        self.raw
-            .iter()
-            .enumerate()
-            .map(|(i, v)| PCon::new(v.clone(), self.policies.for_cell(i, &self.raw)))
+        let mut policies = Vec::with_capacity(self.row.len());
+        for i in 0..self.row.len() {
+            policies.push(self.policies.for_cell(i, &self.row));
+        }
+        self.row.unwrap()
+            .into_iter()
+            .zip(policies)
+            .map(|(v, p)| PCon::new(v, p))
             .collect()
     }
 }

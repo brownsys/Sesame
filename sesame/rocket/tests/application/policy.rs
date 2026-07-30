@@ -1,4 +1,4 @@
-use mysql::{from_value, Value};
+use mysql::Row;
 use rocket::{http::Cookie, Request};
 use std::collections::HashSet;
 
@@ -36,12 +36,12 @@ impl SimplePolicy for ACLPolicy {
     }
 }
 impl SchemaPolicy for ACLPolicy {
-    fn from_row(_table_name: &str, row: &Vec<Value>) -> Self
+    fn from_row(_table_name: &str, row: &Row) -> Self
     where
         Self: Sized,
     {
         ACLPolicy {
-            users: HashSet::from([String::from("admin"), from_value(row[1].clone())]),
+            users: HashSet::from([String::from("admin"), row.get(1).unwrap()]),
         }
     }
 }

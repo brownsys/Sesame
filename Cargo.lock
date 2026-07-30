@@ -3188,6 +3188,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "schema_policy"
+version = "0.1.0"
+dependencies = [
+ "mysql",
+ "sesame",
+ "sesame_mysql",
+]
+
+[[package]]
 name = "scoped-tls"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3447,6 +3456,7 @@ dependencies = [
  "attribute-derive",
  "erased-serde",
  "mysql",
+ "mysql_common",
  "proc-macro2",
  "quote",
  "rocket",
