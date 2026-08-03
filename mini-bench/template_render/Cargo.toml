@@ -1,0 +1,37 @@
+[package]
+name = "template_render"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "template_render"
+path = "src/lib.rs"
+
+# Experiment 1: PConTemplate::render vs Template::render, standalone.
+[[bin]]
+name = "standalone"
+path = "src/bin/standalone.rs"
+
+# Experiment 2: the same renders over a full HTTP request round trip.
+[[bin]]
+name = "endpoint"
+path = "src/bin/endpoint.rs"
+
+[dependencies]
+sesame = { path = "../../sesame/core" }
+sesame_rocket = { path = "../../sesame/rocket", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+
+# The baseline path, plus Rocket itself for the plain server and both test
+# clients. Same git source as sesame_rocket's own dependencies, so everything
+# resolves to the pinned rev and the `Template` and `Rocket` types unify.
+[dependencies.rocket]
+git = "https://github.com/KinanBab/Rocket.git"
+branch = "main"
+features = ["json"]
+
+[dependencies.rocket_dyn_templates]
+git = "https://github.com/KinanBab/Rocket.git"
+branch = "main"
+features = ["handlebars", "tera"]

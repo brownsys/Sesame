@@ -4133,6 +4133,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "template_render"
+version = "0.1.0"
+dependencies = [
+ "rocket",
+ "rocket_dyn_templates",
+ "serde",
+ "sesame",
+ "sesame_rocket",
+]
+
+[[package]]
 name = "tera"
 version = "1.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

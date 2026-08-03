@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head><title>{{group}}</title></head>
+  <body>
+    <h1>{{group}}</h1>
+    <p>Signed in as {{user}}{{#if admin}} (admin){{/if}}</p>
+    <table>
+      <tr><th>From</th><th>To</th><th>Message</th><th>Time</th></tr>
+      {{#each messages}}
+      <tr>
+        <td>{{this.sender}}</td>
+        <td>{{this.recipient}}</td>
+        <td>{{this.content}}</td>
+        <td>{{this.timestamp}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </body>
+</html>

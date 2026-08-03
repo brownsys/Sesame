@@ -13,6 +13,7 @@ members = [
     "applications/youchat",
     # "applications/voltron/server"
     "mini-bench/schema_policy",
+    "mini-bench/template_render",
 ]
 
 exclude = [
