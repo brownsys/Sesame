@@ -27,20 +27,37 @@ pub fn derive_boxed_serialize_impl(input: DeriveInput) -> TokenStream {
     }
 }
 
+// Pairs every named field with its key, ordered by key rather than by
+// declaration. Names are known at expansion time, so the ordering costs nothing
+// at runtime, and it means `transform` inserts into its output
+// `serde_json::Map` -- a `BTreeMap` -- in ascending order, which is that map's
+// cheapest insertion pattern. The `BTreeMap`-based `Renderable::Dict` used to
+// hand it sorted keys for free; a flat `Vec` in declaration order would not.
+fn sorted_fields<'a>(
+    fields: impl Iterator<Item = &'a syn::Field>,
+) -> Vec<(String, &'a syn::Ident)> {
+    let mut named: Vec<(String, &syn::Ident)> = fields
+        .map(|field| {
+            let ident = field.ident.as_ref().unwrap();
+            (ident.to_string(), ident)
+        })
+        .collect();
+    named.sort_by(|(a, _), (b, _)| a.cmp(b));
+    named
+}
+
 fn derive_struct(data: DataStruct) -> TokenStream {
     match data.fields {
         Fields::Named(fields) => {
-            let puts = fields.named.into_iter().map(|field| {
-                let ident = field.ident.unwrap();
-                let name = ident.to_string();
+            let puts = sorted_fields(fields.named.iter()).into_iter().map(|(name, ident)| {
                 quote! {
-                    map.insert(::std::string::String::from(#name), ::sesame_rocket::render::RenderFieldHelper(&self.#ident).render_field());
+                    (#name, ::sesame_rocket::render::RenderFieldHelper(&self.#ident).render_field()),
                 }
             });
             quote! {
-                let mut map: ::std::collections::BTreeMap<::std::string::String, ::sesame_rocket::render::Renderable<'__impl_pcon_render>> = ::std::collections::BTreeMap::new();
-                #(#puts)*
-                ::sesame_rocket::render::Renderable::Dict(map)
+                ::sesame_rocket::render::Renderable::Object(::std::vec::Vec::from([
+                    #(#puts)*
+                ]))
             }
         }
         Fields::Unnamed(fields) => {
@@ -54,7 +71,7 @@ fn derive_struct(data: DataStruct) -> TokenStream {
         }
         Fields::Unit => {
             quote! {
-                ::sesame_rocket::render::Renderable::Dict(::std::collections::BTreeMap::new())
+                ::sesame_rocket::render::Renderable::Object(::std::vec::Vec::new())
             }
         }
     }
@@ -80,19 +97,17 @@ fn derive_variant(variant: Variant) -> TokenStream {
             }
         }
         Fields::Named(fields) => {
-            let idents: Vec<_> = fields
-                .named
-                .iter()
-                .map(|f| f.ident.as_ref().unwrap())
-                .collect();
-            let names: Vec<String> = idents.iter().map(|i| i.to_string()).collect();
+            let sorted = sorted_fields(fields.named.iter());
+            let names: Vec<&String> = sorted.iter().map(|(name, _)| name).collect();
+            let idents: Vec<&syn::Ident> = sorted.iter().map(|(_, ident)| *ident).collect();
             quote! {
                 Self::#variant_ident { #(#idents),* } => {
-                    let mut inner: ::std::collections::BTreeMap<::std::string::String, ::sesame_rocket::render::Renderable<'__impl_pcon_render>> = ::std::collections::BTreeMap::new();
-                    #( inner.insert(::std::string::String::from(#names), ::sesame_rocket::render::RenderFieldHelper(#idents).render_field()); )*
-                    let mut outer: ::std::collections::BTreeMap<::std::string::String, ::sesame_rocket::render::Renderable<'__impl_pcon_render>> = ::std::collections::BTreeMap::new();
-                    outer.insert(::std::string::String::from(#variant_name), ::sesame_rocket::render::Renderable::Dict(inner));
-                    ::sesame_rocket::render::Renderable::Dict(outer)
+                    ::sesame_rocket::render::Renderable::Object(::std::vec::Vec::from([(
+                        #variant_name,
+                        ::sesame_rocket::render::Renderable::Object(::std::vec::Vec::from([
+                            #( (#names, ::sesame_rocket::render::RenderFieldHelper(#idents).render_field()), )*
+                        ])),
+                    )]))
                 },
             }
         }
@@ -107,20 +122,19 @@ fn derive_variant(variant: Variant) -> TokenStream {
             if count == 1 {
                 quote! {
                     Self::#variant_ident(#(#bindings),*) => {
-                        let mut outer: ::std::collections::BTreeMap<::std::string::String, ::sesame_rocket::render::Renderable<'__impl_pcon_render>> = ::std::collections::BTreeMap::new();
-                        outer.insert(::std::string::String::from(#variant_name), ::sesame_rocket::render::RenderFieldHelper(f0).render_field());
-                        ::sesame_rocket::render::Renderable::Dict(outer)
+                        ::sesame_rocket::render::Renderable::Object(::std::vec::Vec::from([(
+                            #variant_name,
+                            ::sesame_rocket::render::RenderFieldHelper(f0).render_field(),
+                        )]))
                     },
                 }
             } else {
                 quote! {
                     Self::#variant_ident(#(#bindings),*) => {
-                        let mut outer: ::std::collections::BTreeMap<::std::string::String, ::sesame_rocket::render::Renderable<'__impl_pcon_render>> = ::std::collections::BTreeMap::new();
-                        outer.insert(
-                            ::std::string::String::from(#variant_name),
+                        ::sesame_rocket::render::Renderable::Object(::std::vec::Vec::from([(
+                            #variant_name,
                             ::sesame_rocket::render::Renderable::Array(vec![#(::sesame_rocket::render::RenderFieldHelper(#bindings).render_field()),*]),
-                        );
-                        ::sesame_rocket::render::Renderable::Dict(outer)
+                        )]))
                     },
                 }
             }

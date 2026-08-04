@@ -1,5 +1,4 @@
 extern crate erased_serde;
-extern crate figment;
 
 use std::borrow::Cow;
 use std::ops::Deref;
@@ -30,7 +29,7 @@ impl PConTemplate {
         let context = ExtensionContext::new(context);
         let transformed = params.render().transform(name.deref(), &context)?;
         // Now render.
-        let template = rocket_dyn_templates::Template::render(name, transformed);
+        let template = rocket_dyn_templates::Template::render_with_json(name, transformed);
         Ok(PConTemplate { template })
     }
 }

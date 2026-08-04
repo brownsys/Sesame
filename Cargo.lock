@@ -1460,7 +1460,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.4.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -2951,7 +2951,7 @@ dependencies = [
 [[package]]
 name = "rocket"
 version = "0.5.0-rc.1"
-source = "git+https://github.com/KinanBab/Rocket.git?branch=main#ac213c21820c64bcc87b78587e95695d484c7b72"
+source = "git+https://github.com/KinanBab/Rocket.git?branch=main#4e9782b5a5fb589f23b9f286790c005d633a4e6f"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2989,7 +2989,7 @@ dependencies = [
 [[package]]
 name = "rocket_codegen"
 version = "0.5.0-rc.1"
-source = "git+https://github.com/KinanBab/Rocket.git?branch=main#ac213c21820c64bcc87b78587e95695d484c7b72"
+source = "git+https://github.com/KinanBab/Rocket.git?branch=main#4e9782b5a5fb589f23b9f286790c005d633a4e6f"
 dependencies = [
  "devise",
  "glob",
@@ -3020,7 +3020,7 @@ dependencies = [
 [[package]]
 name = "rocket_dyn_templates"
 version = "0.1.0-rc.1"
-source = "git+https://github.com/KinanBab/Rocket.git?branch=main#ac213c21820c64bcc87b78587e95695d484c7b72"
+source = "git+https://github.com/KinanBab/Rocket.git?branch=main#4e9782b5a5fb589f23b9f286790c005d633a4e6f"
 dependencies = [
  "glob",
  "handlebars",
@@ -3048,7 +3048,7 @@ dependencies = [
 [[package]]
 name = "rocket_http"
 version = "0.5.0-rc.1"
-source = "git+https://github.com/KinanBab/Rocket.git?branch=main#ac213c21820c64bcc87b78587e95695d484c7b72"
+source = "git+https://github.com/KinanBab/Rocket.git?branch=main#4e9782b5a5fb589f23b9f286790c005d633a4e6f"
 dependencies = [
  "cookie",
  "either",
@@ -3500,7 +3500,6 @@ dependencies = [
  "cookie",
  "dynfmt",
  "erased-serde",
- "figment",
  "futures",
  "handlebars",
  "indexmap 1.9.3",
@@ -3678,16 +3677,6 @@ checksum = "9f7916fc008ca5542385b89a3d3ce689953c143e9304a9bf8beec1de48994c0d"
 dependencies = [
  "libc",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "socket2"
-version = "0.5.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678"
-dependencies = [
- "libc",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4940,7 +4929,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

@@ -25,10 +25,10 @@ mod mysql {
 }
 
 // Errors that can occur during rendering.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum SesameRenderError {
     SesameError(SesameError),
-    FigmentError(figment::Error),
+    SerializeError(serde_json::Error),
 }
 impl Display for SesameRenderError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -40,7 +40,7 @@ impl<'a, 'r, 'o: 'r> PConResponder<'a, 'r, 'o> for SesameRenderError {
     fn respond_to(self, request: PConRequest<'a, 'r>) -> PConResponseResult<'o> {
         match self {
             SesameRenderError::SesameError(err) => err.respond_to(request),
-            SesameRenderError::FigmentError(_err) => Err(rocket::http::Status::InternalServerError),
+            SesameRenderError::SerializeError(_err) => Err(rocket::http::Status::InternalServerError),
         }
     }
 }
@@ -51,9 +51,9 @@ impl From<SesameError> for SesameRenderError {
         SesameRenderError::SesameError(e)
     }
 }
-impl From<figment::Error> for SesameRenderError {
-    fn from(e: figment::Error) -> Self {
-        SesameRenderError::FigmentError(e)
+impl From<serde_json::Error> for SesameRenderError {
+    fn from(e: serde_json::Error) -> Self {
+        SesameRenderError::SerializeError(e)
     }
 }
 

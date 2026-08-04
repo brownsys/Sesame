@@ -1,11 +1,11 @@
 extern crate erased_serde;
-extern crate figment;
+extern crate serde_json;
 
-use erased_serde::Serialize;
-use figment::value::Value as FValue;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
-
+use erased_serde::Serialize;
+use serde_json::{Error as JError, Map, Value as JValue};
+use serde_json::value::Serializer;
 // Our PCon struct.
 use sesame::extensions::{
     ExtensionContext, SesameExtension, SesameRefExtension, UncheckedSesameExtension,
@@ -23,15 +23,15 @@ type RefPCon<'a> = PCon<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>>;
 
 // Sesame extension that performs policy check then renders template if successful.
 struct RenderPolicyChecker {}
-impl<'a> SesameExtension<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>, figment::Result<FValue>>
+impl<'a> SesameExtension<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>, Result<JValue, JError>>
     for RenderPolicyChecker
 {
     fn apply(
         &mut self,
         data: &'a dyn Serialize,
         _policy: RefPolicy<'a, dyn Policy + 'a>,
-    ) -> figment::Result<FValue> {
-        FValue::serialize(data)
+    ) -> Result<JValue, JError> {
+        serde::Serialize::serialize(data, Serializer)
     }
 }
 
@@ -40,7 +40,7 @@ impl<'a> SesameExtension<&'a dyn Serialize, RefPolicy<'a, dyn Policy + 'a>, figm
 pub enum Renderable<'a> {
     PCon(RefPCon<'a>),
     Serialize(&'a dyn Serialize),
-    Dict(BTreeMap<String, Renderable<'a>>),
+    Object(Vec<(&'a str, Renderable<'a>)>),
     Array(Vec<Renderable<'a>>),
 }
 
@@ -49,29 +49,31 @@ impl<'a> Renderable<'a> {
         self,
         template: &str,
         context: &ExtensionContext,
-    ) -> SesameRenderResult<FValue> {
+    ) -> SesameRenderResult<JValue> {
         match self {
             Renderable::PCon(pcon) => {
                 let mut checker = RenderPolicyChecker {};
                 let reason = Reason::TemplateRender(template);
                 Ok(pcon.checked_extension(&mut checker, context, reason)??)
             }
-            Renderable::Serialize(obj) => Ok(FValue::serialize(obj)?),
-            Renderable::Dict(map) => {
-                let mut tmap: BTreeMap<String, FValue> = BTreeMap::new();
-                for (k, v) in map {
+            Renderable::Serialize(obj) => {
+                Ok(serde::Serialize::serialize(obj, Serializer)?)
+            },
+            Renderable::Object(entries) => {
+                let mut tmap: Map<String, JValue> = Map::with_capacity(entries.len());
+                for (k, v) in entries {
                     let v = v.transform(template, context)?;
-                    tmap.insert(k.clone(), v);
+                    tmap.insert(k.to_string(), v);
                 }
-                Ok(FValue::from(tmap))
+                Ok(JValue::Object(tmap))
             }
             Renderable::Array(vec) => {
-                let mut tvec: Vec<FValue> = Vec::new();
+                let mut tvec: Vec<JValue> = Vec::with_capacity(vec.len());
                 for v in vec {
                     let v = v.transform(template, context)?;
                     tvec.push(v);
                 }
-                Ok(FValue::from(tvec))
+                Ok(JValue::from(tvec))
             }
         }
     }
@@ -166,21 +168,21 @@ impl<T: PConRender> PConRender for Vec<T> {
 // Auto implement PConRender for HashMap.
 impl<T: PConRender> PConRender for HashMap<&str, T> {
     fn render(&self) -> Renderable {
-        let mut map = BTreeMap::new();
+        let mut entries = Vec::with_capacity(self.len());
         for (key, val) in self.iter() {
-            map.insert((*key).into(), val.render());
+            entries.push((*key, val.render()));
         }
-        Renderable::Dict(map)
+        Renderable::Object(entries)
     }
 }
 
 impl<T: PConRender> PConRender for HashMap<String, T> {
     fn render(&self) -> Renderable {
-        let mut map = BTreeMap::new();
+        let mut entries = Vec::with_capacity(self.len());
         for (key, val) in self.iter() {
-            map.insert(key.clone(), val.render());
+            entries.push((key.as_str(), val.render()));
         }
-        Renderable::Dict(map)
+        Renderable::Object(entries)
     }
 }
 
@@ -240,7 +242,7 @@ mod tests {
         assert!(matches!(renderable, Renderable::Serialize(_)));
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
-        assert!(matches!(result, Result::Ok(FValue::String(_, result)) if result == string));
+        assert!(matches!(result, Result::Ok(JValue::String(result)) if result == string));
     }
 
     #[test]
@@ -251,7 +253,7 @@ mod tests {
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
         assert!(
-            matches!(result, Result::Ok(FValue::String(_, result)) if result == pcon.discard_box())
+            matches!(result, Result::Ok(JValue::String(result)) if result == pcon.discard_box())
         );
     }
 
@@ -263,7 +265,7 @@ mod tests {
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
         assert!(
-            matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_test!"))
+            matches!(result, Result::Ok(JValue::String(result)) if result == String::from("my_test!"))
         );
 
         let either = EitherPCon::Right(PCon::new(String::from("my_pcon!"), NoPolicy {}));
@@ -272,7 +274,7 @@ mod tests {
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
         assert!(
-            matches!(result, Result::Ok(FValue::String(_, result)) if result == String::from("my_pcon!"))
+            matches!(result, Result::Ok(JValue::String(result)) if result == String::from("my_pcon!"))
         );
     }
 
@@ -285,10 +287,10 @@ mod tests {
         assert!(matches!(renderable, Renderable::Array(_)));
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
-        assert!(matches!(result, Result::Ok(FValue::Array(_, _))));
-        if let Result::Ok(FValue::Array(_, arr)) = result {
-            assert!(matches!(&arr[0], FValue::String(_, e) if e == "hello"));
-            assert!(matches!(&arr[1], FValue::String(_, e) if e == "bye"));
+        assert!(matches!(result, Result::Ok(JValue::Array(_))));
+        if let Result::Ok(JValue::Array(arr)) = result {
+            assert!(matches!(&arr[0], JValue::String(e) if e == "hello"));
+            assert!(matches!(&arr[1], JValue::String(e) if e == "bye"));
         }
     }
 
@@ -298,13 +300,13 @@ mod tests {
         map.insert("key1", PCon::new(String::from("val1"), NoPolicy {}));
         map.insert("key2", PCon::new(String::from("val2"), NoPolicy {}));
         let renderable = map.render();
-        assert!(matches!(renderable, Renderable::Dict(_)));
+        assert!(matches!(renderable, Renderable::Object(_)));
         let context = ExtensionContext::new(Context::test(()));
         let result = renderable.transform("", &context);
-        assert!(matches!(result, Result::Ok(FValue::Dict(_, _))));
-        if let Result::Ok(FValue::Dict(_, dict)) = result {
-            assert!(matches!(dict.get("key1"), Option::Some(FValue::String(_, e)) if e == "val1"));
-            assert!(matches!(dict.get("key2"), Option::Some(FValue::String(_, e)) if e == "val2"));
+        assert!(matches!(result, Result::Ok(JValue::Object(_))));
+        if let Result::Ok(JValue::Object(dict)) = result {
+            assert!(matches!(dict.get("key1"), Option::Some(JValue::String(e)) if e == "val1"));
+            assert!(matches!(dict.get("key2"), Option::Some(JValue::String(e)) if e == "val2"));
         }
     }
 }

@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use sesame::pcon::PCon;
 use sesame::policy::NoPolicy;
 use sesame_rocket::render::{PConRender, Renderable};
@@ -14,10 +12,10 @@ pub struct Grade {
 
 impl PConRender for Grade {
     fn render(&self) -> Renderable {
-        Renderable::Dict(BTreeMap::from([
-            (String::from("id"), self.id.render()),
-            (String::from("name"), self.name.render()),
-            (String::from("grade"), self.grade.render()),
+        Renderable::Object(Vec::from([
+            ("id", self.id.render()),
+            ("name", self.name.render()),
+            ("grade", self.grade.render()),
         ]))
     }
 }

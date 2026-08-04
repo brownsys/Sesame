@@ -62,6 +62,23 @@ struct WithSerializeField {
     plain: SerializeOnly,
 }
 
+// `Renderable::Object` holds its entries as a flat Vec of (key, value) pairs
+// rather than a map, so tests look a field up by scanning for its key.
+fn field<'e, 'a>(
+    entries: &'e [(&'a str, sesame_rocket::render::Renderable<'a>)],
+    key: &str,
+) -> Option<&'e sesame_rocket::render::Renderable<'a>> {
+    entries.iter().find(|(k, _)| *k == key).map(|(_, v)| v)
+}
+
+// The derive emits entries sorted by key, not in declaration order. Nothing
+// downstream depends on the order -- `transform` inserts into a
+// `serde_json::Map` and handlebars resolves by name -- but the sort is there so
+// those inserts arrive in ascending order, so it is worth pinning down.
+fn keys<'a>(entries: &[(&'a str, sesame_rocket::render::Renderable<'a>)]) -> Vec<&'a str> {
+    entries.iter().map(|(k, _)| *k).collect()
+}
+
 #[test]
 fn serialize_fallback_in_derive() {
     use sesame_rocket::render::{PConRender, Renderable};
@@ -72,13 +89,15 @@ fn serialize_fallback_in_derive() {
     };
 
     let renderable = s.render();
-    assert!(matches!(renderable, Renderable::Dict(_)));
+    assert!(matches!(renderable, Renderable::Object(_)));
 
-    if let Renderable::Dict(map) = renderable {
-        assert_eq!(map.len(), 2);
+    if let Renderable::Object(entries) = renderable {
+        // Sorted by key, so `plain` comes before `protected` despite being
+        // declared second.
+        assert_eq!(keys(&entries), vec!["plain", "protected"]);
 
-        let protected = map.get("protected").unwrap();
-        let plain = map.get("plain").unwrap();
+        let protected = field(&entries, "protected").unwrap();
+        let plain = field(&entries, "plain").unwrap();
 
         // PCon field must go through the policy-aware path.
         assert!(matches!(protected, Renderable::PCon(_)));
@@ -134,23 +153,19 @@ fn simple_render_struct() {
 
     let simple = Simple::new();
     let renderable = simple.render();
-    assert!(matches!(renderable, Renderable::Dict(_)));
+    assert!(matches!(renderable, Renderable::Object(_)));
 
-    if let Renderable::Dict(map) = renderable {
-        assert_eq!(map.len(), 4);
-        assert!(matches!(map.get("t1"), Option::Some(_)));
-        assert!(matches!(map.get("t2"), Option::Some(_)));
-        assert!(matches!(map.get("t3"), Option::Some(_)));
-        assert!(matches!(map.get("t4"), Option::Some(_)));
+    if let Renderable::Object(entries) = renderable {
+        assert_eq!(keys(&entries), vec!["t1", "t2", "t3", "t4"]);
 
-        let t1 = map.get("t1").unwrap();
-        let t2 = map.get("t2").unwrap();
-        let t3 = map.get("t3").unwrap();
-        let t4 = map.get("t4").unwrap();
+        let t1 = field(&entries, "t1").unwrap();
+        let t2 = field(&entries, "t2").unwrap();
+        let t3 = field(&entries, "t3").unwrap();
+        let t4 = field(&entries, "t4").unwrap();
         assert!(matches!(t1, Renderable::PCon(_)));
         assert!(matches!(t2, Renderable::PCon(_)));
         assert!(matches!(t3, Renderable::Serialize(_)));
-        assert!(matches!(t4, Renderable::Dict(_)));
+        assert!(matches!(t4, Renderable::Object(_)));
 
         if let Renderable::PCon(t1) = t1 {
             assert_eq!(pcon_to_string(t1), Ok(String::from("\"hello\"")));
@@ -161,9 +176,9 @@ fn simple_render_struct() {
         if let Renderable::Serialize(t3) = t3 {
             assert_eq!(serialize_to_string(t3), Ok(String::from("\"unprotected\"")));
         }
-        if let Renderable::Dict(t4) = t4 {
-            matches!(t4.get("v"), Option::Some(Renderable::Array(_)));
-            if let Renderable::Array(v) = t4.get("v").unwrap() {
+        if let Renderable::Object(t4) = t4 {
+            assert_eq!(keys(t4), vec!["v"]);
+            if let Renderable::Array(v) = field(t4, "v").unwrap() {
                 assert_eq!(v.len(), 3);
                 assert!(
                     matches!(&v[0], Renderable::PCon(a) if pcon_to_string(a) == Ok(String::from("100")))
@@ -192,10 +207,10 @@ fn enum_newtype_variant() {
     use sesame_rocket::render::{PConRender, Renderable};
     let v = SimpleEnum::Newtype(sesame::pcon::PCon::new(String::from("hello"), NoPolicy {}));
     let r = v.render();
-    assert!(matches!(r, Renderable::Dict(_)));
-    if let Renderable::Dict(outer) = r {
-        assert_eq!(outer.len(), 1);
-        let inner = outer.get("Newtype").unwrap();
+    assert!(matches!(r, Renderable::Object(_)));
+    if let Renderable::Object(outer) = r {
+        assert_eq!(keys(&outer), vec!["Newtype"]);
+        let inner = field(&outer, "Newtype").unwrap();
         assert!(matches!(inner, Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("\"hello\""))));
     }
 }
@@ -208,10 +223,10 @@ fn enum_tuple_variant() {
         sesame::pcon::PCon::new(2u8, NoPolicy {}),
     );
     let r = v.render();
-    assert!(matches!(r, Renderable::Dict(_)));
-    if let Renderable::Dict(outer) = r {
-        assert_eq!(outer.len(), 1);
-        if let Renderable::Array(arr) = outer.get("Tuple").unwrap() {
+    assert!(matches!(r, Renderable::Object(_)));
+    if let Renderable::Object(outer) = r {
+        assert_eq!(keys(&outer), vec!["Tuple"]);
+        if let Renderable::Array(arr) = field(&outer, "Tuple").unwrap() {
             assert_eq!(arr.len(), 2);
             assert!(matches!(&arr[0], Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("1"))));
             assert!(matches!(&arr[1], Renderable::PCon(p) if pcon_to_string(p) == Ok(String::from("2"))));
@@ -229,15 +244,15 @@ fn enum_struct_variant() {
         y: String::from("plain"),
     };
     let r = v.render();
-    assert!(matches!(r, Renderable::Dict(_)));
-    if let Renderable::Dict(outer) = r {
-        assert_eq!(outer.len(), 1);
-        if let Renderable::Dict(inner) = outer.get("Struct").unwrap() {
-            assert_eq!(inner.len(), 2);
-            assert!(matches!(inner.get("x"), Some(Renderable::PCon(p)) if pcon_to_string(p) == Ok(String::from("\"world\""))));
-            assert!(matches!(inner.get("y"), Some(Renderable::Serialize(s)) if serialize_to_string(s) == Ok(String::from("\"plain\""))));
+    assert!(matches!(r, Renderable::Object(_)));
+    if let Renderable::Object(outer) = r {
+        assert_eq!(keys(&outer), vec!["Struct"]);
+        if let Renderable::Object(inner) = field(&outer, "Struct").unwrap() {
+            assert_eq!(keys(inner), vec!["x", "y"]);
+            assert!(matches!(field(inner, "x"), Some(Renderable::PCon(p)) if pcon_to_string(p) == Ok(String::from("\"world\""))));
+            assert!(matches!(field(inner, "y"), Some(Renderable::Serialize(s)) if serialize_to_string(s) == Ok(String::from("\"plain\""))));
         } else {
-            panic!("expected Dict");
+            panic!("expected Object");
         }
     }
 }
