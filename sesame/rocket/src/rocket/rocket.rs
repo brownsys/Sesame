@@ -21,6 +21,17 @@ impl SesameRocket<rocket::Build> {
         }
     }
     // Finish building by launching and awaiting result.
+    /// Launch on a caller-supplied `Listener` instead of Rocket's
+    /// built-in TCP and rustls pair, for applications that bring their
+    /// own TLS stack. Forwards to `Rocket::launch_with_listener`.
+    pub async fn launch_with_listener<L>(self, listener: L) -> Result<(), rocket::Error>
+    where
+        L: rocket::http::private::Listener + Send,
+        <L as rocket::http::private::Listener>::Connection: Send + Unpin + 'static,
+    {
+        self.frontend.launch_with_listener(listener).await
+    }
+
     pub async fn launch(self) -> Result<(), rocket::Error> {
         self.frontend.launch().await
     }
