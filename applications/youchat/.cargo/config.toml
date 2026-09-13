@@ -1,0 +1,4 @@
+[env]
+# Integration tests share a single global backend/DB state, so they must not
+# run concurrently. Equivalent to passing `-- --test-threads=1`.
+RUST_TEST_THREADS = "1"

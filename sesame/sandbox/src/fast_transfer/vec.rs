@@ -39,10 +39,9 @@ impl<T: FastTransfer + Sized> FastTransfer for Vec<T> {
     default fn into_sandbox(outside: Self, sandbox: SandboxInstance) -> Self::TypeInSandbox {
         // Copy everything inside the vector into the sandbox and unswizzle it.
         let mut sandbox_vec = Vec::with_capacity_in(outside.len(), sandbox);
-        outside
-            .into_iter()
-            .map(|b| T::into_sandbox(b, sandbox))
-            .collect_into(&mut sandbox_vec);
+        for b in outside.into_iter() {
+            sandbox_vec.push(T::into_sandbox(b, sandbox));
+        }
 
         // Now, we only need to swizzle the pointer within the sandbox vec, and change sizes
         // of len and cap. The actual heap content of the vec is all done!

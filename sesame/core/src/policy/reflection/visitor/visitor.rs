@@ -152,7 +152,7 @@ mod driver {
     use std::marker::PhantomData;
 
     // Allow us to get an Enum of the same type when we match.
-    enum OneLevelEnum<'r, T: PassType<'r>> {
+    pub enum OneLevelEnum<'r, T: PassType<'r>> {
         NoReflection(T::NoReflection), // Something we cannot use reflection on, e.g. a type that is not std::any::Any.
         Leaf(T::Leaf),
         PolicyAnd(T::Enum, T::Enum),
