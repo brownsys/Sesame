@@ -66,7 +66,7 @@ impl<'c, P: FrontendPolicy> PConCookieBuilder<'c, P> {
             value: self.value,
         }
     }
-    pub fn finish(self) -> PConCookie<'c, P> {
+    pub fn finish(self) -> PConCookie<'static, 'c, P> {
         PConCookie {
             cookie: PConCookieEnum::Write(self.builder.finish(), self.value),
         }
@@ -74,19 +74,19 @@ impl<'c, P: FrontendPolicy> PConCookieBuilder<'c, P> {
 }
 
 // Cookies are pcon-ed by default.
-enum PConCookieEnum<'a, P: FrontendPolicy> {
+enum PConCookieEnum<'a, 'c, P: FrontendPolicy> {
     Read(&'a rocket::http::Cookie<'static>, P),
-    Write(rocket::http::Cookie<'a>, PCon<Cow<'a, str>, P>),
+    Write(rocket::http::Cookie<'c>, PCon<Cow<'c, str>, P>),
 }
-pub struct PConCookie<'a, P: FrontendPolicy> {
-    pub(self) cookie: PConCookieEnum<'a, P>,
+pub struct PConCookie<'a, 'c, P: FrontendPolicy> {
+    pub(self) cookie: PConCookieEnum<'a, 'c, P>,
 }
 
-impl<'c, P: FrontendPolicy> PConCookie<'c, P> {
+impl<'a, 'c, P: FrontendPolicy> PConCookie<'a, 'c, P> {
     pub fn new<N: Into<Cow<'c, str>>, V: Into<Cow<'c, str>>>(
         name: N,
         value: PCon<V, P>,
-    ) -> PConCookie<'c, P> {
+    ) -> PConCookie<'static, 'c, P> {
         Self::build(name, value).finish()
     }
 
@@ -117,8 +117,8 @@ impl<'c, P: FrontendPolicy> PConCookie<'c, P> {
     }
 }
 
-impl<'c, P: FrontendPolicy> From<PConCookie<'c, P>> for PCon<String, P> {
-    fn from(cookie: PConCookie<'c, P>) -> PCon<String, P> {
+impl<'a, 'c, P: FrontendPolicy> From<PConCookie<'a, 'c, P>> for PCon<String, P> {
+    fn from(cookie: PConCookie<'a, 'c, P>) -> PCon<String, P> {
         match cookie.cookie {
             PConCookieEnum::Read(cookie, policy) => PCon::new(String::from(cookie.value()), policy),
             PConCookieEnum::Write(_name, pcon) => pcon.into_pcon(),
@@ -163,7 +163,7 @@ impl<'a, 'r> PConCookieJar<'a, 'r> {
 
     pub fn add<P: FrontendPolicy, D: ContextData>(
         &self,
-        cookie: PConCookie<'static, P>,
+        cookie: PConCookie<'_, 'static, P>,
         ctx: Context<D>,
     ) -> SesameResult<()> {
         match cookie.cookie {
@@ -178,7 +178,7 @@ impl<'a, 'r> PConCookieJar<'a, 'r> {
             }
         }
     }
-    pub fn get<P: FrontendPolicy>(&self, name: &str) -> Option<PConCookie<'a, P>> {
+    pub fn get<P: FrontendPolicy>(&self, name: &str) -> Option<PConCookie<'a, 'static, P>> {
         match self.jar.get(name) {
             None => None,
             Some(cookie) => {
@@ -189,12 +189,10 @@ impl<'a, 'r> PConCookieJar<'a, 'r> {
             }
         }
     }
-    pub fn remove<P: FrontendPolicy>(&self, cookie: PConCookie<'static, P>) {
+    pub fn remove<P: FrontendPolicy>(&self, cookie: PConCookie<'_, 'static, P>) {
         match cookie.cookie {
             PConCookieEnum::Read(cookie, _) => self.jar.remove(cookie.clone()),
-            PConCookieEnum::Write(_, _) => {
-                unreachable!("Get the cookie using get then remove it")
-            }
+            PConCookieEnum::Write(cookie, _) => self.jar.remove(cookie),
         }
     }
     pub fn iter(&self) -> impl Iterator<Item = &str> {
