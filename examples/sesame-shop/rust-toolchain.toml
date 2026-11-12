@@ -1,0 +1,3 @@
+# Sesame's pinned toolchain (see vendor/sesame/rust-toolchain.toml).
+[toolchain]
+channel = "nightly-2024-01-06"

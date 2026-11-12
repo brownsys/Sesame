@@ -6,6 +6,8 @@ Sesame was previously called Alohomora.
 
 Read [our paper](https://cs.brown.edu/courses/csci2390/2024/readings/sesame.pdf)
 
+Check the [sesame-shop tutorial](./examples/sesame-shop/) 
+
 We're currently finalizing renaming our system to Sesame, updating our APIs, and writing documentation. Check back in December!!
 
 ### Outdated parts of the repo that need updating:

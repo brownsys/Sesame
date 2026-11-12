@@ -1,0 +1,17 @@
+[package]
+name = "sesame-shop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rocket = { git = "https://github.com/KinanBab/Rocket.git", branch = "main", features = ["json"] }
+mysql = "21.0.2"
+sesame = { path = "vendor/sesame/sesame/core" }
+sesame_mysql = { path = "vendor/sesame/sesame/mysql" }
+sesame_rocket = { path = "vendor/sesame/sesame/rocket", features = ["mysql"] }
+
+# mysql 21.x depends on bitvec 0.22, whose funty 1.2 dependency is yanked.
+# Keep the required mysql version usable for fresh dependency resolutions by
+# sourcing that exact published funty release locally.
+[patch.crates-io]
+funty = { path = "vendor/funty" }
